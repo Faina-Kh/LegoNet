@@ -50,14 +50,14 @@ class Detection:
     ratios=None
 
 
-
 class Counting:
-    crops_size = [1024, 1024]
-    map_1_R = (5, 5)
+    crops_size = [640,640]
+    map_1_R = (6, 6)
     map_2_R = (5, 5)
     map_3_R = (5, 3)
     map_4_R = (3, 5)
     map_5_R = (3, 3)
+
     calc_det_performance = True
     do_nmcs = False
     counting_type = 'reg_fpn_p3_p7_min_sig' #('reg_fpn_p3' #) #'withKeyPoints'
@@ -78,3 +78,6 @@ class detect_and_count:
 
 class detect_with_points:
     detect_points = False
+
+class roots_ablations:
+    freeze_all_except_find_2 = False

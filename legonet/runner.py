@@ -208,100 +208,71 @@ def run(args=None):
         dataloader_val = DataLoader(dataset_val, num_workers=args.num_workers, collate_fn=args.collater, batch_sampler=sampler_val)
 
 
-    # Loading model\weights
-    if args.use_checkpoint:
-        legonet = torch.load(args.model_path)
-
-    else:
-
-        if not args.separate_training:
-            if args.run_script=='train':
-                legonet = model.LEGONet(dataset_train = dataset_train, network_type = args.network_type,
-                                        backbone_type = args.backbone_type,
-                                        num_classes=dataset_train.num_classes(), pretrained=True,
-                                        min_score = config.Detection.min_score,
-                                        output_size = args.output_size,
-                                        version = args.version,
-                                        separate_training = args.separate_training
-
-                                        )
-            else: #
-                legonet = model.LEGONet(dataset_train=dataset_val, network_type=args.network_type,
-                                        backbone_type=args.backbone_type,
-                                        num_classes=dataset_val.num_classes(), pretrained=True,
-                                        min_score=config.Detection.min_score,
-                                        output_size = args.output_size,
-                                        version = args.version,
-                                        separate_training = args.separate_training
-                                        )
 
 
-        # print('#########################################')
-        # w = legonet.find_1.feature_classification.output_counting.weight.data
-        # b = legonet.find_1.feature_classification.output_counting.bias.data
-        #
-        # print('w counting: ', torch.min(w), torch.max(w))
-        # print('b: counting', torch.min(b), torch.max(b))
-        #
-        # w2 = legonet.find_1.feature_classification.output.weight.data
-        # b2 = legonet.find_1.feature_classification.output.bias.data
-        # print('w counting: ', torch.min(w2), torch.max(w2))
-        # print('b: counting', torch.min(b2), torch.max(b2))
-        # print('#########################################')
+    # build the model
+    if args.run_script=='train':
+        legonet = model.LEGONet(dataset_train = dataset_train, network_type = args.network_type,
+                                backbone_type = args.backbone_type,
+                                num_classes=dataset_train.num_classes(), pretrained=True,
+                                min_score = config.Detection.min_score,
+                                output_size = args.output_size,
+                                version = args.version,
+                                separate_training = args.separate_training
 
-        if args.load_weights:
+                                )
+    else: # Inference
+        legonet = model.LEGONet(dataset_train=dataset_val, network_type=args.network_type,
+                                backbone_type=args.backbone_type,
+                                num_classes=dataset_val.num_classes(), pretrained=True,
+                                min_score=config.Detection.min_score,
+                                output_size = args.output_size,
+                                version = args.version,
+                                separate_training = args.separate_training
+                                )
 
-            if args.load_partial_weights_only:
+    # Loading weights
+    if args.load_weights:
 
-                print('Loading partial weights from: ', args.partial_weights_dir)
+        if args.load_partial_weights_only:
 
-                util.load_module_weights(legonet, "backbone_for_detect", os.path.join(args.partial_weights_dir, 'backbone_for_detect'))
-                util.load_module_weights(legonet, "find_for_detect", os.path.join(args.partial_weights_dir, "find_for_detect"))
-                util.load_module_weights(legonet, "Where_Module", os.path.join(args.partial_weights_dir, "Where_Module"))
+            print('Loading partial weights from: ', args.partial_weights_dir)
 
-
-                # util.load_module_weights(legonet, "backbone_for_count", os.path.join(args.partial_weights_dir, 'backbone_for_count'))
-                # util.load_module_weights(legonet, "CountWithRegModule", os.path.join(args.partial_weights_dir, "CountWithRegModule"))
-
-                # util.load_module_weights(legonet, "find_for_count", os.path.join(args.weights_dir ,args.partial_weights_dir, "find_for_count"))
-                # util.load_module_weights(legonet, "Lean_Counting_Module", os.path.join(args.weights_dir, args.partial_weights_dir, "Lean_Counting_Module"))
-
-                # for name, param in legonet.named_parameters():
-                #     print(name, param.requires_grad)
-
-            elif args.load_model_and_partial:
-                # print('Loading weights from: ', args.model_path)
-                # util.load_model_weights(source_model_path=args.model_path, destination_model=legonet)
-
-                print('Loading partial weights from: ', args.partial_weights_dir)
-                util.load_module_weights(legonet, "backbone_for_detect",
-                                         os.path.join(args.partial_weights_dir, 'backbone_for_detect'))
-                util.load_module_weights(legonet, "find_for_detect",
-                                         os.path.join(args.partial_weights_dir, "find_for_detect"))
-                util.load_module_weights(legonet, "Where_Module",
-                                         os.path.join(args.partial_weights_dir, "Where_Module"))
+            util.load_module_weights(legonet, "backbone_for_detect", os.path.join(args.partial_weights_dir, 'backbone_for_detect'))
+            util.load_module_weights(legonet, "find_for_detect", os.path.join(args.partial_weights_dir, "find_for_detect"))
+            util.load_module_weights(legonet, "Where_Module", os.path.join(args.partial_weights_dir, "Where_Module"))
 
 
-                if args.load_more_partial:
-                    for key in args.additional_modules_weights.keys():
-                        print(key)
-                        if key=="find_2_b":
-                            util.load_module_weights_noName(legonet, key, os.path.join(args.additional_modules_weights[key]))
-                            continue
+            # util.load_module_weights(legonet, "backbone_for_count", os.path.join(args.partial_weights_dir, 'backbone_for_count'))
+            # util.load_module_weights(legonet, "CountWithRegModule", os.path.join(args.partial_weights_dir, "CountWithRegModule"))
 
-                        if key=="backbone_2_b":
-                            util.load_module_weights_noName(legonet, key, os.path.join(args.additional_modules_weights[key]))
-                            continue
+            # util.load_module_weights(legonet, "find_for_count", os.path.join(args.weights_dir ,args.partial_weights_dir, "find_for_count"))
+            # util.load_module_weights(legonet, "Lean_Counting_Module", os.path.join(args.weights_dir, args.partial_weights_dir, "Lean_Counting_Module"))
 
-                        util.load_module_weights_noName(legonet, key, os.path.join(args.additional_modules_weights[key], key))
+            # for name, param in legonet.named_parameters():
+            #     print(name, param.requires_grad)
 
-                        print(key)
+            if args.load_more_partial: # roots ablations
+                for key in args.additional_modules_weights.keys():
+                    print(key)
+                    if key=="find_2_b":
+                        util.load_module_weights_noName(legonet, key, os.path.join(args.additional_modules_weights[key]))
+                        continue
+
+                    if key=="backbone_2_b":
+                        util.load_module_weights_noName(legonet, key, os.path.join(args.additional_modules_weights[key]))
+                        continue
+
+                    util.load_module_weights_noName(legonet, key, os.path.join(args.additional_modules_weights[key], key))
+
+                    print(key)
+
+        else:
+            print('Loading weights from: ', args.weights_file_path)
+            state_dict = torch.load(args.weights_file_path, map_location=config.General.device)
+            legonet.load_state_dict(state_dict, strict=False)
 
 
-
-            else:
-                print('Loading weights from: ', args.model_path)
-                util.load_model_weights(source_model_path=args.model_path, destination_model=legonet)
 
 
     if args.network_type == "both" or args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
@@ -316,9 +287,8 @@ def run(args=None):
             for param in legonet.where.parameters():
                 param.requires_grad = False
 
-    if args.freeze_all_except_find_2: # find_2
+    if config.roots_ablations.freeze_all_except_find_2: # find_2
         # freeze gradients of detection
-
         for param in legonet.backbone_2.parameters():
             param.requires_grad = False
 
@@ -329,8 +299,6 @@ def run(args=None):
         for param in legonet.LeanCountingModule_diameter.parameters():
             param.requires_grad = False
 
-
-
     use_gpu = True
 
     # if torch.cuda.device_count() > 1:
@@ -338,7 +306,7 @@ def run(args=None):
     #     legonet = torch.nn.DataParallel(legonet)
 
     if use_gpu:
-        legonet = legonet.to(config.General.device)#to(config.General.device)
+        legonet = legonet.to(config.General.device) #to(config.General.device)
 
     if isinstance(legonet, torch.nn.DataParallel):
         legonet.module.freeze_bn()
@@ -1351,7 +1319,6 @@ def run_offline_validation_double_detection(args=None):
             print()
 
 
-
 def run_offline_validation(args=None):
 
     if config.detect_and_count.crop_from_Pi:
@@ -1487,7 +1454,6 @@ def run_offline_validation(args=None):
             print('best_abs_orig_avg_rel_error = {}, best_iou_th = {}, best_min_score = {}'.format(best_abs_error, best_iou_th, best_min_score ))
 
 
-
 def visualize_detection(args, save_path = ""):
 
 
@@ -1613,6 +1579,5 @@ def visualize_detection(args, save_path = ""):
             img.show()
             img.save(os.path.join(save_path, image_name + "_annot.jpg"))
 
-if __name__ == '__main__':
-    x = 0
+
 

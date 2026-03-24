@@ -521,10 +521,6 @@ class FindModule(nn.Module):
                 self.linear = torch.nn.Linear(6400,1)
                 self.sigmoid_for_binary_2 = torch.nn.Sigmoid()
 
-        if config.General.other:
-            a=1
-
-
 
     def forward(self, inputs):
 
@@ -574,19 +570,19 @@ class FindModule(nn.Module):
                 cls_output_MaxPooled = self.LocalNMS(cls_output_Step_Function1)
                 cls_output_Step_Function2 = self.SmoothStepFunction1(cls_output_MaxPooled)
 
-                if (config.General.binary_model and not config.prev_color_model) or (config.General.other):
+                if config.General.binary_model: #(config.General.binary_model and not config.prev_color_model) or config.General.other
                     x1 = cls_output_Step_Function2.unsqueeze(dim=1)
                     x1 = self.conv1(x1)
                     x1 = self.act_1(x1)
                     x1 = self.conv2(x1)
 
-                    if config.General.other:
-                        a=1
-                    else:
-                        x1 = self.sigmoid_for_binary(x1)
-                        x1 = x1.view(x1.shape[0],6400)
-                        x1 = self.linear(x1)
-                        cls_output_downsampled = self.sigmoid_for_binary_2(x1)
+                    # if config.General.other:
+                    #     a=1
+                    # else:
+                    x1 = self.sigmoid_for_binary(x1)
+                    x1 = x1.view(x1.shape[0],6400)
+                    x1 = self.linear(x1)
+                    cls_output_downsampled = self.sigmoid_for_binary_2(x1)
 
                 else:
                     cls_output_downsampled = self.GlobalSumPooling2D(cls_output_Step_Function2)
@@ -690,7 +686,7 @@ class new_FindModule(nn.Module):
         self.GlobalSumPooling2D = GlobalSumPooling2D()
         self.focalLoss = modular_losses.focal_gyf()
 
-        if config.detect_and_count.use_new_Find or (self.task == 'counting' and not config.prev_color_model):
+        if config.detect_and_count.use_new_Find or self.task == 'counting': #(self.task == 'counting' and not config.prev_color_model)
             if config.General.with_new_layers:
                 self.sigmoid_for_binary = torch.nn.Sigmoid()
                 self.conv1 = nn.Conv2d(in_channels = 1, out_channels = 256, kernel_size=3, padding=1)
@@ -753,20 +749,6 @@ class new_FindModule(nn.Module):
                 cls_output_Step_Function1 = self.SmoothStepFunction(classification_output)
                 cls_output_MaxPooled = self.LocalNMS(cls_output_Step_Function1)
                 cls_output_Step_Function2 = self.SmoothStepFunction1(cls_output_MaxPooled)
-
-                # if config.General.binary_model and not config.prev_color_model:
-                #     x1 = cls_output_Step_Function2.unsqueeze(dim=1)
-                #     x1 = self.conv1(x1)
-                #     x1 = self.act_1(x1)
-                #     x1 = self.conv2(x1)
-                #     x1 = self.sigmoid_for_binary(x1)
-                #     x1 = x1.view(x1.shape[0],6400)
-                #     x1 = self.linear(x1)
-                #     cls_output_downsampled = self.sigmoid_for_binary_2(x1)
-                #
-                # else:
-                #     cls_output_downsampled = self.GlobalSumPooling2D(cls_output_Step_Function2)
-
 
                 if config.Counting.Find_for_count:
                     cls_output_downsampled = self.GlobalSumPooling2D(cls_output_Step_Function2)
@@ -1404,7 +1386,7 @@ class LeanCountingModule(nn.Module):
             self.binaryLoss = torch.nn.BCELoss()
 
 
-        if loss_for == "color" and not config.prev_color_model:
+        if loss_for == "color": #and not config.prev_color_model
             self.conv1 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1)
             self.conv1.weight.data.normal_(mean=0.0, std=0.01)
             self.conv1.bias.data.zero_()
@@ -1430,7 +1412,7 @@ class LeanCountingModule(nn.Module):
             classification = SFMS_list[i]['find_maps']
             classification_last_map_for_reg = classification[-2]
 
-            if config.General.binary_model and not config.prev_color_model:
+            if config.General.binary_model: #and not config.prev_color_model
                 # This makes sure, the 256-feature vector will not have only positive values
                 classification_last_map_for_reg = self.conv1(classification_last_map_for_reg.permute(0,3,1,2))
                 classification_last_map_for_reg = self.sigmoid_for_binary1(classification_last_map_for_reg).permute(0,2,3,1)

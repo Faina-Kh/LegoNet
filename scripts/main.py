@@ -5,9 +5,12 @@ import torch
 import time
 import config
 import paths
+import numpy as np
 
 import warnings
 warnings.filterwarnings("ignore")
+
+import legonet.runner
 
 startTime = time.time()
 
@@ -49,26 +52,49 @@ STORAGE_PATH = r"C:\Users\bordezki\Desktop"
 args.dataset_name = "grapes" #"roots"
 args.network_type = "detection"
 
-args.run_script = 'validation' #'train' #validation
-assert args.run_script =='train' or args.run_script =='validation'
-
 args.have_GT = True
-
-if args.run_script =='train':
-    assert args.have_GT == True
-    args.epochs = 300
-
-
-args.num_workers = 0 # 0 - for single processing
-
-args.batch_size = 1
-
-args.output_size = 1
-
+args.run_script = 'validation' #'train' #validation
+args.num_of_epochs = 300
 args.do_Kfold = False
 
+# task specific definitions - organize per task type
+args.freeze_detection = False
+args.eval_in_train = True
+args.train_in_turns = False
+
+config.Counting.counting_type = 'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
+
+current_results_dir = "twoBack_keyP_diff radii"
+#"grapes diff radii"
+#"grapes_twoBack_keyP_sameRadii_train perfect det_fancy aug_20Per_test perfect det"
+#"grapes_twoBack_keyP_sameRadii_perfect det_fancy aug_40Per"
+#'grapes_twoBack_keyP_different radii_fixed' #"grapes_twoBack_keyP_sameRadii_perfect det_fancy aug_40Per" #"grapes_twoBack_keyP_sameRadii_perfect det_fancy aug_30Per"
+#"grapes_reg P3_P7_crop from P3_fluid"
+#"grapes_twoBack_keyP_sameRadii_perfect det_fancy aug_20Per"
+#"grapes_twoBack_reg_P3_P5_fixed with better detector"
+#"grapes_twoBack_keyP_sameRadii_perfect det_fancy aug_20Per" #"grapes_twoBack_reg_P3_P5_fixed with better detector"
+#"grapes_twoBack_keyP_sameRadii_perfect det_fancy aug" #"grapes_twoBack_keyP_sameRadii_perfect det_fixed aug"
+#"grapes_twoBack_reg_checkGrads"
+#grapes_twoBack_reg_P3_P5_fluid_new" #"grapes_twoBack_keypoints_sameRadi_fluid_new"
+#"grapes_twoBack_reg_P3_P5_fluid_new"
+#"grapes_twoBack_keypoints_sameRadi_fluid_new"
+#"grapes_twoBack_keypoints_sameRadi_fluid" #"grapes_twoBack_reg_P3_P5_fluid"
+
+
+config.General.to_draw = True
+config.Counting.calc_det_performance = True
+
+config.detect_and_count.two_backbones = True
+
+
+######################################################################
 # ToDo - to resolve
 ######################################################################
+
+args.num_workers = 0 # 0 - for single processing
+args.batch_size = 1
+args.output_size = 1
+
 args.pre_process = 'torch_like' #'keras_like'  # torch_like
 args.backbone_type = "ResNetBackboneModule"
 args.lean_version = ""
@@ -76,11 +102,46 @@ args.loss_weight = 1  # 1  #1000 #10 #100
 config.General.binary_version = ""
 config.General.dataset_name= args.dataset_name
 
+
+######################################################################
+# weights related
 ######################################################################
 
+# True if loading pre-trained weights
+args.load_weights = False
+args.weights_file_path = ""
+
+args.load_partial_weights_only = False
+args.partial_weights_dir = ""
+#"C:\\Users\\Aragorn\\Google Drive\\StoragePath\\ExpResults (1)\\KK_Exp_Results_last\\grapes_twoBack_keypoints_sameRadi_fluid_new\\saved_weights_cont_14"
+# #os.path.join(results_dir, 'wheat_MS5_s0.7_640\\saved_weights_211\\detector_weights')
+#os.path.join(results_dir,'grapes_twoBack_reg_P3_P5_fluid_new', 'saved_weights_164')
+
+#######################################################################################################
+
+
+######################################################################
+
+myPaths = paths.get_paths(STORAGE_PATH, args.dataset_name)
+myDatasetsPath = myPaths["DATASETS_PATH"]
+results_dir = myPaths["EXP_RESULTS_PATH"]
+
+config.General.experiment_path = os.path.join(results_dir, current_results_dir)
+if not config.General.experiment_path == '':
+    if not os.path.exists(config.General.experiment_path):
+        os.makedirs(config.General.experiment_path)
+
 assert args.dataset_name == "grapes" or args.dataset_name == "roots"
-assert (args.network_type == "detection" or args.network_type == "counting_lean" or args.network_type == "counting_reg" or
-        args.network_type == "both" or args.network_type == "both_for_roots_2")
+assert (args.network_type == "detection" or args.network_type == "counting_lean" or
+        args.network_type == "counting_reg" or args.network_type == "both" or args.network_type == "both_for_roots_2")
+
+assert config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig' or config.Counting.counting_type == 'withKeyPoints'
+
+assert args.run_script =='train' or args.run_script =='validation'
+if args.run_script =='train':
+    assert args.have_GT == True
+    args.epochs = args.num_of_epochs
+
 
 if args.run_script == 'train':
     val_set = "Val"
@@ -95,9 +156,6 @@ else:
 # Define the data format and network options
 ########################################################################################################################
 
-myPaths = paths.get_paths(STORAGE_PATH, args.dataset_name)
-myDatasetsPath = myPaths["DATASETS_PATH"]
-
 if args.dataset_name == "grapes":
     args.dataset_type = "kcsv"
 
@@ -109,7 +167,6 @@ elif args.dataset_name == "roots":
 else:
     args.dataset_type = "coco"
     args.dataset_name = 'tomato_fruit_12_3_18'
-
 
 if args.network_type == "detection":
     config.General.NETWORK_TYPE = config.NetworkType.detection
@@ -174,11 +231,25 @@ elif args.dataset_type == "csv_LCC" and args.dataset_name != "roots":
     args.val_csv_leaf_location_file = os.path.join(myDatasetsPath, args.dataset_name, 'val',
                                                    ds + '_Val_leaf_location.csv')
 
-############################################################################
+########################################################################################################################
+# Run the code
+########################################################################################################################
 
+# Run training or validation of a specific model
+legonet.runner.run(args)
 
-# task specific definitions - organize per task type
+# run validation on multiple models with different min_score and iou_threshold
+#legonet.runner.run_offline_validation(args)
 
-args.separate_training = False
-config.prev_color_model = False
-args.freeze_all_except_find_2 = False
+#legonet.runner.visualize_detection(args)
+
+########################################################################################################################
+
+executionTime = (time.time() - startTime)
+print('Execution time in minutes: ' + str(executionTime/60))
+
+if args.txt_results != "":
+    with open(args.txt_results, 'a') as f:
+        f.write('Execution time in minutes: ' + str(executionTime/60))
+
+########################################################################################################################
