@@ -1,5 +1,22 @@
 import os
 import sys
+import torch
+import argparse
+import collections
+import numpy as np
+
+import config
+import paths
+import legonet.runner
+
+
+# torch.set_default_dtype(torch.double)
+import torch.optim as optim
+from torchvision import transforms
+#assert torch.__version__.split('.')[0] == '1'
+
+import warnings
+warnings.filterwarnings("ignore")
 
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 SEARCH_DIR = CURRENT_DIR
@@ -11,43 +28,18 @@ while not (os.path.exists(os.path.join(SEARCH_DIR, "config.py")) and os.path.isd
 if SEARCH_DIR not in sys.path:
     sys.path.insert(0, SEARCH_DIR)
 
-current_gpu = '2'
 
-os.environ["CUDA_VISIBLE_DEVICES"] = current_gpu
-print('Running on gpu {}'.format(current_gpu))
+# Check if GPU is available
+config.General.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-import warnings
-warnings.filterwarnings("ignore")
+# set GPU if available
+if config.General.device.type == 'cuda':
+    current_gpu = '0'
+    os.environ["CUDA_VISIBLE_DEVICES"] = current_gpu
+    print('Running on gpu {}'.format(current_gpu))
+else:
+    print('Running on cpu')
 
-
-###########################################################
-#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-###########################################################
-
-import argparse
-import collections
-import numpy as np
-import config
-
-import torch
-# torch.set_default_dtype(torch.double)
-import torch.optim as optim
-from torchvision import transforms
-
-assert torch.__version__.split('.')[0] == '1'
-
-print('CUDA available: {}'.format(torch.cuda.is_available()))
-
-
-# storagePath
-import paths
-myStoragePath = paths.STORAGE_PATH
-myDatasetsPath = paths.DATASETS_PATH
-myExpResultsPath = paths.EXP_RESULTS_PATH
-myModelsPath = paths.MODELS_PATH
-
-
-import legonet.runner
 
 def parse_args(args):
     parser = argparse.ArgumentParser(description='training script.')
@@ -61,7 +53,6 @@ args = None
 if args is None:
     args = sys.argv[1:]
     args = parse_args(args)
-
 
 ########################################################################################################################
 # GPU and workers settings
@@ -102,27 +93,36 @@ args.lean_version = ""  #"version_2", "version_3" #"version_1"
 # Define the paths
 ########################################################################################################################
 
+STORAGE_PATH = r"C:\Users\bordezki\Desktop\LegoNet"
+args.dataset_name = "grapes" #"roots"
+
+assert args.dataset_name == "grapes" or args.dataset_name == "roots"
+
+myPaths = paths.get_paths(STORAGE_PATH, args.dataset_name)
+myDatasetsPath = myPaths["DATASETS_PATH"]
+
+
 if args.dataset_type == "coco":
     args.dataset_name = 'tomato_fruit_12_3_18'
 
-    args.dataset_path = os.path.join(myDatasetsPath, 'Phenomics data', args.dataset_name)
+    #args.dataset_path = os.path.join(myDatasetsPath, 'Phenomics data', args.dataset_name)
 
-# TODO: THIS IS MY BEST EVER DATA FORMAT FOR EVERYTHING!!!!!!!!!!!!!
+
 elif args.dataset_type == 'kcsv':
 
-    args.dataset_name = "grapes" #"131_wheat_spikes_and_spikelets" #"banana_last"
+    #args.dataset_name = "grapes" #"131_wheat_spikes_and_spikelets" #"banana_last"
 
     config.General.dataset_name= args.dataset_name
 
-    args.dataset_path = os.path.join(myDatasetsPath,'KK_datasets', args.dataset_name) #'Faina_datasets'
+    #args.dataset_path = os.path.join(myDatasetsPath,'KK_datasets', args.dataset_name) #'Faina_datasets'
 
-    args.kcsv_train = os.path.join(args.dataset_path, 'train.kcsv')  #os.path.join(args.dataset_path, "train", 'train_MS5.kcsv') #"train_9K_0.3.kcsv") #"train_9K.kcsv")
+    args.kcsv_train = os.path.join(myDatasetsPath, 'train.kcsv')  #os.path.join(args.dataset_path, "train", 'train_MS5.kcsv') #"train_9K_0.3.kcsv") #"train_9K.kcsv")
     #args.kcsv_val = None
-    args.kcsv_val = os.path.join(args.dataset_path, 'val.kcsv') #"val", 'val_MS5.kcsv') #"val_9K_0.3.kcsv") #"val_9K.kcsv")
-    args.kcsv_test = os.path.join(args.dataset_path, 'test.kcsv') #"test", 'test_MS5.kcsv') #"test_9K_0.3.kcsv") #"test_9K.kcsv")
-    args.kcsv_classes = os.path.join(args.dataset_path, "classes.kcsv")
+    args.kcsv_val = os.path.join(myDatasetsPath, 'val.kcsv') #"val", 'val_MS5.kcsv') #"val_9K_0.3.kcsv") #"val_9K.kcsv")
+    args.kcsv_test = os.path.join(myDatasetsPath, 'test.kcsv') #"test", 'test_MS5.kcsv') #"test_9K_0.3.kcsv") #"test_9K.kcsv")
+    args.kcsv_classes = os.path.join(myDatasetsPath, "classes.kcsv")
 
-    assert args.dataset_name == "131_wheat_spikes_and_spikelets" or args.dataset_name == "banana_last" or args.dataset_name == "grapes"
+    #assert args.dataset_name == "131_wheat_spikes_and_spikelets" or args.dataset_name == "banana_last" or args.dataset_name == "grapes"
 
 elif args.dataset_type == "csv_LCC":
 
@@ -148,13 +148,13 @@ args.epochs = 300
 # Choose what script to run
 ########################################################################################################################
 
-args.run_script = 'validation' #'train' #validation
+args.run_script = 'train' #'train' #validation
 assert args.run_script=='train' or args.run_script=='validation'
 
-args.val_file = args.kcsv_test
-
-if args.val_file == args.kcsv_test:
-    config.General.MODE='test'
+# args.val_file = args.kcsv_test
+#
+# if args.val_file == args.kcsv_test:
+#     config.General.MODE='test'
 
 ########################################################################################################################
 # Run the code
@@ -205,8 +205,9 @@ elif args.dataset_name == "banana_last":
 # Run the code
 ########################################################################################################################
 
-results_dir = 'C:\\Users\\Aragorn\\Desktop'  #os.path.join('C:\\Users\\Aragorn\\Google Drive\\StoragePath\\ExpResults', 'KK_Exp_Results_last') #C:\\Users\\Aragorn\\Google Drive\\StoragePath\\ExpResults #myExpResultsPath
-current_results_dir = "grapes diff radii"
+results_dir = myPaths["EXP_RESULTS_PATH"] #'C:\\Users\\Aragorn\\Desktop'  #os.path.join('C:\\Users\\Aragorn\\Google Drive\\StoragePath\\ExpResults', 'KK_Exp_Results_last') #C:\\Users\\Aragorn\\Google Drive\\StoragePath\\ExpResults #myExpResultsPath
+current_results_dir = "twoBack_keyP_diff radii"
+#"grapes diff radii"
 #"grapes_twoBack_keyP_sameRadii_train perfect det_fancy aug_20Per_test perfect det"
 #"grapes_twoBack_keyP_sameRadii_perfect det_fancy aug_40Per"
 #'grapes_twoBack_keyP_different radii_fixed' #"grapes_twoBack_keyP_sameRadii_perfect det_fancy aug_40Per" #"grapes_twoBack_keyP_sameRadii_perfect det_fancy aug_30Per"
@@ -251,9 +252,9 @@ args.partial_weights_dir = "" #"C:\\Users\\Aragorn\\Google Drive\\StoragePath\\E
 
 args.load_model_and_partial = False
 
-args.freeze_detection = True
+args.freeze_detection = False
 
-args.eval_in_train = False
+args.eval_in_train = True
 args.train_in_turns = False
 config.Counting.do_nmcs = True
 
@@ -282,7 +283,7 @@ config.Counting.counting_type = 'withKeyPoints'
 
 assert config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig' or config.Counting.counting_type == 'withKeyPoints'
 
-config.Counting.num_of_pyr_levels = 3
+config.Counting.num_of_pyr_levels = 5
 
 config.detect_and_count.two_backbones = True
 config.detect_and_count.single_backbone = False

@@ -24,7 +24,8 @@ import numpy as np
 import cv2
 from torchvision import transforms
 from PIL import Image, ImageDraw
-import dataloader, kcsv_dataloader
+import dataloader
+from legacy_scripts import kcsv_dataloader
 import matplotlib.pyplot as plt
 
 from itertools import compress

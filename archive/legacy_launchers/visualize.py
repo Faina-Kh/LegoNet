@@ -14,11 +14,7 @@ if SEARCH_DIR not in sys.path:
 os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 import numpy as np
-import torchvision
-import time
 
-import copy
-import pdb
 import time
 import argparse
 
@@ -26,13 +22,11 @@ import cv2
 import config
 
 import torch
-from torch.utils.data import Dataset, DataLoader
-from torchvision import datasets, models, transforms
+from torch.utils.data import DataLoader
+from torchvision import transforms
 
-from legonet.dataloader import CocoDataset, kcsv_collater, Resizer, AspectRatioBasedSampler, Augmenter, \
-	UnNormalizer, Normalizer
+from legonet.dataloader import KCSVDataset, CocoDataset, kcsv_collater, Resizer, AspectRatioBasedSampler, UnNormalizer, Normalizer
 
-from legonet.kcsv_dataloader import KCSVDataset
 
 
 assert torch.__version__.split('.')[0] == '1'

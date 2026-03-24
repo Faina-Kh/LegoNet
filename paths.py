@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 
-def get_dataset_path(STORAGE_PATH, dataset_name):
+def get_paths(STORAGE_PATH, dataset_name):
 
     paths = {}
 
@@ -19,7 +19,7 @@ def get_dataset_path(STORAGE_PATH, dataset_name):
     paths["EXP_RESULTS_PATH"] = EXP_RESULTS_PATH
 
     for d in paths.keys():
-        Path(d).mkdir(parents=True, exist_ok=True)
+        Path(d).mkdir(exist_ok=True) #parents=True,
 
     return paths
 

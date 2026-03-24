@@ -1,10 +1,7 @@
 import os
 #os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-import sys
-import argparse
 import collections
-import re
 import numpy as np
 import time
 import torch
@@ -12,13 +9,12 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import config
-import csv
-from . import metrics
+from legonet import metrics
 from legonet import util
-from legonet.eval import kcsv_eval, coco_eval, counting_eval, kcsv_eval_2
+from legonet.eval import coco_eval, counting_eval, kcsv_eval_2
 from legonet.eval import both_eval_new_241 as both_eval
 from dataloader import CocoDataset, collater, Resizer, AspectRatioBasedSampler, Augmenter, Normalizer, UnNormalizer, csv_LCCDataset, LCC_collater, kcsv_collater
-from kcsv_dataloader import KCSVDataset
+from legacy_scripts.kcsv_dataloader import KCSVDataset
 from PIL import Image, ImageDraw, ImageFont
 import random
 import gc

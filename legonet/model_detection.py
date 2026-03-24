@@ -1,21 +1,17 @@
 import torch
 import torch.nn as nn
 import torchvision.ops
-import torchvision.transforms as T
-
 
 import losses
 import anchors
 
 import math, copy, time
-import os
 import PIL
 
 import legos_3
 
 import util
 import config
-from efficientdet.models import efficientnet, efficientdet
 from efficientdet.models.retinahead import RetinaHead
 
 from torchvision.ops import roi_align
@@ -23,10 +19,8 @@ from torchvision.ops import roi_align
 from legonet.dataloader import UnNormalizer
 import numpy as np
 import cv2
-from torchvision import transforms
 from PIL import Image, ImageDraw
-import dataloader, kcsv_dataloader
-import matplotlib.pyplot as plt
+import dataloader
 
 from itertools import compress
 from legonet.eval.both_eval_new import choose_boxes_by_IoUandPrc
