@@ -120,16 +120,22 @@ def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05,
             # detection_outputs, counting_outputs, corrected_counting_anns = legonet([image.cuda().float(), [data['bbox_annot'], data['points_annot']],
             #      torch.tensor(group_idx)])
             if config.General.NETWORK_TYPE == config.NetworkType.detection:
-                detection_outputs = model([image.to(config.General.device).float(),
-                                                                        data['bbox_annot'].to(config.General.device)])
-                    #[image.cuda().float(), [data['bbox_annot'], None], torch.tensor(group_idx), False])  # image.cuda().float().unsqueeze(dim=0))
+                detection_outputs = model(
+                    [image.cuda().float(), [data['bbox_annot'], None], torch.tensor(group_idx), False])  # image.cuda().float().unsqueeze(dim=0))
             else:
 
                 if config.detect_and_count.type == "both_for_roots" or config.detect_and_count.type == "both_for_roots_2":
                     if 'points_annot' in data.keys():
-                        detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
-                            model([image.cuda().float(), [data['bbox_annot'], data['points_annot']],
-                                   torch.tensor(group_idx), True])
+
+                        if not config.detect_with_points.detect_points:
+                            detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
+                                model([image.cuda().float(), [data['bbox_annot'], data['points_annot']],
+                                       torch.tensor(group_idx), True])
+                        else:
+                            detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes =\
+                                model([image.cuda().float(),
+                                     [data['bbox_annot'].cuda(), data['points_annot'], data["per_obj_maps"]],
+                                       torch.tensor(group_idx), True])
 
                     else:
                         continue
@@ -624,14 +630,14 @@ def evaluateMAP_simple(generator,
 
     if generate_PR_curve:
         plt.plot(recall, precision)
-        plt.title(f'mAP={(np.mean(mAP)):.3f}')
+        plt.title('mAP='+ str(np.mean(mAP)))
         plt.grid(True)
         plt.xlabel("Recall")
         plt.ylabel("Precision")
-        plt.savefig(os.path.join(config.DrawProperties.save_img_path,"PR_curve_objects.png"))
+        plt.savefig(os.path.join(config.General.experiment_path,"PR_curve_objects.png"))
 
 
-
+    #
     # precision_idx=  np.argsort(-precision)
     # precision2=precision[precision_idx]
     # recall2=recall[precision_idx]

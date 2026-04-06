@@ -16,7 +16,7 @@ from util import printf
 from legonet.eval.counting_eval import SumOfAbsDifferences
 from legonet.eval.kcsv_eval_2 import _get_count_and_box_annotations, compute_overlap, _compute_ap
 from legonet.eval.count_detection_eval import detection_evaluation, calc_recall_precision_ap
-from legonet.dataloader import UnNormalizer
+from legonet.myDataloader import UnNormalizer
 
 import config
 import copy
@@ -407,7 +407,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True):
 
             # run the network
             detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
-                model([image.cuda().float(), [data['bbox_annot'], data['points_annot']], torch.tensor(group_idx), True]) #image.cuda().float().unsqueeze(dim=0))
+                model([image.to(config.General.device).float(), [data['bbox_annot'], data['points_annot']], torch.tensor(group_idx), True]) #image.cuda().float().unsqueeze(dim=0))
 
             if count_outputs is not None:
                 for c_out in count_outputs[0]:

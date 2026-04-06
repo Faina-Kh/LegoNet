@@ -128,8 +128,6 @@ def plot_RP_curve(recall, precision, ap, save_path):
     plt.savefig(plot_path)
     plt.close(plot_path)
 
-
-
 def eval(generator, Image_name, model):
     save_path = ""
     T, P = [], []

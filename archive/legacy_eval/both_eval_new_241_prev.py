@@ -439,7 +439,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
     if args.have_GT:
         all_box_annotations, all_count_annotations = _get_count_and_box_annotations(dataset)
 
-    with ((torch.no_grad())):
+    with torch.no_grad():
 
         # for counting
         T, P = [], []
@@ -685,8 +685,11 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                 if len(box_annotations_all)>1:
                     box_annotations_all = torch.cat(box_annotations_all, dim=0)
                 else:
-                    if len(box_annotations_all)>0:
-                        box_annotations_all=box_annotations_all[0]
+                    if not config.detect_with_points.detect_points:
+                        if len(box_annotations_all)>0:
+                            box_annotations_all=box_annotations_all[0]
+
+
 
                 ##############################################################
                 # get stats - count gt boxes with gt points
@@ -701,39 +704,49 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
 
             # run the network
+            if not config.detect_with_points.detect_points:
 
-            #image.cuda().float().unsqueeze(dim=0))
+                 #image.cuda().float().unsqueeze(dim=0))
 
-            if not args.have_GT:
-                detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
-                    model([image.to(config.General.device).float(), None, torch.tensor(group_idx), True])
-                input = [image.to(config.General.device).float(), None, torch.tensor(group_idx), True]
+                if not args.have_GT:
+                    detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
+                        model([image.to(config.General.device).float(), None, torch.tensor(group_idx), True])
+                    input = [image.to(config.General.device).float(), None, torch.tensor(group_idx), True]
 
-            elif 'points_annot' in data.keys():  # true when evaluating during training
-                detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
-                    model([image.to(config.General.device).float(), [data['bbox_annot'], data['points_annot']], torch.tensor(group_idx), True])
-                input = [image.to(config.General.device).float(), [data['bbox_annot'], data['points_annot']], torch.tensor(group_idx),
-                         True]
+                elif 'points_annot' in data.keys():  # true when evaluating during training
+                    detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
+                        model([image.to(config.General.device).float(), [data['bbox_annot'], data['points_annot']], torch.tensor(group_idx), True])
+                    input = [image.to(config.General.device).float(), [data['bbox_annot'], data['points_annot']], torch.tensor(group_idx),
+                             True]
+                else:
+                    detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
+                        model([image.to(config.General.device).float(), [data['bbox_annot'], None], torch.tensor(group_idx), True]) #image.cuda().float().unsqueeze(dim=0))
+                    input = [image.to(config.General.device).float(), [data['bbox_annot'], None], torch.tensor(group_idx), True]
+
+
+                # if iter_num==0:
+                #     print("Both_2 FLOPS:")
+                #
+                #     # Use thop to profile the model
+                #     input = input
+                #     flops, params = profile(model, inputs=(input,))
+                #
+                #     # Print the estimated FLOPS and parameters
+                #     flops_str, params_str = clever_format([flops, params], "%.3f")
+                #     print(f"FLOPS: {flops_str}")
+                #     print(f"Params: {params_str}")
+
+
+
             else:
+
+                if 'points_annot' not in data.keys():
+                    data['points_annot'] = []
+                    data["per_obj_maps"] = []
+
                 detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
-                    model([image.to(config.General.device).float(), [data['bbox_annot'], None], torch.tensor(group_idx), True]) #image.cuda().float().unsqueeze(dim=0))
-                input = [image.to(config.General.device).float(), [data['bbox_annot'], None], torch.tensor(group_idx), True]
-
-
-            # if iter_num==0:
-            #     print("Both_2 FLOPS:")
-            #
-            #     # Use thop to profile the model
-            #     input = input
-            #     flops, params = profile(model, inputs=(input,))
-            #
-            #     # Print the estimated FLOPS and parameters
-            #     flops_str, params_str = clever_format([flops, params], "%.3f")
-            #     print(f"FLOPS: {flops_str}")
-            #     print(f"Params: {params_str}")
-
-
-
+                    model([image.cuda().float(), [data['bbox_annot'], data['points_annot'], data["per_obj_maps"]], torch.tensor(group_idx),
+                           True])  # image.cuda().float().unsqueeze(dim=0))
 
 
             # from torchsummary import summary
@@ -940,9 +953,14 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
                     all_crops_GT_detections_maps = []
 
+
                 if 'points_annot' not in count_sample.keys():
                     count_sample['points_annot']=[]
 
+            else:
+                if config.detect_with_points.detect_points:
+                    count_sample = {}
+                    count_sample['points_annot'] = []
 
             if not isinstance(bbox_pred, list):
 
@@ -981,6 +999,8 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
                             if current_count ==0: #empty crop
                                 crops_without_gt_points +=1
+                            if config.detect_with_points.detect_points:
+                                crops_count_GT.append(-1)
 
                             crops_count_GT.append(current_count)  # just to know if its an empty crop
 
@@ -1016,24 +1036,27 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                         # filtering the predictions - need to find predicted boxes (and maps) with gt points in them
                         if current_count == 0:
                             crops_without_gt_points +=1
+                            if config.detect_with_points.detect_points:
+                                crops_count_GT.append(-1)
                             if to_draw:
                                 relevant_points.append([])
 
                         else:
-                            # rescale points (from orig coordinates) to the crop (the 'new image')
-                            points_of_current_crop['x'] = points_of_current_crop['x'] - (x1 * np.ones(len(points_of_current_crop['x'])))
-                            points_of_current_crop['y'] = points_of_current_crop['y'] - (y1 * np.ones(len(points_of_current_crop['y'])))
+                            if not config.detect_with_points.detect_points:
+                                # rescale points (from orig coordinates) to the crop (the 'new image')
+                                points_of_current_crop['x'] = points_of_current_crop['x'] - (x1 * np.ones(len(points_of_current_crop['x'])))
+                                points_of_current_crop['y'] = points_of_current_crop['y'] - (y1 * np.ones(len(points_of_current_crop['y'])))
 
-                            if not config.detect_and_count.crop_from_Pi:
-                                scale_x = config.Counting.crops_size[0] / (x2 - x1)
-                                scale_y = config.Counting.crops_size[1] / (y2 - y1)
-                            else:
-                                scale_x = count_sample['img'].shape[2] / (x2 - x1)
-                                scale_y = count_sample['img'].shape[3] / (y2 - y1)
+                                if not config.detect_and_count.crop_from_Pi:
+                                    scale_x = config.Counting.crops_size[0] / (x2 - x1)
+                                    scale_y = config.Counting.crops_size[1] / (y2 - y1)
+                                else:
+                                    scale_x = count_sample['img'].shape[2] / (x2 - x1)
+                                    scale_y = count_sample['img'].shape[3] / (y2 - y1)
 
 
-                            points_of_current_crop['x'] = points_of_current_crop['x'] * scale_x
-                            points_of_current_crop['y'] = points_of_current_crop['y'] * scale_y
+                                points_of_current_crop['x'] = points_of_current_crop['x'] * scale_x
+                                points_of_current_crop['y'] = points_of_current_crop['y'] * scale_y
 
                             if to_draw:
                                 points_to_view = []
@@ -1045,35 +1068,36 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
                             if config.Counting.counting_type == 'withKeyPoints':
                                 # generate gt gaussian maps for the crop
-                                annotations_group_points_center = [points_of_current_crop]
+                                if not config.detect_with_points.detect_points:
+                                    annotations_group_points_center = [points_of_current_crop]
 
-                                annotation_map_1 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
-                                                                                        annotations_group_points_center,
-                                                                                        radius=config.Counting.map_1_R)
-                                annotation_map_2 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
-                                                                                        annotations_group_points_center,
-                                                                                        radius=config.Counting.map_2_R)
-                                annotation_map_3 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
-                                                                                        annotations_group_points_center,
-                                                                                        radius=config.Counting.map_3_R)
-                                annotation_map_4 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
-                                                                                        annotations_group_points_center,
-                                                                                        radius=config.Counting.map_4_R)
-                                annotation_map_5 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
-                                                                                        annotations_group_points_center, radius=config.Counting.map_5_R)
+                                    annotation_map_1 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
+                                                                                            annotations_group_points_center,
+                                                                                            radius=config.Counting.map_1_R)
+                                    annotation_map_2 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
+                                                                                            annotations_group_points_center,
+                                                                                            radius=config.Counting.map_2_R)
+                                    annotation_map_3 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
+                                                                                            annotations_group_points_center,
+                                                                                            radius=config.Counting.map_3_R)
+                                    annotation_map_4 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
+                                                                                            annotations_group_points_center,
+                                                                                            radius=config.Counting.map_4_R)
+                                    annotation_map_5 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
+                                                                                            annotations_group_points_center, radius=config.Counting.map_5_R)
 
-                                count_sample['points_annot'].append([[current_count],
-                                                                     annotation_map_1, annotation_map_2, annotation_map_3,
-                                                                     annotation_map_4, annotation_map_5])
+                                    count_sample['points_annot'].append([[current_count],
+                                                                         annotation_map_1, annotation_map_2, annotation_map_3,
+                                                                         annotation_map_4, annotation_map_5])
 
-                                # keep predictions and gt only for those that have gt points
-                                all_crops_GT_detections_maps.append(count_sample['points_annot'][-1][5][0])
-                                all_predicted_detection_maps.append(orig_predicted_detection_maps[-1][b])
-                                if to_draw and config.DrawProperties.DRAW_MAPS: #draw_maps:
-                                    all_predicted_detection_maps_toDraw.append([
-                                        orig_predicted_detection_maps[0][b], orig_predicted_detection_maps[1][b],
-                                        orig_predicted_detection_maps[2][b], orig_predicted_detection_maps[3][b],
-                                        orig_predicted_detection_maps[4][b]])
+                                    # keep predictions and gt only for those that have gt points
+                                    all_crops_GT_detections_maps.append(count_sample['points_annot'][-1][5][0])
+                                    all_predicted_detection_maps.append(orig_predicted_detection_maps[-1][b])
+                                    if to_draw and config.DrawProperties.DRAW_MAPS: #draw_maps:
+                                        all_predicted_detection_maps_toDraw.append([
+                                            orig_predicted_detection_maps[0][b], orig_predicted_detection_maps[1][b],
+                                            orig_predicted_detection_maps[2][b], orig_predicted_detection_maps[3][b],
+                                            orig_predicted_detection_maps[4][b]])
 
                             elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
                                 count_sample['points_annot'].append([[current_count]])
@@ -1081,7 +1105,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                             crops_count_GT.append(current_count)
 
 
-            if count_sample is not None:
+            if count_sample is not None or config.detect_with_points.detect_points:
                 if len(crops_count_GT)>0:
                     max_gt_count_of_crop = np.max(crops_count_GT)
                 else:
@@ -1090,8 +1114,8 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                 if max_gt_count_of_crop == -1 and not (config.detect_and_count.type == "both_for_roots" or config.detect_and_count.type == "both_for_roots_2"):
                     count_sample = None
                 else:
-                    if config.Counting.counting_type == 'withKeyPoints':
-                        if not config.detect_and_count.type == "both_for_roots_2":
+                    if config.Counting.counting_type == 'withKeyPoints' and not config.detect_with_points.detect_points:
+                        if not (config.detect_and_count.type == "both_for_roots" or config.detect_and_count.type == "both_for_roots_2"):
                             all_crops_GT_detections_maps = torch.tensor(all_crops_GT_detections_maps)
                         elif args.have_GT:
                             all_crops_GT_detections_maps = torch.cat([torch.unsqueeze(map, dim=0) for map in all_crops_GT_detections_maps], dim=0)
@@ -1321,6 +1345,62 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                         not_found_gt[image_name]['color_pred'].append(-1)
 
 
+            # get gt points maps for detected boxes for the detect_with_points model
+            if config.Counting.counting_type == 'withKeyPoints':
+                # find gt gaussian maps for the crop
+                if config.detect_with_points.detect_points:
+                    for b in range(bbox_pred.shape[0]):
+                        if len(detections_data_any_crop[image_name]['gt_box_id'])>0:
+                            true_id = detections_data_any_crop[image_name]['gt_box_id'][b]
+
+                            if true_id!= -1:
+                                true_id = int(true_id.item()) #true_id starts from 1
+                                if config.detect_with_points.detect_points:
+                                    annotation_map_1, annotation_map_2, annotation_map_3, annotation_map_4, annotation_map_5 = \
+                                        [np.array(data["per_obj_maps"][1][true_id-1][0])], [np.array(data["per_obj_maps"][1][true_id-1][1])], \
+                                        [np.array(data["per_obj_maps"][1][true_id-1][2])], [np.array(data["per_obj_maps"][1][true_id-1][3])], \
+                                        [np.array(data["per_obj_maps"][1][true_id-1][4])]
+
+                                    point_anns = data['points_annot'][0][0][true_id-1]
+                                    count_sample['points_annot'].append([[point_anns[0].item(), point_anns[3].item(), point_anns[4].item()],
+                                                                         annotation_map_1, annotation_map_2, annotation_map_3,
+                                                                         annotation_map_4, annotation_map_5])
+
+                                    # keep predictions and gt only for those that have gt points
+                                    all_crops_GT_detections_maps.append(count_sample['points_annot'][-1][5][0])
+                                    all_predicted_detection_maps.append(orig_predicted_detection_maps[-1][b])
+                                    if to_draw and config.DrawProperties.DRAW_MAPS: #draw_maps:
+                                        all_predicted_detection_maps_toDraw.append([
+                                            orig_predicted_detection_maps[0][b], orig_predicted_detection_maps[1][b],
+                                            orig_predicted_detection_maps[2][b], orig_predicted_detection_maps[3][b],
+                                            orig_predicted_detection_maps[4][b]])
+
+                            else:
+                                if count_sample is None:
+                                    count_sample = {}
+                                    count_sample['points_annot'] = []
+
+                                if not (config.detect_and_count.type == "both_for_roots" or config.detect_and_count.type == "both_for_roots_2"):
+                                    count_sample['points_annot'].append([-1])
+                                    all_predicted_detection_maps_toDraw.append([-1])
+
+                        #else:
+                        #     count_sample['points_annot'].append([-1])
+                        #     all_predicted_detection_maps_toDraw.append([-1])
+
+                        if config.Counting.counting_type == 'withKeyPoints':
+                            if len(all_crops_GT_detections_maps) >0:
+                                all_crops_GT_detections_maps = torch.tensor(all_crops_GT_detections_maps)
+                                if len(all_predicted_detection_maps)>1:
+                                    for i in range(len(all_predicted_detection_maps)):
+                                        all_predicted_detection_maps[i] = all_predicted_detection_maps[i].unsqueeze(dim=0)
+
+                                    if config.detect_with_points.detect_points:
+                                        all_predicted_detection_maps = torch.cat(all_predicted_detection_maps, dim=0)
+                                else:
+                                    all_predicted_detection_maps = all_predicted_detection_maps[0].unsqueeze(dim=0)
+
+
             # add info of not found gt boxes without gt points?
             # gt_boxes_without_points_num=len(box_annotations_all)-len(box_annotations_withPoints)
             # if gt_boxes_without_points_num>0:
@@ -1405,6 +1485,27 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
                         if verbose:
 
+                            if config.detect_with_points.detect_points:
+                                printf(
+                                    "box: %d | crops_count_GT: %d | count_predicted: %d (%.3f) | ",
+                                    i, crops_count_GT[i], np.round(count_pred[i]), count_pred[i])
+
+                                # if config.detect_and_count.type == "both_for_roots":
+                                #     printf(
+                                #         "box: %d | crops_TRL_GT: %.3f | TRL_predicted:%.3f | crops_dia_GT: %.3f | dia_predicted: %.3f | ",
+                                #         i, crops_TRL_GT[i], TRL_pred[i],  crops_dia_GT[i], dia_pred[i])
+
+
+                                if crops_count_GT[i] != -1:
+                                    printf("abs_diff: %.3f | rel_error: %.3f\n", crops_abs_diff[-1], crops_rel_error[-1])
+
+                                    # if config.detect_and_count.type == "both_for_roots":
+                                    #     printf("TRL_abs_diff: %.3f | TRL_rel_error: %.3f | dia_abs_diff: %.3f | dia_rel_error: %.3f \n",
+                                    #            crops_abs_diff_TRL[-1], crops_rel_error_TRL[-1], crops_abs_diff_dia[-1], crops_rel_error_dia[-1] )
+
+                                else:
+                                    printf("abs_diff:-1 | rel_error: -1\n")
+
                             if (not (config.detect_and_count.type == "both_for_roots" or config.detect_and_count.type == "both_for_roots_2") and len(orig_count_GT) > 0) \
                                     or ((config.detect_and_count.type == "both_for_roots" or config.detect_and_count.type == "both_for_roots_2") and len(orig_color_GT) > 0):
 
@@ -1447,9 +1548,24 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                 #if crops_count_GT[i] != 0: #crops_count_GT[i] != -1:
                                     #bbox_crop = count_sample['img'][i].clone()
                                     if not config.detect_and_count.crop_from_Pi:
-                                        bbox_crop = count_sample['img'][i].clone()
+                                        if not config.detect_with_points.detect_points:
+                                            bbox_crop = count_sample['img'][i].clone()
+
+                                    else:
+                                        # count_sample['img'][i] is the crop from P3, we want to visualize on the img crop
+                                        x1_crop = adjusted_crops_orig_boxes[i, 0]
+                                        y1_crop = adjusted_crops_orig_boxes[i, 1]
+                                        x2_crop = adjusted_crops_orig_boxes[i, 2]
+                                        y2_crop = adjusted_crops_orig_boxes[i, 3]
+                                        box_to_crop=[torch.tensor([x1_crop.item(), y1_crop.item(), x2_crop.item(), y2_crop.item()]).unsqueeze(dim=0)]
+                                        crop_output_size=[80,80] #ch.tensor([3,80,80]).unsqueeze(dim=0)
+                                        bbox_crop = roi_align(input=image,     #orig_img.unsqueeze(dim=0),
+                                                              boxes=box_to_crop,
+                                                              output_size=crop_output_size)
+
 
                                     # view the crops per image
+                                    #if config.detect_with_points.detect_points:
                                     img2 = Image.open(image_path) # the orig image
                                     imgToVis = img2.copy()
 
@@ -1482,27 +1598,37 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                     box_name_2 = image_name.split(".jpg")[0] + '_crop_on_image_' + str(i) + '.jpg'  # image_name.split('.jpg')[0]+'_crop_'+str(i)+'.jpg'
                                     img2.save(os.path.join(draw_path, box_name_2))
 
-                                    bbox_img = bbox_crop.cpu().clone().detach()
-                                    bbox_img = np.array(255 * unnormalize(bbox_img))
-                                    bbox_img[bbox_img < 0] = 0
-                                    bbox_img[bbox_img > 255] = 255
-                                    if config.detect_and_count.crop_from_Pi:
-                                        bbox_img=bbox_img.squeeze()
+                                    if not config.detect_with_points.detect_points: #else:
+                                        bbox_img = bbox_crop.cpu().clone().detach()
+                                        bbox_img = np.array(255 * unnormalize(bbox_img))
+                                        bbox_img[bbox_img < 0] = 0
+                                        bbox_img[bbox_img > 255] = 255
+                                        if config.detect_and_count.crop_from_Pi:
+                                            bbox_img=bbox_img.squeeze()
 
-                                    bbox_img = np.transpose(bbox_img, (1, 2, 0))
+                                        bbox_img = np.transpose(bbox_img, (1, 2, 0))
 
-                                    img3 = transforms.ToPILImage(mode='RGB')(bbox_img.astype(np.uint8))
-                                    imgToVis = img3.copy()
+                                        img3 = transforms.ToPILImage(mode='RGB')(bbox_img.astype(np.uint8))
+                                        imgToVis = img3.copy()
 
-                                    draw3 = PIL.ImageDraw.Draw(img3)
+                                        draw3 = PIL.ImageDraw.Draw(img3)
 
-                                    for j in range(len(relevant_points[i])): #points per box
-                                        x = relevant_points[i][j]['x']
-                                        y = relevant_points[i][j]['y']
-                                        draw3.ellipse(((int(x) - 5, int(y) - 5), (int(x) + 5, int(y) + 5)), fill="black", width=config.DrawProperties.LINE_WIDTH)
 
-                                    box_name_3 = image_name.split(".jpg")[0] + '_crop_' + str(i) + '.jpg'
-                                    img3.save(os.path.join(crops_path, box_name_3))
+                                        for j in range(len(relevant_points[i])): #points per box
+                                            x = relevant_points[i][j]['x']
+                                            y = relevant_points[i][j]['y']
+
+                                            if not config.detect_with_points.detect_points:
+                                                draw3.ellipse(((int(x) - 5, int(y) - 5), (int(x) + 5, int(y) + 5)), fill="black", width=config.DrawProperties.LINE_WIDTH)
+                                            else:
+                                                if not config.detect_with_points.detect_points:
+                                                    draw2.ellipse(((int(x) - 5, int(y) - 5), (int(x) + 5, int(y) + 5)),
+                                                                  fill="black", width=config.DrawProperties.LINE_WIDTH)
+
+                                        if not config.detect_with_points.detect_points:
+                                            box_name_3 = image_name.split(".jpg")[0] + '_crop_' + str(i) + '.jpg'
+
+                                            img3.save(os.path.join(crops_path, box_name_3))
 
                                     if config.Counting.counting_type == 'withKeyPoints' and crops_count_GT[i] != 0 and config.DrawProperties.DRAW_MAPS: #draw_maps:
 
@@ -1510,17 +1636,26 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                         if not (config.detect_and_count.type == "both_for_roots" or config.detect_and_count.type == "both_for_roots_2"):
                                             if len(count_sample['points_annot'][i]) > 1:
                                                 for p in [1, 2, 3, 4, 5]:
-                                                    true_maps.append(count_sample['points_annot'][maps_idx][p][0].copy())
+                                                    if not config.detect_with_points.detect_points:
+                                                        true_maps.append(count_sample['points_annot'][maps_idx][p][0].copy())
+                                                    else:
+                                                        true_maps.append(count_sample['points_annot'][i][p][0].copy())
 
                                         else:
                                             for p in [1, 2, 3, 4, 5]:
                                                 map = np.array(count_sample['points_annot'][p][i]).copy()
                                                 true_maps.append(map)
 
+
+
                                         pred_maps = []
                                         if len(all_predicted_detection_maps_toDraw[i])>1:
                                             for p in range(5):
-                                                pred_maps.append(all_predicted_detection_maps_toDraw[maps_idx][p])
+                                                if not config.detect_with_points.detect_points:
+                                                    pred_maps.append(all_predicted_detection_maps_toDraw[maps_idx][p])
+                                                else:
+                                                    pred_maps.append(all_predicted_detection_maps_toDraw[i][p])
+
 
                                         # visualize all maps
                                         if config.DrawProperties.DRAW_MAPS:

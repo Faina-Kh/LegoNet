@@ -15,11 +15,11 @@ def get_paths(STORAGE_PATH, dataset_name):
     EXP_RESULTS_PATH = os.path.join(STORAGE_PATH, "ExpResults")
 
     paths["DATASETS_PATH"] = DATASETS_PATH
-    paths["MODELS_PATH"] = MODELS_PATH
+    #paths["MODELS_PATH"] = MODELS_PATH
     paths["EXP_RESULTS_PATH"] = EXP_RESULTS_PATH
 
     for d in paths.keys():
-        Path(d).mkdir(exist_ok=True) #parents=True,
+        Path(paths[d]).mkdir(exist_ok=True)
 
     return paths
 

@@ -649,24 +649,23 @@ class KCSVDataset(Dataset):
     """KCSV dataset."""
 
     def __init__(self,
-                 train_file,
+                 input_file,
                  class_list = None,
                  base_dir = None,
                  image_min_side = 800,
                  image_max_side = 1333,
                  pre_process = 'keras_like',
                  transform = None,
-                 lean_version = "",
                  dataset_type = "",
                  have_GT = True
                  ):
         """
         Args:
-            train_file (string): CSV file with training annotations
+            input_file (string): CSV file with training annotations
             annotations (string): CSV file with class list
             test_file (string, optional): CSV file with testing annotations
         """
-        self.train_file = train_file
+        self.train_file = input_file
         self.class_list = class_list
         self.transform = transform
 
@@ -674,7 +673,6 @@ class KCSVDataset(Dataset):
         self.image_min_side = image_min_side
         self.image_max_side = image_max_side
         self.pre_process = pre_process
-        self.lean_version = lean_version
 
         self.dataset_type = dataset_type
 
@@ -683,7 +681,7 @@ class KCSVDataset(Dataset):
 
         # Take base_dir from annotations file if not explicitly specified.
         if self.base_dir is None:
-            self.base_dir = os.path.dirname(train_file)
+            self.base_dir = os.path.dirname(input_file)
 
         if self.dataset_type != "roots_json":
             # parse the provided class file
@@ -823,31 +821,6 @@ class KCSVDataset(Dataset):
             else:
                 bbox_annot, points_annot = None, None
 
-        if config.General.dataset_name =='grapes':
-            boxes_to_remove = []
-            for p_annot in points_annot[0]:
-                if math.isnan(p_annot[1]):
-                    boxes_to_remove.append(p_annot[2])
-
-            points_counts=points_annot[0]
-            points_coords = points_annot[1]
-            for box_id in boxes_to_remove:
-                #result1 = np.where(bbox_annot == box_id)
-                #bbox_annot=np.delete(bbox_annot,result1[0][0],0)
-                for idx1 in range(len(bbox_annot)):
-                    if bbox_annot[idx1][5]==box_id:
-                        bbox_annot = np.delete(bbox_annot,[idx1], 0)
-                        break
-
-                #points_counts = np.delete(points_counts, result2[0][0],0)
-                for idx2 in range(len(points_counts)):
-                    if points_counts[idx2][2]==box_id:
-                        points_counts = np.delete(points_counts, [idx2], 0)
-                        break
-
-
-            points_annot=(points_counts,points_coords)
-
         if points_annot is None and bbox_annot is None:
             annot = {}
 
@@ -855,6 +828,31 @@ class KCSVDataset(Dataset):
             annot = {"bbox_annot": bbox_annot}
 
         else:
+
+            if config.General.dataset_name == 'grapes': # and filter_empty...
+                boxes_to_remove = []
+                for p_annot in points_annot[0]:
+                    if math.isnan(p_annot[1]):
+                        boxes_to_remove.append(p_annot[2])
+
+                points_counts = points_annot[0]
+                points_coords = points_annot[1]
+                for box_id in boxes_to_remove:
+                    # result1 = np.where(bbox_annot == box_id)
+                    # bbox_annot=np.delete(bbox_annot,result1[0][0],0)
+                    for idx1 in range(len(bbox_annot)):
+                        if bbox_annot[idx1][5] == box_id:
+                            bbox_annot = np.delete(bbox_annot, [idx1], 0)
+                            break
+
+                    # points_counts = np.delete(points_counts, result2[0][0],0)
+                    for idx2 in range(len(points_counts)):
+                        if points_counts[idx2][2] == box_id:
+                            points_counts = np.delete(points_counts, [idx2], 0)
+                            break
+
+                points_annot = (points_counts, points_coords)
+
             annot = {"bbox_annot":bbox_annot, "points_annot":points_annot}
 
         sample = {'img': img, 'annot': annot}
@@ -873,83 +871,47 @@ class KCSVDataset(Dataset):
 
         if config.General.NETWORK_TYPE not in [config.NetworkType.detection, config.NetworkType.detection_and_counting]:
             # compute keypoints after the transformation are done
-            if self.lean_version != "version_3":
-                annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_1_R)
-                annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_2_R)
-                annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_3_R)
-                annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_4_R)
-                annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_5_R)
-            else:
-                annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_1_R, pyramid_level=3)
-                annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_2_R, pyramid_level=4)
-                annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_3_R, pyramid_level=5)
-                annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_4_R, pyramid_level=6)
-                annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_5_R, pyramid_level=7)
+            #if self.lean_version != "version_3":
+            annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
+                                                                         radius=config.Counting.map_1_R)
+            annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
+                                                                         radius=config.Counting.map_2_R)
+            annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
+                                                                         radius=config.Counting.map_3_R)
+            annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
+                                                                         radius=config.Counting.map_4_R)
+            annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
+                                                                         radius=config.Counting.map_5_R)
+            # else:
+            #     annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
+            #                                                                  radius=config.Counting.map_1_R, pyramid_level=3)
+            #     annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
+            #                                                                  radius=config.Counting.map_2_R, pyramid_level=4)
+            #     annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
+            #                                                                  radius=config.Counting.map_3_R, pyramid_level=5)
+            #     annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
+            #                                                                  radius=config.Counting.map_4_R, pyramid_level=6)
+            #     annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
+            #                                                                  radius=config.Counting.map_5_R, pyramid_level=7)
 
             sample['annot']['points_annot'] = [annotations_group_num_of_points, annotation_map_1, annotation_map_2, annotation_map_3,
                                annotation_map_4, annotation_map_5]
 
-            sample['lean_version'] = self.lean_version
+            #sample['lean_version'] = self.lean_version
 
         sample['img_name'] = self.img_info[self.image_ids[idx]]
-
-        if config.detect_with_points.detect_points and len(points_annot) >0:
-            points_by_box = {}
-            for i in range(len(points_annot[1])):
-
-                id = str(int(points_annot[1][i][3]))
-                if id in points_by_box.keys():
-                    points_by_box[id].append(points_annot[1][i][:2])
-                else:
-                    points_by_box[id] = []
-                    points_by_box[id].append(points_annot[1][i][:2])
-
-            per_obj_maps = []
-            for id in points_by_box.keys():
-                box_points = points_by_box[id]
-                # reshape to [N, (x,y)]
-                points_num = len(box_points)
-                box_points = np.array([np.array(box_points).reshape(points_num, 2)])
-
-                annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, box_points,
-                                                                             radius=config.Counting.map_1_R)
-                annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, box_points,
-                                                                             radius=config.Counting.map_2_R)
-                annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, box_points,
-                                                                             radius=config.Counting.map_3_R)
-                annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, box_points,
-                                                                             radius=config.Counting.map_4_R)
-                annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, box_points,
-                                                                             radius=config.Counting.map_5_R)
-
-                per_obj_maps.append([float(id), [annotation_map_1, annotation_map_2, annotation_map_3, annotation_map_4,
-                                                    annotation_map_5]])
-
-
-            sample['annot']['per_obj_maps'] = per_obj_maps
 
         return sample
 
     def load_image(self, image_index, pre_process):
         image_path = os.path.join(self.base_dir, self.img_info[self.image_ids[image_index]]['name'])
         image = np.asarray(Image.open(image_path).convert('RGB'))
-
-        if pre_process == "keras_like":
-            # transform the image to bgr
-            return image[:, :, ::-1].copy()
-
-        else:
-            return image
+        # if pre_process == "keras_like":
+        #     # transform the image to bgr
+        #     return image[:, :, ::-1].copy()
+        # else:
+        #     return image
+        return image
 
     def get_output_counting(self, image_name):
         annotations_group_num_of_points = self.load_annotations_num_of_points(image_name) #[count,class,box_id,length,diameter]
@@ -1079,7 +1041,8 @@ class KCSVDataset(Dataset):
         # points annotations
         ###################################################################################
 
-        if config.General.NETWORK_TYPE == config.NetworkType.detection and not config.Counting.double_counting:
+        if config.General.NETWORK_TYPE == config.NetworkType.detection and not config.Counting.double_counting\
+                and not config.General.filter_empty_bbox:
             points_annotations = None
         else:
             points_annotations = self.get_output_counting(image_name) #[counts: count, point class, box id, centers: x,y, point class, box id]
@@ -1265,7 +1228,8 @@ class KCSVDataset(Dataset):
                 else:
                     result_points[img_file].append({'x': x1, 'y': y1, 'points_class': class_name})
 
-            if config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting or config.Counting.double_counting:
+            if (config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting or
+                    config.Counting.double_counting or config.General.filter_empty_bbox):
                 result_bbox = self.points_to_bbox(result_bbox, result_points)
 
         if config.General.NETWORK_TYPE.name == "counting_lean_multiple_out":
@@ -1530,7 +1494,7 @@ def kcsv_collater(data):
         imgs[i] = torch.tensor(imgs[i]) #, dtype=torch.double, device=torch.device('cuda:0'))
         # per image annotations:
 
-        if 'points_annot' in annots[i].keys():
+        if 'points_annot' in annots[i].keys() and not config.General.filter_empty_bbox:
             if len(annots[i]['points_annot']) > 0:
                 points_annot = annots[i]['points_annot']
             else:
@@ -1604,93 +1568,8 @@ def kcsv_collater(data):
     for i in range(len(annots)):
        points_annot.append(annots[i]['points_annot'])
 
-       ################################################################################################################
-       # maps per box annotations
-       # ################################################################################################################
-
-       if config.detect_with_points.detect_points:
-            box_ids = []
-            box_maps = []
-            per_obj_maps = annots[i]['per_obj_maps']
-            for b in range(len(per_obj_maps)):
-                per_obj_maps[b][0] = torch.tensor(per_obj_maps[b][0])
-                box_ids.append(torch.unsqueeze(per_obj_maps[b][0], dim=0))
-
-                # per image annotations:
-                new_maps_annots = []
-
-                for j in range(5):
-                    annots_temp = torch.tensor(per_obj_maps[b][1][j][0])
-                    a = torch.unsqueeze(annots_temp, dim=0)
-                    new_maps_annots.append(a) #annot_padded)
-
-                new_maps_annots = torch.unsqueeze(torch.cat(new_maps_annots, dim=0), dim=0)
-                box_maps.append(new_maps_annots)
-
-            box_ids = torch.cat(box_ids, dim=0)
-            box_maps = torch.cat(box_maps, dim=0)
-
-        #################################################################################################################################
-
-
-
-    if config.detect_with_points.detect_points:
-        return {'img': padded_imgs, 'bbox_annot': bbox_annot_padded, 'points_annot': points_annot,
-                "per_obj_maps": [box_ids, box_maps],
-                'scale': scale, 'img_name': names}
-    else:
-
-        return {'img': padded_imgs, 'bbox_annot': bbox_annot_padded, 'points_annot': points_annot,
-                'scale': scale, 'img_name': names}
-
-    #if lean_version != 'version_3':
-        # max_num_annots = max(len(annot) for annot in annots)
-        #
-        # if max_num_annots > 0:
-        #
-        #     map_widths = [int(annot['points_annot'][1].shape[0]) for annot in annots]
-        #     map_heights = [int(annot['points_annot'][1].shape[1]) for annot in annots]
-        #     max_map_width = np.array(map_widths).max()
-        #     max_map_height = np.array(map_heights).max()
-        #
-        #     points_annot_padded = torch.ones((len(annots), max_num_annots, max_map_width, max_map_height)) * -1
-        #
-        #     if max_num_annots > 0:
-        #         for idx, annot in enumerate(annots):
-        #             if len(annot) > 0:
-        #                 annot['points_annot'][0] = torch.ones((int(annot['points_annot'][1].shape[0]),
-        #                                                        int(annot['points_annot'][1].shape[1])),
-        #                                                       dtype=torch.double) * annot['points_annot'][0].data
-        #                 points_annot_padded[idx, 0, :annot['points_annot'][0].shape[0], :annot['points_annot'][0].shape[1]] = annot['points_annot'][0]
-        #                 for j in range(1, len(annot['points_annot'])):
-        #                     points_annot_padded[idx, j, :annot['points_annot'][j].shape[0], :annot['points_annot'][j].shape[1]] = annot['points_annot'][j]
-
-
-        # return {'img': padded_imgs, 'bbox_annot': bbox_annot_padded, 'points_annot': points_annot,
-        #       'scale': scale, 'img_name':names}
-
-
-    #else:
-
-        # points_anns_per_bbox = []
-        # for i in range(len(annots[0]['points_annot'])):
-        #     ann = []
-        #     for j in range(len(annots)):
-        #         annots_temp = annots[j]['points_annot'][i]
-        #         new_annots = []
-        #         for k in range(len(annots_temp)):
-        #             id = annots_temp[k]['bbox_id']
-        #             box_points_ann = annots_temp[k]['counts'].float()
-        #             a=torch.unsqueeze(box_points_ann, dim=0)
-        #             ann.append(a)
-        #
-        #         new_annots.append(torch.cat(ann, dim=0))
-        #
-        #     points_anns_per_bbox.append(new_annots)
-
-        # return {'img': padded_imgs,'bbox_annot': bbox_annot_padded, 'points_annot': points_annot,
-        #         'scale': scale, 'img_name':names}
-
+    return {'img': padded_imgs, 'bbox_annot': bbox_annot_padded, 'points_annot': points_annot,
+            'scale': scale, 'img_name': names}
 
 def kcsv_collater_2(data):
     # Turn images and annotations to tensors

@@ -2,31 +2,23 @@ import torch
 import torch.nn as nn
 import torchvision.ops
 
-import losses
+from legacy_scripts import losses
 import anchors
 
-import math, copy, time
-import os
-import PIL
+import math, copy
 
 #import legos_2
-import legos_3
+from legos import legos_3
 
 import util
 import config
-from efficientdet.models import efficientnet, efficientdet
 from efficientdet.models.retinahead import RetinaHead
 
 from torchvision.ops import roi_align
 
-from legonet.dataloader import UnNormalizer
+from legonet.myDataloader import UnNormalizer
 import numpy as np
 import cv2
-from torchvision import transforms
-from PIL import Image, ImageDraw
-import dataloader
-from legacy_scripts import kcsv_dataloader
-import matplotlib.pyplot as plt
 
 from itertools import compress
 
@@ -652,6 +644,7 @@ class LEGONet(nn.Module):
 
             im=torch.tensor(im).float().permute(2,0,1).unsqueeze(dim=0).cuda()
 
+
         bbox_crops = self.roi_align(input=img.unsqueeze(dim=0), boxes=[bbox_pred], output_size=output_size)
         # check if:
         # input (Tensor[N, C, H, W])
@@ -733,7 +726,6 @@ class LEGONet(nn.Module):
 
     def compute_keypoints_targets_multi_maps(self, image_shape, annotations_points_centers_a, radius=(5, 5), pyramid_level=3):
         # resize transformed-image and annotations
-        import copy
         annotations_points_centers = annotations_points_centers_a.copy()  #copy.deepcopy(annotations_points_centers_a)
         # here we should resize image too and then check it with the annotations
 

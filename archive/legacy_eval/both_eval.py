@@ -16,7 +16,7 @@ from util import printf
 from legonet.eval.counting_eval import SumOfAbsDifferences
 from legonet.eval.kcsv_eval_2 import _get_count_and_box_annotations, compute_overlap, _compute_ap
 from legonet.eval.count_detection_eval import detection_evaluation, calc_recall_precision_ap
-from legonet.dataloader import UnNormalizer
+from legonet.myDataloader import UnNormalizer
 
 import config
 import copy

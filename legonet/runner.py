@@ -1,42 +1,54 @@
 import os
-#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
-import sys
-import argparse
 import collections
-import re
 import numpy as np
 import time
 import torch
+import torch.nn as nn
 import torch.optim as optim
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import config
-import csv
 from . import metrics
 from legonet import util
 from legonet.eval import coco_eval, counting_eval, kcsv_eval_2
 from legonet.eval import both_eval_new_241 as both_eval
-from dataloader import KCSVDataset, CocoDataset, collater, Resizer, AspectRatioBasedSampler, Augmenter, Normalizer, UnNormalizer, csv_LCCDataset, LCC_collater, kcsv_collater
+from myDataloader import (KCSVDataset, CocoDataset, collater, Resizer, AspectRatioBasedSampler, Augmenter, Normalizer,
+                          UnNormalizer, csv_LCCDataset, LCC_collater, kcsv_collater)
 from PIL import Image, ImageDraw, ImageFont
 import random
 import gc
 
+from legoNet_build import model_build
+from manage_weights import list_checkpoint_modules, load_submodule_weights
 
-#assert torch.__version__.split('.')[0] == '1'
 
-#print('CUDA available: {}'.format(torch.cuda.is_available()))
+def remove_prevEpoch():
+    dir_files = os.listdir(config.General.weights_dir)
+    if len(dir_files) > 0:
+        current_weights_file = dir_files[0]
+        os.remove(os.path.join(config.General.weights_dir, current_weights_file))
+
+
+def unwrap_model(model):
+    return model.module if hasattr(model, "module") else model
+
+
+def freeze_bn(model):
+    '''Freeze BatchNorm layers.'''
+    for layer in model.modules():
+        if isinstance(layer, nn.BatchNorm2d):
+            layer.eval()
 
 
 def run(args=None):
 
     if config.detect_and_count.crop_from_Pi:
-        import model_4 as model
+        from models import model_crop_from_Pi as model_file # was model_4
     else:
-        if config.General.model_name=="model_detection":
-            import model_detection as model
+        if config.General.model_name=="bbox_detection":
+            from models import model_bbox_detection as model_file
         else:
-            import model_3 as model
+            from models import model_3 as model_file
 
     util.print_args(args)
 
@@ -55,7 +67,9 @@ def run(args=None):
 
         args.collater = collater
 
-    elif args.dataset_type == 'kcsv' or (args.dataset_type == "roots_json" and (args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2" or args.network_type == "detection")):
+    elif (args.dataset_type == 'kcsv' or
+          (args.dataset_type == "roots_json" and (args.network_type == "both_for_roots_2" or
+                                                  args.network_type == "bbox_detection"))):
 
         # if args.kcsv_train is None:
         #     raise ValueError('Must provide --csv_train for training purposes')
@@ -63,40 +77,35 @@ def run(args=None):
         # if args.kcsv_classes is None:
         #     raise ValueError('Must provide --csv_classes for training purposes')
 
-        if args.run_script == "train":
+        if args.run_script == "Training":
             if args.dataset_type == 'kcsv':
-                dataset_train = KCSVDataset(train_file=args.kcsv_train, class_list=args.kcsv_classes,
+                dataset_train = KCSVDataset(input_file=args.kcsv_train, class_list=args.kcsv_classes,
                                             pre_process = args.pre_process,
                                             transform=transforms.Compose([Normalizer(pre_process = args.pre_process),
-                                                                         Resizer(min_side=800, max_side=1333)]),
-                                            lean_version = args.lean_version)
+                                                                         Resizer(min_side=800, max_side=1333)]))
 
             elif args.dataset_type == "roots_json":
-                dataset_train = KCSVDataset(train_file = args.train_json_file,
+                dataset_train = KCSVDataset(input_file= args.train_json_file,
                                             transform=transforms.Compose([Normalizer(pre_process=args.pre_process),
                                                                           Resizer(min_side=800, max_side=1333)]),
-                                            lean_version=args.lean_version,
                                             dataset_type = "roots_json")
+
+        else:
+            dataset_train = None
 
 
         if args.dataset_type == 'kcsv':
-            if args.kcsv_val is None:
-                dataset_val = None
-                print('No validation annotations provided.')
-
-            dataset_val = KCSVDataset(train_file=args.val_file, class_list=args.kcsv_classes,
+            dataset_val = KCSVDataset(input_file=args.val_file, class_list=args.kcsv_classes,
                                       pre_process = args.pre_process,
                                       transform = transforms.Compose([Normalizer(pre_process = args.pre_process),
-                                                                   Resizer(min_side=800, max_side=1333)]),
-                                      lean_version= args.lean_version)
+                                                                   Resizer(min_side=800, max_side=1333)]))
 
         elif args.dataset_type == "roots_json":
-            dataset_val = KCSVDataset(train_file=args.val_json_file,
+            dataset_val = KCSVDataset(input_file=args.val_json_file,
                                       transform=transforms.Compose([Normalizer(pre_process=args.pre_process),
                                                                     Resizer(min_side=800, max_side=1333)]),
-                                      lean_version=args.lean_version,
                                       dataset_type="roots_json",
-                                      base_dir= args.base_dir, #args.dataset_path
+                                      base_dir= args.base_dir,  #args.dataset_path
                                       have_GT = args.have_GT)
 
 
@@ -165,9 +174,10 @@ def run(args=None):
         args.collater = kcsv_collater
 
     elif args.dataset_type == 'csv_LCC' or \
-            (args.dataset_type == "roots_json" and (args.network_type == "counting_lean_multiple_out" or args.network_type == "counting_lean_multiple_out_V2")):
+            (args.dataset_type == "roots_json" and (args.network_type == "counting_lean_multiple_out" or
+                                                    args.network_type == "counting_lean_multiple_out_V2")):
 
-        if args.run_script == "train":
+        if args.run_script == 'Training':
 
             dataset_train = csv_LCCDataset(
                 args.train_csv_leaf_number_file,
@@ -176,8 +186,10 @@ def run(args=None):
                 ann_type='count',
                 transform=transforms.Compose([Normalizer(pre_process = args.pre_process),
                                               Resizer(ann_type='count', min_side=800, max_side=1333)]),
-                lean_version = args.lean_version,
                 json_file = args.train_json_file)
+
+        else:
+            dataset_train = None
 
 
         dataset_val = csv_LCCDataset(
@@ -187,7 +199,6 @@ def run(args=None):
             ann_type = 'count',
             transform=transforms.Compose([Normalizer(pre_process = args.pre_process),
                                           Resizer(ann_type='count', min_side=800, max_side=1333)]),
-            lean_version=args.lean_version,
             json_file = args.val_json_file,
             base_dir= args.base_dir, #args.dataset_path,
             have_GT= args.have_GT)
@@ -199,7 +210,7 @@ def run(args=None):
     else:
         raise ValueError('Dataset type not understood (must be csv_LCC or coco), exiting.')
 
-    if args.run_script == "train":
+    if args.run_script == 'Training':
         sampler = AspectRatioBasedSampler(dataset_train, batch_size=args.batch_size, drop_last=False)
         dataloader_train = DataLoader(dataset_train, num_workers=args.num_workers, collate_fn=args.collater, batch_sampler=sampler)
 
@@ -208,39 +219,40 @@ def run(args=None):
         dataloader_val = DataLoader(dataset_val, num_workers=args.num_workers, collate_fn=args.collater, batch_sampler=sampler_val)
 
 
-
-
     # build the model
-    if args.run_script=='train':
-        legonet = model.LEGONet(dataset_train = dataset_train, network_type = args.network_type,
-                                backbone_type = args.backbone_type,
-                                num_classes=dataset_train.num_classes(), pretrained=True,
-                                min_score = config.Detection.min_score,
-                                output_size = args.output_size,
-                                version = args.version,
-                                separate_training = args.separate_training
-
-                                )
-    else: # Inference
-        legonet = model.LEGONet(dataset_train=dataset_val, network_type=args.network_type,
-                                backbone_type=args.backbone_type,
-                                num_classes=dataset_val.num_classes(), pretrained=True,
-                                min_score=config.Detection.min_score,
-                                output_size = args.output_size,
-                                version = args.version,
-                                separate_training = args.separate_training
-                                )
+    legonet = model_build(args, model_file, dataset_train, dataset_val)
+    # if args.run_script=='train':
+    #     legonet = model.LEGONet(dataset_train = dataset_train, network_type = args.network_type,
+    #                             backbone_type = args.backbone_type,
+    #                             num_classes=dataset_train.num_classes(), pretrained=True,
+    #                             min_score = config.Detection.min_score,
+    #                             output_size = args.output_size
+    #                             )
+    # else: # Inference
+    #     legonet = model.LEGONet(dataset_train=dataset_val, network_type=args.network_type,
+    #                             backbone_type=args.backbone_type,
+    #                             num_classes=dataset_val.num_classes(), pretrained=True,
+    #                             min_score=config.Detection.min_score,
+    #                             output_size = args.output_size
+    #                             )
 
     # Loading weights
     if args.load_weights:
+        print('Loading weights from: ', args.weights_file_path)
+        state_dict = torch.load(args.weights_file_path, map_location=config.General.device)
+        print("Available modules:", list_checkpoint_modules(state_dict))
 
         if args.load_partial_weights_only:
+            if args.load_bbox_det_weights:
+                submodules_names = ['backbone_1', 'find_1', 'where']
+                for submodule_name in submodules_names:
+                    load_submodule_weights(legonet, state_dict, submodule_name, strict=False)
 
-            print('Loading partial weights from: ', args.partial_weights_dir)
+            #########################################
 
-            util.load_module_weights(legonet, "backbone_for_detect", os.path.join(args.partial_weights_dir, 'backbone_for_detect'))
-            util.load_module_weights(legonet, "find_for_detect", os.path.join(args.partial_weights_dir, "find_for_detect"))
-            util.load_module_weights(legonet, "Where_Module", os.path.join(args.partial_weights_dir, "Where_Module"))
+            #util.load_module_weights(legonet, "backbone_for_detect", os.path.join(args.partial_weights_dir, 'backbone_for_detect'))
+            #util.load_module_weights(legonet, "find_for_detect", os.path.join(args.partial_weights_dir, "find_for_detect"))
+            #util.load_module_weights(legonet, "Where_Module", os.path.join(args.partial_weights_dir, "Where_Module"))
 
 
             # util.load_module_weights(legonet, "backbone_for_count", os.path.join(args.partial_weights_dir, 'backbone_for_count'))
@@ -268,14 +280,10 @@ def run(args=None):
                     print(key)
 
         else:
-            print('Loading weights from: ', args.weights_file_path)
-            state_dict = torch.load(args.weights_file_path, map_location=config.General.device)
             legonet.load_state_dict(state_dict, strict=False)
 
 
-
-
-    if args.network_type == "both" or args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+    if args.network_type == "both" or args.network_type == "both_for_roots_2":
         if args.freeze_detection:
             # freeze gradients of detection
             for param in legonet.backbone_1.parameters():
@@ -299,105 +307,105 @@ def run(args=None):
         for param in legonet.LeanCountingModule_diameter.parameters():
             param.requires_grad = False
 
-    use_gpu = True
-
     # if torch.cuda.device_count() > 1:
     #     print("Let's use", torch.cuda.device_count(), "GPUs!")
     #     legonet = torch.nn.DataParallel(legonet)
 
-    if use_gpu:
-        legonet = legonet.to(config.General.device) #to(config.General.device)
 
-    if isinstance(legonet, torch.nn.DataParallel):
-        legonet.module.freeze_bn()
-    else:
-        legonet.freeze_bn()
+    legonet = legonet.to(config.General.device)
 
-    if args.run_script=='train':
+    # if isinstance(legonet, torch.nn.DataParallel): # ToDo - check this
+    #     legonet.module.freeze_bn()
+    # else:
+    #     legonet.freeze_bn()
+
+    freeze_bn(unwrap_model(legonet))
+
+    if args.run_script=='Training':
 
         legonet.training = True
         optimizer = optim.Adam(legonet.parameters(), lr=1e-5)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3, eps=0.0001) #eps=0.0001 like in the keras code instead of the default verbose=True,
-
         loss_hist = collections.deque(maxlen=500)
-
-        legonet.train()
+        #legonet.train()
 
         print('Num training images: {}'.format(len(dataset_train)))
-
-        model_stats = metrics.Stats()
 
         best_rel_error = 100.0
         best_mAP = 0.0
         for epoch_num in range(args.epochs):
 
             legonet.train()
-            legonet.freeze_bn()
+            freeze_bn(unwrap_model(legonet)) #legonet.freeze_bn()
 
             epoch_loss = []
             epoch_loss_per_task = []
-            if config.Counting.counting_type == 'withKeyPoints':
 
-                if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
-                    epoch_loss_per_task = { #### change loss names!!
-                        "classification": [],
-                        "regression": [],
-                        "points": [],
-                        "color": [],
-                        "maps": [],
-                        "length": [],
-                        "diameter": []
-                    }
+            if args.network_type == 'bbox_detection':
+                epoch_loss_per_task = {
+                    "classification": [],
+                    "regression": []
+                }
+            else:
+                if config.Counting.counting_type == 'withKeyPoints':
 
-                elif args.network_type == "counting_lean_multiple_out" or args.network_type == "counting_lean_multiple_out_V2":
-                    epoch_loss_per_task = {
-                        #"classification": [],
-                        #"regression": [],
-                        #"points": [],
-                        "count_obj": [],
-                        "TRL": [],
-                        "mean_diameter": [],
-                        "diameter_std": [],
-                        "maps": [],
+                    if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+                        epoch_loss_per_task = { #### change loss names!!
+                            "classification": [],
+                            "regression": [],
+                            "points": [],
+                            "color": [],
+                            "maps": [],
+                            "length": [],
+                            "diameter": []
+                        }
 
-                    }
+                    elif args.network_type == "counting_lean_multiple_out" or args.network_type == "counting_lean_multiple_out_V2":
+                        epoch_loss_per_task = {
+                            #"classification": [],
+                            #"regression": [],
+                            #"points": [],
+                            "count_obj": [],
+                            "TRL": [],
+                            "mean_diameter": [],
+                            "diameter_std": [],
+                            "maps": [],
 
-                else:
-                    epoch_loss_per_task = {
-                        "classification": [],
-                        "regression": [],
-                        "counting": [],
-                        "l1": [],
-                        "maps": []
-                    }
+                        }
 
-            elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
-                if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
-                    epoch_loss_per_task = {  #### change loss names!!
-                        "classification": [],
-                        "regression": [],
-                        "color": [],
-                        "length": [],
-                        "diameter": []
-                    }
+                    else:
+                        epoch_loss_per_task = {
+                            "classification": [],
+                            "regression": [],
+                            "counting": [],
+                            "l1": [],
+                            "maps": []
+                        }
 
-                else:
-                    epoch_loss_per_task = {
-                        "classification": [],
-                        "regression": [],
-                        "counting": []
-                    }
+                elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                    if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+                        epoch_loss_per_task = {  #### change loss names!!
+                            "classification": [],
+                            "regression": [],
+                            "color": [],
+                            "length": [],
+                            "diameter": []
+                        }
 
-
+                    else:
+                        epoch_loss_per_task = {
+                            "classification": [],
+                            "regression": [],
+                            "counting": []
+                        }
 
             for iter_num, data in enumerate(dataloader_train):
-
                 try:
-
                     optimizer.zero_grad()
 
-                    if args.network_type == 'detection':
-                        classification_loss, regression_loss = legonet([data['img'].to(config.General.device).float(), data['bbox_annot'].to(config.General.device), args.device])
+                    if args.network_type == 'bbox_detection':
+                        classification_loss, regression_loss = legonet([data['img'].to(config.General.device).float(),
+                                                                        data['bbox_annot'].to(config.General.device)])
 
                         classification_loss = classification_loss.mean()
                         regression_loss = regression_loss.mean()
@@ -420,31 +428,27 @@ def run(args=None):
                         counting_loss_value = loss.item()
 
                     elif args.network_type == 'counting_lean':
-                        if args.lean_version == "version_3":
-                            L1_loss, p3_loss, p4_loss, p5_loss, p6_loss, p7_loss = legonet([data['img'].to(config.General.device).float(), data['annot']])
-                            counting_loss = L1_loss+ p3_loss+ p4_loss+ p5_loss+ p6_loss+ p7_loss
+
+                        l1, maps_loss = legonet([data['img'].to(config.General.device).float(), data['annot']])
+                        l1 = args.loss_weight*l1
+
+                        if l1 is not None and maps_loss is not None:
+                            counting_loss = l1 + maps_loss
+                            counting_loss = counting_loss.mean()
+                            loss = counting_loss
 
                         else:
-                            l1, maps_loss = legonet([data['img'].to(config.General.device).float(), data['annot']])
-                            l1 = args.loss_weight*l1
+                            counting_loss = None
 
-                            if l1 is not None and maps_loss is not None:
-                                counting_loss = l1 + maps_loss
-                                counting_loss = counting_loss.mean()
-                                loss = counting_loss
+                        if l1 is None or maps_loss is None:
+                            counting_loss_value = 0.0
+                            l1_value = 0.0
+                            maps_loss_value = 0.0
 
-                            else:
-                                counting_loss = None
-
-                            if l1 is None or maps_loss is None:
-                                counting_loss_value = 0.0
-                                l1_value = 0.0
-                                maps_loss_value = 0.0
-
-                            else:
-                                l1_value = l1.item()
-                                maps_loss_value = maps_loss.item()
-                                counting_loss_value = counting_loss.item()
+                        else:
+                            l1_value = l1.item()
+                            maps_loss_value = maps_loss.item()
+                            counting_loss_value = counting_loss.item()
 
                     elif args.network_type == 'counting_reg':
                         counting_loss = legonet([data['img'].to(config.General.device).float(), data['annot']])
@@ -456,111 +460,55 @@ def run(args=None):
 
                         counting_loss_value = loss.item()
 
-                    elif args.network_type == 'both' or args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+                    elif args.network_type == 'both' or args.network_type == "both_for_roots_2":
                         ###############################################################################################################################
 
-                        if args.train_in_turns:
-                            if epoch_num <200:
-                                # train only detection net
-                                # counting_loss = \
-                                if config.Counting.counting_type == 'withKeyPoints':
-                                    classification_loss, regression_loss, l1, maps_loss  = \
-                                        legonet([data['img'].to(config.General.device).float(), [data['bbox_annot'].to(config.General.device), data['points_annot']],
-                                                 torch.tensor(sampler.groups[iter_num]), False]) #classification_loss, regression_loss, counting_loss
+                        if torch.cuda.is_available():
+                            if config.Counting.counting_type == 'withKeyPoints':
 
-                                elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
-                                    classification_loss, regression_loss, counting_loss = \
-                                        legonet([data['img'].to(config.General.device).float(),
-                                                 [data['bbox_annot'].to(config.General.device), data['points_annot']],
-                                                 torch.tensor(sampler.groups[iter_num]),
-                                                 False])  # classification_loss, regression_loss, counting_loss
-
-                            else:
-                                # train only counting net
-                                # freeze gradients of detection
-                                for param in legonet.backbone_1.parameters():
-                                    param.requires_grad = False
-
-                                for param in legonet.find_1.parameters():
-                                    param.requires_grad = False
-
-                                for param in legonet.where.parameters():
-                                    param.requires_grad = False
-
-
-                                if config.Counting.counting_type == 'withKeyPoints':
+                                if args.network_type == 'both':
                                     classification_loss, regression_loss, l1, maps_loss = \
-                                        legonet([data['img'].to(config.General.device).float(), [data['bbox_annot'].to(config.General.device), data['points_annot']],
-                                                 torch.tensor(sampler.groups[iter_num]), True] )
-
-                                elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
-                                    classification_loss, regression_loss, counting_loss = \
                                         legonet([data['img'].to(config.General.device).float(),
                                                  [data['bbox_annot'].to(config.General.device), data['points_annot']],
-                                                 torch.tensor(sampler.groups[iter_num]), True])
+                                                 torch.tensor(sampler.groups[iter_num])]) #, args.do_counting])
 
-                                ###############################################################################################################################
-
-                        else:
-                            if torch.cuda.is_available():
-                                if config.Counting.counting_type == 'withKeyPoints':
-
-                                    if args.network_type == 'both':
-                                        classification_loss, regression_loss, l1, maps_loss = \
-                                            legonet([data['img'].to(config.General.device).float(), [data['bbox_annot'].to(config.General.device), data['points_annot']],
-                                                     torch.tensor(sampler.groups[iter_num]), args.do_counting])
-
-                                    elif args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
-                                        if 'points_annot' in data.keys():
-
-                                            if not config.detect_with_points.detect_points:
-                                                # for "both_for_roots_2", count loss is color loss
-                                                classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss=\
-                                                    legonet([data['img'].to(config.General.device).float(),
-                                                             [data['bbox_annot'].to(config.General.device), data['points_annot']],
-                                                             torch.tensor(sampler.groups[iter_num]), args.do_counting])
-
-                                            else:
-                                                classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss = \
-                                                    legonet([data['img'].to(config.General.device).float(),
-                                                             [data['bbox_annot'].to(config.General.device), data['points_annot'], data["per_obj_maps"]],
-                                                             torch.tensor(sampler.groups[iter_num]), args.do_counting])
-
-                                        else:
-                                            if not config.detect_with_points.detect_points:
-                                                classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss=\
-                                                    legonet([data['img'].to(config.General.device).float(),
-                                                             [data['bbox_annot'].to(config.General.device), None],
-                                                             torch.tensor(sampler.groups[iter_num]), args.do_counting])
-                                            else:
-                                                classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss=\
-                                                    legonet([data['img'].to(config.General.device).float(),
-                                                         [data['bbox_annot'].to(config.General.device), None, None],
-                                                         torch.tensor(sampler.groups[iter_num]), args.do_counting])
-
-
-                                elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
-
-                                    if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
-                                        if 'points_annot' in data.keys():
-                                            classification_loss, regression_loss, color_loss, length_loss, diameter_loss = \
-                                                legonet([data['img'].to(config.General.device).float(),
-                                                         [data['bbox_annot'].to(config.General.device), data['points_annot']],
-                                                         torch.tensor(sampler.groups[iter_num]), args.do_counting])
-                                        else:
-                                            classification_loss, regression_loss, color_loss, length_loss, diameter_loss = \
-                                                legonet([data['img'].to(config.General.device).float(),
-                                                         [data['bbox_annot'].to(config.General.device), None],
-                                                         torch.tensor(sampler.groups[iter_num]), args.do_counting])
+                                elif args.network_type == "both_for_roots_2":
+                                    if 'points_annot' in data.keys():
+                                        # for "both_for_roots_2", count loss is color loss
+                                        classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss=\
+                                            legonet([data['img'].to(config.General.device).float(),
+                                                     [data['bbox_annot'].to(config.General.device), data['points_annot']],
+                                                     torch.tensor(sampler.groups[iter_num])]) #, args.do_counting])
 
                                     else:
-                                        classification_loss, regression_loss, counting_loss = \
-                                            legonet(
-                                                [data['img'].to(config.General.device).float(), [data['bbox_annot'].to(config.General.device), data['points_annot']],
-                                                 torch.tensor(sampler.groups[iter_num]), True])
+                                        classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss=\
+                                            legonet([data['img'].to(config.General.device).float(),
+                                                     [data['bbox_annot'].to(config.General.device), None],
+                                                     torch.tensor(sampler.groups[iter_num])]) #, args.do_counting])
 
-                            else:
-                                print("Iteration: " + iter_num+ " | CUDA not available")
+                            elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+
+                                if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+                                    if 'points_annot' in data.keys():
+                                        classification_loss, regression_loss, color_loss, length_loss, diameter_loss = \
+                                            legonet([data['img'].to(config.General.device).float(),
+                                                     [data['bbox_annot'].to(config.General.device), data['points_annot']],
+                                                     torch.tensor(sampler.groups[iter_num]), args.do_counting])
+                                    else:
+                                        classification_loss, regression_loss, color_loss, length_loss, diameter_loss = \
+                                            legonet([data['img'].to(config.General.device).float(),
+                                                     [data['bbox_annot'].to(config.General.device), None],
+                                                     torch.tensor(sampler.groups[iter_num]), args.do_counting])
+
+                                else:
+                                    classification_loss, regression_loss, counting_loss = \
+                                        legonet(
+                                            [data['img'].to(config.General.device).float(), [data['bbox_annot'].to(config.General.device), data['points_annot']],
+                                             torch.tensor(sampler.groups[iter_num]), True])
+
+                        else:
+                            print("Iteration: " + iter_num+ " | CUDA not available")
+
 
                         classification_loss = classification_loss.mean()
                         regression_loss = regression_loss.mean()
@@ -576,7 +524,7 @@ def run(args=None):
                                     loss = classification_loss + regression_loss
                                     counting_loss = None
 
-                            if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+                            if args.network_type == "both_for_roots_2":
                                 if color_loss is not None and maps_loss is not None and length_loss is not None and diameter_loss is not None:
                                     diameter_loss = args.dia_loss_weight * diameter_loss
                                     color_loss = args.color_loss_weight* color_loss  #args.loss_weight * color_loss
@@ -712,7 +660,7 @@ def run(args=None):
                     loss_hist.append(loss.item())
                     epoch_loss.append(loss.item())
 
-                    if args.network_type == 'detection' or args.network_type == 'both' or args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+                    if args.network_type == 'bbox_detection' or args.network_type == 'both' or args.network_type == "both_for_roots_2":
                         epoch_loss_per_task["classification"].append(classification_loss_value)
                         epoch_loss_per_task["regression"].append(regression_loss_value)
 
@@ -758,7 +706,7 @@ def run(args=None):
                     # loss_hist.append(float(loss))
                     # epoch_loss.append(float(loss))
 
-                    if args.network_type == 'detection': #args.dataset_type == 'coco':
+                    if args.network_type == 'bbox_detection': #args.dataset_type == 'coco':
                         print(
                             'Epoch: {} | Iteration: {} | Classification loss: {:1.5f} | Regression loss: {:1.5f} | Running loss: {:1.5f}'.format(
                                 epoch_num, iter_num, float(classification_loss), float(regression_loss),np.mean(loss_hist)))
@@ -855,7 +803,7 @@ def run(args=None):
                     print(e)
                     continue
 
-            if args.network_type == 'detection':
+            if args.network_type == 'bbox_detection':
 
                 util.printf('Epoch %d summary: classification mean %.5f, regression mean %.5f\n',
                         epoch_num,
@@ -876,20 +824,27 @@ def run(args=None):
                         legonet.eval()
 
                         util.printf("Evaluating Dataset: ")
-                        mAP, _ = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet, score_threshold=config.Detection.min_score, iou_threshold=config.Detection.iou_threshold)
-                        util.printf("mAP = %.3f", mAP)
+                        mAP, precision , recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
+                                                                score_threshold=config.Detection.min_score,
+                                                                iou_threshold=config.Detection.iou_threshold)
+                        print(f'Current mAP = {mAP:.3f}, precision = {precision:.3f}, recall = {recall:.3f}\n')
+                        with open(args.txt_results, 'a') as f:
+                            f.write(f'Epoch: {epoch_num}, mAP = {mAP:.3f}, precision = {precision:.3f}, recall = {recall:.3f}\n')
 
                         if mAP > best_mAP:
                             best_mAP = mAP
-                            util.printf("*\n")
-                            torch.save(legonet.state_dict(), config.General.experiment_path+"legonet_epoch={}.pt".format(epoch_num))
-                        else:
-                            if epoch_num % 5 == 0:
-                                torch.save(legonet.state_dict(), config.General.experiment_path + 'legonet_epoch={}.pt'.format(epoch_num))
-                            util.printf("\n")
+                            print(f'Current best*: {best_mAP:.3f}\n')
+                            remove_prevEpoch()
+                            torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
+                                                                          "legonet_epoch={}.pt".format(epoch_num)))
+                        # else:
+                        #     if epoch_num % 5 == 0:
+                        #         torch.save(legonet.state_dict(), config.General.weights_dir + '/legonet_epoch={}.pt'.format(epoch_num))
+                        #     util.printf("\n")
 
-                    if epoch_num % 10 == 0:
-                        torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path,"legonet_epoch={}.pt".format(epoch_num)))
+                    elif (epoch_num+1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
+                        torch.save(legonet.state_dict(),
+                                   os.path.join(config.General.weights_dir,"legonet_epoch={}.pt".format(epoch_num)))
 
                 elif args.dataset_type ==  "roots_json" :
 
@@ -897,7 +852,7 @@ def run(args=None):
                         legonet.eval()
                         mAP, _, _ = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
                                                              score_threshold=config.Detection.min_score, iou_threshold=config.Detection.iou_threshold)
-                        util.printf("mAP = %.3f\n", mAP)
+                        print(f'Current mAP = {best_mAP:.3f}\n')
                         # if len(precision)==0:
                         #     print('mAP: {:.3f} | precision: None | recall: None | prev_best_mAP: {:.3f} \n'.format(mAP, best_mAP))
                         # else:
@@ -905,19 +860,10 @@ def run(args=None):
 
                         if mAP > best_mAP:
                             best_mAP = mAP
-                            util.printf("Current best*: %.3f\n", best_mAP)
-                            print()
-
-                            dir_files = os.listdir(config.General.experiment_path)
-                            if len(dir_files) > 0:
-                                current_weights_file = dir_files[0]
-                                os.remove(os.path.join(config.General.experiment_path, current_weights_file))
-
-                            torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path,
+                            print(f'Current best*: {best_mAP:.3f}\n')
+                            remove_prevEpoch()
+                            torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
                                                              'legonet_epoch={}.pt'.format(epoch_num)))
-
-
-
 
             elif args.network_type == 'counting_fat' or args.network_type == 'counting_lean' or args.network_type == 'counting_reg':
             #     print('Evaluating dataset')
@@ -949,28 +895,15 @@ def run(args=None):
 
                     if rel_error < best_rel_error:
                         best_rel_error = rel_error
-                        util.printf("*\n")
-                        dir_files = os.listdir(config.General.experiment_path)
-                        if len(dir_files) > 0:
-                            current_weights_file = dir_files[0]
-                            os.remove(os.path.join(config.General.experiment_path, current_weights_file))
+                        print(f'Current best*: {best_rel_error:.3f}\n')
+                        remove_prevEpoch()
+                        torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir, 'legonet_epoch={}.pt'.format(epoch_num)))  # checkpoints\\
 
-                        torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path, 'legonet_epoch={}.pt'.format(epoch_num)))  # checkpoints\\
-                    # else:
-                    #     if epoch_num % 5 == 0:
-                    #         torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path, 'legonet_epoch={}.pt'.format(epoch_num))) # legonet
-                        print("Current best:", best_rel_error)
-                        util.printf("\n")
+                elif (epoch_num+1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
+                        torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
+                                                                      'legonet_epoch={}.pt'.format(epoch_num)))#cont_
 
-
-
-
-
-                else:
-                    if (epoch_num+1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
-                        torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path, 'legonet_epoch={}.pt'.format(epoch_num)))#cont_
-
-            elif args.network_type == 'both' or args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+            elif args.network_type == 'both' or args.network_type == "both_for_roots_2":
                 if config.Counting.counting_type == 'withKeyPoints':
                     if args.network_type == 'both':
                         util.printf('Epoch %d summary: classification mean %.5f, regression mean %.5f, counting mean %.5f, l1_loss %.5f, maps_loss %.5f\n',
@@ -981,7 +914,7 @@ def run(args=None):
                                     np.mean(epoch_loss_per_task["l1"]),
                                     np.mean(epoch_loss_per_task["maps"]))
 
-                    if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+                    if args.network_type == "both_for_roots_2":
                         util.printf(
                             'Epoch %d summary: classification mean %.5f, regression mean %.5f, maps_loss %.5f, count_loss %.5f, length_loss %.5f, diameter_loss %.5f\n',
                             epoch_num,
@@ -994,7 +927,7 @@ def run(args=None):
                             )
 
                 elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
-                    if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+                    if args.network_type == "both_for_roots_2":
                         util.printf(
                             'Epoch %d summary: classification mean %.5f, regression mean %.5f, color_loss %.5f, length_loss %.5f, diameter_loss %.5f\n',
                             epoch_num,
@@ -1058,20 +991,11 @@ def run(args=None):
 
                         if rel_error < best_rel_error:
                             best_rel_error = rel_error
-                            util.printf("*\n")
+                            print(f'Current best*: {best_rel_error:.3f}\n')
+                            remove_prevEpoch()
+                            torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
+                                                                          'legonet_epoch={}.pt'.format(epoch_num)))
 
-                            dir_files = os.listdir(config.General.experiment_path)
-                            if len(dir_files) > 0:
-                                current_weights_file = dir_files[0]
-                                os.remove(os.path.join(config.General.experiment_path, current_weights_file))
-
-                            torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path, 'legonet_epoch={}.pt'.format(epoch_num)))
-
-
-                        # else:
-                        #     if epoch_num % 5 == 0:
-                        #         torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path, 'legonet_epoch={}.pt'.format(epoch_num)))
-                        #     util.printf("\n")
 
                     else:
                         if args.evaluate_detection:
@@ -1085,12 +1009,13 @@ def run(args=None):
                                     current_weights_file = dir_files[0]
                                     os.remove(os.path.join(config.General.experiment_path, current_weights_file))
 
-                                torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path, 'legonet_epoch={}.pt'.format(epoch_num)))
+                                torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path,
+                                                                              'legonet_epoch={}.pt'.format(epoch_num)))
 
 
-                else:
-                    if (epoch_num+1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
-                        torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path, 'legonet_epoch={}.pt'.format(epoch_num)))#cont_
+                elif (epoch_num+1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
+                        torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
+                                                                      'legonet_epoch={}.pt'.format(epoch_num)))#cont_
 
             elif args.network_type == "counting_lean_multiple_out" or args.network_type == "counting_lean_multiple_out_V2":
                 util.printf(
@@ -1113,31 +1038,26 @@ def run(args=None):
 
                     if rel_error < best_rel_error:
                         best_rel_error = rel_error
-                        util.printf("*\n")
-                        dir_files = os.listdir(config.General.experiment_path)
-                        if len(dir_files) >0:
-                            current_weights_file = dir_files[0]
-                            os.remove(os.path.join(config.General.experiment_path, current_weights_file))
-                        torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path, 'legonet_epoch={}.pt'.format(epoch_num)))  # checkpoints\\
+                        print(f'Current best*: {best_rel_error:.3f}\n')
+                        remove_prevEpoch()
+                        torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
+                                                                      'legonet_epoch={}.pt'.format(epoch_num)))  # checkpoints\\
                     # else:
                     #     if epoch_num % 5 == 0:
-                    #         torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path, 'legonet_epoch={}.pt'.format(epoch_num)))
-                        print("Current best:", best_rel_error)
-                        util.printf("\n")
+                    #         torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir, 'legonet_epoch={}.pt'.format(epoch_num)))
+                        print(f'Current best*: {best_rel_error:.3f}\n')
 
 
-                else:
-                    if (epoch_num+1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
-                        torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path, 'legonet_epoch={}.pt'.format(epoch_num)))#cont_
-
+                elif (epoch_num+1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
+                        torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
+                                                                      'legonet_epoch={}.pt'.format(epoch_num)))#cont_
 
             scheduler.step(np.mean(epoch_loss))
 
-
         legonet.eval()
-        torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path, 'legonet_final.pt')) #legonet
+        #torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir, 'legonet_final.pt')) #legonet
 
-    else: # validation
+    else: # Inference
 
         legonet.training = False
         legonet.eval()
@@ -1145,7 +1065,7 @@ def run(args=None):
         if config.General.NETWORK_TYPE == config.NetworkType.detection or \
                 config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting:
             # includes objects without points...
-            if args.evaluate_detection:
+            if args.evaluate_detection and args.have_GT:
                 util.printf("Detection evaluation:\n")
                 if args.eval_detection_params:
                     average_precisions_all= kcsv_eval_2.evaluate(dataset_val, dataloader_val, sampler_val, legonet,
@@ -1157,17 +1077,21 @@ def run(args=None):
                         print(average_precisions_all[i])
 
                 else:
-                    print("min score: ", config.Detection.min_score, "iou_threshold: ", config.Detection.iou_threshold)
-                    mAP,precision, recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,score_threshold=config.Detection.min_score, iou_threshold=config.Detection.iou_threshold,generate_PR_curve=True)
-                    util.printf("mAP = %.3f\n", mAP)
+                    print(f"Results for min score: {config.Detection.min_score}, iou_threshold: {config.Detection.iou_threshold}")
+                    mAP, _, _ = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val,
+                                                                            legonet,score_threshold=config.Detection.min_score,
+                                                                            iou_threshold=config.Detection.iou_threshold,
+                                                                            generate_PR_curve=True)
+                    print(f'mAP = {mAP:.3f}')
 
-                print()
-                print("Results for min_score:", config.Detection.min_score, " IOU:", config.Detection.iou_threshold)
+                    with open(args.txt_results, 'a') as f:
+                        f.write(f'mAP = {mAP:.3f}\n')
 
             if args.evaluate_both:
 
-                out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet,
-                                              to_draw=config.General.to_draw, draw_maps = args.draw_maps, verbose=True, draw_path = args.save_img_path, print_to_files=True, args = args)
+                out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=config.General.to_draw,
+                                     draw_maps = config.DrawProperties.DRAW_MAPS, verbose=True,
+                                     draw_path = config.DrawProperties.save_img_path, print_to_files=True, args = args)
 
                 if len(out)>0:
                     rel_error = out[0]
@@ -1175,8 +1099,6 @@ def run(args=None):
                     rel_error = -1
 
                 util.printf("\n rel error: %.3f", rel_error)
-
-
 
         else:
             util.printf("Counting evaluation:\n")
@@ -1200,9 +1122,9 @@ def run(args=None):
 def run_offline_validation_double_detection(args=None):
 
     if config.detect_and_count.crop_from_Pi:
-        import model_4 as model
+        from models import model_crop_from_Pi as model
     else:
-        import model_3 as model
+        from models import model_3 as model
 
     util.print_args(args)
 
@@ -1218,17 +1140,15 @@ def run_offline_validation_double_detection(args=None):
 
     elif args.dataset_type == 'kcsv':
 
-        dataset_val_with_counts = KCSVDataset(train_file=args.val_file_with_counts, class_list=args.kcsv_classes_with_counts,
-                                  pre_process=args.pre_process,
-                                  transform=transforms.Compose([Normalizer(pre_process=args.pre_process),
-                                                                Resizer(min_side=800, max_side=1333)]),
-                                  lean_version=args.lean_version)
+        dataset_val_with_counts = KCSVDataset(input_file=args.val_file_with_counts, class_list=args.kcsv_classes_with_counts,
+                                              pre_process=args.pre_process,
+                                              transform=transforms.Compose([Normalizer(pre_process=args.pre_process),
+                                                                Resizer(min_side=800, max_side=1333)]))
 
-        dataset_val = KCSVDataset(train_file=args.val_file, class_list=args.kcsv_classes,
-                                      pre_process = args.pre_process,
-                                      transform=transforms.Compose([Normalizer(pre_process = args.pre_process),
-                                                                   Resizer(min_side=800, max_side=1333)]),
-                                      lean_version= args.lean_version)
+        dataset_val = KCSVDataset(input_file=args.val_file, class_list=args.kcsv_classes,
+                                  pre_process = args.pre_process,
+                                  transform=transforms.Compose([Normalizer(pre_process = args.pre_process),
+                                                                   Resizer(min_side=800, max_side=1333)]))
 
         args.collater = kcsv_collater
 
@@ -1240,8 +1160,7 @@ def run_offline_validation_double_detection(args=None):
             pre_process='keras_like',
             ann_type = 'count',
             transform=transforms.Compose([Normalizer(pre_process = args.pre_process),
-                                          Resizer(ann_type='count', min_side=800, max_side=1333)]),
-            lean_version=args.lean_version)
+                                          Resizer(ann_type='count', min_side=800, max_side=1333)]))
 
 
         args.collater = LCC_collater
@@ -1322,10 +1241,9 @@ def run_offline_validation_double_detection(args=None):
 def run_offline_validation(args=None):
 
     if config.detect_and_count.crop_from_Pi:
-        import model_4 as model
+        from models import model_crop_from_Pi as model
     else:
-        import model_3 as model
-
+        from models import model_3 as model
 
     util.print_args(args)
 
@@ -1341,11 +1259,10 @@ def run_offline_validation(args=None):
 
     elif args.dataset_type == 'kcsv':
 
-        dataset_val = KCSVDataset(train_file=args.val_file, class_list=args.kcsv_classes,
-                                      pre_process = args.pre_process,
-                                      transform=transforms.Compose([Normalizer(pre_process = args.pre_process),
-                                                                   Resizer(min_side=800, max_side=1333)]),
-                                      lean_version= args.lean_version)
+        dataset_val = KCSVDataset(input_file=args.val_file, class_list=args.kcsv_classes,
+                                  pre_process = args.pre_process,
+                                  transform=transforms.Compose([Normalizer(pre_process = args.pre_process),
+                                                                   Resizer(min_side=800, max_side=1333)]))
 
         args.collater = kcsv_collater
 
@@ -1357,9 +1274,7 @@ def run_offline_validation(args=None):
             pre_process='keras_like',
             ann_type = 'count',
             transform=transforms.Compose([Normalizer(pre_process = args.pre_process),
-                                          Resizer(ann_type='count', min_side=800, max_side=1333)]),
-            lean_version=args.lean_version)
-
+                                          Resizer(ann_type='count', min_side=800, max_side=1333)]))
 
         args.collater = LCC_collater
 
@@ -1458,9 +1373,9 @@ def visualize_detection(args, save_path = ""):
 
 
     if config.detect_and_count.crop_from_Pi:
-        import model_4 as model
+        from models import model_crop_from_Pi as model
     else:
-        import model_3 as model
+        from models import model_3 as model
 
     util.print_args(args)
 
@@ -1476,11 +1391,10 @@ def visualize_detection(args, save_path = ""):
 
     elif args.dataset_type == 'kcsv':
 
-        dataset_val = KCSVDataset(train_file=args.val_file, class_list=args.kcsv_classes,
+        dataset_val = KCSVDataset(input_file=args.val_file, class_list=args.kcsv_classes,
                                   pre_process=args.pre_process,
                                   transform=transforms.Compose([Normalizer(pre_process=args.pre_process),
-                                                                Resizer(min_side=800, max_side=1333)]),
-                                  lean_version=args.lean_version)
+                                                                Resizer(min_side=800, max_side=1333)]))
 
         args.collater = kcsv_collater
     else:
@@ -1494,7 +1408,7 @@ def visualize_detection(args, save_path = ""):
                                 backbone_type=args.backbone_type,
                                 num_classes=dataset_val.num_classes(), pretrained=True,
                                 min_score=config.Detection.min_score)
-    # lean_version = args.lean_version
+
     print('Loading weights from: ', args.model_path)
     util.load_model_weights(source_model_path=args.model_path, destination_model=legonet)
 

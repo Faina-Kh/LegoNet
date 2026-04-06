@@ -15,9 +15,9 @@ import argparse
 import torch
 from torchvision import transforms
 
-from legonet.dataloader import Resizer, Normalizer
+from legonet.myDataloader import Resizer, Normalizer
 from legonet.eval import counting_eval
-from legonet.dataloader import csv_LCCDataset
+from legonet.myDataloader import csv_LCCDataset
 import model
 
 assert torch.__version__.split('.')[0] == '1'

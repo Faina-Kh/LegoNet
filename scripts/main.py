@@ -6,6 +6,8 @@ import time
 import config
 import paths
 import numpy as np
+from pathlib import Path
+import csv
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -15,21 +17,19 @@ import legonet.runner
 startTime = time.time()
 
 ########################################################################################################################
-# GPU settings
-########################################################################################################################
 
-# Check if GPU is available
-config.General.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def print_to_csv(args, executionTime):
+    if getattr(args, "txt_results", ""):
+        with open(args.txt_results, 'a') as f:
+            f.write(f'Execution time in minutes: {(executionTime / 60):.2f}\n')
 
-# set GPU if available
-if config.General.device.type == 'cuda':
-    current_gpu = '0'
-    os.environ["CUDA_VISIBLE_DEVICES"] = current_gpu
-    print('Running on gpu {}'.format(current_gpu))
-else:
-    print('Running on cpu')
+        with open(args.txt_results, "r", encoding="utf-8") as f_in, \
+                open(args.output_csv, "w", newline="", encoding="utf-8") as f_out:
 
-########################################################################################################################
+            writer = csv.writer(f_out)
+            for line in f_in:
+                writer.writerow(line.strip().split("|"))
+
 
 def parse_args(args):
     parser = argparse.ArgumentParser(description='main script.')
@@ -48,23 +48,17 @@ if args is None:
 ########################################################################################################################
 # user definitions
 ########################################################################################################################
-STORAGE_PATH = r"C:\Users\bordezki\Desktop"
-args.dataset_name = "grapes" #"roots"
-args.network_type = "detection"
+args.gpu_num = '0'
 
-args.have_GT = True
-args.run_script = 'validation' #'train' #validation
-args.num_of_epochs = 300
-args.do_Kfold = False
+args.STORAGE_PATH = r"C:\Users\bordezki\Desktop\LegoNet"
+config.Detection.min_score = 0.05 #0.7 #0.05
+args.current_results_dir = "grapes_detection_filterBBOX_minScore_0.05_nms 0.5" #"grapes_detection_minScore 0.05" #"grapes_detection_filterBBOX_minScore 0.7"
 
-# task specific definitions - organize per task type
-args.freeze_detection = False
-args.eval_in_train = True
-args.train_in_turns = False
+args.run_script = 'Inference' #'Training' #'Inference'
+config.General.MODE = args.run_script
 
-config.Counting.counting_type = 'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
+val_set = "Test"
 
-current_results_dir = "twoBack_keyP_diff radii"
 #"grapes diff radii"
 #"grapes_twoBack_keyP_sameRadii_train perfect det_fancy aug_20Per_test perfect det"
 #"grapes_twoBack_keyP_sameRadii_perfect det_fancy aug_40Per"
@@ -80,11 +74,62 @@ current_results_dir = "twoBack_keyP_diff radii"
 #"grapes_twoBack_keypoints_sameRadi_fluid_new"
 #"grapes_twoBack_keypoints_sameRadi_fluid" #"grapes_twoBack_reg_P3_P5_fluid"
 
+args.dataset_name = "grapes" #"roots"
+args.network_type = "bbox_detection"
 
-config.General.to_draw = True
-config.Counting.calc_det_performance = True
+# ----------------re-run with NMS ----------------------
+# config.Detection.NMS_THRESHOLD = 0.3 # default was 0.5 in config
+# ------------------------------------------------------
+
+# True if loading pre-trained weights
+args.load_weights = True
+args.load_partial_weights_only = False
+args.load_bbox_det_weights = False
+args.load_more_partial = False
+
+args.have_GT = True
+args.num_of_epochs = 300
+args.do_Kfold = False
+
+# task specific definitions - ToDo - organize per task type
+args.freeze_detection = False
+args.eval_in_train = True
+args.train_in_turns = False
+args.evaluate_detection = True
+args.eval_detection_params = False
+args.evaluate_both = False # relevant to validation, not train (roots)
+
+config.Counting.counting_type = 'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
 
 config.detect_and_count.two_backbones = True
+
+
+if (args.network_type == "bbox_detection" and args.dataset_name == 'roots') or args.network_type == "both_for_roots_2":
+    config.Detection.change_anchors = True
+    config.Detection.ratios = np.array([0.5, 1, 3])  # np.array([0.5, 1, 3]) #np.array([0.5, 1, 4]) #np.array([0.5, 1, 2])
+    print("Detection.ratios:", config.Detection.ratios)
+
+
+if args.network_type == "bbox_detection":
+    config.General.model_name = "bbox_detection"
+
+    if args.dataset_name == 'grapes':
+        args.filter_empty_bbox = True
+        config.General.filter_empty_bbox = args.filter_empty_bbox
+
+########################################################################################################################
+# GPU settings
+########################################################################################################################
+os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_num
+
+# Check if GPU is available
+if torch.cuda.is_available():
+    device = torch.device("cuda:0")
+    print(f'Running on physical GPU {args.gpu_num}')
+else:
+    device = torch.device("cpu")
+
+config.General.device = device
 
 
 ######################################################################
@@ -97,60 +142,48 @@ args.output_size = 1
 
 args.pre_process = 'torch_like' #'keras_like'  # torch_like
 args.backbone_type = "ResNetBackboneModule"
-args.lean_version = ""
-args.loss_weight = 1  # 1  #1000 #10 #100
+
+args.loss_weight = 1  # 1  #1000 #10 #100 # roots_both ablations
+
+config.General.binary_model = False
 config.General.binary_version = ""
-config.General.dataset_name= args.dataset_name
 
-
-######################################################################
-# weights related
-######################################################################
-
-# True if loading pre-trained weights
-args.load_weights = False
-args.weights_file_path = ""
-
-args.load_partial_weights_only = False
-args.partial_weights_dir = ""
-#"C:\\Users\\Aragorn\\Google Drive\\StoragePath\\ExpResults (1)\\KK_Exp_Results_last\\grapes_twoBack_keypoints_sameRadi_fluid_new\\saved_weights_cont_14"
-# #os.path.join(results_dir, 'wheat_MS5_s0.7_640\\saved_weights_211\\detector_weights')
-#os.path.join(results_dir,'grapes_twoBack_reg_P3_P5_fluid_new', 'saved_weights_164')
-
-#######################################################################################################
-
+##########################################################################################################
+# ToDo - remove
+config.General.with_new_layers = False  # should be False only for points TRL
+config.General.with_new_layers_for_both = False # always False for TRL_both, True for regular TRL
+##########################################################################################################
 
 ######################################################################
-
-myPaths = paths.get_paths(STORAGE_PATH, args.dataset_name)
-myDatasetsPath = myPaths["DATASETS_PATH"]
-results_dir = myPaths["EXP_RESULTS_PATH"]
-
-config.General.experiment_path = os.path.join(results_dir, current_results_dir)
-if not config.General.experiment_path == '':
-    if not os.path.exists(config.General.experiment_path):
-        os.makedirs(config.General.experiment_path)
-
+# Checks
+######################################################################
 assert args.dataset_name == "grapes" or args.dataset_name == "roots"
-assert (args.network_type == "detection" or args.network_type == "counting_lean" or
-        args.network_type == "counting_reg" or args.network_type == "both" or args.network_type == "both_for_roots_2")
+assert (args.network_type == "bbox_detection" or args.network_type == "counting_lean" or
+        args.network_type == "counting_reg" or args.network_type == "both_for_roots_2")
+
+
+# ToDo- replace args.network_type = "both" or args.network_type = "both_for_roots_2" with 'perObjectEstimate
+# estimate_type = 'counting' , 'TRL',
+# config.Estimate.estimate_type
+
+
+assert val_set == 'Val' or val_set == 'Test'
 
 assert config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig' or config.Counting.counting_type == 'withKeyPoints'
 
-assert args.run_script =='train' or args.run_script =='validation'
-if args.run_script =='train':
+assert args.run_script =='Training' or args.run_script =='Inference'
+if args.run_script == 'Training':
     assert args.have_GT == True
     args.epochs = args.num_of_epochs
-
-
-if args.run_script == 'train':
     val_set = "Val"
-    assert val_set == 'Val' or val_set == 'Test'
-
-if args.have_GT:
-    args.base_dir = None
+    config.General.to_draw = False
+    config.DrawProperties.DRAW_MAPS = False
+    config.Counting.calc_det_performance = False
 else:
-    args.base_dir = args.dataset_path
+    config.General.to_draw = True
+    config.DrawProperties.DRAW_MAPS = True
+    config.Counting.calc_det_performance = True
+
 
 ########################################################################################################################
 # Define the data format and network options
@@ -168,7 +201,7 @@ else:
     args.dataset_type = "coco"
     args.dataset_name = 'tomato_fruit_12_3_18'
 
-if args.network_type == "detection":
+if args.network_type == "bbox_detection":
     config.General.NETWORK_TYPE = config.NetworkType.detection
 elif args.network_type == "counting_lean":
     config.General.NETWORK_TYPE = config.NetworkType.counting_lean
@@ -177,6 +210,21 @@ elif args.network_type == "counting_reg":
 elif args.network_type == "both" or args.network_type == "both_for_roots_2":
     config.General.NETWORK_TYPE = config.NetworkType.detection_and_counting
 
+
+######################################################################
+# Paths
+######################################################################
+config.General.dataset_name= args.dataset_name
+
+myPaths = paths.get_paths(args.STORAGE_PATH, args.dataset_name)
+myDatasetsPath = myPaths["DATASETS_PATH"]
+myExpPath = myPaths["EXP_RESULTS_PATH"]
+
+config.General.experiment_path = os.path.join(myExpPath, args.current_results_dir)
+os.makedirs(config.General.experiment_path, exist_ok=True)
+
+config.General.weights_dir = os.path.join(myExpPath, config.General.experiment_path,"Weights")
+os.makedirs(config.General.weights_dir, exist_ok=True)
 
 ########################################################################################################################
 # Define the paths
@@ -187,6 +235,13 @@ if args.dataset_type == 'kcsv':
     args.kcsv_val = os.path.join(myDatasetsPath, 'val.kcsv')
     args.kcsv_test = os.path.join(myDatasetsPath, 'test.kcsv')
     args.kcsv_classes = os.path.join(myDatasetsPath, "classes.kcsv")
+
+    if args.run_script == 'Training':
+        args.val_file = args.kcsv_val
+    elif val_set == 'Val':
+        args.val_file = args.kcsv_val
+    else:
+        args.val_file = args.kcsv_test
 
 elif args.dataset_name == "roots":
     #sample_n = "200"
@@ -231,6 +286,50 @@ elif args.dataset_type == "csv_LCC" and args.dataset_name != "roots":
     args.val_csv_leaf_location_file = os.path.join(myDatasetsPath, args.dataset_name, 'val',
                                                    ds + '_Val_leaf_location.csv')
 
+
+if args.have_GT:
+    args.base_dir = None
+else:
+    args.base_dir = args.dataset_path
+
+if args.run_script == 'Inference':
+    if args.network_type == 'bbox_detection':
+        results_dir = os.path.join(config.General.experiment_path, 'Inf_min_score_'+str(config.Detection.min_score))
+        os.makedirs(results_dir, exist_ok=True)
+    else:
+        results_dir = config.General.experiment_path
+    args.txt_results = os.path.join(results_dir,
+                                    "with_Vis_results_"+val_set +".txt" if config.General.to_draw else
+                                    "without_Vis_results_"+val_set +".txt")
+    args.output_csv = os.path.join(results_dir,
+                                   "with_Vis_results_"+ val_set +".csv" if config.General.to_draw else
+                                   "without_Vis_results_"+ val_set +".csv")
+
+    config.DrawProperties.save_img_path = os.path.join(myExpPath, results_dir, "Vis_" + val_set)
+    os.makedirs(config.DrawProperties.save_img_path, exist_ok=True)
+
+else:
+    args.txt_results = os.path.join(config.General.experiment_path, "Train_results.txt")
+    args.output_csv = os.path.join(config.General.experiment_path, "Train_results.csv")
+
+
+######################################################################
+# weights related
+######################################################################
+
+if args.load_weights:
+    dir_path = Path(config.General.weights_dir)
+    files = [p for p in dir_path.iterdir() if p.is_file()]
+    args.weights_file_path = str(files[0])
+else:
+    args.weights_file_path = ""
+
+args.partial_weights_dir = ""
+#"C:\\Users\\Aragorn\\Google Drive\\StoragePath\\ExpResults (1)\\KK_Exp_Results_last\\grapes_twoBack_keypoints_sameRadi_fluid_new\\saved_weights_cont_14"
+# #os.path.join(results_dir, 'wheat_MS5_s0.7_640\\saved_weights_211\\detector_weights')
+#os.path.join(results_dir,'grapes_twoBack_reg_P3_P5_fluid_new', 'saved_weights_164')
+
+
 ########################################################################################################################
 # Run the code
 ########################################################################################################################
@@ -246,10 +345,7 @@ legonet.runner.run(args)
 ########################################################################################################################
 
 executionTime = (time.time() - startTime)
-print('Execution time in minutes: ' + str(executionTime/60))
+print(f'Execution time in minutes: {(executionTime/60):.3f}')
 
-if args.txt_results != "":
-    with open(args.txt_results, 'a') as f:
-        f.write('Execution time in minutes: ' + str(executionTime/60))
-
+print_to_csv(args, executionTime)
 ########################################################################################################################

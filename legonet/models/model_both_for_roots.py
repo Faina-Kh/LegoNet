@@ -1,29 +1,20 @@
 import torch
 import torch.nn as nn
 import torchvision.ops
+from torchvision.ops import roi_align
+import math, copy
+import cv2
+import numpy as np
+from itertools import compress
 
-import losses
-import anchors
-
-import math, copy, time
-import PIL
-
-import legos_3
-
+from legos import legos_3
 import util
 import config
-from efficientdet.models.retinahead import RetinaHead
-
-from torchvision.ops import roi_align
-
-from legonet.dataloader import UnNormalizer
-import numpy as np
-import cv2
-from PIL import Image, ImageDraw
-import dataloader
-
-from itertools import compress
-from legonet.eval.both_eval_new import choose_boxes_by_IoUandPrc
+#from legacy_scripts import losses
+import modular_losses
+import anchors
+from legonet.myDataloader import UnNormalizer
+from legonet.eval.both_eval_new_241 import choose_boxes_by_IoUandPrc
 
 
 
@@ -32,7 +23,7 @@ from legonet.eval.both_eval_new import choose_boxes_by_IoUandPrc
 class LEGONet(nn.Module):
 
     def __init__(self, dataset_train, network_type, backbone_type, num_classes, pretrained = False, num_anchors = 9,
-                min_score = 0.05, output_size = 1, version="", separate_training = False , device = None):
+                min_score = 0.05, output_size = 1):
         super(LEGONet, self).__init__()
 
         self.dataset_train = dataset_train
@@ -41,8 +32,6 @@ class LEGONet(nn.Module):
         self.num_classes = num_classes
         self.num_anchors = num_anchors
         self.min_score = min_score
-
-        self.separate_training = separate_training
 
         if self.backbone_type == "ResNetBackboneModule":
             self.backbone_1 = legos_3.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_detect')
@@ -57,9 +46,10 @@ class LEGONet(nn.Module):
             self.where.feature_regression.output.weight.data.fill_(0)
             self.where.feature_regression.output.bias.data.fill_(0)
 
-            self.backbone_2 = legos_3.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_count')
+            self.backbone_2 = legos_3.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_attribute')
 
-            self.find_2 = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
+            self.find_2 = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes,
+                                             name='find_for_attribute', task='attribute_estimation') #name='find_for_count', task='counting'
 
             if config.General.twoFind_2:
                 self.find_2_b = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
@@ -67,67 +57,49 @@ class LEGONet(nn.Module):
                 self.backbone_2_b = legos_3.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_count')
 
             if config.detect_and_count.use_new_Find:
-                self.find_2_length = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes,name='find_for_count', task='counting')
+                self.find_2_length = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
                 self.find_2_diameter = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
                 self.find_2_color = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
 
 
-            #self.find_2.feature_classification.output_counting.weight.data.fill_(0)
-            #self.find_2.feature_classification.output_counting.bias.data.fill_(-math.log((1.0 - prior) / prior))
-
-        elif self.backbone_type == "EfficientNetBackboneModule":
-            self.backbone_1 = legos_3.EfficientNetBackboneModule()
-
-            in_channels = self.backbone_1.W_bifpn
-            self.bbox_head = RetinaHead(num_classes=num_classes,
-                                        in_channels=in_channels)
-
         self.FindForCount = legos_3.FindForCount(num_classes)
-        self.FatCountingModule = legos_3.FatCountingModule(num_classes)
+
 
         if self.network_type == "both_for_roots_2":
              config.General.with_new_layers_for_both = True
 
-        self.LeanCountingModule = legos_3.LeanCountingModule(num_classes, inter_losses = config.Counting.inter_losses)
+        self.EstimateWithPointsModule = legos_3.EstimateWithPointsModule(num_classes, inter_losses = config.Counting.inter_losses)
 
         if self.network_type == "both_for_roots_2" or config.General.binary_model: #config.General.with_new_layers:
             config.General.binary_model = True
-            self.LeanCountingModule_color = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, loss_for = "color")
+            self.EstimateWithPointsModule_color = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.Counting.inter_losses, loss_for ="color")
 
             config.General.binary_model = False
-            self.LeanCountingModule_length = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, loss_for = "length")
-            self.LeanCountingModule_diameter = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, loss_for = "diameter")
+            self.EstimateWithPointsModule_length = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.Counting.inter_losses, loss_for ="length")
+            self.EstimateWithPointsModule_diameter = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.Counting.inter_losses, loss_for ="diameter")
 
-        self.LeanCountingModule_multiple = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, output_size = output_size)
-        self.LeanCountingModule_multiple_2 = legos_3.LeanCountingModule(num_classes,inter_losses=config.Counting.inter_losses, output_size=output_size)
-        self.LeanCountingModule_multiple_3 = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, output_size=output_size)
-        self.LeanCountingModule_multiple_4 = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, output_size=output_size)
+        self.EstimateWithPointsModule_multiple = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.Counting.inter_losses, output_size = output_size)
+        self.EstimateWithPointsModule_multiple_2 = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.Counting.inter_losses, output_size=output_size)
+        self.EstimateWithPointsModule_multiple_3 = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.Counting.inter_losses, output_size=output_size)
+        self.EstimateWithPointsModule_multiple_4 = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.Counting.inter_losses, output_size=output_size)
 
-        self.CountWithRegModule = legos_3.CountWithRegModule(num_classes)
-
-        if self.network_type == "both_for_roots":
-            self.LeanModuleForRoots = legos_3.LeanModuleForRoots(num_classes, inter_losses = config.Counting.inter_losses)
+        self.EstimateWithRegModule = legos_3.EstimateWithRegModule(num_classes)
 
         if self.network_type == "both_for_roots_2" and config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
-            self.CountWithRegModule_color = legos_3.CountWithRegModule(num_classes)
-            self.CountWithRegModule_length = legos_3.CountWithRegModule(num_classes)
-            self.CountWithRegModule_diameter = legos_3.CountWithRegModule(num_classes)
+            self.EstimateWithRegModule_color = legos_3.EstimateWithRegModule(num_classes)
+            self.EstimateWithRegModule_length = legos_3.EstimateWithRegModule(num_classes)
+            self.EstimateWithRegModule_diameter = legos_3.EstimateWithRegModule(num_classes)
 
         self.roi_align = roi_align
-
+        self.regressBoxes = legos_3.BBoxTransform()
+        self.clipBoxes = legos_3.ClipBoxes()
+        self.focalLoss = modular_losses.FocalLoss()
+        self.freeze_bn()
         if config.Detection.change_anchors:
             self.anchors = anchors.Anchors(ratios=config.Detection.ratios)
         else:
             self.anchors = anchors.Anchors()
 
-
-        self.regressBoxes = legos_3.BBoxTransform()
-        self.clipBoxes = legos_3.ClipBoxes()
-
-        self.focalLoss = losses.FocalLoss()
-
-
-        self.freeze_bn()
 
     def freeze_bn(self):
         '''Freeze BatchNorm layers.'''
@@ -138,241 +110,18 @@ class LEGONet(nn.Module):
 
     def forward(self, inputs):
 
-        if self.network_type != "both" and self.network_type != "both_for_roots" and self.network_type != "both_for_roots_2":
-
-                if self.training:
-                    img_batch, annotations = inputs
-                else:
-                    img_batch = inputs[0]
-        else:
-
-            ########################################################################
-            # w = self.find_2.feature_classification.output_counting.weight.data
-            # b = self.find_2.feature_classification.output_counting.bias.data
-            # print('b', torch.min(b), torch.max(b))
-            # print('w', torch.min(w), torch.max(w))
-            #########################################################################
-
-            img_batch, annotations, group_idx, do_counting = inputs
+        img_batch, annotations, group_idx = inputs #, do_counting
 
         anchors = self.anchors(img_batch)
 
-
-        if self.network_type == "detection":
-
-            pyramid_feats = self.backbone_1(img_batch)
-
-            if self.training:
-                detect_train_inputs = pyramid_feats, anchors, annotations
-
-                if self.backbone_type == "ResNetBackboneModule":
-                    classification_SFMS, classification_loss = self.find_1(detect_train_inputs)
-                    regression_loss = self.where(detect_train_inputs)
-
-                ##################################################################################################
-                if self.backbone_1.__class__.__name__ == "EfficientNetBackboneModule":
-                    outs = self.bbox_head(pyramid_feats)
-                    classification = torch.cat([out for out in outs[0]], dim=1)
-                    regression = torch.cat([out for out in outs[1]], dim=1)
-
-                ##################################################################################################
-
-
-                return classification_loss, regression_loss
-
-            else:
-                if self.backbone_type == "ResNetBackboneModule":
-                    classification_SFMS_list = self.find_1(pyramid_feats)
-
-                    classifications = []
-                    for SFMS in classification_SFMS_list:
-                        batch_size, width, height, channels = SFMS['find_maps'].shape
-                        out2 = SFMS['find_maps'].view(batch_size, width, height, self.num_anchors, self.num_classes)
-                        classifications.append(out2.contiguous().view(batch_size, -1, self.num_classes))
-
-                    classification_vector = torch.cat(classifications, dim=1)
-                    regression_vector = self.where(pyramid_feats)
-
-                transformed_anchors = self.regressBoxes(anchors, regression_vector)
-                transformed_anchors = self.clipBoxes(transformed_anchors, img_batch)
-                detection_outputs = self.get_detection_output(transformed_anchors, classification_vector)
-
-                return detection_outputs
-
-
-        elif self.network_type == "counting_fat":
+        if self.network_type == "both" or self.network_type == "both_for_roots_2":
 
             pyramid_feats = self.backbone_1(img_batch)
 
-            p3 = pyramid_feats[0]
-            classification = self.FindForCount(p3)
-
-
-            if self.training:
-                count_train_inputs = classification, annotations
-                return self.FatCountingModule(count_train_inputs)
-
+            if annotations is None:
+                detection_anns, counting_anns = None, None
             else:
-                return self.FatCountingModule(classification)
-
-
-        elif self.network_type == "counting_lean":
-            # if self.training:
-            #     find_train_inputs = pyramid_feats, anchors, None
-            #
-            #     if self.backbone_type == "ResNetBackboneModule":
-            #         classification_SFMS = self.find_1(find_train_inputs)
-            #         count_input = classification_SFMS, annotations
-            #         return self.LeanCountingModule(count_input)
-            #
-            # else:
-            #     if self.backbone_type == "ResNetBackboneModule":
-            #         classification_SFMS = self.find_1(pyramid_feats)
-            #         return self.LeanCountingModule(classification_SFMS)
-
-            pyramid_feats = self.backbone_1(img_batch)
-
-            p3 = pyramid_feats[0]
-
-            if self.training:
-                for i in range(6):
-                    annotations[i] = annotations[i].device #cuda()
-                count_train_inputs = [p3], annotations[1:6] # anchors, None
-                SFMS_lists, cls_output, maps_loss = self.find_2(count_train_inputs)
-                count_input = SFMS_lists, cls_output, annotations
-
-                l1 = self.LeanCountingModule(count_input)
-                return l1[0], maps_loss
-                #counting_loss = l1 + maps_loss
-                #return counting_loss
-
-            else:
-
-                SFMS_lists, cls_output = self.find_2([p3])
-                count_input = SFMS_lists, cls_output
-                counting_outputs = self.LeanCountingModule(count_input)
-                return counting_outputs
-
-
-        elif self.network_type == "counting_lean_multiple_out":
-            # if self.training:
-            #     find_train_inputs = pyramid_feats, anchors, None
-            #
-            #     if self.backbone_type == "ResNetBackboneModule":
-            #         classification_SFMS = self.find_1(find_train_inputs)
-            #         count_input = classification_SFMS, annotations
-            #         return self.LeanCountingModule(count_input)
-            #
-            # else:
-            #     if self.backbone_type == "ResNetBackboneModule":
-            #         classification_SFMS = self.find_1(pyramid_feats)
-            #         return self.LeanCountingModule(classification_SFMS)
-
-            pyramid_feats = self.backbone_1(img_batch)
-
-            p3 = pyramid_feats[0]
-
-            if self.training:
-                for i in range(6):
-                    annotations[i] = annotations[i].device #cuda()
-
-                train_inputs = [p3], annotations[1:6] # anchors, None
-
-                SFMS_lists, cls_output, maps_loss = self.find_2(train_inputs)
-
-                new_input = SFMS_lists, cls_output, annotations
-
-                l1 , l2, l3, l4 = self.LeanCountingModule_multiple(new_input)
-
-                return l1, l2, l3, l4, maps_loss
-                #counting_loss = l1 + maps_loss
-                #return counting_loss
-
-            else:
-
-                SFMS_lists, cls_output = self.find_2([p3])
-                new_input = SFMS_lists, cls_output
-                new_outputs = self.LeanCountingModule_multiple(new_input)
-                return new_outputs
-
-
-        elif self.network_type == "counting_lean_multiple_out_V2":
-            # if self.training:
-            #     find_train_inputs = pyramid_feats, anchors, None
-            #
-            #     if self.backbone_type == "ResNetBackboneModule":
-            #         classification_SFMS = self.find_1(find_train_inputs)
-            #         count_input = classification_SFMS, annotations
-            #         return self.LeanCountingModule(count_input)
-            #
-            # else:
-            #     if self.backbone_type == "ResNetBackboneModule":
-            #         classification_SFMS = self.find_1(pyramid_feats)
-            #         return self.LeanCountingModule(classification_SFMS)
-
-            pyramid_feats = self.backbone_1(img_batch)
-
-            p3 = pyramid_feats[0]
-
-            if self.training:
-                for i in range(6):
-                    annotations[i] = annotations[i].cuda()
-
-                train_inputs = [p3], annotations[1:6] # anchors, None
-
-                SFMS_lists, cls_output, maps_loss = self.find_2(train_inputs)
-
-                new_input_1 = SFMS_lists, cls_output, [annotations[0][:,:,0], annotations[1], annotations[2], annotations[3], annotations[4], annotations[5]]
-                new_input_2 = SFMS_lists, cls_output, [annotations[0][:,:,1], annotations[1], annotations[2], annotations[3], annotations[4], annotations[5]]
-                new_input_3 = SFMS_lists, cls_output, [annotations[0][:,:,2], annotations[1], annotations[2], annotations[3], annotations[4], annotations[5]]
-                new_input_4 = SFMS_lists, cls_output, [annotations[0][:,:,3], annotations[1], annotations[2], annotations[3], annotations[4], annotations[5]]
-
-                l1  = self.LeanCountingModule_multiple(new_input_1)
-
-                l2 = self.LeanCountingModule_multiple_2(new_input_2)
-
-                l3 = self.LeanCountingModule_multiple_3(new_input_3)
-
-                l4 = self.LeanCountingModule_multiple_4(new_input_4)
-
-                return l1[0], l2[0], 10*l3[0], 100*l4[0], maps_loss
-                #counting_loss = l1 + maps_loss
-                #return counting_loss
-
-            else:
-
-                SFMS_lists, cls_output = self.find_2([p3])
-                new_input = SFMS_lists, cls_output
-                output1, map0, map1, map2, map3, map4, map5 = self.LeanCountingModule_multiple(new_input)
-                output2, map0, map1, map2, map3, map4, map5 = self.LeanCountingModule_multiple_2(new_input)
-                output3, map0, map1, map2, map3, map4, map5 = self.LeanCountingModule_multiple_3(new_input)
-                output4, map0, map1, map2, map3, map4, map5 = self.LeanCountingModule_multiple_4(new_input)
-
-                return [[output1,output2,output3,output4], map0, map1, map2, map3, map4, map5 ]
-
-
-        elif self.network_type == "both" or self.network_type == "both_for_roots" or self.network_type == "both_for_roots_2":
-
-
-            if not self.separate_training:
-                pyramid_feats = self.backbone_1(img_batch)
-
-            if config.detect_with_points.detect_points:
-                p3 = pyramid_feats[0]
-                detection_anns, counting_anns, per_obj_maps = annotations
-                #anno = per_obj_maps[1][1][0]
-                #plt.imsave("D:\\Faina\\roots_project\\anno_2_18_12.png", anno)
-
-            else:
-                if annotations is None:
-                    detection_anns, counting_anns = None, None
-                else:
-                    detection_anns, counting_anns = annotations
-
-            # for both_for_roots
-            # detection_anns: [batch,box, x1,y1,x2,y2,class,box_id]
-            # counting_anns: [batch][0]: [count,class, box_id,length,diameter]
-            #                       [1]: [point_x, point_y,class, box_id]
+                detection_anns, counting_anns = annotations
 
             if self.training:
 
@@ -407,7 +156,7 @@ class LEGONet(nn.Module):
                 relevant_points = []
                 crops_orig_boxes = []
 
-                counting_outputs = None
+                estimation_outputs = None
 
                 for img_idx in range(img_batch.shape[0]):
 
@@ -417,7 +166,8 @@ class LEGONet(nn.Module):
                     detection_outputs = self.get_detection_output(transformed_anchors, classification_vector_new[img_idx].unsqueeze(dim=0))
 
                     # detection eval output:
-                    if (detection_outputs[0].cuda()).equal(torch.zeros(0).cuda()) and not config.Detection.USE_PERFECT_DETECTION_MODE:
+                    if ((detection_outputs[0].to(config.General.device)).equal(torch.zeros(0).to(config.General.device))
+                            and not config.Detection.USE_PERFECT_DETECTION_MODE):
                         bbox_pred = []
                         bbox_pred_adjusted=torch.empty(0)
                         continue
@@ -493,8 +243,8 @@ class LEGONet(nn.Module):
                         ########################################################################
                         if self.training and config.Detection.USE_PERFECT_DETECTION_MODE:
                             # ToDo - check the issue of using group_idx[img_idx]] vs just img_idx
-                            bbox_pred = detection_anns[img_idx, :, :4].cuda()
-                            scores = torch.ones(bbox_pred.shape[0], dtype=torch.float32).cuda()
+                            bbox_pred = detection_anns[img_idx, :, :4].to(config.General.device)
+                            scores = torch.ones(bbox_pred.shape[0], dtype=torch.float32).to(config.General.device)
                             bbox_pred = torch.cat((bbox_pred, scores.unsqueeze(-1)), dim=-1)
 
                         ########################################################################
@@ -517,7 +267,7 @@ class LEGONet(nn.Module):
                                 bbox_pred_adjusted[box_idx][3] = util.augment_bbox_fancy(x1, y1, x2, y2) #util.augment_bbox(x1, y1, x2, y2)   #util.augment_bbox_fancy(x1, y1, x2, y2)
                                 bbox_pred_adjusted[box_idx][4] = bbox_pred[box_idx][4]
 
-                            bbox_pred_adjusted = bbox_pred_adjusted.cuda()
+                            bbox_pred_adjusted = bbox_pred_adjusted.to(config.General.device)
 
                         else:
                             # having the option to rescale the bbox during inference according to one rescaling factor - given by BBOX_ADJUSTMENT_RATIO
@@ -609,7 +359,7 @@ class LEGONet(nn.Module):
                                                 if not config.detect_with_points.detect_points:
                                                     bbox_crops_list.append([bbox_crops, bbox_pred_adjusted[b, 4]]) # add the gt box id
                                             else:
-                                                bbox_crops_list.append(bbox_crops)  # torch.tensor(bbox_crops).float().permute(2, 0, 1).unsqueeze(dim=0).cuda())
+                                                bbox_crops_list.append(bbox_crops)  # torch.tensor(bbox_crops).float().permute(2, 0, 1).unsqueeze(dim=0).to(config.General.device))
 
                                         else:
                                             #empty_crops_gtidx.append(box_idx)
@@ -624,7 +374,7 @@ class LEGONet(nn.Module):
 
                                 else:
                                     if not config.detect_with_points.detect_points:
-                                        bbox_crops_list.append(bbox_crops)  # torch.tensor(bbox_crops).float().permute(2, 0, 1).unsqueeze(dim=0).cuda())
+                                        bbox_crops_list.append(bbox_crops)  # torch.tensor(bbox_crops).float().permute(2, 0, 1).unsqueeze(dim=0).to(config.General.device))
 
 
 
@@ -674,137 +424,51 @@ class LEGONet(nn.Module):
 
                         if self.training or (not self.training and annotations is not None and points is not None):
                             corrected_counting_anns = sample['points_annot']
-                            corrected_counting_anns = [a.cuda() for a in corrected_counting_anns]
+                            corrected_counting_anns = [a.to(config.General.device) for a in corrected_counting_anns]
 
                             if config.detect_with_points.detect_points:
                                 corrected_maps_anns = sample['box_maps_annot']
-                                corrected_maps_anns = [a.cuda() for a in corrected_maps_anns]
+                                corrected_maps_anns = [a.to(config.General.device) for a in corrected_maps_anns]
 
 
                         num_of_crops = sample['img'].shape[0]
                         #print('crops to backbone2:', num_of_crops)
-                        if num_of_crops > 1000:
-                            a=1
-                            # l1 = []
-                            # maps_loss = []
-                            # counting_outputs=[[], [], [], [], [], [], []]
-                            #
-                            # for i in range(num_of_crops):
-                            #     new_sample_img = sample['img'][i].unsqueeze(dim=0)
-                            #     if self.backbone_type == "ResNetBackboneModule":
-                            #         bbox_pyramid_feats = self.backbone_2(new_sample_img.cuda())
-                            #
-                            #     bbox_pyramid_p3 = [bbox_pyramid_feats[0]]  # [p3]
-                            #
-                            #     if self.training:
-                            #         count_train_inputs = bbox_pyramid_p3, \
-                            #                              [corrected_counting_anns[1][i].unsqueeze(dim=0),corrected_counting_anns[2][i].unsqueeze(dim=0),
-                            #                               corrected_counting_anns[3][i].unsqueeze(dim=0),corrected_counting_anns[4][i].unsqueeze(dim=0),
-                            #                               corrected_counting_anns[5][i].unsqueeze(dim=0)]
-                            #
-                            #         SFMS_lists, cls_output, maps_loss_i = self.find_2(count_train_inputs)
-                            #
-                            #         count_input = SFMS_lists, cls_output, [corrected_counting_anns[0][i, :].unsqueeze(dim=0),
-                            #                                                corrected_counting_anns[1][i].unsqueeze(dim=0),
-                            #                                                corrected_counting_anns[2][i].unsqueeze(dim=0),
-                            #                                                corrected_counting_anns[3][i].unsqueeze(dim=0),
-                            #                                                corrected_counting_anns[4][i].unsqueeze(dim=0),
-                            #                                                corrected_counting_anns[5][i].unsqueeze(dim=0)]
-                            #
-                            #         l1.append(self.LeanCountingModule(count_input))
-                            #         maps_loss.append(maps_loss_i)
-                            #
-                            #         including_counting = True
-                            #
-                            #     else:
-                            #         SFMS_lists, cls_output = self.find_2(bbox_pyramid_p3)
-                            #         count_input = SFMS_lists, cls_output
-                            #         count_out = self.LeanCountingModule(count_input)
-                            #         for i in range(7):
-                            #             counting_outputs[i].append(count_out[i])
-                            #
-                            # if self.training:
-                            #     l1=torch.mean(torch.stack(l1))
-                            #     maps_loss=torch.mean(torch.stack(maps_loss))
-                            #
-                            # else:
-                            #     for i in range(7):
-                            #         counting_outputs[i] =  torch.cat(counting_outputs[i], dim=0)
 
+                        # img input should be tensor [b,c,h,w]
+                        if self.backbone_type == "ResNetBackboneModule":
+                            if config.detect_and_count.single_backbone:
 
-                        else:
-                            #torch.empty_cache()
-                            if not config.detect_with_points.detect_points:
-                                # img input should be tensor [b,c,h,w]
-                                if self.backbone_type == "ResNetBackboneModule":
-                                    if config.detect_and_count.single_backbone:
+                                bbox_pyramid_feats = self.backbone_1(sample['img'].to(config.General.device))
 
-                                        bbox_pyramid_feats = self.backbone_1(sample['img'].cuda())
+                            else:
+                                bbox_pyramid_feats= []
+                                bbox_pyramid_p3 = []
 
+                                if config.General.twoBackbone_2:
+                                    bbox_pyramid_feats_2 = []
+                                    bbox_pyramid_p3_2 = []
+
+                                for i in range(num_of_crops):
+                                    current= self.backbone_2(sample['img'][i].unsqueeze(dim=0).to(config.General.device))
+                                    bbox_pyramid_feats.append(current)
+                                    if i==0:
+                                        bbox_pyramid_p3.append(bbox_pyramid_feats[i][0]) ##current[0]
                                     else:
-                                        bbox_pyramid_feats= []
-                                        bbox_pyramid_p3 = []
+                                        bbox_pyramid_p3[0] = torch.cat((bbox_pyramid_p3[0], bbox_pyramid_feats[i][0]), dim=0)  #[bbox_pyramid_feats[0]]  # [bbox_pyramid_feats]  # [p3]
 
-                                        if config.General.twoBackbone_2:
-                                            bbox_pyramid_feats_2 = []
-                                            bbox_pyramid_p3_2 = []
-
-                                        for i in range(num_of_crops):
-                                            current= self.backbone_2(sample['img'][i].unsqueeze(dim=0).cuda())
-                                            bbox_pyramid_feats.append(current)
-                                            if i==0:
-                                                bbox_pyramid_p3.append(bbox_pyramid_feats[i][0]) ##current[0]
-                                            else:
-                                                bbox_pyramid_p3[0] = torch.cat((bbox_pyramid_p3[0], bbox_pyramid_feats[i][0]), dim=0)  #[bbox_pyramid_feats[0]]  # [bbox_pyramid_feats]  # [p3]
-
-                                            if config.General.twoBackbone_2:
-                                                current_2 = self.backbone_2_b(sample['img'][i].unsqueeze(dim=0).cuda())
-                                                bbox_pyramid_feats_2.append(current_2)
-                                                if i == 0:
-                                                    bbox_pyramid_p3_2.append(bbox_pyramid_feats_2[i][0])
-                                                else:
-                                                    bbox_pyramid_p3_2[0] = torch.cat((bbox_pyramid_p3_2[0], bbox_pyramid_feats_2[i][0]),dim=0)
+                                    if config.General.twoBackbone_2:
+                                        current_2 = self.backbone_2_b(sample['img'][i].unsqueeze(dim=0).to(config.General.device))
+                                        bbox_pyramid_feats_2.append(current_2)
+                                        if i == 0:
+                                            bbox_pyramid_p3_2.append(bbox_pyramid_feats_2[i][0])
+                                        else:
+                                            bbox_pyramid_p3_2[0] = torch.cat((bbox_pyramid_p3_2[0], bbox_pyramid_feats_2[i][0]),dim=0)
 
 
 
-                                        # bbox_pyramid_feats = torch.cat(bbox_pyramid_feats, dim=0)
+                                # bbox_pyramid_feats = torch.cat(bbox_pyramid_feats, dim=0)
 
                     else:
-
-                        # image_ratio = self.images_ratios(image_shape=(img_batch[img_idx].shape[1:]),
-                        #                                  output_shape=(
-                        #                                  pyramid_feats[0].shape[2], pyramid_feats[0].shape[3]))
-                        # new_coords_0 = bbox_pred_adjusted[box_idx][0].clone() * image_ratio[0]
-                        # new_coords_1 = bbox_pred_adjusted[box_idx][1].clone() * image_ratio[1]
-                        # new_coords_2 = bbox_pred_adjusted[box_idx][2].clone() * image_ratio[0]
-                        # new_coords_3 = bbox_pred_adjusted[box_idx][3].clone() * image_ratio[1]
-                        #
-                        # new_coords = torch.tensor([new_coords_0, new_coords_1, new_coords_2, new_coords_3],
-                        #                           requires_grad=True).cuda()
-                        #
-
-                        # maps = []
-                        # for box_num in range(num_of_crops):
-                        #     new_p3 = p3.clone()
-                        #     current_coord = bbox_pred_adjusted[box_num][:4]
-                        #     w = new_p3.shape[2]
-                        #     h = new_p3.shape[3]
-                        #     for i in range(w):
-                        #         for j in range(h):
-                        #             x1 = torch.floor(current_coord[0])
-                        #             y1 = torch.floor(current_coord[1])
-                        #             x2 = torch.ceil(current_coord[2])
-                        #             y2 = torch.ceil(current_coord[3])
-                        #
-                        #             if not (i > x1 and i < x2 and j > y1 and j < y2):
-                        #                 new_p3[:, :, i, j] = 0
-                        #
-                        #     maps.append(new_p3)
-                        #
-                        # p3 = torch.cat(maps, dim=0)
-
-                        new_im = []
-                        #num_of_boxes = bbox_pred_adjusted.shape[0]
 
                         p3 = []
                         ########################
@@ -815,33 +479,11 @@ class LEGONet(nn.Module):
                         for box_num in range(num_of_boxes):
                             img_batch_copy = img_batch.clone()
 
-                            # visualize orig
-                            #unnormalize = UnNormalizer()
-
-                            # save_orig = os.path.join("D:\\Faina\\roots_project", "Dataset for root color model\\17_1_data\\" , \
-                            #         "For root color model\\all images\\Results\\both_detect by points\\val_2023-01-23_223454_epoch_299\\test", "orig.jpg")
-                            # orig = img_batch_copy[0].cpu().clone().detach()
-                            #
-                            # orig = np.array(255 * unnormalize(orig))
-                            # orig[orig < 0] = 0
-                            # orig[orig > 255] = 255
-                            # orig = np.transpose(orig, (1, 2, 0))
-                            # orig = cv2.cvtColor(orig.astype(np.uint8), cv2.COLOR_BGR2RGB)
-                            # #cv2.imshow('img2', orig)
-                            # #cv2.waitKey(0)
-                            # cv2.imwrite(save_orig, orig)
-
                             current_coord = bbox_pred_adjusted[box_num][:4]
                             x1 = int(torch.floor(current_coord[0]).item())
                             y1 = int(torch.floor(current_coord[1]).item())
                             x2 = int(torch.ceil(current_coord[2]).item())
                             y2 = int(torch.ceil(current_coord[3]).item())
-
-                            #wrong!!!!!
-                            # img_batch_copy[:, :, :(x1+1), :] = 0
-                            # img_batch_copy[:, :, x2:, :] = 0
-                            # img_batch_copy[:, :,:, :(y1+1)] = 0
-                            # img_batch_copy[:, :, :, y2:] = 0
 
                             img_batch_copy[:, :, :(y1 + 1), :] = 0
                             img_batch_copy[:, :, y2:, :] = 0
@@ -853,46 +495,6 @@ class LEGONet(nn.Module):
 
                             p3.append(bbox_pyramid_feats_new[0])
 
-
-                            #new_im.append(img_batch_copy)
-
-                            # visualize
-                            # im = img_batch_copy[0].cpu().clone().detach()
-                            # im = np.array(255 * unnormalize(im))
-                            # im[im < 0] = 0
-                            # im[im > 255] = 255
-                            # im = np.transpose(im, (1, 2, 0))
-                            # im = cv2.cvtColor(im.astype(np.uint8), cv2.COLOR_BGR2RGB)
-                            # #cv2.imshow('img', im)
-                            # #cv2.waitKey(0)
-                            # save_path = "D:\\Faina\\roots_project\\Dataset for root color model\\17_1_data\\" +\
-                            #             "For root color model\\all images\\Results\\both_detect by points\\val_2023-01-23_223454_epoch_299\\test//crop_"+ str(box_num)+".jpg"
-                            # cv2.imwrite(save_path, im)
-
-
-                        #new_im = torch.cat(new_im, dim=0)
-                        #bbox_pyramid_feats_new = self.backbone_2(img_batch_copy)   #self.backbone_2(new_im)
-
-                        #p3 = [bbox_pyramid_feats_new[0]]  # [p3]
-
-                            # if config.Counting.counting_type == 'withKeyPoints' and config.detect_with_points.detect_points:
-                            #
-                            #     root_anns = annotations[1][0][0].cuda().float()
-                            #     annotations[1][0][1] = annotations[1][0][1].cuda().float()
-                            #     annotations[2][1] = annotations[2][1].cuda().float()
-                            #
-                            #     count_train_inputs = p3, annotations[2][1]  # corrected_maps_anns
-                            #
-                            #     SFMS_lists, cls_output, maps_loss = self.find_2(count_train_inputs)
-                            #     count_input = SFMS_lists, cls_output, root_anns
-                            #
-                            #     current_count_loss, current_length_loss, current_diameter_loss = self.LeanModuleForRoots(count_input)
-                            #     count_loss += current_count_loss
-                            #     length_loss += current_length_loss
-                            #     diameter_loss += current_diameter_loss
-
-
-                        #bbox_pyramid_feats_new =  torch.cat(bbox_pyramid, dim=0)     #self.backbone_2(img_batch_copy)#(new_im)
 
                         p3 = [torch.cat(p3, dim=0)]  #[bbox_pyramid_feats_new[0]]  # [p3]
 
@@ -906,9 +508,9 @@ class LEGONet(nn.Module):
                                 root_anns = corrected_counting_anns[6:9]
 
                             else:
-                                root_anns = annotations[1][0][0].cuda().float()
-                                annotations[1][0][1] = annotations[1][0][1].cuda().float()
-                                annotations[2][1] = annotations[2][1].cuda().float()
+                                root_anns = annotations[1][0][0].to(config.General.device).float()
+                                annotations[1][0][1] = annotations[1][0][1].to(config.General.device).float()
+                                annotations[2][1] = annotations[2][1].to(config.General.device).float()
 
                                 count_train_inputs = p3, annotations[2][1][:,0,:,:] #corrected_maps_anns
 
@@ -971,7 +573,7 @@ class LEGONet(nn.Module):
                                     maps_loss += current_maps_loss
                                     count_input = SFMS_lists, cls_output, current_roots_anns  # annotations[1][0][0] #corrected_counting_anns
 
-                                    current_l1 = self.LeanCountingModule(count_input)
+                                    current_l1 = self.EstimateWithPointsModule(count_input)
                                     l1 += current_l1
                                     #counting_loss = l1 + maps_loss
 
@@ -996,23 +598,23 @@ class LEGONet(nn.Module):
                                         config.General.binary_model = True
                                         config.General.binary_version = "L1Loss"
                                         count_input_color = count_input["count_input_color"][0], count_input["count_input_color"][1], count_input["count_input_color"][2]
-                                        current_color_loss = self.LeanCountingModule_color(count_input_color)
+                                        current_color_loss = self.EstimateWithPointsModule_color(count_input_color)
 
                                         config.General.binary_model = False
                                         count_input_len = count_input["count_input_len"][0], count_input["count_input_len"][1], count_input["count_input_len"][2]
                                         count_input_dia = count_input["count_input_dia"][0], count_input["count_input_dia"][1], count_input["count_input_dia"][2]
-                                        current_length_loss = self.LeanCountingModule_length(count_input_len)
-                                        current_diameter_loss = self.LeanCountingModule_diameter(count_input_dia)
+                                        current_length_loss = self.EstimateWithPointsModule_length(count_input_len)
+                                        current_diameter_loss = self.EstimateWithPointsModule_diameter(count_input_dia)
 
                                     else:
                                         # the color output is currently binary
                                         config.General.binary_model = True
                                         config.General.binary_version = "L1Loss"
-                                        current_color_loss = self.LeanCountingModule_color(count_input)
+                                        current_color_loss = self.EstimateWithPointsModule_color(count_input)
 
                                         config.General.binary_model = False
-                                        current_length_loss = self.LeanCountingModule_length(count_input)
-                                        current_diameter_loss = self.LeanCountingModule_diameter(count_input)
+                                        current_length_loss = self.EstimateWithPointsModule_length(count_input)
+                                        current_diameter_loss = self.EstimateWithPointsModule_diameter(count_input)
 
                                     color_loss += current_color_loss[0]
                                     length_loss += current_length_loss[0]
@@ -1030,19 +632,19 @@ class LEGONet(nn.Module):
                                     # the color output is currently binary
                                     config.General.binary_model = True
                                     config.General.binary_version = "L1Loss"
-                                    current_color_loss = self.CountWithRegModule_color([bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels], corrected_counting_anns[6][i,0].unsqueeze(dim=0).unsqueeze(dim=0)])
+                                    current_color_loss = self.EstimateWithRegModule_color([bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels], corrected_counting_anns[6][i,0].unsqueeze(dim=0).unsqueeze(dim=0)])
 
 
                                     config.General.binary_model = False
-                                    current_length_loss = self.CountWithRegModule_length([bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels], corrected_counting_anns[6][i,1].unsqueeze(dim=0).unsqueeze(dim=0)])
-                                    current_diameter_loss = self.CountWithRegModule_diameter([bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels], corrected_counting_anns[6][i,2].unsqueeze(dim=0).unsqueeze(dim=0)])
+                                    current_length_loss = self.EstimateWithRegModule_length([bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels], corrected_counting_anns[6][i,1].unsqueeze(dim=0).unsqueeze(dim=0)])
+                                    current_diameter_loss = self.EstimateWithRegModule_diameter([bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels], corrected_counting_anns[6][i,2].unsqueeze(dim=0).unsqueeze(dim=0)])
 
                                     color_loss += current_color_loss
                                     length_loss += current_length_loss
                                     diameter_loss += current_diameter_loss
 
                             else:
-                                counting_loss = self.CountWithRegModule([bbox_pyramid_feats[:config.Counting.num_of_pyr_levels], corrected_counting_anns[0]])
+                                counting_loss = self.EstimateWithRegModule([bbox_pyramid_feats[:config.Counting.num_of_pyr_levels], corrected_counting_anns[0]])
 
                         #total_loss = total_loss + counting_loss
 
@@ -1088,10 +690,7 @@ class LEGONet(nn.Module):
                                 count_input = SFMS_lists, cls_output
 
                             if self.network_type == "both":
-                                counting_outputs = self.LeanCountingModule(count_input)
-
-                            elif self.network_type == "both_for_roots":
-                                counting_outputs = self.LeanModuleForRoots(count_input)
+                                estimation_outputs = self.EstimateWithPointsModule(count_input)
 
                             elif self.network_type == "both_for_roots_2":
 
@@ -1102,22 +701,22 @@ class LEGONet(nn.Module):
                                     config.General.binary_version = "L1Loss"
                                     count_input_color = count_input["count_input_color"][0], count_input["count_input_color"][1]
                                     color, maps_0_color, maps_1_color, maps_2_color, maps_3_color, maps_4_color, maps_5_color= \
-                                        self.LeanCountingModule_color(count_input_color)
+                                        self.EstimateWithPointsModule_color(count_input_color)
 
                                     config.General.binary_model = False
                                     count_input_len = count_input["count_input_len"][0], count_input["count_input_len"][1]
                                     count_input_dia = count_input["count_input_dia"][0], count_input["count_input_dia"][1]
 
                                     length, maps_0_len, maps_1_len, maps_2_len, maps_3_len, maps_4_len, maps_5_len = \
-                                        self.LeanCountingModule_length(count_input_len)
+                                        self.EstimateWithPointsModule_length(count_input_len)
 
                                     diameter, maps_0_dia, maps_1_dia, maps_2_dia, maps_3_dia, maps_4_dia, maps_5_dia = \
-                                        self.LeanCountingModule_diameter(count_input_dia)
+                                        self.EstimateWithPointsModule_diameter(count_input_dia)
 
                                     #choose what maps tp pass tp inference - ToDo: pass all and correct eval script accordingly
                                     maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = maps_0_len, maps_1_len, maps_2_len, maps_3_len, maps_4_len, maps_5_len
 
-                                    counting_outputs = [torch.cat([color, length, diameter], dim=-1), maps_0, maps_1, maps_2, maps_3, maps_4, maps_5]
+                                    estimation_outputs = [torch.cat([color, length, diameter], dim=-1), maps_0, maps_1, maps_2, maps_3, maps_4, maps_5]
 
 
                                 else:
@@ -1125,35 +724,35 @@ class LEGONet(nn.Module):
                                     # the color output is currently binary
                                     config.General.binary_model = True
                                     config.General.binary_version = "L1Loss"
-                                    color,_ ,_ ,_ ,_ , _, _ = self.LeanCountingModule_color(count_input)
+                                    color,_ ,_ ,_ ,_ , _, _ = self.EstimateWithPointsModule_color(count_input)
 
                                     config.General.binary_model = False
                                     if config.General.twoFind_2:
-                                        length, maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = self.LeanCountingModule_length(count_input_2)
+                                        length, maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = self.EstimateWithPointsModule_length(count_input_2)
                                     else:
-                                        length, maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = self.LeanCountingModule_length(count_input)
+                                        length, maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = self.EstimateWithPointsModule_length(count_input)
 
-                                    diameter,_ ,_ ,_ ,_ , _, _ = self.LeanCountingModule_diameter(count_input)
+                                    diameter,_ ,_ ,_ ,_ , _, _ = self.EstimateWithPointsModule_diameter(count_input)
 
-                                    counting_outputs = [torch.cat([color,length,diameter], dim=-1), maps_0, maps_1, maps_2, maps_3, maps_4, maps_5]
+                                    estimation_outputs = [torch.cat([color,length,diameter], dim=-1), maps_0, maps_1, maps_2, maps_3, maps_4, maps_5]
 
                         elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
                             if self.network_type == "both_for_roots_2":
-                                counting_outputs = []
+                                estimation_outputs = []
                                 for i in range(num_of_boxes):
                                     # the color output is currently binary
                                     config.General.binary_model = True
-                                    current_color = self.CountWithRegModule_color(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
+                                    current_color = self.EstimateWithRegModule_color(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
                                     # if i==0:
                                     #     color = current_color
                                     # else:
                                     #     color = torch.cat((color, current_color), dim=0)
 
                                     config.General.binary_model = False
-                                    current_length = self.CountWithRegModule_length(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
-                                    current_diameter= self.CountWithRegModule_diameter(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
+                                    current_length = self.EstimateWithRegModule_length(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
+                                    current_diameter= self.EstimateWithRegModule_diameter(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
 
-                                    counting_outputs.append(torch.cat([current_color,current_length,current_diameter]).unsqueeze(0))
+                                    estimation_outputs.append(torch.cat([current_color,current_length,current_diameter]).unsqueeze(0))
                                     # if i == 0:
                                     #     length = current_length
                                     #     diameter = current_diameter
@@ -1161,11 +760,11 @@ class LEGONet(nn.Module):
                                     #     length = torch.cat((length, current_length), dim=0)
                                     #     diameter = torch.cat((diameter, current_diameter), dim=0)
 
-                                counting_outputs = [torch.cat(counting_outputs, dim=0)]
+                                estimation_outputs = [torch.cat(estimation_outputs, dim=0)]
                                 #counting_outputs = [torch.cat([color.unsqueeze(0),length.unsqueeze(0),diameter.unsqueeze(0)], dim=0)]
 
                             else:
-                                counting_outputs = self.CountWithRegModule(bbox_pyramid_feats[:config.Counting.num_of_pyr_levels])
+                                estimation_outputs = self.EstimateWithRegModule(bbox_pyramid_feats[:config.Counting.num_of_pyr_levels])
 
                 else:
                     sample=None
@@ -1182,7 +781,7 @@ class LEGONet(nn.Module):
                                                                       classification_vector_new[img_idx].unsqueeze(
                                                                           dim=0))
                         bbox_pred_adjusted = torch.empty(0)
-                        counting_outputs = None
+                        estimation_outputs = None
 
 
             if self.training:
@@ -1232,12 +831,12 @@ class LEGONet(nn.Module):
             else:
                 if bbox_pred_adjusted.shape[0] > 0: #len(bbox_crops_list)>0:
                     if not config.detect_with_points.detect_points:
-                        return detection_outputs, counting_outputs, sample, relevant_points, crops_orig_boxes #bbox_pred_adjusted,....
+                        return detection_outputs, estimation_outputs, sample, relevant_points, crops_orig_boxes #bbox_pred_adjusted,....
                     else:
-                        return detection_outputs, counting_outputs, None, relevant_points, crops_orig_boxes,
+                        return detection_outputs, estimation_outputs, None, relevant_points, crops_orig_boxes,
 
                 else:
-                    return detection_outputs, counting_outputs, None, None, None  #[],...
+                    return detection_outputs, estimation_outputs, None, None, None  #[],...
 
 
         elif self.network_type == "counting_reg":
@@ -1245,18 +844,16 @@ class LEGONet(nn.Module):
 
             if self.training:
                 if config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
-                    reg_loss = self.CountWithRegModule(
-                        [pyramid_feats[:config.Counting.num_of_pyr_levels], annotations[0].cuda()])
+                    reg_loss = self.EstimateWithRegModule(
+                        [pyramid_feats[:config.Counting.num_of_pyr_levels], annotations[0].to(config.General.device)])
 
                 return reg_loss
 
             else:
                 if config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
-                    reg_outputs = self.CountWithRegModule(pyramid_feats[:config.Counting.num_of_pyr_levels])
+                    reg_outputs = self.EstimateWithRegModule(pyramid_feats[:config.Counting.num_of_pyr_levels])
 
                 return reg_outputs
-
-
 
 
     def get_detection_output(self, transformed_anchors, classification_vector):
@@ -1306,9 +903,9 @@ class LEGONet(nn.Module):
             cv2.imshow('img',im)
             cv2.waitKey(0)
 
-            im=torch.tensor(im).float().permute(2,0,1).unsqueeze(dim=0).cuda()
+            im=torch.tensor(im).float().permute(2,0,1).unsqueeze(dim=0).to(config.General.device)
 
-        indices = torch.tensor([0, 1, 2, 3]).cuda()
+        indices = torch.tensor([0, 1, 2, 3]).to(config.General.device)
         box_coord = torch.index_select(bbox_pred, 1, indices)
 
         bbox_crops = self.roi_align(input=img.unsqueeze(dim=0), boxes=[box_coord],

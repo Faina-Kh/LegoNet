@@ -16,7 +16,7 @@ from util import printf
 from legonet.eval.counting_eval import SumOfAbsDifferences
 from legonet.eval.kcsv_eval_2 import _get_count_and_box_annotations, compute_overlap, _compute_ap
 from legonet.eval.count_detection_eval import detection_evaluation, calc_recall_precision_ap
-from legonet.dataloader import UnNormalizer
+from legonet.myDataloader import UnNormalizer
 
 import config
 import csv
@@ -190,13 +190,13 @@ def choose_boxes_by_IoUandPrc(detections, annotations, d_scores):
             true_positives = np.append(true_positives, 1)
             detected_annotations.append(assigned_annotation)
 
-            detection_assignments.append(torch.cat((d.unsqueeze(0), torch.tensor([float(assigned_annotation)]).unsqueeze(0).cuda()), dim=-1))
+            detection_assignments.append(torch.cat((d.unsqueeze(0), torch.tensor([float(assigned_annotation)]).unsqueeze(0).to(config.General.device)), dim=-1))
 
         else:
             false_positives = np.append(false_positives, 1)
             true_positives = np.append(true_positives, 0)
 
-            detection_assignments.append(torch.cat((d.unsqueeze(0),torch.tensor([-1.0]).unsqueeze(0).cuda()), dim=-1))
+            detection_assignments.append(torch.cat((d.unsqueeze(0),torch.tensor([-1.0]).unsqueeze(0).to(config.General.device)), dim=-1))
 
 
     # changes for roots
@@ -694,7 +694,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     data["per_obj_maps"] = []
 
                 detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
-                    model([image.cuda().float(), [data['bbox_annot'], data['points_annot'], data["per_obj_maps"]], torch.tensor(group_idx),
+                    model([image.to(config.General.device).float(), [data['bbox_annot'], data['points_annot'], data["per_obj_maps"]], torch.tensor(group_idx),
                            True])  # image.cuda().float().unsqueeze(dim=0))
 
 

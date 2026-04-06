@@ -55,7 +55,10 @@ def ablations(args):
     config.Detection.min_score = 0.7  # 0.95 #0.5 #0.05
     config.Detection.iou_threshold = 0.5  # 0.5 #[0.3, 0.5, 0.7, 0.9, 0.95] #0.5
     config.Detection.min_score_list = [0.7]
+
+    args.eval_detection_params = True
     config.Detection.iou_threshold_list = [0.3, 0.5, 0.7]
+
     config.Detection.NMS_THRESHOLD = 0.3
     config.Detection.DO_BBOX_AUGMENTATION_FOR_COUNTING = False
     config.Detection.USE_PERFECT_DETECTION_MODE = False

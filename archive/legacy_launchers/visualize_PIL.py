@@ -24,7 +24,7 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
-from legonet.dataloader import KCSVDataset, CocoDataset, kcsv_collater, Resizer, AspectRatioBasedSampler, UnNormalizer, Normalizer
+from legonet.myDataloader import KCSVDataset, CocoDataset, kcsv_collater, Resizer, AspectRatioBasedSampler, UnNormalizer, Normalizer
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -58,10 +58,10 @@ if __name__ == '__main__':
 		dataset_val = CocoDataset(parser.coco_path, set_name='val', transform=transforms.Compose([Normalizer(), Resizer()]))
 	elif parser.dataset == 'kcsv':
 		# dataset_val = KCSVDataset(train_file=parser.kcsv_train, class_list=parser.kcsv_classes, transform=transforms.Compose([Normalizer(), Resizer(ann_type="bbox")]))
-		dataset_val = KCSVDataset(train_file=parser.kcsv_test, class_list=parser.kcsv_classes,
-								  pre_process = 'torch_like',
-								  transform=transforms.Compose([Normalizer(pre_process = 'torch_like'), Resizer(min_side=800, max_side=1333)]),
-								  lean_version= 'version_3')
+		dataset_val = KCSVDataset(input_file=parser.kcsv_test, class_list=parser.kcsv_classes,
+                                  pre_process = 'torch_like',
+                                  transform=transforms.Compose([Normalizer(pre_process = 'torch_like'), Resizer(min_side=800, max_side=1333)]),
+                                  lean_version= 'version_3')
 	else:
 		raise ValueError('Dataset type not understood (must be csv or coco), exiting.')
 

@@ -1,17 +1,13 @@
 import torch
 import torch.nn as nn
 import torchvision.ops
-import torchvision.transforms as T
 
-
-import losses
+from legacy_scripts import losses
 import anchors
 
-import math, copy, time
-import os
-import PIL
+import math, copy
 
-import legos_3
+from legos import legos_3
 
 import util
 import config
@@ -20,17 +16,12 @@ import config
 
 from torchvision.ops import roi_align
 
-from legonet.dataloader import UnNormalizer
+from legonet.myDataloader import UnNormalizer
 import numpy as np
 import cv2
-from torchvision import transforms
-from PIL import Image, ImageDraw
-import dataloader
-from legacy_scripts import kcsv_dataloader
-import matplotlib.pyplot as plt
 
 from itertools import compress
-from legonet.eval.both_eval_new import choose_boxes_by_IoUandPrc
+from legacy_eval.both_eval_new import choose_boxes_by_IoUandPrc
 
 
 
@@ -74,7 +65,7 @@ class LEGONet(nn.Module):
                 self.backbone_2_b = legos_3.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_count')
 
             if config.detect_and_count.use_new_Find:
-                self.find_2_length = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes,name='find_for_count', task='counting')
+                self.find_2_length = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
                 self.find_2_diameter = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
                 self.find_2_color = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
 
@@ -99,14 +90,14 @@ class LEGONet(nn.Module):
 
         if self.network_type == "both_for_roots_2" or config.General.binary_model: #config.General.with_new_layers:
             config.General.binary_model = True
-            self.LeanCountingModule_color = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, loss_for = "color")
+            self.LeanCountingModule_color = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, loss_for ="color")
 
             config.General.binary_model = False
-            self.LeanCountingModule_length = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, loss_for = "length")
-            self.LeanCountingModule_diameter = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, loss_for = "diameter")
+            self.LeanCountingModule_length = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, loss_for ="length")
+            self.LeanCountingModule_diameter = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, loss_for ="diameter")
 
         self.LeanCountingModule_multiple = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, output_size = output_size)
-        self.LeanCountingModule_multiple_2 = legos_3.LeanCountingModule(num_classes,inter_losses=config.Counting.inter_losses, output_size=output_size)
+        self.LeanCountingModule_multiple_2 = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, output_size=output_size)
         self.LeanCountingModule_multiple_3 = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, output_size=output_size)
         self.LeanCountingModule_multiple_4 = legos_3.LeanCountingModule(num_classes, inter_losses=config.Counting.inter_losses, output_size=output_size)
 

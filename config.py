@@ -5,6 +5,7 @@ class DrawProperties:
     POINT_RADIUS = 5
     LINE_WIDTH = 5
     DRAW_MAPS = True
+    save_img_path = ""
 
 class NetworkType(enum.Enum):
     detection = 1
@@ -18,7 +19,7 @@ class NetworkType(enum.Enum):
 
 class General:
     MODE = "train"
-    NETWORK_TYPE = NetworkType.counting_lean_multiple_out
+    NETWORK_TYPE = ""#NetworkType.counting_lean_multiple_out
     SAVE_EVERY_N_EPOCHS = 5
     experiment_path = ""
     to_draw = True
@@ -27,23 +28,25 @@ class General:
     binary_version = ""
     dataset_type = ""
     current_gpu = ""
-    prev_color_model= False
     with_new_layers = True
     twoFind_2 = False
     twoBackbone_2 = False
-    other=False
     predict_empty_image = False
     model_name = ""
     device = ""
+    filter_empty_bbox = False
+    weights_dir = ""
+    partial_weights_dir = ""
 
 class Detection:
+    backbone_type = "ResNetBackboneModule"
     NMS_THRESHOLD = 0.5
     BBOX_ADJUSTMENT_RATIO = 1.0
     DO_BBOX_AUGMENTATION_FOR_COUNTING = False
     # BBOX_SCALING_FOR_COUNTING_AUGMENTATION = np.linspace(start=0.5, stop=1.5, num=11)
     iou_threshold = 0.5
-    min_score = 0.05
-    iou_thresh_list = []
+    min_score = 0.05 #0.7
+    iou_threshold_list = [0.5]
     min_score_list = []
     USE_PERFECT_DETECTION_MODE = False
     change_anchors = False
@@ -75,9 +78,10 @@ class detect_and_count:
     balance_losses = False
     type = ""
     use_new_Find = False
+    crop_from_Pi = False
 
-class detect_with_points:
-    detect_points = False
+# class detect_with_points:
+#     detect_points = False
 
 class roots_ablations:
     freeze_all_except_find_2 = False

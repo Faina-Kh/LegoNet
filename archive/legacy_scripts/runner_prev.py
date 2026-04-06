@@ -13,7 +13,7 @@ from legonet import metrics
 from legonet import util
 from legonet.eval import coco_eval, counting_eval, kcsv_eval_2
 from legonet.eval import both_eval_new_241 as both_eval
-from dataloader import CocoDataset, collater, Resizer, AspectRatioBasedSampler, Augmenter, Normalizer, UnNormalizer, csv_LCCDataset, LCC_collater, kcsv_collater
+from myDataloader import CocoDataset, collater, Resizer, AspectRatioBasedSampler, Augmenter, Normalizer, UnNormalizer, csv_LCCDataset, LCC_collater, kcsv_collater
 from legacy_scripts.kcsv_dataloader import KCSVDataset
 from PIL import Image, ImageDraw, ImageFont
 import random
@@ -28,12 +28,12 @@ import gc
 def run(args=None):
 
     if config.detect_and_count.crop_from_Pi:
-        import model_4 as model
+        from models import model_crop_from_Pi as model
     else:
         if config.General.model_name=="model_detection":
-            import model_detection as model
+            from models import model_bbox_detection as model
         else:
-            import model_3 as model
+            from models import model_3 as model
 
     util.print_args(args)
 
@@ -1186,7 +1186,7 @@ def run(args=None):
                         print(average_precisions_all[i])
 
                 else:
-                    print("min score: ", config.Detection.min_score, "iou_threshold: ", config.Detection.iou_threshold)
+                    print("min score:", config.Detection.min_score, "iou_threshold: ", config.Detection.iou_threshold)
                     mAP,precision, recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,score_threshold=config.Detection.min_score, iou_threshold=config.Detection.iou_threshold,generate_PR_curve=True)
                     util.printf("mAP = %.3f\n", mAP)
 
@@ -1229,9 +1229,9 @@ def run(args=None):
 def run_offline_validation_double_detection(args=None):
 
     if config.detect_and_count.crop_from_Pi:
-        import model_4 as model
+        from models import model_crop_from_Pi as model
     else:
-        import model_3 as model
+        from models import model_3 as model
 
     util.print_args(args)
 
@@ -1352,10 +1352,9 @@ def run_offline_validation_double_detection(args=None):
 def run_offline_validation(args=None):
 
     if config.detect_and_count.crop_from_Pi:
-        import model_4 as model
+        from models import model_crop_from_Pi as model
     else:
-        import model_3 as model
-
+        from models import model_3 as model
 
     util.print_args(args)
 
@@ -1489,9 +1488,9 @@ def visualize_detection(args, save_path = ""):
 
 
     if config.detect_and_count.crop_from_Pi:
-        import model_4 as model
+        from models import model_crop_from_Pi as model
     else:
-        import model_3 as model
+        from models import model_3 as model
 
     util.print_args(args)
 
