@@ -71,14 +71,13 @@ def load_submodule_weights(model, state_dict, submodule_name, strict=True, verbo
 
 
 if __name__ == '__main__':
-    os.environ["CUDA_VISIBLE_DEVICES"] = '0'
-    device = torch.device("cuda:0")
+
 
     ##################################################
 
-    weights_path = 'C:/Users/bordezki/Desktop/LegoNet/ExpResults/grapes_detection_filterBBOX_minScore_0.7_prev/Weights'
+    weights_path = '' #'C:/Users/bordezki/Desktop/LegoNet/ExpResults/grapes_detection_filterBBOX_minScore_0.7_prev/Weights'
 
-    model_path = ""
+    model_path = "D:\\from 16\\more_counting_Res\\more_counting_Res\\legonet_epoch=249.pt"
 
     #################################################
     """
@@ -88,6 +87,9 @@ if __name__ == '__main__':
     to 
     torch.save({"model": legonet.state_dict()}, "model.pth")
     """
+    legonet = torch.load(model_path, map_location="cpu")
 
 
+    state_dict = legonet.state_dict()
+    load_submodule_weights(model = legonet, state_dict=state_dict, submodule_name = 'backbone_1')
 

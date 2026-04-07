@@ -608,6 +608,7 @@ def evaluateMAP_simple(generator,
 
         # compute false positives and true positives
         true_positives = np.cumsum(true_positives)
+        false_positives = np.cumsum(false_positives)
 
         # compute recall and precision
         recall = true_positives / num_annotations
@@ -615,7 +616,6 @@ def evaluateMAP_simple(generator,
 
         # compute average precision
         average_precision = _compute_ap(recall, precision)
-        false_positives = np.cumsum(false_positives)
         average_precisions[label] = average_precision, num_annotations
 
     mAP = np.zeros(generator.num_classes())

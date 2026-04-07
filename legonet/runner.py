@@ -40,6 +40,95 @@ def freeze_bn(model):
             layer.eval()
 
 
+def vis_bbox(dataloader_val,sampler_val,dataset_val, legonet, unnormalize):
+
+    font = ImageFont.truetype('arial.ttf', 14)
+    for idx, data in enumerate(dataloader_val):
+
+        group_idx = sampler_val.groups[idx]
+        img_id = dataset_val.image_ids[group_idx[0]]
+
+        image_name = dataset_val.img_info[img_id]['name']
+
+        with torch.no_grad():
+            st = time.time()
+            detection_outputs = legonet([data['img'].to(config.General.device).float(), [data['bbox_annot'], None], None, False])
+            scores, classification, transformed_anchors = detection_outputs
+            print('Elapsed time: {}'.format(time.time()-st))
+
+            idxs = np.where(scores.cpu() > config.Detection.min_score)
+            img_array = np.array(255 * unnormalize(data['img'][0, :, :, :])).copy()
+
+            img_array[img_array < 0] = 0
+            img_array[img_array > 255] = 255
+
+            img_array = np.transpose(img_array, (1, 2, 0))
+            # img_array = np.transpose(img_array, (2, 1, 0))
+
+            img = Image.fromarray(np.uint8(img_array))
+
+            draw = ImageDraw.Draw(img)
+
+            # draw predictions
+            for j in range(idxs[0].shape[0]):
+                ann = transformed_anchors[idxs[0][j], :]
+                x1 = int(ann[0])
+                y1 = int(ann[1])
+                x2 = int(ann[2])
+                y2 = int(ann[3])
+                label_name = dataset_val.labels[int(classification[idxs[0][j]])]
+                score = scores[idxs[0][j]]
+
+                draw.rectangle(((x1, y1), (x2, y2)), outline="red", width=config.DrawProperties.LINE_WIDTH)
+                # draw.text((x1, y2-20), "score = {:.3f}".format(score.item()), font=font)
+
+            # draw GT
+            annots = data["bbox_annot"].numpy()[0]
+            for ann in annots:
+                if ann[0]!= -1:
+                    x1 = int(ann[0])
+                    y1 = int(ann[1])
+                    x2 = int(ann[2])
+                    y2 = int(ann[3])
+                    label_name = dataset_val.labels[int(ann[4])]
+
+                    draw.rectangle(((x1, y1), (x2, y2)), outline="blue", width=config.DrawProperties.LINE_WIDTH)
+                    # draw.text((x1, y1+15), label_name, font=font)
+
+            # create image with size (100,100) and black background
+            button_img = Image.new('RGBA', (200, 20), "black")
+
+            # put text on image
+            button_draw = ImageDraw.Draw(button_img)
+            button_draw.text((0, 0), image_name, font=font)
+
+            # put button on source image in position (0, 0)
+            img.paste(button_img, (0, 0))
+
+            #img.show()
+            img.save(os.path.join(config.DrawProperties.save_img_path, image_name.split('.jpg')[0] + "_annot.jpg"))
+
+
+def print_args(args, file_path):
+
+    with open(file_path, "w", encoding="utf-8") as f:
+
+        def printf(msg):
+            print(msg, end="")   # to screen
+            f.write(msg)         # to file
+
+        printf("=====================================================================\n")
+        printf("Run Parameters\n")
+        printf("=====================================================================\n")
+
+        for var_name, var_val in vars(args).items():
+            printf(f"{var_name}: {var_val}\n")
+
+        printf(f"experiment path: {config.General.experiment_path}\n")
+
+        printf("=====================================================================\n\n")
+
+
 def run(args=None):
 
     if config.detect_and_count.crop_from_Pi:
@@ -50,7 +139,7 @@ def run(args=None):
         else:
             from models import model_3 as model_file
 
-    util.print_args(args)
+    print_args(args, args.txt_results) #util.print_args(args)
 
     # set seeders
     torch.manual_seed(19860318)
@@ -239,7 +328,7 @@ def run(args=None):
     # Loading weights
     if args.load_weights:
         print('Loading weights from: ', args.weights_file_path)
-        state_dict = torch.load(args.weights_file_path, map_location=config.General.device)
+        state_dict = (torch.load(args.weights_file_path, map_location=config.General.device)).state_dict() #torch.load(args.weights_file_path, map_location=config.General.device)
         print("Available modules:", list_checkpoint_modules(state_dict))
 
         if args.load_partial_weights_only:
@@ -827,9 +916,9 @@ def run(args=None):
                         mAP, precision , recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
                                                                 score_threshold=config.Detection.min_score,
                                                                 iou_threshold=config.Detection.iou_threshold)
-                        print(f'Current mAP = {mAP:.3f}, precision = {precision:.3f}, recall = {recall:.3f}\n')
+                        print(f'Current mAP = {mAP:.3f}, precision = {precision[-1]:.3f}, recall = {recall[-1]:.3f}\n')
                         with open(args.txt_results, 'a') as f:
-                            f.write(f'Epoch: {epoch_num}, mAP = {mAP:.3f}, precision = {precision:.3f}, recall = {recall:.3f}\n')
+                            f.write(f'Epoch: {epoch_num}, mAP = {mAP:.3f}, precision = {precision[-1]:.3f}, recall = {recall[-1]:.3f}\n')
 
                         if mAP > best_mAP:
                             best_mAP = mAP
@@ -956,6 +1045,7 @@ def run(args=None):
                     print()
 
                     if args.evaluate_detection:
+                        print()
                         util.printf("Detection evaluation: ")
 
                         mAP, precision, recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
@@ -1077,15 +1167,18 @@ def run(args=None):
                         print(average_precisions_all[i])
 
                 else:
+                    print()
                     print(f"Results for min score: {config.Detection.min_score}, iou_threshold: {config.Detection.iou_threshold}")
-                    mAP, _, _ = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val,
+                    mAP, precision, recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val,
                                                                             legonet,score_threshold=config.Detection.min_score,
                                                                             iou_threshold=config.Detection.iou_threshold,
                                                                             generate_PR_curve=True)
-                    print(f'mAP = {mAP:.3f}')
+                    print(f'mAP = {mAP:.3f}, precision = {precision[-1]:.3f}, recall = {recall[-1]:.3f}')
 
                     with open(args.txt_results, 'a') as f:
-                        f.write(f'mAP = {mAP:.3f}\n')
+                        f.write(f'mAP = {mAP:.3f}, precision = {precision[-1]:.3f}, recall = {recall[-1]:.3f}\n')
+                    if config.General.to_draw:
+                        vis_bbox(dataloader_val, sampler_val, dataset_val, legonet, unnormalize = UnNormalizer())
 
             if args.evaluate_both:
 
@@ -1419,12 +1512,9 @@ def visualize_detection(args, save_path = ""):
 
     legonet.eval()
 
-    legonet.network_type = "detection"
+    legonet.network_type = "bbox_detection"
 
     unnormalize = UnNormalizer()
-
-
-
 
     font = ImageFont.truetype('arial.ttf', 14)
     for idx, data in enumerate(dataloader_val):

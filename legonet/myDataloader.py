@@ -828,30 +828,30 @@ class KCSVDataset(Dataset):
             annot = {"bbox_annot": bbox_annot}
 
         else:
-
-            if config.General.dataset_name == 'grapes': # and filter_empty...
-                boxes_to_remove = []
-                for p_annot in points_annot[0]:
-                    if math.isnan(p_annot[1]):
-                        boxes_to_remove.append(p_annot[2])
-
-                points_counts = points_annot[0]
-                points_coords = points_annot[1]
-                for box_id in boxes_to_remove:
-                    # result1 = np.where(bbox_annot == box_id)
-                    # bbox_annot=np.delete(bbox_annot,result1[0][0],0)
-                    for idx1 in range(len(bbox_annot)):
-                        if bbox_annot[idx1][5] == box_id:
-                            bbox_annot = np.delete(bbox_annot, [idx1], 0)
-                            break
-
-                    # points_counts = np.delete(points_counts, result2[0][0],0)
-                    for idx2 in range(len(points_counts)):
-                        if points_counts[idx2][2] == box_id:
-                            points_counts = np.delete(points_counts, [idx2], 0)
-                            break
-
-                points_annot = (points_counts, points_coords)
+            #
+            # if config.General.dataset_name == 'grapes': # and filter_empty...
+            #     boxes_to_remove = []
+            #     for p_annot in points_annot[0]:
+            #         if math.isnan(p_annot[1]):
+            #             boxes_to_remove.append(p_annot[2])
+            #
+            #     points_counts = points_annot[0]
+            #     points_coords = points_annot[1]
+            #     for box_id in boxes_to_remove:
+            #         # result1 = np.where(bbox_annot == box_id)
+            #         # bbox_annot=np.delete(bbox_annot,result1[0][0],0)
+            #         for idx1 in range(len(bbox_annot)):
+            #             if bbox_annot[idx1][5] == box_id:
+            #                 bbox_annot = np.delete(bbox_annot, [idx1], 0)
+            #                 break
+            #
+            #         # points_counts = np.delete(points_counts, result2[0][0],0)
+            #         for idx2 in range(len(points_counts)):
+            #             if points_counts[idx2][2] == box_id:
+            #                 points_counts = np.delete(points_counts, [idx2], 0)
+            #                 break
+            #
+            #     points_annot = (points_counts, points_coords)
 
             annot = {"bbox_annot":bbox_annot, "points_annot":points_annot}
 
@@ -1046,6 +1046,30 @@ class KCSVDataset(Dataset):
             points_annotations = None
         else:
             points_annotations = self.get_output_counting(image_name) #[counts: count, point class, box id, centers: x,y, point class, box id]
+
+        if config.General.dataset_name == 'grapes':  # and filter_empty...
+            boxes_to_remove = []
+            for p_annot in points_annotations[0]:
+                if math.isnan(p_annot[1]):
+                    boxes_to_remove.append(p_annot[2])
+
+            points_counts = points_annotations[0]
+            points_coords = points_annotations[1]
+            for box_id in boxes_to_remove:
+                # result1 = np.where(bbox_annot == box_id)
+                # bbox_annot=np.delete(bbox_annot,result1[0][0],0)
+                for idx1 in range(len(bbox_annotations)):
+                    if bbox_annotations[idx1][5] == box_id:
+                        bbox_annotations = np.delete(bbox_annotations, [idx1], 0)
+                        break
+
+                # points_counts = np.delete(points_counts, result2[0][0],0)
+                for idx2 in range(len(points_counts)):
+                    if points_counts[idx2][2] == box_id:
+                        points_counts = np.delete(points_counts, [idx2], 0)
+                        break
+
+            points_annotations = (points_counts, points_coords)
 
         return bbox_annotations, points_annotations
 

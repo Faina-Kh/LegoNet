@@ -50,14 +50,14 @@ if args is None:
 ########################################################################################################################
 args.gpu_num = '0'
 
-args.STORAGE_PATH = r"C:\Users\bordezki\Desktop\LegoNet"
-config.Detection.min_score = 0.05 #0.7 #0.05
-args.current_results_dir = "grapes_detection_filterBBOX_minScore_0.05_nms 0.5" #"grapes_detection_minScore 0.05" #"grapes_detection_filterBBOX_minScore 0.7"
+args.STORAGE_PATH = 'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
+config.Detection.min_score = 0.7 #0.7 #0.05
+args.current_results_dir = "grapes_detection_try" #"grapes_detection_minScore 0.05" #"grapes_detection_filterBBOX_minScore 0.7"
 
-args.run_script = 'Inference' #'Training' #'Inference'
+args.run_script = 'Training' #'Training' #'Inference'
 config.General.MODE = args.run_script
 
-val_set = "Test"
+val_set = "Val"
 
 #"grapes diff radii"
 #"grapes_twoBack_keyP_sameRadii_train perfect det_fancy aug_20Per_test perfect det"
@@ -78,11 +78,11 @@ args.dataset_name = "grapes" #"roots"
 args.network_type = "bbox_detection"
 
 # ----------------re-run with NMS ----------------------
-# config.Detection.NMS_THRESHOLD = 0.3 # default was 0.5 in config
+config.Detection.NMS_THRESHOLD = 0.3 # default was 0.5 in config
 # ------------------------------------------------------
 
 # True if loading pre-trained weights
-args.load_weights = True
+args.load_weights = False
 args.load_partial_weights_only = False
 args.load_bbox_det_weights = False
 args.load_more_partial = False
@@ -191,6 +191,7 @@ else:
 
 if args.dataset_name == "grapes":
     args.dataset_type = "kcsv"
+
 
 elif args.dataset_name == "roots":
     if args.network_type == "counting_lean" or args.network_type == "counting_reg":
@@ -318,9 +319,10 @@ else:
 ######################################################################
 
 if args.load_weights:
-    dir_path = Path(config.General.weights_dir)
-    files = [p for p in dir_path.iterdir() if p.is_file()]
-    args.weights_file_path = str(files[0])
+    args.weights_file_path = "D:\\from 16\\more_counting_Res\\more_counting_Res\\legonet_epoch=249.pt" #cont_legonet_epoch=14.pt"
+    # dir_path = Path(config.General.weights_dir)
+    # files = [p for p in dir_path.iterdir() if p.is_file()]
+    # args.weights_file_path = str(files[0])
 else:
     args.weights_file_path = ""
 

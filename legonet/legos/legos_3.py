@@ -10,6 +10,32 @@ import gc
 
 
 
+class FindForCount(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+
+class CountFeatureClassification(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+
+class FatCountingModule(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+
+class LeanCountingModule(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+class CountWithRegModule(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+
+
+
 resnet_module_urls = {
     'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
     'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',

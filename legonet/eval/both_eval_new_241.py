@@ -30,8 +30,8 @@ unnormalize = UnNormalizer()
 
 
 from thop import profile, clever_format
-from fvcore.nn import FlopCountAnalysis
-from ptflops import get_model_complexity_info
+#from fvcore.nn import FlopCountAnalysis
+#from ptflops import get_model_complexity_info
 ########################################################################################################################
 
 def _get_detections(detection_outputs, scale):
