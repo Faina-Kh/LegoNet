@@ -56,7 +56,7 @@ class LEGONet(nn.Module):
             if config.General.twoBackbone_2:
                 self.backbone_2_b = legos_3.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_count')
 
-            if config.detect_and_count.use_new_Find:
+            if config.Detect_and_Estimate.use_new_Find:
                 self.find_2_length = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
                 self.find_2_diameter = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
                 self.find_2_color = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
@@ -68,24 +68,24 @@ class LEGONet(nn.Module):
         if self.network_type == "both_for_roots_2":
              config.General.with_new_layers_for_both = True
 
-        self.EstimateWithPointsModule = legos_3.EstimateWithPointsModule(num_classes, inter_losses = config.Counting.inter_losses)
+        self.EstimateWithPointsModule = legos_3.EstimateWithPointsModule(num_classes, inter_losses = config.AttributeEstimation.inter_losses)
 
         if self.network_type == "both_for_roots_2" or config.General.binary_model: #config.General.with_new_layers:
             config.General.binary_model = True
-            self.EstimateWithPointsModule_color = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.Counting.inter_losses, loss_for ="color")
+            self.EstimateWithPointsModule_color = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.AttributeEstimation.inter_losses, loss_for ="color")
 
             config.General.binary_model = False
-            self.EstimateWithPointsModule_length = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.Counting.inter_losses, loss_for ="length")
-            self.EstimateWithPointsModule_diameter = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.Counting.inter_losses, loss_for ="diameter")
+            self.EstimateWithPointsModule_length = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.AttributeEstimation.inter_losses, loss_for ="length")
+            self.EstimateWithPointsModule_diameter = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.AttributeEstimation.inter_losses, loss_for ="diameter")
 
-        self.EstimateWithPointsModule_multiple = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.Counting.inter_losses, output_size = output_size)
-        self.EstimateWithPointsModule_multiple_2 = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.Counting.inter_losses, output_size=output_size)
-        self.EstimateWithPointsModule_multiple_3 = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.Counting.inter_losses, output_size=output_size)
-        self.EstimateWithPointsModule_multiple_4 = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.Counting.inter_losses, output_size=output_size)
+        self.EstimateWithPointsModule_multiple = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.AttributeEstimation.inter_losses, output_size = output_size)
+        self.EstimateWithPointsModule_multiple_2 = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.AttributeEstimation.inter_losses, output_size=output_size)
+        self.EstimateWithPointsModule_multiple_3 = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.AttributeEstimation.inter_losses, output_size=output_size)
+        self.EstimateWithPointsModule_multiple_4 = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.AttributeEstimation.inter_losses, output_size=output_size)
 
         self.EstimateWithRegModule = legos_3.EstimateWithRegModule(num_classes)
 
-        if self.network_type == "both_for_roots_2" and config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+        if self.network_type == "both_for_roots_2" and config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
             self.EstimateWithRegModule_color = legos_3.EstimateWithRegModule(num_classes)
             self.EstimateWithRegModule_length = legos_3.EstimateWithRegModule(num_classes)
             self.EstimateWithRegModule_diameter = legos_3.EstimateWithRegModule(num_classes)
@@ -293,7 +293,7 @@ class LEGONet(nn.Module):
                                 point_anns_copy.append(copy.deepcopy(d))
                             points = self.find_points_in_bbox(img_batch[img_idx], point_anns_copy, bbox_pred_adjusted, img_info['scale'], self.network_type)
 
-                            if config.Counting.do_nmcs:# don't do for roots
+                            if config.AttributeEstimation.do_nmcs:# don't do for roots
                                 non_suppressed_indices = self.nmcs(bbox_pred_adjusted, points)
                                 points = list(compress(points, non_suppressed_indices))
                                 bbox_pred_adjusted = bbox_pred_adjusted[non_suppressed_indices, :]
@@ -344,8 +344,8 @@ class LEGONet(nn.Module):
                                                 current_points['x'] = current_points['x'] - (x1.cpu().numpy()) * np.ones(len(current_points['x']))
                                                 current_points['y'] = current_points['y'] - (y1.cpu().numpy()) * np.ones(len(current_points['y']))
 
-                                                scale_x = config.Counting.crops_size[0]/(x2-x1).cpu().numpy()
-                                                scale_y = config.Counting.crops_size[1] / (y2 - y1).cpu().numpy()
+                                                scale_x = config.AttributeEstimation.crops_size[0] / (x2 - x1).cpu().numpy()
+                                                scale_y = config.AttributeEstimation.crops_size[1] / (y2 - y1).cpu().numpy()
                                                 current_points['x'] = current_points['x']*scale_x
                                                 current_points['y'] = current_points['y']*scale_y
 
@@ -436,7 +436,7 @@ class LEGONet(nn.Module):
 
                         # img input should be tensor [b,c,h,w]
                         if self.backbone_type == "ResNetBackboneModule":
-                            if config.detect_and_count.single_backbone:
+                            if config.Detect_and_Estimate.single_backbone:
 
                                 bbox_pyramid_feats = self.backbone_1(sample['img'].to(config.General.device))
 
@@ -501,7 +501,7 @@ class LEGONet(nn.Module):
 
                     if self.training:
 
-                        if config.Counting.counting_type == 'withKeyPoints':
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
 
                             if not config.detect_with_points.detect_points:
                                 count_train_inputs = bbox_pyramid_p3, corrected_counting_anns[1:6]  # anchors, None
@@ -541,7 +541,7 @@ class LEGONet(nn.Module):
                                 if self.network_type == "both_for_roots_2":
 
                                     ######################################################################################
-                                    if config.detect_and_count.use_new_Find:
+                                    if config.Detect_and_Estimate.use_new_Find:
 
                                         config.General.binary_model = False
                                         SFMS_lists_len, cls_output_len, current_maps_loss_len = self.find_2_length(current_count_train_inputs)
@@ -592,7 +592,7 @@ class LEGONet(nn.Module):
                                 #time.sleep(1)
 
                                 elif self.network_type == "both_for_roots_2":
-                                    if config.detect_and_count.use_new_Find:
+                                    if config.Detect_and_Estimate.use_new_Find:
 
                                         # the color output is currently binary
                                         config.General.binary_model = True
@@ -621,7 +621,7 @@ class LEGONet(nn.Module):
                                     diameter_loss += current_diameter_loss[0]
 
 
-                        elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
 
                             if self.network_type == "both_for_roots_2":
                                 length_loss = 0
@@ -632,33 +632,33 @@ class LEGONet(nn.Module):
                                     # the color output is currently binary
                                     config.General.binary_model = True
                                     config.General.binary_version = "L1Loss"
-                                    current_color_loss = self.EstimateWithRegModule_color([bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels], corrected_counting_anns[6][i,0].unsqueeze(dim=0).unsqueeze(dim=0)])
+                                    current_color_loss = self.EstimateWithRegModule_color([bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels], corrected_counting_anns[6][i,0].unsqueeze(dim=0).unsqueeze(dim=0)])
 
 
                                     config.General.binary_model = False
-                                    current_length_loss = self.EstimateWithRegModule_length([bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels], corrected_counting_anns[6][i,1].unsqueeze(dim=0).unsqueeze(dim=0)])
-                                    current_diameter_loss = self.EstimateWithRegModule_diameter([bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels], corrected_counting_anns[6][i,2].unsqueeze(dim=0).unsqueeze(dim=0)])
+                                    current_length_loss = self.EstimateWithRegModule_length([bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels], corrected_counting_anns[6][i,1].unsqueeze(dim=0).unsqueeze(dim=0)])
+                                    current_diameter_loss = self.EstimateWithRegModule_diameter([bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels], corrected_counting_anns[6][i,2].unsqueeze(dim=0).unsqueeze(dim=0)])
 
                                     color_loss += current_color_loss
                                     length_loss += current_length_loss
                                     diameter_loss += current_diameter_loss
 
                             else:
-                                counting_loss = self.EstimateWithRegModule([bbox_pyramid_feats[:config.Counting.num_of_pyr_levels], corrected_counting_anns[0]])
+                                counting_loss = self.EstimateWithRegModule([bbox_pyramid_feats[:config.AttributeEstimation.num_of_pyr_levels], corrected_counting_anns[0]])
 
                         #total_loss = total_loss + counting_loss
 
                         including_counting = True
 
                     else:
-                        if config.Counting.counting_type == 'withKeyPoints':
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
 
                             if not config.detect_with_points.detect_points:
                                 if self.network_type == "both_for_roots_2":
                                     config.General.binary_model = True # for the color model output
 
                                 ######################################################################################
-                                if config.detect_and_count.use_new_Find:
+                                if config.Detect_and_Estimate.use_new_Find:
                                     config.General.binary_model = False
                                     SFMS_lists_len, cls_output_len = self.find_2_length(bbox_pyramid_p3)
                                     SFMS_lists_dia, cls_output_dia = self.find_2_diameter(bbox_pyramid_p3)
@@ -694,7 +694,7 @@ class LEGONet(nn.Module):
 
                             elif self.network_type == "both_for_roots_2":
 
-                                if config.detect_and_count.use_new_Find:
+                                if config.Detect_and_Estimate.use_new_Find:
 
                                     # the color output is currently binary
                                     config.General.binary_model = True
@@ -736,21 +736,21 @@ class LEGONet(nn.Module):
 
                                     estimation_outputs = [torch.cat([color,length,diameter], dim=-1), maps_0, maps_1, maps_2, maps_3, maps_4, maps_5]
 
-                        elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                             if self.network_type == "both_for_roots_2":
                                 estimation_outputs = []
                                 for i in range(num_of_boxes):
                                     # the color output is currently binary
                                     config.General.binary_model = True
-                                    current_color = self.EstimateWithRegModule_color(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
+                                    current_color = self.EstimateWithRegModule_color(bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels])[0]
                                     # if i==0:
                                     #     color = current_color
                                     # else:
                                     #     color = torch.cat((color, current_color), dim=0)
 
                                     config.General.binary_model = False
-                                    current_length = self.EstimateWithRegModule_length(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
-                                    current_diameter= self.EstimateWithRegModule_diameter(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
+                                    current_length = self.EstimateWithRegModule_length(bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels])[0]
+                                    current_diameter= self.EstimateWithRegModule_diameter(bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels])[0]
 
                                     estimation_outputs.append(torch.cat([current_color,current_length,current_diameter]).unsqueeze(0))
                                     # if i == 0:
@@ -764,7 +764,7 @@ class LEGONet(nn.Module):
                                 #counting_outputs = [torch.cat([color.unsqueeze(0),length.unsqueeze(0),diameter.unsqueeze(0)], dim=0)]
 
                             else:
-                                estimation_outputs = self.EstimateWithRegModule(bbox_pyramid_feats[:config.Counting.num_of_pyr_levels])
+                                estimation_outputs = self.EstimateWithRegModule(bbox_pyramid_feats[:config.AttributeEstimation.num_of_pyr_levels])
 
                 else:
                     sample=None
@@ -787,19 +787,19 @@ class LEGONet(nn.Module):
             if self.training:
                 if do_counting and counting_anns is not None:
                     if not including_counting: # don't have bbox predictions
-                        if config.Counting.counting_type == 'withKeyPoints':
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             if self.network_type == "both":
                                 return classification_loss, regression_loss, None, None
                             elif self.network_type == "both_for_roots" or self.network_type == "both_for_roots_2":
                                 return classification_loss, regression_loss, None, None, None, None
 
-                        elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                             if self.network_type == "both_for_roots_2":
                                 return classification_loss, regression_loss, None, None, None
                             else:
                                 return classification_loss, regression_loss, None
 
-                    if config.Counting.counting_type == 'withKeyPoints':
+                    if config.AttributeEstimation.estimate_type == 'withKeyPoints':
 
                         if self.network_type == "both":
                             return classification_loss, regression_loss, l1, maps_loss  #counting_loss #total_loss #classification_loss, regression_loss, counting_loss
@@ -809,20 +809,20 @@ class LEGONet(nn.Module):
                         elif self.network_type == "both_for_roots_2":
                             return classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss
 
-                    elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                    elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                         if self.network_type == "both_for_roots_2":
                             return classification_loss, regression_loss, color_loss, length_loss, diameter_loss
                         else:
                             return classification_loss, regression_loss, counting_loss
 
                 else:
-                    if config.Counting.counting_type == 'withKeyPoints':
+                    if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                         if self.network_type == "both":
                             return classification_loss, regression_loss, None, None
                         elif self.network_type == "both_for_roots" or self.network_type == "both_for_roots_2":
                             return classification_loss, regression_loss, None, None, None, None
 
-                    elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                    elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                         if self.network_type == "both_for_roots" or self.network_type == "both_for_roots_2":
                             return classification_loss, regression_loss, None, None, None
                         else:
@@ -843,15 +843,15 @@ class LEGONet(nn.Module):
             pyramid_feats = self.backbone_1(img_batch)
 
             if self.training:
-                if config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                if config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     reg_loss = self.EstimateWithRegModule(
-                        [pyramid_feats[:config.Counting.num_of_pyr_levels], annotations[0].to(config.General.device)])
+                        [pyramid_feats[:config.AttributeEstimation.num_of_pyr_levels], annotations[0].to(config.General.device)])
 
                 return reg_loss
 
             else:
-                if config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
-                    reg_outputs = self.EstimateWithRegModule(pyramid_feats[:config.Counting.num_of_pyr_levels])
+                if config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                    reg_outputs = self.EstimateWithRegModule(pyramid_feats[:config.AttributeEstimation.num_of_pyr_levels])
 
                 return reg_outputs
 
@@ -909,7 +909,7 @@ class LEGONet(nn.Module):
         box_coord = torch.index_select(bbox_pred, 1, indices)
 
         bbox_crops = self.roi_align(input=img.unsqueeze(dim=0), boxes=[box_coord],
-                                    output_size=(config.Counting.crops_size[0], config.Counting.crops_size[1]))
+                                    output_size=(config.AttributeEstimation.crops_size[0], config.AttributeEstimation.crops_size[1]))
         #self.roi_align(input=img.unsqueeze(dim=0), boxes=[bbox_pred], output_size=(config.Counting.crops_size[0], config.Counting.crops_size[1]))
         # check if:
         # input (Tensor[N, C, H, W])
@@ -1013,19 +1013,19 @@ class LEGONet(nn.Module):
                     annotations_group_points_center = current_ann
                     annotation_map_1 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                                  annotations_group_points_center,
-                                                                                 radius=config.Counting.map_1_R) #(5,7))
+                                                                                 radius=config.AttributeEstimation.map_1_R) #(5,7))
                     annotation_map_2 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                                  annotations_group_points_center,
-                                                                                 radius=config.Counting.map_2_R) #(3, 5))
+                                                                                 radius=config.AttributeEstimation.map_2_R) #(3, 5))
                     annotation_map_3 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                                  annotations_group_points_center,
-                                                                                 radius= config.Counting.map_3_R) #(3, 7))
+                                                                                 radius= config.AttributeEstimation.map_3_R) #(3, 7))
                     annotation_map_4 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                                  annotations_group_points_center,
-                                                                                 radius=config.Counting.map_4_R) #(5, 5))
+                                                                                 radius=config.AttributeEstimation.map_4_R) #(5, 5))
                     annotation_map_5 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                                  annotations_group_points_center,
-                                                                                 radius=config.Counting.map_5_R) #(3,3)
+                                                                                 radius=config.AttributeEstimation.map_5_R) #(3,3)
 
                     # plt.imsave('path' + '/' + 'ann1' + '_gt.png', annotation_map_1)
                     # plt.imsave('path' + '/' + 'ann2' + '_gt.png', annotation_map_2)

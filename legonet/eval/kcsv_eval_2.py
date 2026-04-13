@@ -121,14 +121,15 @@ def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05,
             #      torch.tensor(group_idx)])
             if config.General.NETWORK_TYPE == config.NetworkType.detection:
                 detection_outputs = model([image.to(config.General.device).float(),
-                                                                        data['bbox_annot'].to(config.General.device)])
+                                           data['bbox_annot'].to(config.General.device)])
                     #[image.cuda().float(), [data['bbox_annot'], None], torch.tensor(group_idx), False])  # image.cuda().float().unsqueeze(dim=0))
             else:
 
-                if config.detect_and_count.type == "both_for_roots" or config.detect_and_count.type == "both_for_roots_2":
+                if config.Detect_and_Estimate.type == "both_for_roots_2":
                     if 'points_annot' in data.keys():
                         detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
-                            model([image.cuda().float(), [data['bbox_annot'], data['points_annot']],
+                            model([image.to(config.General.device).float(),
+                                   [data['bbox_annot'], data['points_annot']],
                                    torch.tensor(group_idx), True])
 
                     else:
@@ -136,7 +137,8 @@ def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05,
 
                 else:
                     detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
-                        model([image.cuda().float(), [data['bbox_annot'], data['points_annot']], torch.tensor(group_idx), True])  # image.cuda().float().unsqueeze(dim=0))
+                        model([image.to(config.General.device).float(), [data['bbox_annot'], data['points_annot']],
+                               torch.tensor(group_idx)])  # image.cuda().float().unsqueeze(dim=0))
 
 
             scores, labels, boxes = detection_outputs

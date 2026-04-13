@@ -124,7 +124,7 @@ def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05,
                     [image.cuda().float(), [data['bbox_annot'], None], torch.tensor(group_idx), False])  # image.cuda().float().unsqueeze(dim=0))
             else:
 
-                if config.detect_and_count.type == "both_for_roots" or config.detect_and_count.type == "both_for_roots_2":
+                if config.Detect_and_Estimate.type == "both_for_roots" or config.Detect_and_Estimate.type == "both_for_roots_2":
                     if 'points_annot' in data.keys():
 
                         if not config.detect_with_points.detect_points:

@@ -64,7 +64,7 @@ def get_crops(self, img, bbox_pred=None, anns=None, view_gt = False):
     box_coord = torch.index_select(bbox_pred, 1, indices)
 
     bbox_crops = self.roi_align(input=img.unsqueeze(dim=0), boxes=[box_coord],
-                                output_size=(config.Counting.crops_size[0], config.Counting.crops_size[1]))
+                                output_size=(config.AttributeEstimation.crops_size[0], config.AttributeEstimation.crops_size[1]))
 
     # view the crops per image
     if view_gt:
@@ -163,19 +163,19 @@ def getitem(self, bbox_crops, points = None, anns = None):
                 annotations_group_points_center = current_ann
                 annotation_map_1 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                              annotations_group_points_center,
-                                                                             radius=config.Counting.map_1_R) # (5,7))
+                                                                             radius=config.AttributeEstimation.map_1_R) # (5,7))
                 annotation_map_2 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                              annotations_group_points_center,
-                                                                             radius=config.Counting.map_2_R) # (3, 5))
+                                                                             radius=config.AttributeEstimation.map_2_R) # (3, 5))
                 annotation_map_3 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                              annotations_group_points_center,
-                                                                             radius= config.Counting.map_3_R) # (3, 7))
+                                                                             radius= config.AttributeEstimation.map_3_R) # (3, 7))
                 annotation_map_4 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                              annotations_group_points_center,
-                                                                             radius=config.Counting.map_4_R) # (5, 5))
+                                                                             radius=config.AttributeEstimation.map_4_R) # (5, 5))
                 annotation_map_5 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                              annotations_group_points_center,
-                                                                             radius=config.Counting.map_5_R) # (3,3)
+                                                                             radius=config.AttributeEstimation.map_5_R) # (3,3)
 
                 # plt.imsave('path' + '/' + 'ann1' + '_gt.png', annotation_map_1)
                 # plt.imsave('path' + '/' + 'ann2' + '_gt.png', annotation_map_2)

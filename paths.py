@@ -11,8 +11,8 @@ def get_paths(STORAGE_PATH, dataset_name):
     elif dataset_name == "roots":
         DATASETS_PATH = os.path.join(STORAGE_PATH, "Datasets","roots")
 
-    MODELS_PATH = os.path.join(STORAGE_PATH, "Models")
-    EXP_RESULTS_PATH = os.path.join(STORAGE_PATH, "ExpResults")
+    #MODELS_PATH = os.path.join(STORAGE_PATH, "Models")
+    EXP_RESULTS_PATH = os.path.join(STORAGE_PATH, "ExpResults", dataset_name)
 
     paths["DATASETS_PATH"] = DATASETS_PATH
     #paths["MODELS_PATH"] = MODELS_PATH

@@ -15,7 +15,7 @@ from torchvision import transforms
 from util import printf
 from legonet.eval.counting_eval import SumOfAbsDifferences
 from legonet.eval.kcsv_eval_2 import _get_count_and_box_annotations, compute_overlap, _compute_ap
-from legonet.eval.count_detection_eval import detection_evaluation, calc_recall_precision_ap
+from legonet.eval.count_detection_eval import points_detection_evaluation, calc_recall_precision_ap
 from legonet.myDataloader import UnNormalizer
 
 import config
@@ -156,7 +156,7 @@ def choose_boxes_by_IoUandPrc(detections, annotations, d_scores):
     annotations = annotations[0,:,:4]
 
     iou_threshold = config.Detection.iou_threshold
-    precision_thresh = config.detect_and_count.precision_thresh
+    precision_thresh = config.Detect_and_Estimate.precision_thresh
 
     false_positives = np.zeros((0,))
     true_positives = np.zeros((0,))
@@ -527,8 +527,8 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True):
                                         x1 * np.ones(len(points_of_current_crop['x'])))
                             points_of_current_crop['y'] = points_of_current_crop['y'] - (
                                         y1 * np.ones(len(points_of_current_crop['y'])))
-                            scale_x = config.Counting.crops_size[0] / (x2 - x1)
-                            scale_y = config.Counting.crops_size[1] / (y2 - y1)
+                            scale_x = config.AttributeEstimation.crops_size[0] / (x2 - x1)
+                            scale_y = config.AttributeEstimation.crops_size[1] / (y2 - y1)
                             points_of_current_crop['x'] = points_of_current_crop['x'] * scale_x
                             points_of_current_crop['y'] = points_of_current_crop['y'] * scale_y
 
@@ -548,19 +548,19 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True):
 
                             annotation_map_1 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
                                                                                     annotations_group_points_center,
-                                                                                    radius=config.Counting.map_1_R)
+                                                                                    radius=config.AttributeEstimation.map_1_R)
                             annotation_map_2 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
                                                                                     annotations_group_points_center,
-                                                                                    radius=config.Counting.map_2_R)
+                                                                                    radius=config.AttributeEstimation.map_2_R)
                             annotation_map_3 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
                                                                                     annotations_group_points_center,
-                                                                                    radius=config.Counting.map_3_R)
+                                                                                    radius=config.AttributeEstimation.map_3_R)
                             annotation_map_4 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
                                                                                     annotations_group_points_center,
-                                                                                    radius=config.Counting.map_4_R)
+                                                                                    radius=config.AttributeEstimation.map_4_R)
                             annotation_map_5 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
                                                                                     annotations_group_points_center,
-                                                                                    radius=config.Counting.map_5_R)
+                                                                                    radius=config.AttributeEstimation.map_5_R)
                             count_sample['points_annot'].append([[current_count],
                                                      annotation_map_1, annotation_map_2, annotation_map_3,
                                                      annotation_map_4, annotation_map_5])
@@ -683,9 +683,9 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True):
             ############################################################################################################
 
             if len(count_outputs):
-                if config.Counting.calc_det_performance:
+                if config.AttributeEstimation.calc_det_performance:
                     for b in range(all_predicted_detection_maps.shape[0]):
-                        t, p = detection_evaluation(all_predicted_detection_maps[b, :, :], all_crops_GT_detections_maps[b, :, :])
+                        t, p = points_detection_evaluation(all_predicted_detection_maps[b, :, :], all_crops_GT_detections_maps[b, :, :])
                         T = T + t
                         P = P + p
 
@@ -899,7 +899,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True):
 
         model.train()
 
-        if config.Counting.calc_det_performance:
+        if config.AttributeEstimation.calc_det_performance:
             recall, precision, ap = calc_recall_precision_ap(T, P)
             plot_RP_curve(recall, precision, ap, save_path=config.General.experiment_path)
 

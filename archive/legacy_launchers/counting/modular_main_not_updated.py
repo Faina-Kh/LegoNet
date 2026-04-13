@@ -161,24 +161,24 @@ config.Detection.BBOX_SCALING_FOR_COUNTING_AUGMENTATION = np.linspace(start=0.75
 
 #########################################################################################################################
 if args.dataset_name == "131_wheat_spikes_and_spikelets" :
-    config.Counting.crops_size = [640,640] #[800, 800]- wheat, [1024,1024]-bananas #[640,640]
+    config.AttributeEstimation.crops_size = [640, 640] #[800, 800]- wheat, [1024,1024]-bananas #[640,640]
 
     # wheat - (5,5), (5,5), (5,3), (3,5), (3,3)
     # bananas - (5,7), (3, 5), (3, 7), (5, 5), (3,3)
-    config.Counting.map_1_R = (6,6) #(5, 5)
-    config.Counting.map_2_R = (5,5)
-    config.Counting.map_3_R = (5,3)
-    config.Counting.map_4_R = (3,5)
-    config.Counting.map_5_R = (3,3)
+    config.AttributeEstimation.map_1_R = (6, 6) #(5, 5)
+    config.AttributeEstimation.map_2_R = (5, 5)
+    config.AttributeEstimation.map_3_R = (5, 3)
+    config.AttributeEstimation.map_4_R = (3, 5)
+    config.AttributeEstimation.map_5_R = (3, 3)
 
 elif args.dataset_name == "banana_bunch_segmentation_alt_split":
-    config.Counting.crops_size = [1024, 1024]
+    config.AttributeEstimation.crops_size = [1024, 1024]
 
-    config.Counting.map_1_R = (5,7) #(7,7) #(5, 7)
-    config.Counting.map_2_R = (5,5) #(6,6) #(5, 5)
-    config.Counting.map_3_R = (3,7) #(5,5) #(3, 7)
-    config.Counting.map_4_R = (3,5) #(4,4) #(3, 5)
-    config.Counting.map_5_R = (3,3)
+    config.AttributeEstimation.map_1_R = (5, 7) #(7,7) #(5, 7)
+    config.AttributeEstimation.map_2_R = (5, 5) #(6,6) #(5, 5)
+    config.AttributeEstimation.map_3_R = (3, 7) #(5,5) #(3, 7)
+    config.AttributeEstimation.map_4_R = (3, 5) #(4,4) #(3, 5)
+    config.AttributeEstimation.map_5_R = (3, 3)
 
 assert args.dataset_name == "banana_bunch_segmentation_alt_split" or args.dataset_name == "131_wheat_spikes_and_spikelets"
 
@@ -210,7 +210,7 @@ args.freeze_detection = False
 
 args.eval_in_train = False
 args.train_in_turns = False
-config.Counting.do_nmcs = True
+config.AttributeEstimation.do_nmcs = True
 config.General.to_draw = True
 
 config.Detection.min_score = 0.9 #0.05 #0.95 #0.5 #0.05
@@ -220,19 +220,19 @@ config.Detection.min_score_list = [0.05, 0.5, 0.7,0.9]
 config.Detection.iou_threshold_list = [0.3, 0.5, 0.7]
 config.Detection.NMS_THRESHOLD = 0.3
 
-config.detect_and_count.choose_by_IoUandPrc_Flag = False
-config.detect_and_count.precision_thresh = 0.3
+config.Detect_and_Estimate.choose_by_IoUandPrc_Flag = False
+config.Detect_and_Estimate.precision_thresh = 0.3
 
 # currently don't have it
-config.detect_and_count.do_gt_nmcs = False
+config.Detect_and_Estimate.do_gt_nmcs = False
 
-config.Counting.calc_det_performance = True
+config.AttributeEstimation.calc_det_performance = True
 
-config.Counting.counting_type = 'reg_fpn_p3_p7_min_sig' #'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
-assert config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig' or config.Counting.counting_type == 'withKeyPoints'
-config.Counting.num_of_pyr_levels = 3
+config.AttributeEstimation.estimate_type = 'reg_fpn_p3_p7_min_sig' #'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
+assert config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig' or config.AttributeEstimation.estimate_type == 'withKeyPoints'
+config.AttributeEstimation.num_of_pyr_levels = 3
 
-config.Counting.inter_losses = True # relevant only to 'withKeyPoints'
+config.AttributeEstimation.inter_losses = True # relevant only to 'withKeyPoints'
 ########################################################################################################################
 
 legonet.runner.run(args)

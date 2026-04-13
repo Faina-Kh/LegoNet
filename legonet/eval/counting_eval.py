@@ -3,7 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
-from legonet.eval.count_detection_eval import detection_evaluation, calc_recall_precision_ap
+from legonet.eval.count_detection_eval import points_detection_evaluation, calc_recall_precision_ap
 
 #from legonet.eval.both_eval_new import visualize_images
 import config
@@ -350,12 +350,12 @@ def eval(dataloader, dataset, model, args):
                 # if Image_name in names:
                 #     a=1
                 if predicted_maps is not None and args.have_GT: #and Image_name not in names:
-                    if config.Counting.calc_det_performance and dataset.csv_leaf_location_file !="":
+                    if config.AttributeEstimation.calc_det_performance and dataset.csv_leaf_location_file != "":
                         if torch.sum(data['annot'][1]).item()> 0: # check that there are gt points
                             true_maps = data['annot'][1:]
                             for m in range(len(predicted_maps)):
                                 for b in range(predicted_maps[0].shape[0]):
-                                    t, p = detection_evaluation(predicted_maps[m][b], true_maps[m][b])
+                                    t, p = points_detection_evaluation(predicted_maps[m][b], true_maps[m][b])
                                     T = T + t
                                     P = P + p
 
@@ -606,7 +606,7 @@ def eval(dataloader, dataset, model, args):
                                     AbsCountDiff, MSE, mean_rel_error))
 
 
-                if config.Counting.calc_det_performance and args.save_detection_eval_path != "" and args.have_GT:
+                if config.AttributeEstimation.calc_det_performance and args.save_detection_eval_path != "" and args.have_GT:
                     recall, precision, ap = calc_recall_precision_ap(T, P)
                     plot_RP_curve(recall, precision, ap,
                                   save_path=args.save_detection_eval_path)  # config.General.experiment_path)

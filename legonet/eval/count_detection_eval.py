@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import config
 
 
-def detection_evaluation(detections_map_1, GT_centers, alpha=0.1): #local_soft_max_activations, image_name, model, image, GT_centers, alpha=0.1):
+def points_detection_evaluation(detections_map_1, GT_centers, alpha=0.1): #local_soft_max_activations, image_name, model, image, GT_centers, alpha=0.1):
     # local_soft_max_activations = get_activations(model, model_inputs=image[0], print_shape_only=False,
     #                                              layer_name='smooth_step_function2')
     # local_soft_max_activations = local_soft_max_activations[0][0, :, :, 0]
@@ -71,7 +71,7 @@ def calc_recall_precision_ap(T,P):
     P = np.array(P)
     T = np.array(T)
     npos = np.sum(T)
-    # clean zerows (that represent true negative)
+    # clean zeros (that represent true negative)
     T = T[np.where(P > 0)]
     P = P[np.where(P > 0)]
     # sort by confidence

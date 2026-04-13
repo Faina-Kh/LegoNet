@@ -51,11 +51,18 @@ if args is None:
 args.gpu_num = '0'
 
 args.STORAGE_PATH = 'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
-config.Detection.min_score = 0.7 #0.7 #0.05
-args.current_results_dir = "grapes_detection_try" #"grapes_detection_minScore 0.05" #"grapes_detection_filterBBOX_minScore 0.7"
+args.dataset_name = "grapes" #"roots"
+args.network_type = "both" # "both" #"bbox_detection"
 
-args.run_script = 'Training' #'Training' #'Inference'
+config.Detection.min_score = 0.7 #0.7 #0.05
+args.current_results_dir = 'per_object_counting' #'bbox_detection' # 'per_object_counting'
+
+#args.network_type + '\\Inf_min_score_0.7' #"grapes_detection_minScore 0.05" #"grapes_detection_filterBBOX_minScore 0.7"
+
+args.run_script = 'Inference' #'Training' #'Inference'
 config.General.MODE = args.run_script
+
+config.General.model_name = args.network_type
 
 val_set = "Val"
 
@@ -74,17 +81,15 @@ val_set = "Val"
 #"grapes_twoBack_keypoints_sameRadi_fluid_new"
 #"grapes_twoBack_keypoints_sameRadi_fluid" #"grapes_twoBack_reg_P3_P5_fluid"
 
-args.dataset_name = "grapes" #"roots"
-args.network_type = "bbox_detection"
 
-# ----------------re-run with NMS ----------------------
-config.Detection.NMS_THRESHOLD = 0.3 # default was 0.5 in config
-# ------------------------------------------------------
 
 # True if loading pre-trained weights
-args.load_weights = False
-args.load_partial_weights_only = False
-args.load_bbox_det_weights = False
+args.load_weights = True
+args.load_partial_weights = True
+
+args.load_bbox_det_weights = True
+args.load_per_object_counting_weights = True
+
 args.load_more_partial = False
 
 args.have_GT = True
@@ -92,16 +97,17 @@ args.num_of_epochs = 300
 args.do_Kfold = False
 
 # task specific definitions - ToDo - organize per task type
-args.freeze_detection = False
+args.freeze_detection = True
 args.eval_in_train = True
-args.train_in_turns = False
+
 args.evaluate_detection = True
+
 args.eval_detection_params = False
-args.evaluate_both = False # relevant to validation, not train (roots)
+args.evaluate_both = True # relevant to validation, not train (roots)
 
-config.Counting.counting_type = 'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
+config.AttributeEstimation.estimate_type = 'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
 
-config.detect_and_count.two_backbones = True
+config.Detect_and_Estimate.two_backbones = True
 
 
 if (args.network_type == "bbox_detection" and args.dataset_name == 'roots') or args.network_type == "both_for_roots_2":
@@ -110,12 +116,21 @@ if (args.network_type == "bbox_detection" and args.dataset_name == 'roots') or a
     print("Detection.ratios:", config.Detection.ratios)
 
 
-if args.network_type == "bbox_detection":
-    config.General.model_name = "bbox_detection"
+if args.network_type != "bbox_detection":
+    args.freeze_detection = True
 
-    if args.dataset_name == 'grapes':
+if args.dataset_name == 'grapes':
+    if args.network_type == "bbox_detection":
         args.filter_empty_bbox = True
         config.General.filter_empty_bbox = args.filter_empty_bbox
+
+    config.AttributeEstimation.do_nmcs = True
+    config.Detection.NMS_THRESHOLD = 0.3  # default was 0.5 in config
+
+elif args.dataset_name == 'roots':
+    config.AttributeEstimation.do_nmcs = False
+    config.General.predict_empty_image = True #why?
+
 
 ########################################################################################################################
 # GPU settings
@@ -159,7 +174,7 @@ config.General.with_new_layers_for_both = False # always False for TRL_both, Tru
 ######################################################################
 assert args.dataset_name == "grapes" or args.dataset_name == "roots"
 assert (args.network_type == "bbox_detection" or args.network_type == "counting_lean" or
-        args.network_type == "counting_reg" or args.network_type == "both_for_roots_2")
+        args.network_type == "counting_reg" or args.network_type == "both" or args.network_type == "both_for_roots_2")
 
 
 # ToDo- replace args.network_type = "both" or args.network_type = "both_for_roots_2" with 'perObjectEstimate
@@ -169,7 +184,7 @@ assert (args.network_type == "bbox_detection" or args.network_type == "counting_
 
 assert val_set == 'Val' or val_set == 'Test'
 
-assert config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig' or config.Counting.counting_type == 'withKeyPoints'
+assert config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig' or config.AttributeEstimation.estimate_type == 'withKeyPoints'
 
 assert args.run_script =='Training' or args.run_script =='Inference'
 if args.run_script == 'Training':
@@ -178,11 +193,11 @@ if args.run_script == 'Training':
     val_set = "Val"
     config.General.to_draw = False
     config.DrawProperties.DRAW_MAPS = False
-    config.Counting.calc_det_performance = False
+    config.AttributeEstimation.calc_det_performance = False
 else:
     config.General.to_draw = True
     config.DrawProperties.DRAW_MAPS = True
-    config.Counting.calc_det_performance = True
+    config.AttributeEstimation.calc_det_performance = True
 
 
 ########################################################################################################################
@@ -219,13 +234,14 @@ config.General.dataset_name= args.dataset_name
 
 myPaths = paths.get_paths(args.STORAGE_PATH, args.dataset_name)
 myDatasetsPath = myPaths["DATASETS_PATH"]
-myExpPath = myPaths["EXP_RESULTS_PATH"]
+args.myExpPath = myPaths["EXP_RESULTS_PATH"]
 
-config.General.experiment_path = os.path.join(myExpPath, args.current_results_dir)
+config.General.experiment_path = os.path.join(args.myExpPath, args.current_results_dir)
 os.makedirs(config.General.experiment_path, exist_ok=True)
 
-config.General.weights_dir = os.path.join(myExpPath, config.General.experiment_path,"Weights")
-os.makedirs(config.General.weights_dir, exist_ok=True)
+config.General.weights_dir = os.path.join(config.General.experiment_path, "Weights")
+if args.run_script == 'Training':
+    os.makedirs(config.General.weights_dir, exist_ok=True)
 
 ########################################################################################################################
 # Define the paths
@@ -306,8 +322,12 @@ if args.run_script == 'Inference':
                                    "with_Vis_results_"+ val_set +".csv" if config.General.to_draw else
                                    "without_Vis_results_"+ val_set +".csv")
 
-    config.DrawProperties.save_img_path = os.path.join(myExpPath, results_dir, "Vis_" + val_set)
+    config.DrawProperties.save_img_path = os.path.join(config.General.experiment_path, "Vis_" + val_set)
     os.makedirs(config.DrawProperties.save_img_path, exist_ok=True)
+
+    if config.DrawProperties.DRAW_MAPS:
+        config.DrawProperties.maps_path = os.path.join(config.DrawProperties.save_img_path, "points_maps")
+        os.makedirs(config.DrawProperties.maps_path, exist_ok=True)
 
 else:
     args.txt_results = os.path.join(config.General.experiment_path, "Train_results.txt")
@@ -319,10 +339,23 @@ else:
 ######################################################################
 
 if args.load_weights:
-    args.weights_file_path = "D:\\from 16\\more_counting_Res\\more_counting_Res\\legonet_epoch=249.pt" #cont_legonet_epoch=14.pt"
-    # dir_path = Path(config.General.weights_dir)
-    # files = [p for p in dir_path.iterdir() if p.is_file()]
-    # args.weights_file_path = str(files[0])
+    args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection")
+    args.per_object_weights_dir = os.path.join(args.myExpPath, "Weights", "per_object_counting")
+    args.model_path = os.path.join(args.myExpPath, "Weights", "both", "legonet_epoch=249.pt")
+    os.makedirs(args.bbox_detection_weights_dir, exist_ok=True)
+    os.makedirs(args.per_object_weights_dir, exist_ok=True)
+    # "D:\\from 16\\more_counting_Res\\more_counting_Res\\legonet_epoch=249.pt" #cont_legonet_epoch=14.pt"
+
+    if args.load_bbox_det_weights:
+        files = [p for p in Path(args.bbox_detection_weights_dir).iterdir() if p.is_file()]
+        if len(files)>0:
+            args.bbox_detection_weights_file = str(files[0])
+
+    if args.load_per_object_counting_weights:
+        files = [p for p in Path(args.per_object_weights_dir).iterdir() if p.is_file()]
+        if len(files) > 0:
+            args.per_object_weights_file = str(files[0])
+
 else:
     args.weights_file_path = ""
 

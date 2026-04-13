@@ -9,15 +9,15 @@ def ablations(args):
 
     if (args.dataset_name == "131_wheat_spikes_and_spikelets" or args.dataset_name == "grapes" or
             args.dataset_name == "roots"):
-        config.Counting.crops_size = [640,640] #[800, 800]- wheat, [1024,1024]-bananas #[640,640]
+        config.AttributeEstimation.crops_size = [640, 640] #[800, 800]- wheat, [1024,1024]-bananas #[640,640]
 
         # wheat - (5,5), (5,5), (5,3), (3,5), (3,3)
         # bananas - (5,7), (3, 5), (3, 7), (5, 5), (3,3)
-        config.Counting.map_1_R = (6,6) #(5, 5)
-        config.Counting.map_2_R = (5,5)
-        config.Counting.map_3_R = (5,3)
-        config.Counting.map_4_R = (3,5)
-        config.Counting.map_5_R = (3,3)
+        config.AttributeEstimation.map_1_R = (6, 6) #(5, 5)
+        config.AttributeEstimation.map_2_R = (5, 5)
+        config.AttributeEstimation.map_3_R = (5, 3)
+        config.AttributeEstimation.map_4_R = (3, 5)
+        config.AttributeEstimation.map_5_R = (3, 3)
 
         # for ablation
         # config.Counting.map_1_R = (3, 3)
@@ -27,7 +27,7 @@ def ablations(args):
         # config.Counting.map_5_R = (3, 3)
 
     elif args.dataset_name == "banana_last":
-        config.Counting.crops_size = [640, 640]
+        config.AttributeEstimation.crops_size = [640, 640]
 
         # config.Counting.map_1_R = (5,7) #(7,7) #(5, 7)
         # config.Counting.map_2_R = (5,5) #(6,6) #(5, 5)
@@ -35,19 +35,19 @@ def ablations(args):
         # config.Counting.map_4_R = (3,5) #(4,4) #(3, 5)
         # config.Counting.map_5_R = (3,3)
 
-        config.Counting.map_1_R = (3, 3)  # (5, 5)
-        config.Counting.map_2_R = (3, 3)
-        config.Counting.map_3_R = (3, 3)
-        config.Counting.map_4_R = (3, 3)
-        config.Counting.map_5_R = (3, 3)
+        config.AttributeEstimation.map_1_R = (3, 3)  # (5, 5)
+        config.AttributeEstimation.map_2_R = (3, 3)
+        config.AttributeEstimation.map_3_R = (3, 3)
+        config.AttributeEstimation.map_4_R = (3, 3)
+        config.AttributeEstimation.map_5_R = (3, 3)
 
-    config.Counting.do_nmcs = True
-    config.Counting.inter_losses = True
-    config.Counting.num_of_pyr_levels = 5
+    config.AttributeEstimation.do_nmcs = True
+    config.AttributeEstimation.inter_losses = True
+    config.AttributeEstimation.num_of_pyr_levels = 5
 
-    config.detect_and_count.single_backbone = False
-    config.detect_and_count.crop_from_Pi = False
-    config.detect_and_count.cancel_nms_in_train = False
+    config.Detect_and_Estimate.single_backbone = False
+    config.Detect_and_Estimate.crop_from_Pi = False
+    config.Detect_and_Estimate.cancel_nms_in_train = False
 
 
     config.DrawProperties.DRAW_MAPS = True

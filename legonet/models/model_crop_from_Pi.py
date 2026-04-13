@@ -57,7 +57,7 @@ class LEGONet(nn.Module):
 
         self.FindForCount = legos_3.FindForCount(num_classes)
 
-        self.LeanCountingModule = legos_3.LeanCountingModule(num_classes, inter_losses = config.Counting.inter_losses)
+        self.LeanCountingModule = legos_3.LeanCountingModule(num_classes, inter_losses = config.AttributeEstimation.inter_losses)
 
         self.CountWithRegModule = legos_3.CountWithRegModule(num_classes)
 
@@ -153,9 +153,9 @@ class LEGONet(nn.Module):
         elif self.network_type == "counting_reg":
 
             if self.training:
-                pyramid_feats[:config.Counting.num_of_pyr_levels], annotations = inputs
+                pyramid_feats[:config.AttributeEstimation.num_of_pyr_levels], annotations = inputs
             else:
-                pyramid_feats[:config.Counting.num_of_pyr_levels] = inputs
+                pyramid_feats[:config.AttributeEstimation.num_of_pyr_levels] = inputs
 
             return self.CountWithRegModule(inputs)
 
@@ -277,7 +277,7 @@ class LEGONet(nn.Module):
 
                             points = self.find_points_in_bbox(img_batch[img_idx], point_anns_copy, bbox_pred_adjusted, img_info['scale'])
 
-                            if config.Counting.do_nmcs:
+                            if config.AttributeEstimation.do_nmcs:
                                 non_suppressed_indices = self.nmcs(bbox_pred_adjusted, points)
                                 points = list(compress(points, non_suppressed_indices))
                                 bbox_pred_adjusted = bbox_pred_adjusted[non_suppressed_indices, :]
@@ -286,7 +286,7 @@ class LEGONet(nn.Module):
                         #    in inference - keep all predicted boxes
                         #    in training - keep only those that include points
                         for box_idx in range(bbox_pred_adjusted.shape[0]):
-                            if not config.detect_and_count.crop_from_Pi:
+                            if not config.Detect_and_Estimate.crop_from_Pi:
                                 bbox_crops = self.get_crops(img_batch[img_idx],
                                                             bbox_pred=bbox_pred_adjusted[box_idx].unsqueeze(dim=0),
                                                             anns=detection_anns[img_idx])
@@ -348,7 +348,7 @@ class LEGONet(nn.Module):
                                 #     Pi_crops_list.append(Pi_crops)
 
                             else: # training
-                                if not config.detect_and_count.crop_from_Pi:
+                                if not config.Detect_and_Estimate.crop_from_Pi:
                                     current_points = points[box_idx]
 
                                 else:
@@ -455,14 +455,14 @@ class LEGONet(nn.Module):
 
                     else:
 
-                        if not config.detect_and_count.crop_from_Pi:
+                        if not config.Detect_and_Estimate.crop_from_Pi:
                             # img input should be tensor [b,c,h,w]
                             if self.backbone_type == "ResNetBackboneModule":
 
-                               if config.detect_and_count.two_backbones:
+                               if config.Detect_and_Estimate.two_backbones:
                                    bbox_pyramid_feats = self.backbone_2(sample['img'].cuda())
 
-                               elif config.detect_and_count.single_backbone:
+                               elif config.Detect_and_Estimate.single_backbone:
                                     bbox_pyramid_feats = self.backbone_1(sample['img'].cuda())
 
 
@@ -477,7 +477,7 @@ class LEGONet(nn.Module):
 
                         if self.training:
 
-                            if config.Counting.counting_type == 'withKeyPoints':
+                            if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                                 count_train_inputs = bbox_pyramid_p3, corrected_counting_anns[1:6]  # anchors, None
                                 SFMS_lists, cls_output, maps_loss = self.find_2(count_train_inputs)
                                 count_input = SFMS_lists, cls_output, corrected_counting_anns
@@ -485,16 +485,16 @@ class LEGONet(nn.Module):
                                 l1 = self.LeanCountingModule(count_input)
 
 
-                                if config.detect_and_count.balance_losses:
+                                if config.Detect_and_Estimate.balance_losses:
                                     maps_loss=maps_loss/1000
                                     l1=l1/100
 
                                 counting_loss = l1 + maps_loss
 
 
-                            elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
-                                if not config.detect_and_count.crop_from_Pi:
-                                    counting_loss = self.CountWithRegModule([bbox_pyramid_feats[:config.Counting.num_of_pyr_levels], corrected_counting_anns[0]])
+                            elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                                if not config.Detect_and_Estimate.crop_from_Pi:
+                                    counting_loss = self.CountWithRegModule([bbox_pyramid_feats[:config.AttributeEstimation.num_of_pyr_levels], corrected_counting_anns[0]])
                                 else:
                                     counting_loss = self.CountWithRegModule([bbox_pyramid_p3,corrected_counting_anns[0]])
 
@@ -503,16 +503,16 @@ class LEGONet(nn.Module):
                             including_counting = True
 
                         else:
-                            if config.Counting.counting_type == 'withKeyPoints':
+                            if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                                 SFMS_lists, cls_output = self.find_2(bbox_pyramid_p3)
                                 count_input = SFMS_lists, cls_output
                                 counting_outputs = self.LeanCountingModule(count_input)
 
-                            elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                            elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                                 # counting_outputs = self.CountWithRegModule(bbox_pyramid_feats[:config.Counting.num_of_pyr_levels])
 
-                                if not config.detect_and_count.crop_from_Pi:
-                                    counting_outputs = self.CountWithRegModule(bbox_pyramid_feats[:config.Counting.num_of_pyr_levels])
+                                if not config.Detect_and_Estimate.crop_from_Pi:
+                                    counting_outputs = self.CountWithRegModule(bbox_pyramid_feats[:config.AttributeEstimation.num_of_pyr_levels])
                                 else:
                                     counting_outputs = self.CountWithRegModule(bbox_pyramid_p3)
 
@@ -532,21 +532,21 @@ class LEGONet(nn.Module):
             if self.training:
                 if do_counting:
                     if not including_counting:
-                        if config.Counting.counting_type == 'withKeyPoints':
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             return classification_loss, regression_loss, None, None
-                        elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                             return classification_loss, regression_loss, None
 
-                    if config.Counting.counting_type == 'withKeyPoints':
+                    if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                         return classification_loss, regression_loss, l1, maps_loss  #counting_loss #total_loss #classification_loss, regression_loss, counting_loss
 
-                    elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                    elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                         return classification_loss, regression_loss, counting_loss
 
                 else:
-                    if config.Counting.counting_type == 'withKeyPoints':
+                    if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                         return classification_loss, regression_loss, None, None
-                    elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                    elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                         return classification_loss, regression_loss, None
 
             else:
@@ -573,7 +573,7 @@ class LEGONet(nn.Module):
         transformed_anchors = transformed_anchors[:, scores_over_thresh, :]
         scores = scores[:, scores_over_thresh, :]
 
-        if config.detect_and_count.cancel_nms_in_train:
+        if config.Detect_and_Estimate.cancel_nms_in_train:
             current_scores, current_classes = classification[0, :, :].max(dim=1)
             return [current_scores, current_classes, transformed_anchors[0, :, :]]
 
@@ -583,7 +583,7 @@ class LEGONet(nn.Module):
 
             return [nms_scores, nms_class, transformed_anchors[0, anchors_nms_idx, :]]
 
-    def get_crops(self, img, bbox_pred=None, anns=None, view_gt = False, output_size=(config.Counting.crops_size[0], config.Counting.crops_size[1])):
+    def get_crops(self, img, bbox_pred=None, anns=None, view_gt = False, output_size=(config.AttributeEstimation.crops_size[0], config.AttributeEstimation.crops_size[1])):
         if view_gt:
             unnormalize = UnNormalizer()
 
@@ -696,7 +696,7 @@ class LEGONet(nn.Module):
         annotations_points_centers = annotations_points_centers_a.copy()  #copy.deepcopy(annotations_points_centers_a)
         # here we should resize image too and then check it with the annotations
 
-        if not config.detect_and_count.crop_from_Pi:
+        if not config.Detect_and_Estimate.crop_from_Pi:
             output_shape = self.image_output_shape(image_shape, pyramid_level=pyramid_level)
 
         else:
@@ -748,19 +748,19 @@ class LEGONet(nn.Module):
 
                     annotation_map_1 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                                  annotations_group_points_center,
-                                                                                 radius=config.Counting.map_1_R) #(5,7))
+                                                                                 radius=config.AttributeEstimation.map_1_R) #(5,7))
                     annotation_map_2 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                                  annotations_group_points_center,
-                                                                                 radius=config.Counting.map_2_R) #(3, 5))
+                                                                                 radius=config.AttributeEstimation.map_2_R) #(3, 5))
                     annotation_map_3 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                                  annotations_group_points_center,
-                                                                                 radius= config.Counting.map_3_R) #(3, 7))
+                                                                                 radius= config.AttributeEstimation.map_3_R) #(3, 7))
                     annotation_map_4 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                                  annotations_group_points_center,
-                                                                                 radius=config.Counting.map_4_R) #(5, 5))
+                                                                                 radius=config.AttributeEstimation.map_4_R) #(5, 5))
                     annotation_map_5 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                                  annotations_group_points_center,
-                                                                                 radius=config.Counting.map_5_R) #(3,3)
+                                                                                 radius=config.AttributeEstimation.map_5_R) #(3,3)
 
                     # plt.imsave('vis' + '/' + 'ann1' + '_Relu.png', annotation_map_1)
                     # plt.imsave('vis' + '/' + 'ann2' + '_Relu.png', annotation_map_2)

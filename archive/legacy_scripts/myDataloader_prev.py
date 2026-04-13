@@ -619,17 +619,17 @@ class csv_LCCDataset(Dataset):
 
                 # compute keypoints after the transformation are done
                 if self.lean_version != "version_3":
-                    annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.Counting.map_1_R)
-                    annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.Counting.map_2_R)
-                    annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.Counting.map_3_R)
-                    annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.Counting.map_4_R)
-                    annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.Counting.map_5_R)
+                    annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_1_R)
+                    annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_2_R)
+                    annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_3_R)
+                    annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_4_R)
+                    annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_5_R)
                 else:
-                    annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.Counting.map_1_R, pyramid_level=3)
-                    annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.Counting.map_2_R, pyramid_level=4)
-                    annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.Counting.map_3_R, pyramid_level=5)
-                    annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.Counting.map_4_R, pyramid_level=6)
-                    annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.Counting.map_5_R, pyramid_level=7)
+                    annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_1_R, pyramid_level=3)
+                    annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_2_R, pyramid_level=4)
+                    annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_3_R, pyramid_level=5)
+                    annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_4_R, pyramid_level=6)
+                    annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_5_R, pyramid_level=7)
 
 
                 if config.General.NETWORK_TYPE == config.NetworkType.counting_lean_multiple_out:
@@ -860,7 +860,7 @@ class KCSVDataset(Dataset):
         if self.transform:
             sample = self.transform(sample)
 
-        if not config.General.NETWORK_TYPE == config.NetworkType.detection or config.Counting.double_counting:
+        if not config.General.NETWORK_TYPE == config.NetworkType.detection or config.AttributeEstimation.double_counting:
             if self.have_GT:
                 if len(sample['annot']['points_annot']) > 0:
                     annotations_group_num_of_points, annotations_group_points_center = sample['annot']['points_annot']
@@ -873,26 +873,26 @@ class KCSVDataset(Dataset):
             # compute keypoints after the transformation are done
             if self.lean_version != "version_3":
                 annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_1_R)
+                                                                             radius=config.AttributeEstimation.map_1_R)
                 annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_2_R)
+                                                                             radius=config.AttributeEstimation.map_2_R)
                 annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_3_R)
+                                                                             radius=config.AttributeEstimation.map_3_R)
                 annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_4_R)
+                                                                             radius=config.AttributeEstimation.map_4_R)
                 annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_5_R)
+                                                                             radius=config.AttributeEstimation.map_5_R)
             else:
                 annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_1_R, pyramid_level=3)
+                                                                             radius=config.AttributeEstimation.map_1_R, pyramid_level=3)
                 annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_2_R, pyramid_level=4)
+                                                                             radius=config.AttributeEstimation.map_2_R, pyramid_level=4)
                 annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_3_R, pyramid_level=5)
+                                                                             radius=config.AttributeEstimation.map_3_R, pyramid_level=5)
                 annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_4_R, pyramid_level=6)
+                                                                             radius=config.AttributeEstimation.map_4_R, pyramid_level=6)
                 annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-                                                                             radius=config.Counting.map_5_R, pyramid_level=7)
+                                                                             radius=config.AttributeEstimation.map_5_R, pyramid_level=7)
 
             sample['annot']['points_annot'] = [annotations_group_num_of_points, annotation_map_1, annotation_map_2, annotation_map_3,
                                annotation_map_4, annotation_map_5]
@@ -920,15 +920,15 @@ class KCSVDataset(Dataset):
                 box_points = np.array([np.array(box_points).reshape(points_num, 2)])
 
                 annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, box_points,
-                                                                             radius=config.Counting.map_1_R)
+                                                                             radius=config.AttributeEstimation.map_1_R)
                 annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, box_points,
-                                                                             radius=config.Counting.map_2_R)
+                                                                             radius=config.AttributeEstimation.map_2_R)
                 annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, box_points,
-                                                                             radius=config.Counting.map_3_R)
+                                                                             radius=config.AttributeEstimation.map_3_R)
                 annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, box_points,
-                                                                             radius=config.Counting.map_4_R)
+                                                                             radius=config.AttributeEstimation.map_4_R)
                 annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, box_points,
-                                                                             radius=config.Counting.map_5_R)
+                                                                             radius=config.AttributeEstimation.map_5_R)
 
                 per_obj_maps.append([float(id), [annotation_map_1, annotation_map_2, annotation_map_3, annotation_map_4,
                                                     annotation_map_5]])
@@ -985,7 +985,7 @@ class KCSVDataset(Dataset):
             for idx, annot in enumerate(annots):
                 if len(annot['points'])>0:
                     class_name = annot['points_class']
-                    if config.detect_and_count.type != 'both_for_roots_2':
+                    if config.Detect_and_Estimate.type != 'both_for_roots_2':
                         counts[idx, 0] = float(annot['points_count'])
                     else:
                         counts[idx, 0] = float(annot['Root_Color'])
@@ -1077,7 +1077,7 @@ class KCSVDataset(Dataset):
         # points annotations
         ###################################################################################
 
-        if config.General.NETWORK_TYPE == config.NetworkType.detection and not config.Counting.double_counting:
+        if config.General.NETWORK_TYPE == config.NetworkType.detection and not config.AttributeEstimation.double_counting:
             points_annotations = None
         else:
             points_annotations = self.get_output_counting(image_name) #[counts: count, point class, box id, centers: x,y, point class, box id]
@@ -1158,7 +1158,7 @@ class KCSVDataset(Dataset):
                         # result_bbox
 
                         # find box coordinates
-                        if config.detect_and_count.type != 'both_for_roots_2':
+                        if config.Detect_and_Estimate.type != 'both_for_roots_2':
                             result_bbox[img_file].append({'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2,
                                                           'bbox_class': points_class, 'bbox_id': bbox_id, 'points': points_in_box,
                                                           'points_count': points_num,
@@ -1263,7 +1263,7 @@ class KCSVDataset(Dataset):
                 else:
                     result_points[img_file].append({'x': x1, 'y': y1, 'points_class': class_name})
 
-            if config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting or config.Counting.double_counting:
+            if config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting or config.AttributeEstimation.double_counting:
                 result_bbox = self.points_to_bbox(result_bbox, result_points)
 
         if config.General.NETWORK_TYPE.name == "counting_lean_multiple_out":
@@ -1549,7 +1549,7 @@ def kcsv_collater(data):
 
         if points_annot is not None:
             points_annot[0] = torch.tensor(points_annot[0])
-            if not config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting and not config.Counting.double_counting:
+            if not config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting and not config.AttributeEstimation.double_counting:
                 points_annot[1] = torch.tensor(points_annot[1])
                 points_annot[2] = torch.tensor(points_annot[2])
                 points_annot[3] = torch.tensor(points_annot[3])
@@ -1702,7 +1702,7 @@ def kcsv_collater_2(data):
     max_width = np.array(widths).max()
     max_height = np.array(heights).max()
 
-    if not config.detect_and_count.crop_from_Pi:
+    if not config.Detect_and_Estimate.crop_from_Pi:
         padded_imgs = torch.zeros(batch_size, max_height, max_width, 3)
     else:
         padded_imgs = torch.zeros(batch_size, max_height, max_width, 256)
@@ -1727,7 +1727,7 @@ def kcsv_collater_2(data):
             ann = []
             for j in range(batch_size):
                 if i==0:
-                    if not config.detect_and_count.crop_from_Pi:
+                    if not config.Detect_and_Estimate.crop_from_Pi:
                         annots_temp = torch.tensor(annots[j][i]).float()
                     else:
                         annots_temp = torch.FloatTensor(annots[j][i]).cuda()
@@ -1791,7 +1791,7 @@ def kcsv_collater_2(data):
                     ann = []
                     for j in range(batch_size):
                         if i == 0:
-                            if not config.detect_and_count.crop_from_Pi:
+                            if not config.Detect_and_Estimate.crop_from_Pi:
                                 annots_temp = torch.tensor(annots[j][i]).float()
                             else:
                                 annots_temp = torch.FloatTensor(annots[j][i]).cuda()

@@ -601,7 +601,7 @@ class FindModule(nn.Module):
                 ###############################################################################################
 
                 if self.training:
-                    if config.Counting.inter_losses:
+                    if config.AttributeEstimation.inter_losses:
                         if config.detect_with_points.detect_points:
                             l1, l2, l3, l4, l5 = [self.focalLoss(annotations[:,0,:,:], classification[0]),
                                                   self.focalLoss(annotations[:, 1,:,:], classification[1]),
@@ -686,7 +686,7 @@ class new_FindModule(nn.Module):
         self.GlobalSumPooling2D = GlobalSumPooling2D()
         self.focalLoss = modular_losses.focal_gyf()
 
-        if config.detect_and_count.use_new_Find or self.task == 'counting': #(self.task == 'counting' and not config.prev_color_model)
+        if config.Detect_and_Estimate.use_new_Find or self.task == 'counting': #(self.task == 'counting' and not config.prev_color_model)
             if config.General.with_new_layers:
                 self.sigmoid_for_binary = torch.nn.Sigmoid()
                 self.conv1 = nn.Conv2d(in_channels = 1, out_channels = 256, kernel_size=3, padding=1)
@@ -750,7 +750,7 @@ class new_FindModule(nn.Module):
                 cls_output_MaxPooled = self.LocalNMS(cls_output_Step_Function1)
                 cls_output_Step_Function2 = self.SmoothStepFunction1(cls_output_MaxPooled)
 
-                if config.Counting.Find_for_count:
+                if config.AttributeEstimation.Find_for_count:
                     cls_output_downsampled = self.GlobalSumPooling2D(cls_output_Step_Function2)
 
                 else:
@@ -790,7 +790,7 @@ class new_FindModule(nn.Module):
                 ###############################################################################################
 
                 if self.training:
-                    if config.Counting.inter_losses:
+                    if config.AttributeEstimation.inter_losses:
                         if config.detect_with_points.detect_points:
                             l1, l2, l3, l4, l5 = [self.focalLoss(annotations[:,0,:,:], classification[0]),
                                                   self.focalLoss(annotations[:, 1,:,:], classification[1]),
@@ -1697,7 +1697,7 @@ class CountRegSubmodel(nn.Module):
         #torch.nn.init.xavier_uniform_(self.regression_output)  # Glorot init, the default in keras Dense
         self.regression_output.bias.data.zero_()
 
-        if config.General.binary_model or config.detect_and_count.type == "both_for_roots_2":
+        if config.General.binary_model or config.Detect_and_Estimate.type == "both_for_roots_2":
             self.act_Dense1_sig = nn.Sigmoid()
             self.act_Dense2_sig = nn.Sigmoid()
             self.act_Dense3 = nn.Sigmoid()
@@ -1751,7 +1751,7 @@ class CountWithRegModule(nn.Module):
 
         self.countLoss = modular_losses.mu_sig_gyf()
 
-        if config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+        if config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
             self.CountRegSubmodel = CountRegSubmodel()
 
 
@@ -1781,7 +1781,7 @@ class CountWithRegModule(nn.Module):
 
         ######################################################################################
         if self.training:
-            if config.detect_and_count.type == "both_for_roots_2":
+            if config.Detect_and_Estimate.type == "both_for_roots_2":
                 return (self.countLoss(annotations.squeeze(dim=1), best_out))
             return (self.countLoss(annotations.squeeze(dim=1), best_out.float()))
 

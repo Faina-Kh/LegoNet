@@ -15,7 +15,7 @@ from torchvision import transforms
 from util import printf
 from legonet.eval.counting_eval import SumOfAbsDifferences
 from legonet.eval.kcsv_eval_2 import _get_count_and_box_annotations, compute_overlap, _compute_ap
-from legonet.eval.count_detection_eval import detection_evaluation, calc_recall_precision_ap
+from legonet.eval.count_detection_eval import points_detection_evaluation, calc_recall_precision_ap
 from legonet.myDataloader import UnNormalizer
 
 import config
@@ -91,7 +91,7 @@ def find_points_in_bbox(img, point_anns, bbox_pred, scale):
 def visualize_images(count_outputs, count_sample, image_name, imgToVis, draw_path):
 
     # Draw GT activations:
-    if not config.detect_and_count.crop_from_Pi:
+    if not config.Detect_and_Estimate.crop_from_Pi:
         img_copy = imgToVis.copy()
 
 
@@ -162,7 +162,7 @@ def choose_boxes_by_IoUandPrc(detections, annotations, d_scores):
     annotations = annotations[0,:,:4]
 
     iou_threshold = config.Detection.iou_threshold
-    precision_thresh = config.detect_and_count.precision_thresh
+    precision_thresh = config.Detect_and_Estimate.precision_thresh
 
     false_positives = np.zeros((0,))
     true_positives = np.zeros((0,))
@@ -520,7 +520,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True):
                         detections_data_any_crop.append(count_pred[-1])
 
                 else:
-                    if config.Counting.counting_type == 'withKeyPoints':
+                    if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                         # filtering the predictions - need to find predicted boxes (and maps) with gt points in them
                         orig_predicted_detection_maps = [count_outputs[1],count_outputs[2],count_outputs[3],count_outputs[4],count_outputs[6]] #count_outputs[6]
                         all_predicted_detection_maps = []
@@ -560,8 +560,8 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True):
                                         x1 * np.ones(len(points_of_current_crop['x'])))
                             points_of_current_crop['y'] = points_of_current_crop['y'] - (
                                         y1 * np.ones(len(points_of_current_crop['y'])))
-                            scale_x = config.Counting.crops_size[0] / (x2 - x1)
-                            scale_y = config.Counting.crops_size[1] / (y2 - y1)
+                            scale_x = config.AttributeEstimation.crops_size[0] / (x2 - x1)
+                            scale_y = config.AttributeEstimation.crops_size[1] / (y2 - y1)
                             points_of_current_crop['x'] = points_of_current_crop['x'] * scale_x
                             points_of_current_crop['y'] = points_of_current_crop['y'] * scale_y
 
@@ -574,24 +574,24 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True):
 
                             crops_count_GT.append(current_count)
 
-                            if config.Counting.counting_type == 'withKeyPoints':
+                            if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                                 # generate gt gaussian maps for the crop
                                 annotations_group_points_center = [points_of_current_crop]
 
                                 annotation_map_1 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
                                                                                         annotations_group_points_center,
-                                                                                        radius=config.Counting.map_1_R)
+                                                                                        radius=config.AttributeEstimation.map_1_R)
                                 annotation_map_2 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
                                                                                         annotations_group_points_center,
-                                                                                        radius=config.Counting.map_2_R)
+                                                                                        radius=config.AttributeEstimation.map_2_R)
                                 annotation_map_3 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
                                                                                         annotations_group_points_center,
-                                                                                        radius=config.Counting.map_3_R)
+                                                                                        radius=config.AttributeEstimation.map_3_R)
                                 annotation_map_4 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
                                                                                         annotations_group_points_center,
-                                                                                        radius=config.Counting.map_4_R)
+                                                                                        radius=config.AttributeEstimation.map_4_R)
                                 annotation_map_5 = compute_keypoints_targets_multi_maps(count_sample['img'].shape,
-                                                                                        annotations_group_points_center, radius=config.Counting.map_5_R)
+                                                                                        annotations_group_points_center, radius=config.AttributeEstimation.map_5_R)
 
 
                                 count_sample['points_annot'].append([[current_count],
@@ -607,7 +607,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True):
                                         orig_predicted_detection_maps[2][b], orig_predicted_detection_maps[3][b],
                                         orig_predicted_detection_maps[4][b]])
 
-                            elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                            elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                                 count_sample['points_annot'].append([[current_count]])
 
                             count_pred.append(np.round(count_outputs[0][b].cpu().item())) #count_outputs[0][b].cpu().item())
@@ -619,7 +619,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True):
                 if len(crops_count_GT)==0:
                     count_sample = None
                 else:
-                    if config.Counting.counting_type == 'withKeyPoints':
+                    if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                         all_crops_GT_detections_maps = torch.tensor(all_crops_GT_detections_maps)
                         if len(all_predicted_detection_maps)>1:
                             for i in range(len(all_predicted_detection_maps)):
@@ -752,10 +752,10 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True):
             ############################################################################################################
 
             if len(count_outputs):
-                if config.Counting.counting_type == 'withKeyPoints':
-                    if config.Counting.calc_det_performance:
+                if config.AttributeEstimation.estimate_type == 'withKeyPoints':
+                    if config.AttributeEstimation.calc_det_performance:
                         for b in range(all_predicted_detection_maps.shape[0]):
-                            t, p = detection_evaluation(all_predicted_detection_maps[b, :, :], all_crops_GT_detections_maps[b, :, :])
+                            t, p = points_detection_evaluation(all_predicted_detection_maps[b, :, :], all_crops_GT_detections_maps[b, :, :])
                             T = T + t
                             P = P + p
 
@@ -792,7 +792,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True):
                         print()
 
                     if to_draw:
-                        if not config.detect_and_count.crop_from_Pi:
+                        if not config.Detect_and_Estimate.crop_from_Pi:
                             bbox_crop = count_sample['img'][i].clone()
                         else:
                             #count_sample['img'][i] is the crop from P3, we want to visualize on the img crop
@@ -823,7 +823,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True):
                         box_name = image_name + '_crop_' + str(i) + '.jpg'  # image_name.split('.jpg')[0]+'_crop_'+str(i)+'.jpg'
                         img2.save(os.path.join(draw_path, box_name))
 
-                        if config.Counting.counting_type == 'withKeyPoints':
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             true_maps = []
                             for p in [1, 2, 3, 4, 5]:
                                 true_maps.append(count_sample['points_annot'][i][p][0].copy())
@@ -1028,7 +1028,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True):
 
         model.train()
 
-        if config.Counting.calc_det_performance:
+        if config.AttributeEstimation.calc_det_performance:
             recall, precision, ap = calc_recall_precision_ap(T, P)
             plot_RP_curve(recall, precision, ap, save_path=config.General.experiment_path)
 

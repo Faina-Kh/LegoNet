@@ -5,7 +5,8 @@ class DrawProperties:
     POINT_RADIUS = 5
     LINE_WIDTH = 5
     DRAW_MAPS = True
-    save_img_path = ""
+    save_img_path = ''
+    maps_path = ''
 
 class NetworkType(enum.Enum):
     detection = 1
@@ -53,7 +54,7 @@ class Detection:
     ratios=None
 
 
-class Counting:
+class AttributeEstimation:
     crops_size = [640,640]
     map_1_R = (6, 6)
     map_2_R = (5, 5)
@@ -63,13 +64,13 @@ class Counting:
 
     calc_det_performance = True
     do_nmcs = False
-    counting_type = 'reg_fpn_p3_p7_min_sig' #('reg_fpn_p3' #) #'withKeyPoints'
+    estimate_type = 'reg_fpn_p3_p7_min_sig' #('reg_fpn_p3' #) #'withKeyPoints'
     inter_losses = True
     num_of_pyr_levels = 3
     double_counting = False
     Find_for_count = True
 
-class detect_and_count:
+class Detect_and_Estimate:
     choose_by_IoUandPrc_Flag = True
     precision_thresh = 0.9
     do_gt_nmcs = True

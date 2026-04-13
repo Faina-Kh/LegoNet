@@ -359,7 +359,7 @@ class FeatureClassification(nn.Module):
             return {'feature_maps': x1, 'find_maps': out1}
 
 
-        elif self.task == 'counting': #plt.imsave('vis' + '/' + 'out.png', out) #print(torch.min(out.data)) print(torch.max(out.data))
+        elif self.task == 'attribute_estimation': #'counting': #plt.imsave('vis' + '/' + 'out.png', out) #print(torch.min(out.data)) print(torch.max(out.data))
             outputs = []
             out = self.conv1(x)
             #print('out', torch.min(out.data), torch.max(out.data))
@@ -490,7 +490,7 @@ class FindModule(nn.Module):
         if self.training:
             if self.task=='detection':
                 pyramid_feats, anchors, annotations = inputs
-            elif self.task == 'counting':
+            elif self.task == 'attribute_estimation': #'counting':
                 pyramid_feats, annotations = inputs
         else:
             pyramid_feats = inputs
@@ -517,8 +517,7 @@ class FindModule(nn.Module):
             else:
                 return SFMS_lists
 
-
-        elif self.task=='counting':
+        elif self.task=='attribute_estimation': #'counting':
 
             cls_output = []
             #loss_for_SFMS = []
@@ -564,7 +563,7 @@ class FindModule(nn.Module):
                 ###############################################################################################
 
                 if self.training:
-                    if config.Counting.inter_losses:
+                    if config.AttributeEstimation.inter_losses:
                         l1, l2,l3,l4,l5 = [self.focalLoss(annotations[0], classification[0]),
                                             self.focalLoss(annotations[1], classification[1]),
                                             self.focalLoss(annotations[2], classification[2]),
@@ -827,10 +826,10 @@ class SmoothStepFunction(nn.Module):
 ########################################################################################################################
 
 
-class EstimateWithKeyPointsModule(nn.Module): #LeanCountingModule
+class LeanCountingModule(nn.Module): #LeanCountingModule #EstimateWithKeyPointsModule
 
     def __init__(self, output_size = 1, name = "Lean_Estimation_Module", loss_for = ""):
-        super(EstimateWithPointsModule, self).__init__() #LeanEstimationModule
+        super(LeanCountingModule, self).__init__() #LeanEstimationModule
 
         self.name = name
         self.loss_for = loss_for
@@ -1044,7 +1043,7 @@ class EstimateRegSubmodel(nn.Module):
         #torch.nn.init.xavier_uniform_(self.regression_output)  # Glorot init, the default in keras Dense
         self.regression_output.bias.data.zero_()
 
-        if config.General.binary_model or config.detect_and_count.type == "both_for_roots_2":
+        if config.General.binary_model or config.Detect_and_Estimate.type == "both_for_roots_2":
             self.act_Dense1_sig = nn.Sigmoid()
             self.act_Dense2_sig = nn.Sigmoid()
             self.act_Dense3 = nn.Sigmoid()
@@ -1094,7 +1093,7 @@ class EstimateWithRegModule(nn.Module): #"CountWithRegModule"
 
         self.countLoss = modular_losses.mu_sig_gyf()
 
-        if config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+        if config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
             self.EstimateRegSubmodel = EstimateRegSubmodel()
 
     def forward(self, inputs):
@@ -1123,7 +1122,7 @@ class EstimateWithRegModule(nn.Module): #"CountWithRegModule"
 
         ######################################################################################
         if self.training:
-            if config.detect_and_count.type == "both_for_roots_2":
+            if config.Detect_and_Estimate.type == "both_for_roots_2":
                 return (self.countLoss(annotations.squeeze(dim=1), best_out))
             return (self.countLoss(annotations.squeeze(dim=1), best_out.float()))
 

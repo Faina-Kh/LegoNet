@@ -19,7 +19,7 @@ import random
 import gc
 
 from legoNet_build import model_build
-from manage_weights import list_checkpoint_modules, load_submodule_weights
+from manage_weights import list_checkpoint_modules, load_submodule_weights, save_partial_weights, print_module_names
 
 
 def remove_prevEpoch():
@@ -40,9 +40,10 @@ def freeze_bn(model):
             layer.eval()
 
 
-def vis_bbox(dataloader_val,sampler_val,dataset_val, legonet, unnormalize):
-
+def vis_bbox(dataloader_val,sampler_val,dataset_val, model, unnormalize):
     font = ImageFont.truetype('arial.ttf', 14)
+    print()
+    #print('Per image inference time with visualization:')
     for idx, data in enumerate(dataloader_val):
 
         group_idx = sampler_val.groups[idx]
@@ -52,9 +53,17 @@ def vis_bbox(dataloader_val,sampler_val,dataset_val, legonet, unnormalize):
 
         with torch.no_grad():
             st = time.time()
-            detection_outputs = legonet([data['img'].to(config.General.device).float(), [data['bbox_annot'], None], None, False])
+            if config.General.NETWORK_TYPE == config.NetworkType.detection:
+                detection_outputs = model([data['img'].to(config.General.device).float(), [data['bbox_annot'], None],
+                                             None]) #, False
+            elif config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting:
+                detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
+                    model([data['img'].to(config.General.device).float(), [data['bbox_annot'], data['points_annot']],
+                           torch.tensor(group_idx)])
+
             scores, classification, transformed_anchors = detection_outputs
-            print('Elapsed time: {}'.format(time.time()-st))
+
+            #print('Elapsed time: {:.3f} seconds'.format(time.time()-st))
 
             idxs = np.where(scores.cpu() > config.Detection.min_score)
             img_array = np.array(255 * unnormalize(data['img'][0, :, :, :])).copy()
@@ -131,11 +140,13 @@ def print_args(args, file_path):
 
 def run(args=None):
 
-    if config.detect_and_count.crop_from_Pi:
+    if config.Detect_and_Estimate.crop_from_Pi:
         from models import model_crop_from_Pi as model_file # was model_4
     else:
         if config.General.model_name=="bbox_detection":
             from models import model_bbox_detection as model_file
+        elif config.General.model_name=="both":
+            from models import model_both as model_file
         else:
             from models import model_3 as model_file
 
@@ -327,15 +338,28 @@ def run(args=None):
 
     # Loading weights
     if args.load_weights:
-        print('Loading weights from: ', args.weights_file_path)
-        state_dict = (torch.load(args.weights_file_path, map_location=config.General.device)).state_dict() #torch.load(args.weights_file_path, map_location=config.General.device)
-        print("Available modules:", list_checkpoint_modules(state_dict))
+        print('Loading weights from: ', os.path.join(args.myExpPath, "Weights \n"))
 
-        if args.load_partial_weights_only:
+        print("All available modules in legoNet: ")
+        print_module_names(legonet)
+
+        if args.load_partial_weights:
+
             if args.load_bbox_det_weights:
-                submodules_names = ['backbone_1', 'find_1', 'where']
-                for submodule_name in submodules_names:
-                    load_submodule_weights(legonet, state_dict, submodule_name, strict=False)
+                bbox_det_state_dict = torch.load(args.bbox_detection_weights_file, map_location=config.General.device)
+                print("Available modules in bbox_detection weights file:", list_checkpoint_modules(bbox_det_state_dict))
+
+                if args.network_type == 'bbox_detection':
+                    legonet.load_state_dict(bbox_det_state_dict, strict=False)
+                else:
+                    print("Available modules in 'bbox_detection' module: ")
+                    print_module_names(legonet.bbox_detection)
+                    legonet.bbox_detection.load_state_dict(bbox_det_state_dict, strict=False)
+
+            if args.load_per_object_counting_weights:
+                per_object_state_dict = torch.load(args.per_object_weights_file, map_location=config.General.device)
+                load_submodule_weights(legonet, per_object_state_dict,
+                                       submodule_names = ['backbone_2', 'find_2', 'LeanCountingModule'], strict=False)
 
             #########################################
 
@@ -369,19 +393,24 @@ def run(args=None):
                     print(key)
 
         else:
-            legonet.load_state_dict(state_dict, strict=False)
+            #legonet.load_state_dict(state_dict, strict=False)
+
+            legonet = torch.load(args.model_path, map_location=config.General.device)
+            print("Available modules in model file:", list_checkpoint_modules(legonet.state_dict()))
+            save_partial_weights(args, legonet, tasks=['bbox_detection', "per_object_counting"])
+
 
 
     if args.network_type == "both" or args.network_type == "both_for_roots_2":
         if args.freeze_detection:
             # freeze gradients of detection
-            for param in legonet.backbone_1.parameters():
+            for param in legonet.bbox_detection.backbone_1.parameters():
                 param.requires_grad = False
 
-            for param in legonet.find_1.parameters():
+            for param in legonet.bbox_detection.find_1.parameters():
                 param.requires_grad = False
 
-            for param in legonet.where.parameters():
+            for param in legonet.bbox_detection.where.parameters():
                 param.requires_grad = False
 
     if config.roots_ablations.freeze_all_except_find_2: # find_2
@@ -436,7 +465,7 @@ def run(args=None):
                     "regression": []
                 }
             else:
-                if config.Counting.counting_type == 'withKeyPoints':
+                if config.AttributeEstimation.estimate_type == 'withKeyPoints':
 
                     if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
                         epoch_loss_per_task = { #### change loss names!!
@@ -471,7 +500,7 @@ def run(args=None):
                             "maps": []
                         }
 
-                elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
                         epoch_loss_per_task = {  #### change loss names!!
                             "classification": [],
@@ -503,18 +532,6 @@ def run(args=None):
 
                         classification_loss_value = classification_loss.item()
                         regression_loss_value = regression_loss.item()
-
-                    elif args.network_type == 'counting_fat':
-                        L1_loss, mid1_loss, mid2_loss, mid3_loss, mid4_loss, mid5_loss = legonet([data['img'].to(config.General.device).float(), data['annot']])
-
-                        # print(" L1_loss = {}, mid1_loss = {}, mid2_loss = {}, mid3_loss = {}, mid4_loss = {}, mid5_loss = {} ".format(
-                        #     L1_loss.data.cpu(), mid1_loss.data.cpu(), mid2_loss.data.cpu(), mid3_loss.data.cpu(), mid4_loss.data.cpu(), mid5_loss.data.cpu()))
-
-                        classification_loss = L1_loss + mid1_loss + mid2_loss + mid3_loss + mid4_loss + mid5_loss
-                        classification_loss = classification_loss.mean()
-                        loss = classification_loss
-
-                        counting_loss_value = loss.item()
 
                     elif args.network_type == 'counting_lean':
 
@@ -553,7 +570,7 @@ def run(args=None):
                         ###############################################################################################################################
 
                         if torch.cuda.is_available():
-                            if config.Counting.counting_type == 'withKeyPoints':
+                            if config.AttributeEstimation.estimate_type == 'withKeyPoints':
 
                                 if args.network_type == 'both':
                                     classification_loss, regression_loss, l1, maps_loss = \
@@ -575,7 +592,7 @@ def run(args=None):
                                                      [data['bbox_annot'].to(config.General.device), None],
                                                      torch.tensor(sampler.groups[iter_num])]) #, args.do_counting])
 
-                            elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                            elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
 
                                 if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
                                     if 'points_annot' in data.keys():
@@ -602,7 +619,7 @@ def run(args=None):
                         classification_loss = classification_loss.mean()
                         regression_loss = regression_loss.mean()
 
-                        if config.Counting.counting_type == 'withKeyPoints':
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             if args.network_type == 'both':
                                 if l1 is not None and maps_loss is not None:
                                     counting_loss = l1 + maps_loss
@@ -629,7 +646,7 @@ def run(args=None):
                                     points_loss = None
 
 
-                        elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
 
                             if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
                                 if color_loss is not None and length_loss is not None and diameter_loss is not None:
@@ -654,7 +671,7 @@ def run(args=None):
                         classification_loss_value = classification_loss.item()
                         regression_loss_value = regression_loss.item()
 
-                        if config.Counting.counting_type == 'withKeyPoints':
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             if args.network_type == 'both':
                                 if l1 is None or maps_loss is None:
                                     counting_loss_value = 0.0
@@ -683,7 +700,7 @@ def run(args=None):
                                     diameter_loss_value = diameter_loss.item()
 
 
-                        elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                             if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
                                 if color_loss is None or length_loss is None or diameter_loss is None:
                                     color_loss_value = -1
@@ -754,7 +771,7 @@ def run(args=None):
                         epoch_loss_per_task["regression"].append(regression_loss_value)
 
                     if not config.General.NETWORK_TYPE == config.NetworkType.detection:
-                        if config.Counting.counting_type == 'withKeyPoints':
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             if args.network_type == 'both' or args.network_type == 'counting_lean':
                                 if l1 is not None and maps_loss is not None:
                                     epoch_loss_per_task["counting"].append(counting_loss_value)
@@ -779,7 +796,7 @@ def run(args=None):
                                     epoch_loss_per_task["maps"].append(maps_loss_value)
 
 
-                        elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
 
                             if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
                                 if color_loss is not None and length_loss is not None and diameter_loss is not None:
@@ -827,12 +844,12 @@ def run(args=None):
                         del counting_loss
 
                     elif args.network_type == 'both' or args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
-                        if config.Counting.counting_type == 'withKeyPoints':
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             print(
                                  'Epoch: {} | Iteration: {} | detection loss: {:1.5f} | maps loss: {:1.5f} | Length loss: {:1.5f} | Diameter loss: {:1.5f} | Color loss: {:1.5f}'.format(
                                      epoch_num, iter_num, classification_loss_value+regression_loss_value, maps_loss_value, length_loss_value, diameter_loss_value, color_loss_value))
 
-                        elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                             print(
                                 'Epoch: {} | Iteration: {} | detection loss: {:1.5f} | Length loss: {:1.5f} | Diameter loss: {:1.5f} | Color loss: {:1.5f}'.format(
                                     epoch_num, iter_num, classification_loss_value + regression_loss_value,
@@ -849,7 +866,7 @@ def run(args=None):
                         if args.network_type == "both":
                             del counting_loss
 
-                        if config.Counting.counting_type == 'withKeyPoints':
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             if args.network_type == "both":
                                 if l1 is not None and maps_loss is not None:
                                     del l1
@@ -864,7 +881,7 @@ def run(args=None):
                                     del diameter_loss
 
 
-                        elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                             if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
                                 if color_loss is not None and length_loss is not None and diameter_loss is not None:
                                     del color_loss
@@ -957,7 +974,7 @@ def run(args=None):
             elif args.network_type == 'counting_fat' or args.network_type == 'counting_lean' or args.network_type == 'counting_reg':
             #     print('Evaluating dataset')
             #     count_agreement = counting_eval.eval(dataset_val, legonet, args)
-                if config.Counting.counting_type == 'withKeyPoints':
+                if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                     util.printf(
                         'Epoch %d summary: counting mean loss %.5f, l1_loss %.5f, maps_loss %.5f\n',
                         epoch_num,
@@ -965,7 +982,7 @@ def run(args=None):
                         np.mean(epoch_loss_per_task["l1"]),
                         np.mean(epoch_loss_per_task["maps"]))
 
-                elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     util.printf(
                         'Epoch %d summary: counting mean loss %.5f \n',
                         epoch_num,
@@ -993,7 +1010,7 @@ def run(args=None):
                                                                       'legonet_epoch={}.pt'.format(epoch_num)))#cont_
 
             elif args.network_type == 'both' or args.network_type == "both_for_roots_2":
-                if config.Counting.counting_type == 'withKeyPoints':
+                if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                     if args.network_type == 'both':
                         util.printf('Epoch %d summary: classification mean %.5f, regression mean %.5f, counting mean %.5f, l1_loss %.5f, maps_loss %.5f\n',
                                     epoch_num,
@@ -1015,7 +1032,7 @@ def run(args=None):
                             np.mean(epoch_loss_per_task["diameter"])
                             )
 
-                elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     if args.network_type == "both_for_roots_2":
                         util.printf(
                             'Epoch %d summary: classification mean %.5f, regression mean %.5f, color_loss %.5f, length_loss %.5f, diameter_loss %.5f\n',
@@ -1046,7 +1063,7 @@ def run(args=None):
 
                     if args.evaluate_detection:
                         print()
-                        util.printf("Detection evaluation: ")
+                        print("Object detection evaluation: ")
 
                         mAP, precision, recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
                                                              score_threshold=config.Detection.min_score, iou_threshold=config.Detection.iou_threshold)
@@ -1155,7 +1172,9 @@ def run(args=None):
         if config.General.NETWORK_TYPE == config.NetworkType.detection or \
                 config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting:
             # includes objects without points...
+
             if args.evaluate_detection and args.have_GT:
+                print()
                 util.printf("Detection evaluation:\n")
                 if args.eval_detection_params:
                     average_precisions_all= kcsv_eval_2.evaluate(dataset_val, dataloader_val, sampler_val, legonet,
@@ -1167,10 +1186,9 @@ def run(args=None):
                         print(average_precisions_all[i])
 
                 else:
-                    print()
                     print(f"Results for min score: {config.Detection.min_score}, iou_threshold: {config.Detection.iou_threshold}")
                     mAP, precision, recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val,
-                                                                            legonet,score_threshold=config.Detection.min_score,
+                                                                            legonet, score_threshold=config.Detection.min_score,
                                                                             iou_threshold=config.Detection.iou_threshold,
                                                                             generate_PR_curve=True)
                     print(f'mAP = {mAP:.3f}, precision = {precision[-1]:.3f}, recall = {recall[-1]:.3f}')
@@ -1179,6 +1197,7 @@ def run(args=None):
                         f.write(f'mAP = {mAP:.3f}, precision = {precision[-1]:.3f}, recall = {recall[-1]:.3f}\n')
                     if config.General.to_draw:
                         vis_bbox(dataloader_val, sampler_val, dataset_val, legonet, unnormalize = UnNormalizer())
+            print()
 
             if args.evaluate_both:
 
@@ -1191,7 +1210,7 @@ def run(args=None):
                 else:
                     rel_error = -1
 
-                util.printf("\n rel error: %.3f", rel_error)
+                util.printf("rel error: %.3f \n ", rel_error)
 
         else:
             util.printf("Counting evaluation:\n")
@@ -1214,7 +1233,7 @@ def run(args=None):
 
 def run_offline_validation_double_detection(args=None):
 
-    if config.detect_and_count.crop_from_Pi:
+    if config.Detect_and_Estimate.crop_from_Pi:
         from models import model_crop_from_Pi as model
     else:
         from models import model_3 as model
@@ -1333,7 +1352,7 @@ def run_offline_validation_double_detection(args=None):
 
 def run_offline_validation(args=None):
 
-    if config.detect_and_count.crop_from_Pi:
+    if config.Detect_and_Estimate.crop_from_Pi:
         from models import model_crop_from_Pi as model
     else:
         from models import model_3 as model
@@ -1465,7 +1484,7 @@ def run_offline_validation(args=None):
 def visualize_detection(args, save_path = ""):
 
 
-    if config.detect_and_count.crop_from_Pi:
+    if config.Detect_and_Estimate.crop_from_Pi:
         from models import model_crop_from_Pi as model
     else:
         from models import model_3 as model
@@ -1528,7 +1547,7 @@ def visualize_detection(args, save_path = ""):
             st = time.time()
             detection_outputs = legonet([data['img'].to(config.General.device).float(), [data['bbox_annot'], None], None, False])
             scores, classification, transformed_anchors = detection_outputs
-            print('Elapsed time: {}'.format(time.time()-st))
+            print('Elapsed time: {:.3f} seconds'.format(time.time()-st))
 
             idxs = np.where(scores.cpu() > config.Detection.min_score)
             img_array = np.array(255 * unnormalize(data['img'][0, :, :, :])).copy()

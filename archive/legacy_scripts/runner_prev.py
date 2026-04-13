@@ -27,7 +27,7 @@ import gc
 
 def run(args=None):
 
-    if config.detect_and_count.crop_from_Pi:
+    if config.Detect_and_Estimate.crop_from_Pi:
         from models import model_crop_from_Pi as model
     else:
         if config.General.model_name=="model_detection":
@@ -365,7 +365,7 @@ def run(args=None):
 
             epoch_loss = []
             epoch_loss_per_task = []
-            if config.Counting.counting_type == 'withKeyPoints':
+            if config.AttributeEstimation.estimate_type == 'withKeyPoints':
 
                 if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
                     epoch_loss_per_task = { #### change loss names!!
@@ -400,7 +400,7 @@ def run(args=None):
                         "maps": []
                     }
 
-            elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+            elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                 if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
                     epoch_loss_per_task = {  #### change loss names!!
                         "classification": [],
@@ -492,12 +492,12 @@ def run(args=None):
                             if epoch_num <200:
                                 # train only detection net
                                 # counting_loss = \
-                                if config.Counting.counting_type == 'withKeyPoints':
+                                if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                                     classification_loss, regression_loss, l1, maps_loss  = \
                                         legonet([data['img'].to(config.General.device).float(), [data['bbox_annot'].to(config.General.device), data['points_annot']],
                                                  torch.tensor(sampler.groups[iter_num]), False]) #classification_loss, regression_loss, counting_loss
 
-                                elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                                elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                                     classification_loss, regression_loss, counting_loss = \
                                         legonet([data['img'].to(config.General.device).float(),
                                                  [data['bbox_annot'].to(config.General.device), data['points_annot']],
@@ -517,12 +517,12 @@ def run(args=None):
                                     param.requires_grad = False
 
 
-                                if config.Counting.counting_type == 'withKeyPoints':
+                                if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                                     classification_loss, regression_loss, l1, maps_loss = \
                                         legonet([data['img'].to(config.General.device).float(), [data['bbox_annot'].to(config.General.device), data['points_annot']],
                                                  torch.tensor(sampler.groups[iter_num]), True] )
 
-                                elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                                elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                                     classification_loss, regression_loss, counting_loss = \
                                         legonet([data['img'].to(config.General.device).float(),
                                                  [data['bbox_annot'].to(config.General.device), data['points_annot']],
@@ -532,7 +532,7 @@ def run(args=None):
 
                         else:
                             if torch.cuda.is_available():
-                                if config.Counting.counting_type == 'withKeyPoints':
+                                if config.AttributeEstimation.estimate_type == 'withKeyPoints':
 
                                     if args.network_type == 'both':
                                         classification_loss, regression_loss, l1, maps_loss = \
@@ -568,7 +568,7 @@ def run(args=None):
                                                          torch.tensor(sampler.groups[iter_num]), args.do_counting])
 
 
-                                elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                                elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
 
                                     if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
                                         if 'points_annot' in data.keys():
@@ -594,7 +594,7 @@ def run(args=None):
                         classification_loss = classification_loss.mean()
                         regression_loss = regression_loss.mean()
 
-                        if config.Counting.counting_type == 'withKeyPoints':
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             if args.network_type == 'both':
                                 if l1 is not None and maps_loss is not None:
                                     counting_loss = l1 + maps_loss
@@ -621,7 +621,7 @@ def run(args=None):
                                     points_loss = None
 
 
-                        elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
 
                             if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
                                 if color_loss is not None and length_loss is not None and diameter_loss is not None:
@@ -646,7 +646,7 @@ def run(args=None):
                         classification_loss_value = classification_loss.item()
                         regression_loss_value = regression_loss.item()
 
-                        if config.Counting.counting_type == 'withKeyPoints':
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             if args.network_type == 'both':
                                 if l1 is None or maps_loss is None:
                                     counting_loss_value = 0.0
@@ -675,7 +675,7 @@ def run(args=None):
                                     diameter_loss_value = diameter_loss.item()
 
 
-                        elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                             if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
                                 if color_loss is None or length_loss is None or diameter_loss is None:
                                     color_loss_value = -1
@@ -746,7 +746,7 @@ def run(args=None):
                         epoch_loss_per_task["regression"].append(regression_loss_value)
 
                     if not config.General.NETWORK_TYPE == config.NetworkType.detection:
-                        if config.Counting.counting_type == 'withKeyPoints':
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             if args.network_type == 'both' or args.network_type == 'counting_lean':
                                 if l1 is not None and maps_loss is not None:
                                     epoch_loss_per_task["counting"].append(counting_loss_value)
@@ -771,7 +771,7 @@ def run(args=None):
                                     epoch_loss_per_task["maps"].append(maps_loss_value)
 
 
-                        elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
 
                             if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
                                 if color_loss is not None and length_loss is not None and diameter_loss is not None:
@@ -819,12 +819,12 @@ def run(args=None):
                         del counting_loss
 
                     elif args.network_type == 'both' or args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
-                        if config.Counting.counting_type == 'withKeyPoints':
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             print(
                                  'Epoch: {} | Iteration: {} | detection loss: {:1.5f} | maps loss: {:1.5f} | Length loss: {:1.5f} | Diameter loss: {:1.5f} | Color loss: {:1.5f}'.format(
                                      epoch_num, iter_num, classification_loss_value+regression_loss_value, maps_loss_value, length_loss_value, diameter_loss_value, color_loss_value))
 
-                        elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                             print(
                                 'Epoch: {} | Iteration: {} | detection loss: {:1.5f} | Length loss: {:1.5f} | Diameter loss: {:1.5f} | Color loss: {:1.5f}'.format(
                                     epoch_num, iter_num, classification_loss_value + regression_loss_value,
@@ -841,7 +841,7 @@ def run(args=None):
                         if args.network_type == "both":
                             del counting_loss
 
-                        if config.Counting.counting_type == 'withKeyPoints':
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             if args.network_type == "both":
                                 if l1 is not None and maps_loss is not None:
                                     del l1
@@ -856,7 +856,7 @@ def run(args=None):
                                     del diameter_loss
 
 
-                        elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                             if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
                                 if color_loss is not None and length_loss is not None and diameter_loss is not None:
                                     del color_loss
@@ -951,7 +951,7 @@ def run(args=None):
             elif args.network_type == 'counting_fat' or args.network_type == 'counting_lean' or args.network_type == 'counting_reg':
             #     print('Evaluating dataset')
             #     count_agreement = counting_eval.eval(dataset_val, legonet, args)
-                if config.Counting.counting_type == 'withKeyPoints':
+                if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                     util.printf(
                         'Epoch %d summary: counting mean loss %.5f, l1_loss %.5f, maps_loss %.5f\n',
                         epoch_num,
@@ -959,7 +959,7 @@ def run(args=None):
                         np.mean(epoch_loss_per_task["l1"]),
                         np.mean(epoch_loss_per_task["maps"]))
 
-                elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     util.printf(
                         'Epoch %d summary: counting mean loss %.5f \n',
                         epoch_num,
@@ -1000,7 +1000,7 @@ def run(args=None):
                         torch.save(legonet, os.path.join(config.General.experiment_path, 'legonet_epoch={}.pt'.format(epoch_num)))#cont_
 
             elif args.network_type == 'both' or args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
-                if config.Counting.counting_type == 'withKeyPoints':
+                if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                     if args.network_type == 'both':
                         util.printf('Epoch %d summary: classification mean %.5f, regression mean %.5f, counting mean %.5f, l1_loss %.5f, maps_loss %.5f\n',
                                     epoch_num,
@@ -1022,7 +1022,7 @@ def run(args=None):
                             np.mean(epoch_loss_per_task["diameter"])
                             )
 
-                elif config.Counting.counting_type == 'reg_fpn_p3_p7_min_sig':
+                elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
                         util.printf(
                             'Epoch %d summary: classification mean %.5f, regression mean %.5f, color_loss %.5f, length_loss %.5f, diameter_loss %.5f\n',
@@ -1228,7 +1228,7 @@ def run(args=None):
 
 def run_offline_validation_double_detection(args=None):
 
-    if config.detect_and_count.crop_from_Pi:
+    if config.Detect_and_Estimate.crop_from_Pi:
         from models import model_crop_from_Pi as model
     else:
         from models import model_3 as model
@@ -1351,7 +1351,7 @@ def run_offline_validation_double_detection(args=None):
 
 def run_offline_validation(args=None):
 
-    if config.detect_and_count.crop_from_Pi:
+    if config.Detect_and_Estimate.crop_from_Pi:
         from models import model_crop_from_Pi as model
     else:
         from models import model_3 as model
@@ -1487,7 +1487,7 @@ def run_offline_validation(args=None):
 def visualize_detection(args, save_path = ""):
 
 
-    if config.detect_and_count.crop_from_Pi:
+    if config.Detect_and_Estimate.crop_from_Pi:
         from models import model_crop_from_Pi as model
     else:
         from models import model_3 as model
