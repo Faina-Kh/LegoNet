@@ -1175,7 +1175,7 @@ def run(args=None):
 
             if args.evaluate_detection and args.have_GT:
                 print()
-                util.printf("Detection evaluation:\n")
+                print("Object detection evaluation:\n")
                 if args.eval_detection_params:
                     average_precisions_all= kcsv_eval_2.evaluate(dataset_val, dataloader_val, sampler_val, legonet,
                                                                  iou_threshold=config.Detection.iou_threshold_list,
