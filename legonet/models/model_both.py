@@ -32,7 +32,7 @@ class PerObjectEstimate(nn.Module):
         self.num_classes = num_classes
         self.freeze_detection = freeze_detection
 
-        self.bbox_detection = BBOX_Detection(num_classes = num_classes)
+        self.bbox_detection = BBOX_Detection(num_classes = num_classes, freeze_detection = self.freeze_detection)
         self.backbone_2 = legos_3.ResNetBackboneModule(name='backbone_for_attribute') #name='backbone_for_count'
         self.find_2 = legos_3.FindModule(num_classes=num_classes, name='find_for_attribute', task='attribute_estimation') #name='find_for_count', task='counting'
 
@@ -42,6 +42,21 @@ class PerObjectEstimate(nn.Module):
             self.EstimateWithRegModule = legos_3.EstimateWithRegModule(num_classes)
 
         self.roi_align = roi_align
+
+    def freeze_detector(self):
+        self.bbox_detection.eval()
+        # for p in self.bbox_detection.parameters():
+        #     p.requires_grad = False
+
+        # freeze gradients of detection
+        for param in self.bbox_detection.backbone_1.parameters():
+            param.requires_grad = False
+
+        for param in self.bbox_detection.find_1.parameters():
+            param.requires_grad = False
+
+        for param in self.bbox_detection.where.parameters():
+            param.requires_grad = False
 
     def forward(self, inputs):
 
@@ -59,9 +74,9 @@ class PerObjectEstimate(nn.Module):
         estimation_outputs = None #counting_outputs
 
         for img_idx in range(img_batch.shape[0]):
-            if self.freeze_detection:
+            if not self.bbox_detection.training: #self.freeze_detection:
                 detection_outputs = self.bbox_detection([img_batch[img_idx].unsqueeze(dim=0)])
-            elif self.training:
+            else: #elif self.training:
                 classification_loss, regression_loss = self.bbox_detection(img_batch[img_idx].unsqueeze(dim=0))
 
             # detection eval output:
@@ -111,18 +126,19 @@ class PerObjectEstimate(nn.Module):
                     anns_box_ids = detection_anns[0][:, 5]
                     ans_detected_ids = []
                     for i in range(anns_box_ids.shape[0]):
-                        ans_detected_ids.append(anns_box_ids[i] in true_ids)
+                        if anns_box_ids[i].item() != -1: # check if it's a box with points
+                            ans_detected_ids.append(anns_box_ids[i] in true_ids)
 
                     detection_anns = detection_anns[0][ans_detected_ids].unsqueeze(dim=0)
+                    if len(ans_detected_ids)>0:
+                        counting_anns[0][0] = counting_anns[0][0][ans_detected_ids]
 
-                    counting_anns[0][0] = counting_anns[0][0][ans_detected_ids]
+                        anns_box_ids_p = counting_anns[0][1][:, 3].float()
+                        ans_detected_ids_p = []
+                        for i in range(counting_anns[0][1].shape[0]):
+                            ans_detected_ids_p.append(anns_box_ids_p[i] in true_ids.cpu())
 
-                    anns_box_ids_p = counting_anns[0][1][:, 3].float()
-                    ans_detected_ids_p = []
-                    for i in range(counting_anns[0][1].shape[0]):
-                        ans_detected_ids_p.append(anns_box_ids_p[i] in true_ids.cpu())
-
-                    counting_anns[0][1] = counting_anns[0][1][ans_detected_ids_p]
+                        counting_anns[0][1] = counting_anns[0][1][ans_detected_ids_p]
 
                     annotations = [detection_anns, counting_anns]
 
@@ -323,19 +339,21 @@ class PerObjectEstimate(nn.Module):
                 if config.AttributeEstimation.estimate_type == 'withKeyPoints':
 
                     count_train_inputs = bbox_pyramid_p3, corrected_counting_anns[1:6]  # anchors, None
-                    root_anns = corrected_counting_anns[6:9]                    
 
                     l1 = 0 # for "both"
                     maps_loss = 0
                     count_loss = 0
-                    length_loss = 0
-                    diameter_loss = 0
-                    color_loss = 0
+
+                    if self.network_type == "both_for_roots_2":
+                        root_anns = corrected_counting_anns[6:9]
+                        length_loss = 0
+                        diameter_loss = 0
+                        color_loss = 0
 
                     for i in range(num_of_boxes):
-
-                        current_roots_anns = [root_anns[0][i][0].unsqueeze(dim=0),root_anns[0][i][1].unsqueeze(dim=0),root_anns[0][i][2].unsqueeze(dim=0)]
-                        #[root_anns[0][i].unsqueeze(dim=0),root_anns[1][i].unsqueeze(dim=0),root_anns[2][i].unsqueeze(dim=0)]
+                        if self.network_type == "both_for_roots_2":
+                            current_roots_anns = [root_anns[0][i][0].unsqueeze(dim=0),root_anns[0][i][1].unsqueeze(dim=0),root_anns[0][i][2].unsqueeze(dim=0)]
+                            #[root_anns[0][i].unsqueeze(dim=0),root_anns[1][i].unsqueeze(dim=0),root_anns[2][i].unsqueeze(dim=0)]
 
                         
                         current_count_train_inputs = [[count_train_inputs[0][0][i].unsqueeze(dim=0)],
@@ -380,8 +398,9 @@ class PerObjectEstimate(nn.Module):
                         if self.network_type == "both":
                             SFMS_lists, cls_output, current_maps_loss = self.find_2(current_count_train_inputs)
                             maps_loss += current_maps_loss
-                            count_input = SFMS_lists, cls_output, current_roots_anns  # annotations[1][0][0] #corrected_counting_anns
-                            current_l1 = self.LeanCountingModule(count_input)
+
+                            count_input = SFMS_lists, cls_output, corrected_counting_anns[0]  # annotations[1][0][0] #corrected_counting_anns
+                            current_l1 = self.LeanCountingModule(count_input)[0]
                             l1 += current_l1
 
                         elif self.network_type == "both_for_roots_2":
@@ -540,19 +559,26 @@ class PerObjectEstimate(nn.Module):
 
 
         if self.training:
+            if not self.bbox_detection.training:
+                classification_loss = None
+                regression_loss = None
+
             if counting_anns is not None:
                 if not including_counting: # don't have bbox predictions
                     if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                         if self.network_type == "both":
                             return classification_loss, regression_loss, None, None
+
                         elif self.network_type == "both_for_roots_2":
                             return classification_loss, regression_loss, None, None, None, None
 
                     elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                         if self.network_type == "both_for_roots_2":
                             return classification_loss, regression_loss, None, None, None
+
                         else:
                             return classification_loss, regression_loss, None
+
 
                 if config.AttributeEstimation.estimate_type == 'withKeyPoints':
 
@@ -560,7 +586,7 @@ class PerObjectEstimate(nn.Module):
                         return classification_loss, regression_loss, l1, maps_loss  #counting_loss #total_loss #classification_loss, regression_loss, counting_loss
 
                     elif self.network_type == "both_for_roots_2":
-                        return classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss
+                            return classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss
 
                 elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     if self.network_type == "both_for_roots_2":
@@ -568,18 +594,18 @@ class PerObjectEstimate(nn.Module):
                     else:
                         return classification_loss, regression_loss, counting_loss
 
-            else:
-                if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-                    if self.network_type == "both":
-                        return classification_loss, regression_loss, None, None
-                    elif self.network_type == "both_for_roots_2":
-                        return classification_loss, regression_loss, None, None, None, None
-
-                elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                    if self.network_type == "both_for_roots_2":
-                        return classification_loss, regression_loss, None, None, None
-                    else:
-                        return classification_loss, regression_loss, None
+            # else:
+            #     if config.AttributeEstimation.estimate_type == 'withKeyPoints':
+            #         if self.network_type == "both":
+            #             return classification_loss, regression_loss, None, None
+            #         elif self.network_type == "both_for_roots_2":
+            #             return classification_loss, regression_loss, None, None, None, None
+            #
+            #     elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
+            #         if self.network_type == "both_for_roots_2":
+            #             return classification_loss, regression_loss, None, None, None
+            #         else:
+            #             return classification_loss, regression_loss, None
 
         else:
             if bbox_pred_adjusted.shape[0] > 0: #len(bbox_crops_list)>0:
@@ -587,7 +613,6 @@ class PerObjectEstimate(nn.Module):
 
             else:
                 return detection_outputs, estimation_outputs, None, None, None  #[],...
-
 
     def get_detection_output(self, transformed_anchors, classification_vector):
 
@@ -665,7 +690,6 @@ class PerObjectEstimate(nn.Module):
     def images_ratios(self, image_shape, output_shape):
         return output_shape / np.array(image_shape[:2])
 
-
     def create_gausian_mask(self, center_point, nCols, nRows, q=99, radius=(5, 5)):
         '''
         create_gausian_mask creates a gaussian mask to be used as GT annotations for the detection-based counter
@@ -695,7 +719,6 @@ class PerObjectEstimate(nn.Module):
             print('divide by zero')
         return p
 
-
     def compute_keypoints_targets_multi_maps(self, image_shape, annotations_points_centers_a, radius=(5, 5), pyramid_level=3):
         # resize transformed-image and annotations
         import copy
@@ -722,7 +745,6 @@ class PerObjectEstimate(nn.Module):
                 raise ("nan was found")
 
         return annotations
-
 
     def getitem(self, bbox_crops, points = None, anns = None):
         filtered_samples = []
@@ -803,7 +825,6 @@ class PerObjectEstimate(nn.Module):
 
         return filtered_samples
 
-
     def find_points_in_bbox(self, img, point_anns, bbox_pred, scale, network_type):
 
         unnormalize = UnNormalizer()
@@ -846,7 +867,6 @@ class PerObjectEstimate(nn.Module):
 
         return points
 
-
     def nmcs(self, predicted_boxes, relevant_points):
 
         non_supressed_indices = [True for i in range(predicted_boxes.shape[0])]
@@ -875,7 +895,6 @@ class PerObjectEstimate(nn.Module):
                         non_supressed_indices[j] = False
 
         return non_supressed_indices
-
 
     def view_points_on_img(self, img, point_anns):
 

@@ -647,7 +647,7 @@ def evaluateMAP_simple(generator,
     #     print('th={}, pr={}, rc={}'.format(th, pr, rc))
 
 
-    return np.mean(mAP), precision, recall #  None, None precision, recall
+    return np.mean(mAP), np.mean(precision), np.mean(recall) #np.mean(mAP), precision, recall #  None, None precision, recall
 
 
 def evaluate_double_detection(dataset_val_with_counts,

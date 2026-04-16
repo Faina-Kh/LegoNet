@@ -400,18 +400,9 @@ def run(args=None):
             save_partial_weights(args, legonet, tasks=['bbox_detection', "per_object_counting"])
 
 
-
-    if args.network_type == "both" or args.network_type == "both_for_roots_2":
-        if args.freeze_detection:
-            # freeze gradients of detection
-            for param in legonet.bbox_detection.backbone_1.parameters():
-                param.requires_grad = False
-
-            for param in legonet.bbox_detection.find_1.parameters():
-                param.requires_grad = False
-
-            for param in legonet.bbox_detection.where.parameters():
-                param.requires_grad = False
+    #if args.network_type == "both" or args.network_type == "both_for_roots_2":
+    if args.freeze_detection:
+        legonet.freeze_detector()
 
     if config.roots_ablations.freeze_all_except_find_2: # find_2
         # freeze gradients of detection
@@ -455,6 +446,7 @@ def run(args=None):
 
             legonet.train()
             freeze_bn(unwrap_model(legonet)) #legonet.freeze_bn()
+            legonet.freeze_detector()
 
             epoch_loss = []
             epoch_loss_per_task = []
@@ -467,11 +459,11 @@ def run(args=None):
             else:
                 if config.AttributeEstimation.estimate_type == 'withKeyPoints':
 
-                    if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+                    if args.network_type == "both_for_roots_2":
                         epoch_loss_per_task = { #### change loss names!!
                             "classification": [],
                             "regression": [],
-                            "points": [],
+                            #"points": [],
                             "color": [],
                             "maps": [],
                             "length": [],
@@ -491,17 +483,26 @@ def run(args=None):
 
                         }
 
-                    else:
+                    elif  args.network_type == 'counting_lean':
                         epoch_loss_per_task = {
                             "classification": [],
                             "regression": [],
-                            "counting": [],
-                            "l1": [],
+                            #"counting": [],
+                            "l1_estimation": [], #l1
+                            "maps": []
+                        }
+
+                    elif args.network_type == 'both':
+                        epoch_loss_per_task = {
+                            "classification": [],
+                            "regression": [],
+                            # "counting": [],
+                            "l1_counting": [],  # l1
                             "maps": []
                         }
 
                 elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                    if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+                    if args.network_type == "both_for_roots_2":
                         epoch_loss_per_task = {  #### change loss names!!
                             "classification": [],
                             "regression": [],
@@ -510,11 +511,16 @@ def run(args=None):
                             "diameter": []
                         }
 
-                    else:
+                    elif args.network_type == "both":
                         epoch_loss_per_task = {
                             "classification": [],
                             "regression": [],
                             "counting": []
+                        }
+
+                    elif args.network_type == "counting_reg":
+                        epoch_loss_per_task = {
+                            "reg_estimation": []
                         }
 
             for iter_num, data in enumerate(dataloader_train):
@@ -522,58 +528,54 @@ def run(args=None):
                     optimizer.zero_grad()
 
                     if args.network_type == 'bbox_detection':
-                        classification_loss, regression_loss = legonet([data['img'].to(config.General.device).float(),
-                                                                        data['bbox_annot'].to(config.General.device)])
+                        bbox_classification_loss, bbox_regression_loss = legonet([data['img'].to(config.General.device).float(),
+                                                                                  data['bbox_annot'].to(config.General.device)])
 
-                        classification_loss = classification_loss.mean()
-                        regression_loss = regression_loss.mean()
+                        bbox_classification_loss = bbox_classification_loss.mean()
+                        bbox_regression_loss = bbox_regression_loss.mean()
 
-                        loss = classification_loss + regression_loss
+                        loss = bbox_classification_loss + bbox_regression_loss
 
-                        classification_loss_value = classification_loss.item()
-                        regression_loss_value = regression_loss.item()
+                        classification_loss_value = bbox_classification_loss.item()
+                        regression_loss_value = bbox_regression_loss.item()
 
                     elif args.network_type == 'counting_lean':
+                        l1_estimation_loss, maps_loss = legonet([data['img'].to(config.General.device).float(), data['annot']])
+                        l1_estimation_loss = args.loss_weight*l1_estimation_loss
 
-                        l1, maps_loss = legonet([data['img'].to(config.General.device).float(), data['annot']])
-                        l1 = args.loss_weight*l1
+                        if l1_estimation_loss is not None and maps_loss is not None:
+                            #counting_loss = l1_estimation_loss + maps_loss
+                            #counting_loss = counting_loss.mean()
+                            l1_estimation_loss = l1_estimation_loss.mean()
+                            maps_loss = maps_loss.mean()
+                            loss = l1_estimation_loss + maps_loss
 
-                        if l1 is not None and maps_loss is not None:
-                            counting_loss = l1 + maps_loss
-                            counting_loss = counting_loss.mean()
-                            loss = counting_loss
-
-                        else:
-                            counting_loss = None
-
-                        if l1 is None or maps_loss is None:
-                            counting_loss_value = 0.0
-                            l1_value = 0.0
-                            maps_loss_value = 0.0
-
-                        else:
-                            l1_value = l1.item()
+                            l1_estimation_value = l1_estimation_loss.item()
                             maps_loss_value = maps_loss.item()
-                            counting_loss_value = counting_loss.item()
+                            #counting_loss_value = counting_loss.item()
+                        else:
+                            # counting_loss = None
+                        #if l1_estimation_loss is None or maps_loss is None:
+                            #counting_loss_value = 0.0
+                            l1_estimation_value = -1
+                            maps_loss_value = -1
+                            loss = None
 
                     elif args.network_type == 'counting_reg':
-                        counting_loss = legonet([data['img'].to(config.General.device).float(), data['annot']])
-                        counting_loss = args.loss_weight * counting_loss
+                        reg_estimation_loss = legonet([data['img'].to(config.General.device).float(), data['annot']]) #counting_loss
+                        reg_estimation_loss = args.loss_weight * reg_estimation_loss
+                        reg_estimation_loss = reg_estimation_loss.mean()
+                        loss = reg_estimation_loss
 
-                        counting_loss = counting_loss.mean()
-
-                        loss = counting_loss
-
-                        counting_loss_value = loss.item()
+                        reg_estimation_loss_value = reg_estimation_loss.item() #counting_loss_value
 
                     elif args.network_type == 'both' or args.network_type == "both_for_roots_2":
-                        ###############################################################################################################################
 
                         if torch.cuda.is_available():
                             if config.AttributeEstimation.estimate_type == 'withKeyPoints':
 
                                 if args.network_type == 'both':
-                                    classification_loss, regression_loss, l1, maps_loss = \
+                                    bbox_classification_loss, bbox_regression_loss, l1_counting_loss, maps_loss = \
                                         legonet([data['img'].to(config.General.device).float(),
                                                  [data['bbox_annot'].to(config.General.device), data['points_annot']],
                                                  torch.tensor(sampler.groups[iter_num])]) #, args.do_counting])
@@ -581,141 +583,202 @@ def run(args=None):
                                 elif args.network_type == "both_for_roots_2":
                                     if 'points_annot' in data.keys():
                                         # for "both_for_roots_2", count loss is color loss
-                                        classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss=\
+                                        bbox_classification_loss, bbox_regression_loss, color_loss, maps_loss, length_loss, diameter_loss=\
                                             legonet([data['img'].to(config.General.device).float(),
                                                      [data['bbox_annot'].to(config.General.device), data['points_annot']],
                                                      torch.tensor(sampler.groups[iter_num])]) #, args.do_counting])
 
                                     else:
-                                        classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss=\
+                                        bbox_classification_loss, bbox_regression_loss, color_loss, maps_loss, length_loss, diameter_loss=\
                                             legonet([data['img'].to(config.General.device).float(),
                                                      [data['bbox_annot'].to(config.General.device), None],
                                                      torch.tensor(sampler.groups[iter_num])]) #, args.do_counting])
 
                             elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                                if args.network_type == 'both':
+                                    bbox_classification_loss, bbox_regression_loss, reg_counting_loss =  legonet( #counting_loss
+                                            [data['img'].to(config.General.device).float(),
+                                             [data['bbox_annot'].to(config.General.device), data['points_annot']],
+                                             torch.tensor(sampler.groups[iter_num]), True])
 
-                                if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+                                elif args.network_type == "both_for_roots_2":
                                     if 'points_annot' in data.keys():
-                                        classification_loss, regression_loss, color_loss, length_loss, diameter_loss = \
+                                        bbox_classification_loss, bbox_regression_loss, color_loss, length_loss, diameter_loss = \
                                             legonet([data['img'].to(config.General.device).float(),
                                                      [data['bbox_annot'].to(config.General.device), data['points_annot']],
                                                      torch.tensor(sampler.groups[iter_num]), args.do_counting])
                                     else:
-                                        classification_loss, regression_loss, color_loss, length_loss, diameter_loss = \
+                                        bbox_classification_loss, bbox_regression_loss, color_loss, length_loss, diameter_loss = \
                                             legonet([data['img'].to(config.General.device).float(),
                                                      [data['bbox_annot'].to(config.General.device), None],
                                                      torch.tensor(sampler.groups[iter_num]), args.do_counting])
 
-                                else:
-                                    classification_loss, regression_loss, counting_loss = \
-                                        legonet(
-                                            [data['img'].to(config.General.device).float(), [data['bbox_annot'].to(config.General.device), data['points_annot']],
-                                             torch.tensor(sampler.groups[iter_num]), True])
-
                         else:
                             print("Iteration: " + iter_num+ " | CUDA not available")
 
+                        if bbox_classification_loss is not None:
+                            bbox_classification_loss = bbox_classification_loss.mean()
+                            bbox_regression_loss = bbox_regression_loss.mean()
+                            bbox_detection_loss = bbox_classification_loss + bbox_regression_loss
 
-                        classification_loss = classification_loss.mean()
-                        regression_loss = regression_loss.mean()
+                            bbox_classification_loss_value = bbox_classification_loss.item()
+                            bbox_regression_loss_value = bbox_regression_loss.item()
+                            detection_loss_value = bbox_classification_loss_value + bbox_regression_loss_value
+                        else:
+                            bbox_detection_loss = None
+                            bbox_classification_loss_value = -1
+                            bbox_regression_loss_value = -1
+                            detection_loss_value = -1
 
                         if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             if args.network_type == 'both':
-                                if l1 is not None and maps_loss is not None:
-                                    counting_loss = l1 + maps_loss
-                                    counting_loss = counting_loss.mean()
-                                    loss = classification_loss + regression_loss + counting_loss
+                                if l1_counting_loss is not None and maps_loss is not None:
+                                #     counting_loss = l1 + maps_loss
+                                #     counting_loss = counting_loss.mean()
+                                    l1_counting_loss = l1_counting_loss.mean()
+                                    maps_loss = maps_loss.mean()
+
+                                    l1_counting_loss_value = l1_counting_loss.item()
+                                    maps_loss_value = maps_loss.item()
+
+                                    if bbox_detection_loss is not None:
+                                        loss = bbox_detection_loss + l1_counting_loss + maps_loss  #counting_loss
+                                    else:
+                                        loss = l1_counting_loss + maps_loss
 
                                 else:
-                                    loss = classification_loss + regression_loss
-                                    counting_loss = None
+                                    if bbox_detection_loss is not None:
+                                        loss = bbox_detection_loss
+                                    else:
+                                        loss = None
+                                    #counting_loss = None
 
                             if args.network_type == "both_for_roots_2":
                                 if color_loss is not None and maps_loss is not None and length_loss is not None and diameter_loss is not None:
                                     diameter_loss = args.dia_loss_weight * diameter_loss
-                                    color_loss = args.color_loss_weight* color_loss  #args.loss_weight * color_loss
+                                    color_loss = args.color_loss_weight * color_loss  #args.loss_weight * color_loss
+                                    maps_loss = args.maps_loss_weight * maps_loss
+                                    attributes_estimation_loss = color_loss + maps_loss + length_loss + diameter_loss
+                                    attributes_estimation_loss = attributes_estimation_loss.mean()
 
-                                    maps_loss = args.maps_loss_weight*maps_loss
+                                    if bbox_detection_loss is not None:
+                                        loss = bbox_detection_loss + attributes_estimation_loss
+                                    else:
+                                        loss = attributes_estimation_loss
 
-                                    points_loss = color_loss + maps_loss + length_loss + diameter_loss
-                                    points_loss = points_loss.mean()
-                                    loss = classification_loss + regression_loss + points_loss
-
-                                else:
-                                    loss = classification_loss + regression_loss
-                                    points_loss = None
-
-
-                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-
-                            if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
-                                if color_loss is not None and length_loss is not None and diameter_loss is not None:
-                                    diameter_loss = args.dia_loss_weight * diameter_loss
-                                    color_loss = args.color_loss_weight * color_loss  # args.loss_weight * color_loss
-
-                                    loss = classification_loss + regression_loss + color_loss + length_loss + diameter_loss
-
-                                else:
-                                    loss = classification_loss + regression_loss
-                                    points_loss = None
-
-                            else:
-                                if counting_loss is not None:
-                                    counting_loss = counting_loss.mean()
-                                    loss = classification_loss + regression_loss + counting_loss
-                                else:
-                                    loss = classification_loss + regression_loss
-
-                        #loss=total_loss
-
-                        classification_loss_value = classification_loss.item()
-                        regression_loss_value = regression_loss.item()
-
-                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-                            if args.network_type == 'both':
-                                if l1 is None or maps_loss is None:
-                                    counting_loss_value = 0.0
-                                    l1_value = 0.0
-                                    maps_loss_value = 0.0
-
-                                else:
-                                    l1_value = l1.item()
+                                    color_loss_value = color_loss.item()
                                     maps_loss_value = maps_loss.item()
-                                    counting_loss_value = counting_loss.item()
+                                    length_loss_value = length_loss.item()
+                                    diameter_loss_value = diameter_loss.item()
 
-                            elif args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
-                                if color_loss is None or maps_loss is None or length_loss is None or diameter_loss is None:
-                                    points_loss_value = -1
+                                else:
+                                    if bbox_detection_loss is not None:
+                                        loss = bbox_detection_loss
+                                    else:
+                                        loss = None
+
+                                    attributes_estimation_loss = None
+                                    attibutes_estimation_loss_value = -1
                                     color_loss_value = -1
                                     maps_loss_value = -1
                                     length_loss_value = -1
                                     diameter_loss_value = -1
 
 
+                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
+
+                            if args.network_type == 'both':
+                                if reg_counting_loss is not None:
+                                    reg_counting_loss = reg_counting_loss.mean()
+
+                                    loss = bbox_detection_loss + reg_counting_loss
+                                    reg_counting_loss_value = reg_counting_loss.item()
                                 else:
-                                    points_loss_value = points_loss.item()
+                                    loss = bbox_detection_loss
+
+                            elif args.network_type == "both_for_roots_2":
+                                if color_loss is not None and length_loss is not None and diameter_loss is not None:
+                                    diameter_loss = args.dia_loss_weight * diameter_loss
+                                    color_loss = args.color_loss_weight * color_loss  # args.loss_weight * color_loss
+                                    attributes_estimation_loss = color_loss + length_loss + diameter_loss
+                                    attributes_estimation_loss = attributes_estimation_loss.mean()
+
+                                    if bbox_detection_loss is not None:
+                                        loss = bbox_detection_loss + attributes_estimation_loss
+                                    else:
+                                        bbox_detection_loss = None
+                                        loss = attributes_estimation_loss
+
                                     color_loss_value = color_loss.item()
-                                    maps_loss_value = maps_loss.item()
                                     length_loss_value = length_loss.item()
                                     diameter_loss_value = diameter_loss.item()
 
+                                else:
+                                    if bbox_detection_loss is not None:
+                                        loss = bbox_detection_loss
+                                    else:
+                                        loss = None
 
-                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                            if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
-                                if color_loss is None or length_loss is None or diameter_loss is None:
+                                    attributes_estimation_loss = None
                                     color_loss_value = -1
                                     length_loss_value = -1
                                     diameter_loss_value = -1
 
-                                else:
-                                    color_loss_value = color_loss.item()
-                                    length_loss_value = length_loss.item()
-                                    diameter_loss_value = diameter_loss.item()
-                            else:
-                                if counting_loss is None:
-                                    counting_loss_value = 0.0
-                                else:
-                                    counting_loss_value = counting_loss.item()
+                        #loss=total_loss
+                        # if bbox_detection_loss is not None:
+                        #     classification_loss_value = bbox_classification_loss.item()
+                        #     regression_loss_value = bbox_regression_loss.item()
+                        #     detection_loss_value = classification_loss_value + regression_loss_value
+                        # else:
+                        #     classification_loss_value = -1
+                        #     regression_loss_value = -1
+                        #     detection_loss_value = -1
+
+                        # if config.AttributeEstimation.estimate_type == 'withKeyPoints':
+                        #     if args.network_type == 'both':
+                        #         if l1 is None or maps_loss is None:
+                        #             counting_loss_value = -1
+                        #             l1_value = -1
+                        #             maps_loss_value = -1
+                        #
+                        #         else:
+                        #             l1_value = l1.item()
+                        #             maps_loss_value = maps_loss.item()
+                        #             #counting_loss_value = counting_loss.item()
+                        #
+                        #     elif args.network_type == "both_for_roots_2":
+                        #         if color_loss is None or maps_loss is None or length_loss is None or diameter_loss is None:
+                        #             attibutes_estimation_loss_value = -1
+                        #             color_loss_value = -1
+                        #             maps_loss_value = -1
+                        #             length_loss_value = -1
+                        #             diameter_loss_value = -1
+                        #
+                        #         else:
+                        #             attibutes_estimation_loss_value = attributes_estimation_loss.item()
+                        #             color_loss_value = color_loss.item()
+                        #             maps_loss_value = maps_loss.item()
+                        #             length_loss_value = length_loss.item()
+                        #             diameter_loss_value = diameter_loss.item()
+
+
+                        # elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                        #     if args.network_type == "both_for_roots_2":
+                        #         if color_loss is None or length_loss is None or diameter_loss is None:
+                        #             color_loss_value = -1
+                        #             length_loss_value = -1
+                        #             diameter_loss_value = -1
+                        #
+                        #         else:
+                        #             color_loss_value = color_loss.item()
+                        #             length_loss_value = length_loss.item()
+                        #             diameter_loss_value = diameter_loss.item()
+
+                            # elif args.network_type == "both":
+                            #     if reg_counting_loss is None:
+                            #         reg_counting_loss_value = -1
+                            #     else:
+                            #         reg_counting_loss_value = reg_counting_loss.item()
 
                     elif args.network_type == "counting_lean_multiple_out" or args.network_type == "counting_lean_multiple_out_V2":
 
@@ -731,12 +794,12 @@ def run(args=None):
                             total_loss = None
 
                         if l1 is None or maps_loss is None:
-                            total_loss_value = 0.0
-                            l1_value = 0.0
-                            l2_value = 0.0
-                            l3_value = 0.0
-                            l4_value = 0.0
-                            maps_loss_value = 0.0
+                            total_loss_value = -1
+                            l1_value = -1
+                            l2_value = -1
+                            l3_value = -1
+                            l4_value = -1
+                            maps_loss_value = -1
 
                         else:
                             l1_value = l1.item()
@@ -752,8 +815,11 @@ def run(args=None):
                     # from torchviz import make_dot
                     # draw=make_dot(loss).render("attached", format="png")
 
-                    if loss.grad_fn is not None:
-                        loss.backward()
+                    if loss is not None:
+                        if loss.grad_fn is not None:
+                            loss.backward()
+                    else:
+                        continue
 
                     # printing
                     myDict=legonet.state_dict()
@@ -767,20 +833,26 @@ def run(args=None):
                     epoch_loss.append(loss.item())
 
                     if args.network_type == 'bbox_detection' or args.network_type == 'both' or args.network_type == "both_for_roots_2":
-                        epoch_loss_per_task["classification"].append(classification_loss_value)
-                        epoch_loss_per_task["regression"].append(regression_loss_value)
+                        epoch_loss_per_task["classification"].append(bbox_classification_loss_value)
+                        epoch_loss_per_task["regression"].append(bbox_regression_loss_value)
 
                     if not config.General.NETWORK_TYPE == config.NetworkType.detection:
                         if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-                            if args.network_type == 'both' or args.network_type == 'counting_lean':
-                                if l1 is not None and maps_loss is not None:
-                                    epoch_loss_per_task["counting"].append(counting_loss_value)
-                                    epoch_loss_per_task["l1"].append(l1_value)
+                            if args.network_type == 'counting_lean':
+                                if l1_estimation_loss is not None and maps_loss is not None:
+                                    #epoch_loss_per_task["counting"].append(counting_loss_value)
+                                    epoch_loss_per_task["l1_estimation"].append(l1_value)
                                     epoch_loss_per_task["maps"].append(maps_loss_value)
 
-                            elif args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+                            elif args.network_type == 'both':
+                                if l1_counting_loss is not None and maps_loss is not None:
+                                    #epoch_loss_per_task["counting"].append(counting_loss_value)
+                                    epoch_loss_per_task["l1_counting"].append(l1_counting_loss_value)
+                                    epoch_loss_per_task["maps"].append(maps_loss_value)
+
+                            elif args.network_type == "both_for_roots_2":
                                 if color_loss is not None and maps_loss is not None and length_loss is not None and diameter_loss is not None:
-                                    epoch_loss_per_task["points"].append(points_loss_value)
+                                    #epoch_loss_per_task["attributes_estimation"].append(attibutes_estimation_loss_value)
                                     epoch_loss_per_task["color"].append(color_loss_value)
                                     epoch_loss_per_task["maps"].append(maps_loss_value)
                                     epoch_loss_per_task["length"].append(length_loss_value)
@@ -795,18 +867,21 @@ def run(args=None):
                                     epoch_loss_per_task["diameter_std"].append(l4_value)
                                     epoch_loss_per_task["maps"].append(maps_loss_value)
 
-
                         elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
 
-                            if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+                            if args.network_type == "both_for_roots_2":
                                 if color_loss is not None and length_loss is not None and diameter_loss is not None:
                                     epoch_loss_per_task["color"].append(color_loss_value)
                                     epoch_loss_per_task["length"].append(length_loss_value)
                                     epoch_loss_per_task["diameter"].append(diameter_loss_value)
 
-                            else:
-                                if counting_loss is not None:
-                                    epoch_loss_per_task["counting"].append(counting_loss_value)
+                            elif args.network_type == 'both':
+                                if reg_counting_loss is not None:
+                                    epoch_loss_per_task["reg_counting"].append(reg_counting_loss_value)
+
+                            elif args.network_type == 'counting_reg':
+                                if reg_estimation_loss is not None:
+                                    epoch_loss_per_task["reg_estimation"].append(reg_estimation_loss_value)
 
 
                     # loss_hist.append(float(loss))
@@ -815,78 +890,93 @@ def run(args=None):
                     if args.network_type == 'bbox_detection': #args.dataset_type == 'coco':
                         print(
                             'Epoch: {} | Iteration: {} | Classification loss: {:1.5f} | Regression loss: {:1.5f} | Running loss: {:1.5f}'.format(
-                                epoch_num, iter_num, float(classification_loss), float(regression_loss),np.mean(loss_hist)))
+                                epoch_num, iter_num, float(bbox_classification_loss), float(bbox_regression_loss),np.mean(loss_hist)))
 
-                        del regression_loss
-                        del classification_loss
+                        del bbox_regression_loss
+                        del bbox_classification_loss
 
                     elif args.network_type == 'counting_fat':   #args.dataset_type == 'csv_LCC':
                         print(
                             'Epoch: {} | Iteration: {} | Classification loss: {:1.5f} | Running loss: {:1.5f}'.format(
-                                epoch_num, iter_num, float(classification_loss), np.mean(loss_hist)))
+                                epoch_num, iter_num, float(bbox_classification_loss), np.mean(loss_hist)))
 
-                        del classification_loss
+                        del bbox_classification_loss
 
                     elif args.network_type == 'counting_lean':   #args.dataset_type == 'csv_LCC':
                         print(
                             'Epoch: {} | Iteration: {} | l1 loss: {:1.5f} |  maps loss: {:1.5f} | Running loss: {:1.5f}'.format(
-                                epoch_num, iter_num, float(l1), float(maps_loss), np.mean(loss_hist)))
+                                epoch_num, iter_num, float(l1_estimation_value), float(maps_loss_value), np.mean(loss_hist)))
 
-                        del counting_loss
-                        del l1
+                        #del counting_loss
+                        del l1_estimation_loss
                         del maps_loss
 
                     elif args.network_type == 'counting_reg':   #args.dataset_type == 'csv_LCC':
                         print(
-                            'Epoch: {} | Iteration: {} | count loss: {:1.5f} | Running loss: {:1.5f}'.format(
-                                epoch_num, iter_num, float(counting_loss), np.mean(loss_hist)))
+                            'Epoch: {} | Iteration: {} | estimation loss: {:1.5f} | Running loss: {:1.5f}'.format(
+                                epoch_num, iter_num, float(reg_estimation_loss_value), np.mean(loss_hist)))
 
-                        del counting_loss
+                        del reg_estimation_loss #counting_loss
 
-                    elif args.network_type == 'both' or args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
-                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-                            print(
-                                 'Epoch: {} | Iteration: {} | detection loss: {:1.5f} | maps loss: {:1.5f} | Length loss: {:1.5f} | Diameter loss: {:1.5f} | Color loss: {:1.5f}'.format(
-                                     epoch_num, iter_num, classification_loss_value+regression_loss_value, maps_loss_value, length_loss_value, diameter_loss_value, color_loss_value))
+                    if args.network_type == 'both' or args.network_type == 'both_for_roots_2':
+                        if args.network_type == 'both':
+                            if config.AttributeEstimation.estimate_type == 'withKeyPoints':
+                                print(
+                                     'Epoch: {} | Iteration: {} | BBOX_detection loss: {:1.5f} | KeyPointsMaps loss: {:1.5f} | '
+                                     'Counting loss: {:1.5f}'.format(epoch_num, iter_num, detection_loss_value,
+                                                                     maps_loss_value, l1_counting_loss_value))
 
-                        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                            print(
-                                'Epoch: {} | Iteration: {} | detection loss: {:1.5f} | Length loss: {:1.5f} | Diameter loss: {:1.5f} | Color loss: {:1.5f}'.format(
-                                    epoch_num, iter_num, classification_loss_value + regression_loss_value,
-                                    length_loss_value, diameter_loss_value, color_loss_value))
+                            elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                                print(
+                                    'Epoch: {} | Iteration: {} | BBOX_detection loss: {:1.5f} | Counting loss: {:1.5f}'.format(
+                                        epoch_num, iter_num, detection_loss_value, reg_counting_loss_value))
 
+                        if args.network_type == "both_for_roots_2":
+                            if config.AttributeEstimation.estimate_type == 'withKeyPoints':
+                                print(
+                                    'Epoch: {} | Iteration: {} | BBOX_detection loss: {:1.5f} | KeyPointsMaps loss: {:1.5f} | '
+                                    'Length loss: {:1.5f} | Diameter loss: {:1.5f} | Color loss: {:1.5f}'.format(
+                                        epoch_num, iter_num, detection_loss_value,
+                                        maps_loss_value, length_loss_value, diameter_loss_value, color_loss_value))
+
+                            elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                                print(
+                                    'Epoch: {} | Iteration: {} | BBOX_detection loss: {:1.5f} | Length loss: {:1.5f} | '
+                                    'Diameter loss: {:1.5f} | Color loss: {:1.5f}'.format(
+                                        epoch_num, iter_num, detection_loss_value,
+                                        length_loss_value, diameter_loss_value, color_loss_value))
 
                         # print(
                         #     'Epoch: {} | Iteration: {} | total loss: {:1.5f} | Running loss: {:1.5f}'.format(
                         #         epoch_num, iter_num, float(total_loss), np.mean(loss_hist)))
                         #del total_loss
-                        del regression_loss
-                        del classification_loss
-
-                        if args.network_type == "both":
-                            del counting_loss
+                        del bbox_regression_loss
+                        del bbox_classification_loss
 
                         if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             if args.network_type == "both":
-                                if l1 is not None and maps_loss is not None:
-                                    del l1
+                                if l1_counting_loss is not None and maps_loss is not None:
+                                    del l1_counting_loss
                                     del maps_loss
 
-                            if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+                            if args.network_type == "both_for_roots_2":
                                 if color_loss is not None and maps_loss is not None and length_loss is not None and diameter_loss is not None:
-                                    del points_loss
+                                    del attributes_estimation_loss
                                     del color_loss
                                     del maps_loss
                                     del length_loss
                                     del diameter_loss
 
-
                         elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                            if args.network_type == "both_for_roots" or args.network_type == "both_for_roots_2":
+                            if args.network_type == "both_for_roots_2":
                                 if color_loss is not None and length_loss is not None and diameter_loss is not None:
                                     del color_loss
                                     del length_loss
                                     del diameter_loss
+                                    del attributes_estimation_loss
+
+                            elif args.network_type == "both":
+                                del reg_counting_loss
 
                     elif args.network_type == "counting_lean_multiple_out" or args.network_type == "counting_lean_multiple_out_V2":   #args.dataset_type == 'csv_LCC':
                         print(
@@ -975,18 +1065,19 @@ def run(args=None):
             #     print('Evaluating dataset')
             #     count_agreement = counting_eval.eval(dataset_val, legonet, args)
                 if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-                    util.printf(
-                        'Epoch %d summary: counting mean loss %.5f, l1_loss %.5f, maps_loss %.5f\n',
-                        epoch_num,
-                        np.mean(epoch_loss_per_task["counting"]),
-                        np.mean(epoch_loss_per_task["l1"]),
-                        np.mean(epoch_loss_per_task["maps"]))
+                    if args.network_type == 'counting_lean':
+                        util.printf(
+                            'Epoch %d summary: l1_estimation_loss %.5f, maps_loss %.5f\n',
+                            epoch_num,
+                            #np.mean(epoch_loss_per_task["counting"]),
+                            np.mean(epoch_loss_per_task["l1_estimation"]),
+                            np.mean(epoch_loss_per_task["maps"]))
 
                 elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     util.printf(
                         'Epoch %d summary: counting mean loss %.5f \n',
                         epoch_num,
-                        np.mean(epoch_loss_per_task["counting"]))
+                        np.mean(epoch_loss_per_task["reg_estimation"]))
 
 
                 if args.eval_in_train:
@@ -1012,12 +1103,13 @@ def run(args=None):
             elif args.network_type == 'both' or args.network_type == "both_for_roots_2":
                 if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                     if args.network_type == 'both':
-                        util.printf('Epoch %d summary: classification mean %.5f, regression mean %.5f, counting mean %.5f, l1_loss %.5f, maps_loss %.5f\n',
+                        util.printf('Epoch %d summary: classification mean %.5f, regression mean %.5f, '
+                                    'l1_counting_loss %.5f, maps_loss %.5f\n',
                                     epoch_num,
                                     np.mean(epoch_loss_per_task["classification"]),
                                     np.mean(epoch_loss_per_task["regression"]),
-                                    np.mean(epoch_loss_per_task["counting"]),
-                                    np.mean(epoch_loss_per_task["l1"]),
+                                    #np.mean(epoch_loss_per_task["counting"]),
+                                    np.mean(epoch_loss_per_task["l1_counting"]),
                                     np.mean(epoch_loss_per_task["maps"]))
 
                     if args.network_type == "both_for_roots_2":
@@ -1049,14 +1141,13 @@ def run(args=None):
                             epoch_num,
                             np.mean(epoch_loss_per_task["classification"]),
                             np.mean(epoch_loss_per_task["regression"]),
-                            np.mean(epoch_loss_per_task["counting"]))
+                            np.mean(epoch_loss_per_task["reg_counting"]))
 
                 print()
 
                 if args.eval_in_train:
 
-                    assert args.evaluate_detection or args.do_counting
-
+                    #assert args.evaluate_detection or args.do_counting
                     legonet.eval()
 
                     print()
@@ -1071,54 +1162,54 @@ def run(args=None):
                         if len(precision)==0:
                             print('mAP: {:.3f} | precision: None | recall: None | prev_best_mAP: {:.3f} \n'.format(mAP, best_mAP))
                         else:
-                            print('mAP: {:.3f} | precision: {:.3f} | recall : {:.3f} | prev_best_mAP: {:.3f} \n'.format(mAP, precision[0], recall[0], best_mAP))
+                            #print('mAP: {:.3f} | precision: {:.3f} | recall : {:.3f} | prev_best_mAP: {:.3f} \n'.format(mAP, precision[0], recall[0], best_mAP))
+                            print('mAP: {:.3f} | precision: {:.3f} | recall : {:.3f} | prev_best_mAP: {:.3f} \n'.format(
+                                mAP, precision[-1], recall[-1], best_mAP))
 
-                        util.printf(args.network_type + " evaluation: ")
+                    util.printf(args.network_type + " evaluation: ")
 
-                    if args.do_counting:
-                        # util.printf("Detection evaluation:\n")
-                        # kcsv_eval_2.evaluateMAP(dataset_val, dataloader_val, sampler_val, legonet, score_threshold=0.05, show_PR_curve=False)
-                        #kcsv_eval_2.evaluate(dataset_val, dataloader_val, sampler_val, legonet, score_threshold=[0.05, 0.5], iou_threshold=[0.5, 0.75], show_PR_curve=True)
+                    #if args.do_counting:
+                    # util.printf("Detection evaluation:\n")
+                    # kcsv_eval_2.evaluateMAP(dataset_val, dataloader_val, sampler_val, legonet, score_threshold=0.05, show_PR_curve=False)
+                    #kcsv_eval_2.evaluate(dataset_val, dataloader_val, sampler_val, legonet, score_threshold=[0.05, 0.5], iou_threshold=[0.5, 0.75], show_PR_curve=True)
 
-                        #rel_error, _ = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=False, verbose=True, print_to_files=False)
+                    #rel_error, _ = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=False, verbose=True, print_to_files=False)
 
-                        if torch.cuda.is_available():
-                            out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=False, verbose=False,
-                                           print_to_files=True, args=args)
+                    if torch.cuda.is_available():
+                        out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=False, verbose=False,
+                                       print_to_files=True, args=args)
 
-                            if len(out) > 0:
-                                rel_error = out[0]
-                            else:
-                                rel_error = -1
-
-                            util.printf("rel error: %.3f\n", rel_error)
-
+                        if len(out) > 0:
+                            rel_error = out[0]
                         else:
-                            print("Iteration: " + iter_num + " | CUDA not available")
+                            rel_error = -1
 
-                        if rel_error < best_rel_error:
-                            best_rel_error = rel_error
-                            print(f'Current best*: {best_rel_error:.3f}\n')
-                            remove_prevEpoch()
-                            torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
-                                                                          'legonet_epoch={}.pt'.format(epoch_num)))
-
+                        util.printf("rel error: %.3f\n", rel_error)
 
                     else:
-                        if args.evaluate_detection:
-                            if mAP > best_mAP:
-                                best_mAP = mAP
-                                print("Current best:", best_mAP)
-                                util.printf("*\n")
+                        print("Iteration: " + iter_num + " | CUDA not available")
 
-                                dir_files = os.listdir(config.General.experiment_path)
-                                if len(dir_files) > 0:
-                                    current_weights_file = dir_files[0]
-                                    os.remove(os.path.join(config.General.experiment_path, current_weights_file))
+                    if rel_error < best_rel_error:
+                        best_rel_error = rel_error
+                        print(f'Current best*: {best_rel_error:.3f}\n')
+                        remove_prevEpoch()
+                        torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
+                                                                      'legonet_epoch={}.pt'.format(epoch_num)))
 
-                                torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path,
-                                                                              'legonet_epoch={}.pt'.format(epoch_num)))
-
+                    # else:
+                    #     if args.evaluate_detection:
+                    #         if mAP > best_mAP:
+                    #             best_mAP = mAP
+                    #             print("Current best:", best_mAP)
+                    #             util.printf("*\n")
+                    #
+                    #             dir_files = os.listdir(config.General.experiment_path)
+                    #             if len(dir_files) > 0:
+                    #                 current_weights_file = dir_files[0]
+                    #                 os.remove(os.path.join(config.General.experiment_path, current_weights_file))
+                    #
+                    #             torch.save(legonet.state_dict(), os.path.join(config.General.experiment_path,
+                    #                                                           'legonet_epoch={}.pt'.format(epoch_num)))
 
                 elif (epoch_num+1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
                         torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,

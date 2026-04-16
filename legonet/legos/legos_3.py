@@ -454,6 +454,7 @@ class FindModule(nn.Module):
                  name = "Find_Module", task=""):
         super(FindModule, self).__init__()
 
+        #self.freeze_detection = freeze_detection
         self.task = task
         self.name = name
         self.pretrained = pretrained
@@ -488,10 +489,12 @@ class FindModule(nn.Module):
     def forward(self, inputs):
 
         if self.training:
-            if self.task=='detection':
-                pyramid_feats, anchors, annotations = inputs
-            elif self.task == 'attribute_estimation': #'counting':
+            if self.task == 'attribute_estimation':  # 'counting':
                 pyramid_feats, annotations = inputs
+            elif self.task=='detection': #and self.bbox_ #not self.freeze_detection:
+                pyramid_feats, anchors, annotations = inputs
+            # elif self.task=='detection' and self.freeze_detection: #the bbox_detection is a sub task of the model
+            #     pyramid_feats = inputs
         else:
             pyramid_feats = inputs
 
@@ -503,7 +506,7 @@ class FindModule(nn.Module):
         SFMS_lists = [self.feature_classification(feature) for feature in pyramid_feats]
 
         if self.task == 'detection':
-            if self.training:
+            if self.training: # and not self.freeze_detection:
                 classifications = []
                 for SFMS in SFMS_lists:
                     batch_size, width, height, channels = SFMS['find_maps'].shape
@@ -680,16 +683,19 @@ class WhereModule(nn.Module):
 
 
     def forward(self, inputs):
-        if self.training:
+        if self.training: #len(inputs) == 3
+            # bbox detection module is in training
             pyramid_feats, anchors, annotations = inputs
+            #freeze_detection = False
         else:
             pyramid_feats = inputs
+            #freeze_detection = True
 
         regression = torch.cat([self.feature_regression(feature) for feature in pyramid_feats], dim=1)
 
-        if self.training:
+        if self.training: # and not freeze_detection:
             regression_loss = modular_losses.WhereLoss()(regression, anchors, annotations )
-            if self.network_type == "both" or self.network_type == "both_for_roots" or self.network_type == "both_for_roots_2":
+            if self.network_type == "both" or self.network_type == "both_for_roots_2":
                 return regression, regression_loss
             else:
                 return regression_loss

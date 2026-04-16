@@ -8,6 +8,7 @@ import paths
 import numpy as np
 from pathlib import Path
 import csv
+from datetime import datetime
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -50,16 +51,17 @@ if args is None:
 ########################################################################################################################
 args.gpu_num = '0'
 
-args.STORAGE_PATH = 'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
+args.STORAGE_PATH = 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = "grapes" #"roots"
 args.network_type = "both" # "both" #"bbox_detection"
+args.weights_dir = "" # currently not relevant
 
 config.Detection.min_score = 0.7 #0.7 #0.05
 args.current_results_dir = 'per_object_counting' #'bbox_detection' # 'per_object_counting'
 
 #args.network_type + '\\Inf_min_score_0.7' #"grapes_detection_minScore 0.05" #"grapes_detection_filterBBOX_minScore 0.7"
 
-args.run_script = 'Inference' #'Training' #'Inference'
+args.run_script = 'Training' #'Training' #'Inference'
 config.General.MODE = args.run_script
 
 config.General.model_name = args.network_type
@@ -88,7 +90,7 @@ args.load_weights = True
 args.load_partial_weights = True
 
 args.load_bbox_det_weights = True
-args.load_per_object_counting_weights = True
+args.load_per_object_counting_weights = False
 
 args.load_more_partial = False
 
@@ -100,7 +102,7 @@ args.do_Kfold = False
 args.freeze_detection = True
 args.eval_in_train = True
 
-args.evaluate_detection = True
+args.evaluate_detection = False
 
 args.eval_detection_params = False
 args.evaluate_both = True # relevant to validation, not train (roots)
@@ -241,7 +243,11 @@ os.makedirs(config.General.experiment_path, exist_ok=True)
 
 config.General.weights_dir = os.path.join(config.General.experiment_path, "Weights")
 if args.run_script == 'Training':
+    time_stemp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    config.General.weights_dir += "\\"+time_stemp
     os.makedirs(config.General.weights_dir, exist_ok=True)
+else:
+    config.General.weights_dir = args.weights_dir # user defined path
 
 ########################################################################################################################
 # Define the paths

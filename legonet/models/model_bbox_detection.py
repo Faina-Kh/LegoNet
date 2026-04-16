@@ -22,7 +22,8 @@ class BBOX_Detection(nn.Module):
         self.freeze_detection = freeze_detection
 
         self.backbone_1 = legos_3.ResNetBackboneModule(depth=ResNet_depth, pretrained=pretrained, name='backbone_for_detect')
-        self.find_1 = legos_3.FindModule(num_classes=num_classes, name='find_for_detect', task='detection') #num_features_in = in_channels,
+        self.find_1 = legos_3.FindModule(num_classes=num_classes, name='find_for_detect', task='detection') #,
+                                         #freeze_detection=self.freeze_detection) #num_features_in = in_channels,
         self.where = legos_3.WhereModule(network_type) #, num_features_in = in_channels
 
         # weights initialization
@@ -40,10 +41,24 @@ class BBOX_Detection(nn.Module):
         self.clipBoxes = legos_3.ClipBoxes()
         self.focalLoss = losses.FocalLoss()
 
+    def freeze_detector(self):
+        self.eval()
+        # for p in self.parameters():
+        #     p.requires_grad = False
+
+        # freeze gradients of detection
+        for param in self.backbone_1.parameters():
+            param.requires_grad = False
+
+        for param in self.find_1.parameters():
+            param.requires_grad = False
+
+        for param in self.where.parameters():
+            param.requires_grad = False
 
     def forward(self, inputs):
 
-        if self.training:
+        if self.training: # and not self.freeze_detection:
             img_batch, annotations = inputs
         else:
             img_batch = inputs[0]
@@ -51,7 +66,7 @@ class BBOX_Detection(nn.Module):
         anchors = self.anchors(img_batch)
         pyramid_feats = self.backbone_1(img_batch)
 
-        if self.training and not self.freeze_detection:
+        if self.training: # and not self.freeze_detection:
             detect_train_inputs = pyramid_feats, anchors, annotations
             classification_SFMS, classification_loss = self.find_1(detect_train_inputs)
             regression_loss = self.where(detect_train_inputs)
