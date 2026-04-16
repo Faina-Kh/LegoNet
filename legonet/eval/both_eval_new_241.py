@@ -1253,11 +1253,11 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                 if max_gt_count_of_crop == -1 and config.Detect_and_Estimate.type != "both_for_roots_2":
                     sample_anns = None
                 else:
-                    if config.AttributeEstimation.estimate_type == 'withKeyPoints':
+                    if config.AttributeEstimation.estimate_type == 'withKeyPoints' and config.DrawProperties.DRAW_MAPS:
                         # if not config.Detect_and_Estimate.type == "both_for_roots_2":
                         #     all_crops_GT_detections_maps = torch.tensor(all_crops_GT_detections_maps)
                         # elif args.have_GT:
-                        if args.have_GT and len(all_crops_GT_detections_maps) >0:
+                        if args.have_GT:
                             all_crops_GT_detections_maps = torch.cat([torch.unsqueeze(map, dim=0) for map in all_crops_GT_detections_maps], dim=0)
 
                         if len(all_predicted_detection_maps)>1:
