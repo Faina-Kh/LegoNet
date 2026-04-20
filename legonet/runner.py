@@ -351,7 +351,8 @@ def run(args=None):
 
                 if args.network_type == 'bbox_detection':
                     legonet.load_state_dict(bbox_det_state_dict, strict=False)
-                else:
+                elif config.General.MODE == 'Training' and  (args.network_type == 'both' or
+                                                             args.network_type == "both_for_roots_2"):
                     print("Available modules in 'bbox_detection' module: ")
                     print_module_names(legonet.bbox_detection)
                     legonet.bbox_detection.load_state_dict(bbox_det_state_dict, strict=False)
@@ -393,11 +394,13 @@ def run(args=None):
                     print(key)
 
         else:
-            #legonet.load_state_dict(state_dict, strict=False)
-
-            legonet = torch.load(args.model_path, map_location=config.General.device)
-            print("Available modules in model file:", list_checkpoint_modules(legonet.state_dict()))
-            save_partial_weights(args, legonet, tasks=['bbox_detection', "per_object_counting"])
+            model_state_dict = torch.load(args.weights_file_path, map_location=config.General.device)
+            print("Available modules in the weights file:", list_checkpoint_modules(model_state_dict))
+            legonet.load_state_dict(model_state_dict, strict=False)
+            # for initial saving of weights from old model pt files:
+            #legonet = torch.load(args.model_path, map_location=config.General.device)
+            #print("Available modules in model file:", list_checkpoint_modules(legonet.state_dict()))
+            #save_partial_weights(args, legonet, tasks=['bbox_detection', "per_object_counting"])
 
 
     #if args.network_type == "both" or args.network_type == "both_for_roots_2":
@@ -1301,7 +1304,7 @@ def run(args=None):
                 else:
                     rel_error = -1
 
-                util.printf("rel error: %.3f \n ", rel_error)
+                util.printf("rel error: %.3f \n", rel_error)
 
         else:
             util.printf("Counting evaluation:\n")

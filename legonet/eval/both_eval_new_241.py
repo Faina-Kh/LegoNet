@@ -112,7 +112,7 @@ def visualize_pointMaps(count_outputs, count_sample, image_name, imgToVis, maps_
 
         plt.imsave(maps_path + '/' + image_name + '_anno.png', anno)
         gt_anns = Image.open(maps_path + '/' + image_name + '_anno.png')
-        gt_anns = gt_anns.resize((BG_w, BG_h), Image.ANTIALIAS)
+        gt_anns = gt_anns.resize((BG_w, BG_h), Image.Resampling.LANCZOS) #Image.ANTIALIAS)
         gt_anns.save(maps_path + '/' + image_name + '_anno.png')
 
         alphaBlended = Image.blend(gt_anns, background_2, 0.6)
@@ -1508,7 +1508,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                     state['T']=state['T']+ t
                                     state['P']=state['P']+ p
 
-                    if config.Detect_and_Estimate.type != "both_for_roots" and config.Detect_and_Estimate.type != "both_for_roots_2":
+                    if config.Detect_and_Estimate.type != "both_for_roots_2":
                         state['all_crops_GT_counts'].append(crops_count_GT)  # based on the number of points in the crop
                         state['all_predicted_counts'].append(np.round(count_pred))
                         state['all_orig_GT_counts'].append(orig_count_GT) # count in the corresponding annotated box, it is -1 if the crop is false positive
@@ -1573,7 +1573,8 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
                                     if config.Detect_and_Estimate.type != "both_for_roots_2":
                                         if orig_count_GT[i] != -1:
-                                            printf("orig_count_GT: %d | orig_abs_diff: %.3f | orig_rel_error: %.3f\n",int(orig_count_GT[i]), state['orig_abs_diff'][-1], state['orig_rel_error'][-1])
+                                            printf("orig_count_GT: %d | orig_predicted_count: %d |orig_abs_diff: %.3f | orig_rel_error: %.3f\n",
+                                                   int(orig_count_GT[i]), np.round(count_pred[i]) ,state['orig_abs_diff'][-1], state['orig_rel_error'][-1])
 
                                             print('max_overlap = ', max_overlap_array[i])
 
@@ -1751,7 +1752,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
             # print recall and precision to csv
             csv_columns = ['recall', 'precision']
-            csv_file = os.path.join(config.General.experiment_path, "obj_recall_precision.csv")
+            csv_file = os.path.join(config.General.files_path, "obj_recall_precision.csv")
             f = open(csv_file, 'w', newline='')
             with f:
                 writer = csv.writer(f)
@@ -2084,7 +2085,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                 csv_columns = ['img','crop' , 'gt_color', 'pred_color', 'label', 'score', 'max_overlap',  'gt_TRL', 'pred_TRL', 'gt_dia','pred_dia']
             else:
                 csv_columns = ['img', 'gt_count', 'pred_count', 'label', 'score','max_overlap']
-            csv_file = os.path.join(config.General.experiment_path, "detections_data_any_crop_withEmptyIm.csv") #
+            csv_file = os.path.join(config.General.files_path, "detections_data_any_crop_withEmptyIm.csv") #
             f = open(csv_file, 'w', newline='')
             with f:
                 writer = csv.writer(f)
@@ -2119,7 +2120,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                 csv_columns = ['img', 'gt_color', 'pred_color', 'label', 'score', 'max_overlap', 'gt_TRL', 'pred_TRL', 'gt_dia', 'pred_dia']
             else:
                 csv_columns = ['img', 'gt_count', 'pred', 'label', 'score', 'max_overlap']
-            csv_file = os.path.join(config.General.experiment_path, "not_found_gt_count.csv")
+            csv_file = os.path.join(config.General.files_path, "not_found_gt_count.csv")
             f = open(csv_file, 'w', newline='')
             with f:
                 writer = csv.writer(f)
@@ -2162,7 +2163,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
             else:
                 csv_columns = ['img', 'gt_count', 'pred', 'label', 'score', 'max_overlap']
 
-            csv_file = os.path.join(config.General.experiment_path, "images_without_detections.csv")  #
+            csv_file = os.path.join(config.General.files_path, "images_without_detections.csv")  #
             f = open(csv_file, 'w', newline='')
             with f:
                 writer = csv.writer(f)
@@ -2222,7 +2223,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
         print()
         if config.AttributeEstimation.calc_det_performance:
             recall, precision, ap = calc_recall_precision_ap(state['T'], state['P'])
-            print(f'Points detection evaluation: mAP = {mAP:.3f}')
+            print(f'Points detection evaluation: mAP = {ap:.3f}')
             plot_PR_curve(recall, precision, ap, save_path=draw_path) #config.General.experiment_path)
 
             # print recall and precision  to csv

@@ -25,6 +25,7 @@ class General:
     experiment_path = ""
     to_draw = True
     dataset_name=''
+    files_path = ""
     binary_model = False
     binary_version = ""
     dataset_type = ""

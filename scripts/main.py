@@ -31,11 +31,15 @@ def print_to_csv(args, executionTime):
             for line in f_in:
                 writer.writerow(line.strip().split("|"))
 
-
 def parse_args(args):
     parser = argparse.ArgumentParser(description='main script.')
 
     return parser.parse_args(args)
+
+def get_weights_file(weights_dir):
+    files = [p for p in Path(weights_dir).iterdir() if p.is_file()]
+    if len(files) > 0:
+        return str(files[0])
 
 
 # parse arguments
@@ -54,19 +58,28 @@ args.gpu_num = '0'
 args.STORAGE_PATH = 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = "grapes" #"roots"
 args.network_type = "both" # "both" #"bbox_detection"
-args.weights_dir = "" # currently not relevant
-
-config.Detection.min_score = 0.7 #0.7 #0.05
 args.current_results_dir = 'per_object_counting' #'bbox_detection' # 'per_object_counting'
+args.run_script = 'Inference' #'Training' #'Inference'
+val_set = "Test"
 
+######################################################################
+# General paths
+######################################################################
+
+myPaths = paths.get_paths(args.STORAGE_PATH, args.dataset_name)
+myDatasetsPath = myPaths["DATASETS_PATH"]
+args.myExpPath = myPaths["EXP_RESULTS_PATH"]
+
+config.General.experiment_path = os.path.join(args.myExpPath, args.current_results_dir)
+os.makedirs(config.General.experiment_path, exist_ok=True)
+
+args.weights_dir = os.path.join(config.General.experiment_path, "Weights", "2026-04-16_161416") # currently not relevant
+args.weights_file_path = get_weights_file(args.weights_dir)
+
+config.General.dataset_name= args.dataset_name
 #args.network_type + '\\Inf_min_score_0.7' #"grapes_detection_minScore 0.05" #"grapes_detection_filterBBOX_minScore 0.7"
-
-args.run_script = 'Training' #'Training' #'Inference'
 config.General.MODE = args.run_script
-
 config.General.model_name = args.network_type
-
-val_set = "Val"
 
 #"grapes diff radii"
 #"grapes_twoBack_keyP_sameRadii_train perfect det_fancy aug_20Per_test perfect det"
@@ -87,11 +100,9 @@ val_set = "Val"
 
 # True if loading pre-trained weights
 args.load_weights = True
-args.load_partial_weights = True
-
-args.load_bbox_det_weights = True
+args.load_partial_weights = False
+args.load_bbox_det_weights = False
 args.load_per_object_counting_weights = False
-
 args.load_more_partial = False
 
 args.have_GT = True
@@ -120,6 +131,9 @@ if (args.network_type == "bbox_detection" and args.dataset_name == 'roots') or a
 
 if args.network_type != "bbox_detection":
     args.freeze_detection = True
+
+if args.network_type == 'bbox_detection' or args.network_type == "both" or args.network_type == "both_for_roots_2":
+    config.Detection.min_score = 0.7  # 0.7 #0.05
 
 if args.dataset_name == 'grapes':
     if args.network_type == "bbox_detection":
@@ -229,29 +243,18 @@ elif args.network_type == "both" or args.network_type == "both_for_roots_2":
     config.General.NETWORK_TYPE = config.NetworkType.detection_and_counting
 
 
-######################################################################
-# Paths
-######################################################################
-config.General.dataset_name= args.dataset_name
 
-myPaths = paths.get_paths(args.STORAGE_PATH, args.dataset_name)
-myDatasetsPath = myPaths["DATASETS_PATH"]
-args.myExpPath = myPaths["EXP_RESULTS_PATH"]
-
-config.General.experiment_path = os.path.join(args.myExpPath, args.current_results_dir)
-os.makedirs(config.General.experiment_path, exist_ok=True)
-
-config.General.weights_dir = os.path.join(config.General.experiment_path, "Weights")
+########################################################################################################################
+# Define the paths
+########################################################################################################################
 if args.run_script == 'Training':
+    config.General.weights_dir = os.path.join(config.General.experiment_path, "Weights")
     time_stemp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     config.General.weights_dir += "\\"+time_stemp
     os.makedirs(config.General.weights_dir, exist_ok=True)
 else:
     config.General.weights_dir = args.weights_dir # user defined path
 
-########################################################################################################################
-# Define the paths
-########################################################################################################################
 
 if args.dataset_type == 'kcsv':
     args.kcsv_train = os.path.join(myDatasetsPath, 'train.kcsv')
@@ -321,15 +324,19 @@ if args.run_script == 'Inference':
         os.makedirs(results_dir, exist_ok=True)
     else:
         results_dir = config.General.experiment_path
-    args.txt_results = os.path.join(results_dir,
-                                    "with_Vis_results_"+val_set +".txt" if config.General.to_draw else
-                                    "without_Vis_results_"+val_set +".txt")
-    args.output_csv = os.path.join(results_dir,
-                                   "with_Vis_results_"+ val_set +".csv" if config.General.to_draw else
-                                   "without_Vis_results_"+ val_set +".csv")
 
     config.DrawProperties.save_img_path = os.path.join(config.General.experiment_path, "Vis_" + val_set)
     os.makedirs(config.DrawProperties.save_img_path, exist_ok=True)
+
+    config.General.files_path = os.path.join(results_dir, "OutputFiles_"+ val_set)
+    os.makedirs(config.General.files_path, exist_ok=True)
+
+    args.txt_results = os.path.join(config.General.files_path,
+                                    "with_Vis_results_"+val_set +".txt" if config.General.to_draw else
+                                    "without_Vis_results_"+val_set +".txt")
+    args.output_csv = os.path.join(config.General.files_path,
+                                   "with_Vis_results_"+ val_set +".csv" if config.General.to_draw else
+                                   "without_Vis_results_"+ val_set +".csv")
 
     if config.DrawProperties.DRAW_MAPS:
         config.DrawProperties.maps_path = os.path.join(config.DrawProperties.save_img_path, "points_maps")
@@ -347,23 +354,18 @@ else:
 if args.load_weights:
     args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection")
     args.per_object_weights_dir = os.path.join(args.myExpPath, "Weights", "per_object_counting")
-    args.model_path = os.path.join(args.myExpPath, "Weights", "both", "legonet_epoch=249.pt")
+    args.model_path = os.path.join(args.myExpPath, "Weights", args.network_type, "legonet_epoch=249.pt")
     os.makedirs(args.bbox_detection_weights_dir, exist_ok=True)
     os.makedirs(args.per_object_weights_dir, exist_ok=True)
     # "D:\\from 16\\more_counting_Res\\more_counting_Res\\legonet_epoch=249.pt" #cont_legonet_epoch=14.pt"
 
     if args.load_bbox_det_weights:
-        files = [p for p in Path(args.bbox_detection_weights_dir).iterdir() if p.is_file()]
-        if len(files)>0:
-            args.bbox_detection_weights_file = str(files[0])
+        args.bbox_detection_weights_file = get_weights_file(args.bbox_detection_weights_dir)
 
     if args.load_per_object_counting_weights:
-        files = [p for p in Path(args.per_object_weights_dir).iterdir() if p.is_file()]
-        if len(files) > 0:
-            args.per_object_weights_file = str(files[0])
-
-else:
-    args.weights_file_path = ""
+        args.per_object_weights_file = get_weights_file(args.per_object_weights_dir)
+# else:
+#     args.weights_file_path = ""
 
 args.partial_weights_dir = ""
 #"C:\\Users\\Aragorn\\Google Drive\\StoragePath\\ExpResults (1)\\KK_Exp_Results_last\\grapes_twoBack_keypoints_sameRadi_fluid_new\\saved_weights_cont_14"
