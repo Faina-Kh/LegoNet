@@ -454,6 +454,7 @@ def initiate_global_dicts(state=None, image_name='', initiate=False):
             dict: Updated state dictionary.
         """
 
+    is_roots = (config.Detect_and_Estimate.type == "both")
     is_roots_2 = (config.Detect_and_Estimate.type == "both_for_roots_2")
 
     if initiate:
@@ -547,7 +548,7 @@ def initiate_global_dicts(state=None, image_name='', initiate=False):
         raise ValueError("image_name must be provided when initiate=False")
 
     state['detections_data_any_crop'][image_name] = {
-        'pred': [],
+        #'pred': [],
         'gt_count': [],
         'label': [],
         'score': [],
@@ -556,12 +557,18 @@ def initiate_global_dicts(state=None, image_name='', initiate=False):
     }
 
     state['not_found_gt'][image_name] = {
-        'pred': [],
+        #'pred': [],
         'gt_count': [],
         'label': [],
         'score': [],
         'max_overlap': []
     }
+
+    if is_roots:
+        state['detections_data_any_crop'][image_name].update({
+            'pred': []})
+        state['not_found_gt'][image_name].update({
+            'pred': []})
 
     if is_roots_2:
         state['detections_data_any_crop'][image_name].update({
@@ -1471,16 +1478,16 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
             if len(keep_not_found)>0:
                 for i in keep_not_found:
-                    if not (config.Detect_and_Estimate.type == "both_for_roots" or config.Detect_and_Estimate.type == "both_for_roots_2"):
+                    if config.Detect_and_Estimate.type == "both":
                         state['not_found_gt'][image_name]['gt_count'].append(gt_counts_copy[i][0])
+                        state['not_found_gt'][image_name]['pred'].append(-1)
 
-                    state['not_found_gt'][image_name]['pred'].append(-1)
                     state['not_found_gt'][image_name]['label'].append(1)
                     state['not_found_gt'][image_name]['score'].append(-1)
                     state['not_found_gt'][image_name]['max_overlap'].append(-1)
 
 
-                    if config.Detect_and_Estimate.type == "both_for_roots" or config.Detect_and_Estimate.type == "both_for_roots_2":
+                    if config.Detect_and_Estimate.type == "both_for_roots_2":
                         state['not_found_gt'][image_name]['TRL_gt'].append(gt_counts_copy[i][3])
                         state['not_found_gt'][image_name]['TRL_pred'].append(-1)
                         state['not_found_gt'][image_name]['dia_gt'].append(gt_counts_copy[i][4])
@@ -2133,7 +2140,12 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                 for img in state['not_found_gt'].keys():
                     mydata = state['not_found_gt'][img]
                     if len(mydata)>0:
-                        for i in range(len(mydata['pred'])):
+                        if config.Detect_and_Estimate.type == "both":
+                            data_pred = mydata['pred']
+                        elif config.Detect_and_Estimate.type == "both_for_roots_2":
+                            data_pred = mydata['TRL_pred']
+
+                        for i in range(len(data_pred)):
                             myrow = []
                             myrow.append(img)
                             if config.Detect_and_Estimate.type == "both_for_roots_2":
@@ -2143,7 +2155,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                             else:
                                 myrow.append(mydata['gt_count'][i])
                                 myrow.append(mydata['pred'][i])
-
 
                             myrow.append(mydata['label'][i])
                             myrow.append(mydata['score'][i])
@@ -2175,9 +2186,13 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                 writer.writerow(csv_columns)
                 for img in state['no_predictions'].keys():
                     mydata = state['no_predictions'][img]
+                    if config.Detect_and_Estimate.type == "both":
+                        data_pred = mydata['pred']
+                    elif config.Detect_and_Estimate.type == "both_for_roots_2":
+                        data_pred = mydata['TRL_pred']
 
-                    if len(mydata['pred']) > 0:
-                        for i in range(len(mydata['pred'])):
+                    if len(data_pred) > 0:
+                        for i in range(len(data_pred)):
                             myrow = []
                             myrow.append(img)
                             if config.Detect_and_Estimate.type == "both_for_roots_2":
