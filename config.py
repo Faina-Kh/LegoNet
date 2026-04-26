@@ -26,8 +26,8 @@ class General:
     to_draw = True
     dataset_name=''
     files_path = ""
-    binary_model = False
-    binary_version = ""
+    #binary_model = False
+    binary_loss_version = ""
     dataset_type = ""
     current_gpu = ""
     with_new_layers = True
@@ -65,7 +65,7 @@ class AttributeEstimation:
 
     calc_det_performance = True
     do_nmcs = False
-    estimate_type = 'reg_fpn_p3_p7_min_sig' #('reg_fpn_p3' #) #'withKeyPoints'
+    estimate_type = "" #'reg_fpn_p3_p7_min_sig' #('reg_fpn_p3' #) #'withKeyPoints'
     inter_losses = True
     num_of_pyr_levels = 3
     double_counting = False

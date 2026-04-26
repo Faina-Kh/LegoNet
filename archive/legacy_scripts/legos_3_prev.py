@@ -1425,11 +1425,11 @@ class LeanCountingModule(nn.Module):
             if config.General.binary_model:
                 #reg_output_downsampled = self.sigmoid_for_binary1(reg_output_downsampled)
 
-                if config.General.binary_version == "L1Loss":
+                if config.General.binary_loss_version == "L1Loss":
                     reg_output_downsampled = self.forBinary_reg_layer_L1(reg_output_downsampled)
                     sec_reg_output = self.sigmoid_for_binary2(reg_output_downsampled)
 
-                elif config.General.binary_version == "crossEnt":
+                elif config.General.binary_loss_version == "crossEnt":
                     reg_output_downsampled = self.forBinary_reg_layer_crossEnt(reg_output_downsampled)
                     sec_reg_output = reg_output_downsampled.softmax(dim=1)
             else:
@@ -1481,9 +1481,9 @@ class LeanCountingModule(nn.Module):
                     losses.append(self.L1loss(annotations[0].squeeze(dim=-1)[:,i], output[:,i]))
                 else:
                     if config.General.binary_model:
-                        if config.General.binary_version == "L1Loss":
+                        if config.General.binary_loss_version == "L1Loss":
                             losses.append(self.L1loss(annotations[0].float(), output[:,0]))
-                        elif config.General.binary_version == "crossEnt":
+                        elif config.General.binary_loss_version == "crossEnt":
                             target = annotations[0].squeeze(dim=1).to(torch.long).to(config.General.device)  #
                             losses.append(self.crossEnt(output, target))
                         #self.binaryLoss(annotations[0].squeeze(dim=1), output[:, i].detach()))
@@ -1502,10 +1502,10 @@ class LeanCountingModule(nn.Module):
             #     return (self.L1loss(annotations[0].squeeze(dim=1), output))
 
         else:
-            if config.General.binary_model and config.General.binary_version == "crossEnt":
+            if config.General.binary_model and config.General.binary_loss_version == "crossEnt":
                 output = torch.argmax(output)
 
-            if config.General.binary_model and config.General.binary_version == "L1Loss":
+            if config.General.binary_model and config.General.binary_loss_version == "L1Loss":
                 output = torch.round(output)
 
 

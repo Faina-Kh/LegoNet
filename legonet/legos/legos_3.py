@@ -300,35 +300,37 @@ class FeatureClassification(nn.Module):
 
         self.output_act = nn.Sigmoid()
 
-        self.mid_conv1 = nn.Conv2d(feature_size, num_classes, kernel_size=1)
-        self.mid_conv1.weight.data.normal_(mean=0.0, std=0.01)
-        self.mid_conv1.bias.data.zero_()
+        if self.task == 'attribute_estimation':
 
-        self.mid_act1 = nn.ReLU()
+            self.mid_conv1 = nn.Conv2d(feature_size, num_classes, kernel_size=1)
+            self.mid_conv1.weight.data.normal_(mean=0.0, std=0.01)
+            self.mid_conv1.bias.data.zero_()
 
-        self.mid_conv2 = nn.Conv2d(feature_size, num_classes, kernel_size=1)
-        self.mid_conv2.weight.data.normal_(mean=0.0, std=0.01)
-        self.mid_conv2.bias.data.zero_()
+            self.mid_act1 = nn.ReLU()
 
-        self.mid_act2 = nn.ReLU()
+            self.mid_conv2 = nn.Conv2d(feature_size, num_classes, kernel_size=1)
+            self.mid_conv2.weight.data.normal_(mean=0.0, std=0.01)
+            self.mid_conv2.bias.data.zero_()
 
-        self.mid_conv3 = nn.Conv2d(feature_size, num_classes, kernel_size=1)
-        self.mid_conv3.weight.data.normal_(mean=0.0, std=0.01)
-        self.mid_conv3.bias.data.zero_()
+            self.mid_act2 = nn.ReLU()
 
-        self.mid_act3 = nn.ReLU()
+            self.mid_conv3 = nn.Conv2d(feature_size, num_classes, kernel_size=1)
+            self.mid_conv3.weight.data.normal_(mean=0.0, std=0.01)
+            self.mid_conv3.bias.data.zero_()
 
-        self.mid_conv4 = nn.Conv2d(feature_size, num_classes, kernel_size=1)
-        self.mid_conv4.weight.data.normal_(mean=0.0, std=0.01)
-        self.mid_conv4.bias.data.zero_()
+            self.mid_act3 = nn.ReLU()
 
-        self.mid_act4 = nn.ReLU()
+            self.mid_conv4 = nn.Conv2d(feature_size, num_classes, kernel_size=1)
+            self.mid_conv4.weight.data.normal_(mean=0.0, std=0.01)
+            self.mid_conv4.bias.data.zero_()
 
-        self.output_counting = nn.Conv2d(feature_size, num_classes, kernel_size=3, padding=1)
-        self.output_counting.weight.data.normal_(mean=0.0, std=0.01)
-        self.output_counting.bias.data.fill_(0.1)  #.zero_()
+            self.mid_act4 = nn.ReLU()
 
-        self.output_act_counting= nn.ReLU()
+            self.output_counting = nn.Conv2d(feature_size, num_classes, kernel_size=3, padding=1)
+            self.output_counting.weight.data.normal_(mean=0.0, std=0.01)
+            self.output_counting.bias.data.fill_(0.1)  #.zero_()
+
+            self.output_act_counting= nn.ReLU()
 
         # if not pretrained:
         #     init_module_weights(self)
@@ -337,7 +339,7 @@ class FeatureClassification(nn.Module):
 
         x1 = x.permute(0, 2, 3, 1)
 
-        if self.task == 'detection':
+        if self.task == 'bbox_detection':
             out = self.conv1(x)
             out = self.act1(out)
 
@@ -358,7 +360,6 @@ class FeatureClassification(nn.Module):
 
             return {'feature_maps': x1, 'find_maps': out1}
 
-
         elif self.task == 'attribute_estimation': #'counting': #plt.imsave('vis' + '/' + 'out.png', out) #print(torch.min(out.data)) print(torch.max(out.data))
             outputs = []
             out = self.conv1(x)
@@ -374,7 +375,6 @@ class FeatureClassification(nn.Module):
             out = self.conv2(out)
             #print('out', torch.min(out.data), torch.max(out.data))
             out = self.act2(out)
-
 
             mid_out2 = self.mid_conv2(out)
             #print('mid2', torch.min(mid_out2.data), torch.max(mid_out2.data))
@@ -451,10 +451,11 @@ class FeatureClassification(nn.Module):
 
 class FindModule(nn.Module):
     def __init__(self, num_features_in = 256, num_classes=80, pretrained=False, num_anchors = 9, feature_size=256,
-                 name = "Find_Module", task=""):
+                 name = "Find_Module", task="", Find_for_count = ""):
         super(FindModule, self).__init__()
 
         #self.freeze_detection = freeze_detection
+        self.Find_for_count = Find_for_count
         self.task = task
         self.name = name
         self.pretrained = pretrained
@@ -472,8 +473,8 @@ class FindModule(nn.Module):
         self.focalLoss = modular_losses.focal_gyf()
 
         #if (config.General.binary_model and self.task!='detection') or (config.General.other): #or (self.task == 'counting' and not config.prev_color_model):
-        if self.task!='detection':
-            if config.General.with_new_layers:
+        if self.task!='bbox_detection':
+            if not self.Find_for_count: #if config.General.binary_model: #if config.General.with_new_layers:
                 self.sigmoid_for_binary = torch.nn.Sigmoid()
                 self.conv1 = nn.Conv2d(in_channels = 1, out_channels = 256, kernel_size=3, padding=1)
                 self.conv1.weight.data.normal_(mean=0.0, std=0.01)
@@ -491,9 +492,9 @@ class FindModule(nn.Module):
         if self.training:
             if self.task == 'attribute_estimation':  # 'counting':
                 pyramid_feats, annotations = inputs
-            elif self.task=='detection': #and self.bbox_ #not self.freeze_detection:
+            elif self.task=='bbox_detection': #and self.bbox_ #not self.freeze_detection:
                 pyramid_feats, anchors, annotations = inputs
-            # elif self.task=='detection' and self.freeze_detection: #the bbox_detection is a sub task of the model
+            # elif self.task=='detection' and self.freeze_detection: #the bbox_detection is a sub-task of the model
             #     pyramid_feats = inputs
         else:
             pyramid_feats = inputs
@@ -505,7 +506,7 @@ class FindModule(nn.Module):
 
         SFMS_lists = [self.feature_classification(feature) for feature in pyramid_feats]
 
-        if self.task == 'detection':
+        if self.task == 'bbox_detection':
             if self.training: # and not self.freeze_detection:
                 classifications = []
                 for SFMS in SFMS_lists:
@@ -535,7 +536,7 @@ class FindModule(nn.Module):
                 cls_output_MaxPooled = self.LocalNMS(cls_output_Step_Function1)
                 cls_output_Step_Function2 = self.SmoothStepFunction1(cls_output_MaxPooled)
 
-                if config.General.binary_model: #(config.General.binary_model and not config.prev_color_model) or config.General.other
+                if not self.Find_for_count: #(config.General.binary_model and not config.prev_color_model) or config.General.other
                     x1 = cls_output_Step_Function2.unsqueeze(dim=1)
                     x1 = self.conv1(x1)
                     x1 = self.act_1(x1)
@@ -577,7 +578,6 @@ class FindModule(nn.Module):
                     else:
                         maps_loss = self.focalLoss(annotations[4], classification[5])
 
-
                     #####################################################################################################
                     #print('losses: l1 = {:.4f}, l2 = {:.4f}, l3 = {:.4f}, l4 = {:.4f}, l5 = {:.4f}\n'.format(l1, l2,l3,l4,l5))
 
@@ -612,8 +612,6 @@ class FindModule(nn.Module):
                     ##################################################################################################################################
 
                     #loss_for_SFMS.append([l1, l2,l3,l4,l5])
-
-
 
             if self.training:
                 return SFMS_lists, cls_output, maps_loss
@@ -834,11 +832,12 @@ class SmoothStepFunction(nn.Module):
 
 class LeanCountingModule(nn.Module): #LeanCountingModule #EstimateWithKeyPointsModule
 
-    def __init__(self, output_size = 1, name = "Lean_Estimation_Module", loss_for = ""):
+    def __init__(self, output_size = 1, name = "Lean_Estimation_Module", loss_for = "", binary_model = False):
         super(LeanCountingModule, self).__init__() #LeanEstimationModule
 
         self.name = name
         self.loss_for = loss_for
+        self.binary_model = binary_model
 
         # self.ConvForCount = ConvForCount()
         self.GlobalAveragePooling2D = torch.nn.AdaptiveAvgPool2d(output_size=(1, 1))  # assumes input size (N, C, H, W), output is (N,C,H_out,W_out)
@@ -884,18 +883,17 @@ class LeanCountingModule(nn.Module): #LeanCountingModule #EstimateWithKeyPointsM
 
         self.L1loss = nn.L1Loss()
 
-        self.sigmoid_for_binary1 = torch.nn.Sigmoid()
-        self.sigmoid_for_binary2 = torch.nn.Sigmoid()
+        if self.binary_model: #config.General.binary_model: # or config.General.with_new_layers_for_both:
+            self.sigmoid_for_binary1 = torch.nn.Sigmoid()
+            self.sigmoid_for_binary2 = torch.nn.Sigmoid()
 
-        if config.General.binary_model: # or config.General.with_new_layers_for_both:
             self.forBinary_reg_layer_L1 = torch.nn.Linear(in_features=257, out_features=1, bias=True)
             self.forBinary_reg_layer_crossEnt = torch.nn.Linear(in_features=257, out_features=2, bias=True)
             self.crossEnt = torch.nn.CrossEntropyLoss(weight=torch.tensor([0.67, 0.33]))
             self.forBinary_reg_layer_L1.weight.data.normal_(mean=0.01, std=0.01)
             self.forBinary_reg_layer_crossEnt.weight.data.normal_(mean=0.01, std=0.01)
             self.binaryLoss = torch.nn.BCELoss()
-
-        if loss_for == "color":
+        #if loss_for == "color":
             self.conv1 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1)
             self.conv1.weight.data.normal_(mean=0.0, std=0.01)
             self.conv1.bias.data.zero_()
@@ -919,7 +917,7 @@ class LeanCountingModule(nn.Module): #LeanCountingModule #EstimateWithKeyPointsM
             classification = SFMS_list[i]['find_maps']
             classification_last_map_for_reg = classification[-2]
 
-            if config.General.binary_model:
+            if self.binary_model: #config.General.binary_model:
                 # This makes sure, the 256-feature vector will not have only positive values
                 classification_last_map_for_reg = self.conv1(classification_last_map_for_reg.permute(0,3,1,2))
                 classification_last_map_for_reg = self.sigmoid_for_binary1(classification_last_map_for_reg).permute(0,2,3,1)
@@ -929,14 +927,14 @@ class LeanCountingModule(nn.Module): #LeanCountingModule #EstimateWithKeyPointsM
 
             reg_output_downsampled = torch.cat([classification_last_map_for_reg, cls_output_downsampled],dim=-1)
 
-            if config.General.binary_model:
+            if self.binary_model: #config.General.binary_model:
                 #reg_output_downsampled = self.sigmoid_for_binary1(reg_output_downsampled)
 
-                if config.General.binary_version == "L1Loss":
+                if config.General.binary_loss_version == "L1Loss":
                     reg_output_downsampled = self.forBinary_reg_layer_L1(reg_output_downsampled)
                     sec_reg_output = self.sigmoid_for_binary2(reg_output_downsampled)
 
-                elif config.General.binary_version == "crossEnt":
+                elif config.General.binary_loss_version == "crossEnt":
                     reg_output_downsampled = self.forBinary_reg_layer_crossEnt(reg_output_downsampled)
                     sec_reg_output = reg_output_downsampled.softmax(dim=1)
             else:
@@ -986,10 +984,10 @@ class LeanCountingModule(nn.Module): #LeanCountingModule #EstimateWithKeyPointsM
                 if self.output_size > 1:
                     losses.append(self.L1loss(annotations[0].squeeze(dim=-1)[:,i], output[:,i]))
                 else:
-                    if config.General.binary_model:
-                        if config.General.binary_version == "L1Loss":
+                    if self.binary_model: #config.General.binary_model:
+                        if config.General.binary_loss_version == "L1Loss":
                             losses.append(self.L1loss(annotations[0].float(), output[:,0]))
-                        elif config.General.binary_version == "crossEnt":
+                        elif config.General.binary_loss_version == "crossEnt":
                             target = annotations[0].squeeze(dim=1).to(torch.long).to(config.General.device)  #
                             losses.append(self.crossEnt(output, target))
                         #self.binaryLoss(annotations[0].squeeze(dim=1), output[:, i].detach()))
@@ -1004,10 +1002,10 @@ class LeanCountingModule(nn.Module): #LeanCountingModule #EstimateWithKeyPointsM
             return (losses)
 
         else:
-            if config.General.binary_model and config.General.binary_version == "crossEnt":
+            if self.binary_model and config.General.binary_loss_version == "crossEnt": #config.General.binary_model
                 output = torch.argmax(output)
 
-            if config.General.binary_model and config.General.binary_version == "L1Loss":
+            if self.binary_model and config.General.binary_loss_version == "L1Loss": #config.General.binary_model
                 output = torch.round(output)
 
             return [output,

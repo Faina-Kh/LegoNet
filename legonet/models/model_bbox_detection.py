@@ -22,7 +22,7 @@ class BBOX_Detection(nn.Module):
         self.freeze_detection = freeze_detection
 
         self.backbone_1 = legos_3.ResNetBackboneModule(depth=ResNet_depth, pretrained=pretrained, name='backbone_for_detect')
-        self.find_1 = legos_3.FindModule(num_classes=num_classes, name='find_for_detect', task='detection') #,
+        self.find_1 = legos_3.FindModule(num_classes=num_classes, name='find_for_detect', task='bbox_detection') #,
                                          #freeze_detection=self.freeze_detection) #num_features_in = in_channels,
         self.where = legos_3.WhereModule(network_type) #, num_features_in = in_channels
 

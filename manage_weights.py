@@ -34,7 +34,7 @@ def save_partial_weights(args, model, tasks = []):
                 if any(k.startswith(m) for m in bbox_det_submodules)
             }
             torch.save(filtered_state_dict, os.path.join(args.bbox_detection_weights_dir,
-                                                         'legonet_bbox_det_epoch=249.pt'))
+                                                         'legonet_bbox_det_epoch=90.pt')) #'legonet_bbox_det_epoch=249.pt'
 
         if task == "per_object_counting":
             per_obj_submodules = ['backbone_2', 'find_2', 'LeanCountingModule']
@@ -45,6 +45,17 @@ def save_partial_weights(args, model, tasks = []):
 
             torch.save(filtered_state_dict, os.path.join(args.per_object_weights_dir,
                                                          'legonet_per_object_count_epoch=249.pt'))
+
+        if task == "per_object_attributes" and args.network_type == "both_for_roots_2":
+            per_obj_submodules = ['backbone_2', 'find_2', 'LeanCountingModule_length', 'LeanCountingModule_diameter',
+                                  'LeanCountingModule_color']
+            filtered_state_dict = {
+                k: v for k, v in model.state_dict().items()
+                if any(k.startswith(m) for m in per_obj_submodules)
+            }
+
+            torch.save(filtered_state_dict, os.path.join(args.per_object_weights_dir,
+                                                         'legonet_per_object_attr_epoch=90.pt'))
 
 
 def load_submodule_weights(model, state_dict, submodule_names, strict=True, verbose=True):

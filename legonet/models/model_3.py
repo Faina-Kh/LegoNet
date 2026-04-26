@@ -954,7 +954,7 @@ class LEGONet(nn.Module):
 
                                         # the color output is currently binary
                                         config.General.binary_model = True
-                                        config.General.binary_version = "L1Loss"
+                                        config.General.binary_loss_version = "L1Loss"
                                         count_input_color = count_input["count_input_color"][0], count_input["count_input_color"][1], count_input["count_input_color"][2]
                                         current_color_loss = self.LeanCountingModule_color(count_input_color)
 
@@ -967,7 +967,7 @@ class LEGONet(nn.Module):
                                     else:
                                         # the color output is currently binary
                                         config.General.binary_model = True
-                                        config.General.binary_version = "L1Loss"
+                                        config.General.binary_loss_version = "L1Loss"
                                         current_color_loss = self.LeanCountingModule_color(count_input)
 
                                         config.General.binary_model = False
@@ -989,7 +989,7 @@ class LEGONet(nn.Module):
                                 for i in range(num_of_boxes):
                                     # the color output is currently binary
                                     config.General.binary_model = True
-                                    config.General.binary_version = "L1Loss"
+                                    config.General.binary_loss_version = "L1Loss"
                                     current_color_loss = self.CountWithRegModule_color([bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels], corrected_counting_anns[6][i,0].unsqueeze(dim=0).unsqueeze(dim=0)])
 
 
@@ -1059,7 +1059,7 @@ class LEGONet(nn.Module):
 
                                     # the color output is currently binary
                                     config.General.binary_model = True
-                                    config.General.binary_version = "L1Loss"
+                                    config.General.binary_loss_version = "L1Loss"
                                     count_input_color = count_input["count_input_color"][0], count_input["count_input_color"][1]
                                     color, maps_0_color, maps_1_color, maps_2_color, maps_3_color, maps_4_color, maps_5_color= \
                                         self.LeanCountingModule_color(count_input_color)
@@ -1084,7 +1084,7 @@ class LEGONet(nn.Module):
 
                                     # the color output is currently binary
                                     config.General.binary_model = True
-                                    config.General.binary_version = "L1Loss"
+                                    config.General.binary_loss_version = "L1Loss"
                                     color,_ ,_ ,_ ,_ , _, _ = self.LeanCountingModule_color(count_input)
 
                                     config.General.binary_model = False

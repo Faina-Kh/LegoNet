@@ -7,9 +7,9 @@ def get_paths(STORAGE_PATH, dataset_name):
     paths = {}
 
     if dataset_name == "grapes":
-        DATASETS_PATH = os.path.join(STORAGE_PATH, "Datasets","grapes")
+        DATASETS_PATH = os.path.join(STORAGE_PATH, "Datasets","Embrapa WGISD") #grapes
     elif dataset_name == "roots":
-        DATASETS_PATH = os.path.join(STORAGE_PATH, "Datasets","roots")
+        DATASETS_PATH = os.path.join(STORAGE_PATH, "Datasets", "Grapevines data") #"roots")
 
     #MODELS_PATH = os.path.join(STORAGE_PATH, "Models")
     EXP_RESULTS_PATH = os.path.join(STORAGE_PATH, "ExpResults", dataset_name)

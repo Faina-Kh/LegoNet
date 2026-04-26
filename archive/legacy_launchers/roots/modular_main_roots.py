@@ -156,7 +156,7 @@ elif args.dataset_type == "csv_LCC":
 
         args.loss_weight = 1 #1  #1000 #10 #100
 
-        config.General.binary_version = ""
+        config.General.binary_loss_version = ""
 
         ############################################################################
 

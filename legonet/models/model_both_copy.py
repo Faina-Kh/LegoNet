@@ -36,10 +36,29 @@ class PerObjectEstimate(nn.Module):
         self.backbone_2 = legos_3.ResNetBackboneModule(name='backbone_for_attribute') #name='backbone_for_count'
 
         self.find_2 = legos_3.FindModule(num_classes=num_classes, name='find_for_attribute', task='attribute_estimation',
-                                         Find_for_count = True) #name='find_for_count', task='counting'
+                                         Find_for_count = False) #name='find_for_count', task='counting'
+
+        #################################################################################################################
+        if config.General.twoFind_2:
+            self.find_2_b = legos_3.FindModule(num_classes=num_classes, name='find_for_attribute',
+                                               task='attribute_estimation') #name='find_for_count', task='counting')
+        if config.General.twoBackbone_2:
+            self.backbone_2_b = legos_3.ResNetBackboneModule(name='backbone_for_attribute') #name='backbone_for_count'
+
+        ################################################################################################################
 
         if config.AttributeEstimation.estimate_type == 'withKeyPoints': #'reg_fpn_p3_p7_min_sig'
-            self.LeanCountingModule = legos_3.LeanCountingModule() #(num_classes, inter_losses = config.Counting.inter_losses)
+            #self.LeanCountingModule = legos_3.LeanCountingModule() #(num_classes, inter_losses = config.Counting.inter_losses)
+
+            #if self.network_type == "both_for_roots_2" or config.General.binary_model:  # config.General.with_new_layers:
+                #config.General.binary_model = True
+                self.LeanCountingModule_color = legos_3.LeanCountingModule(loss_for="color", binary_model = True)
+
+                #config.General.binary_model = False
+                self.LeanCountingModule_length = legos_3.LeanCountingModule(loss_for="length", binary_model = False)
+                self.LeanCountingModule_diameter = legos_3.LeanCountingModule(loss_for="diameter", binary_model = False)
+
+
         elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
             self.EstimateWithRegModule = legos_3.EstimateWithRegModule(num_classes)
 
@@ -131,16 +150,16 @@ class PerObjectEstimate(nn.Module):
                         if anns_box_ids[i].item() != -1: # check if it's a box with points
                             ans_detected_ids.append(anns_box_ids[i] in true_ids)
 
-                    detection_anns = detection_anns[0][ans_detected_ids].unsqueeze(dim=0)
+                    detection_anns = detection_anns[0][ans_detected_ids].unsqueeze(dim=0) # get detected bboxes annotations
                     if len(ans_detected_ids)>0:
-                        counting_anns[0][0] = counting_anns[0][0][ans_detected_ids]
+                        counting_anns[0][0] = counting_anns[0][0][ans_detected_ids] # keep attribute values for detected boxes
 
                         anns_box_ids_p = counting_anns[0][1][:, 3].float()
                         ans_detected_ids_p = []
                         for i in range(counting_anns[0][1].shape[0]):
                             ans_detected_ids_p.append(anns_box_ids_p[i] in true_ids.cpu())
 
-                        counting_anns[0][1] = counting_anns[0][1][ans_detected_ids_p]
+                        counting_anns[0][1] = counting_anns[0][1][ans_detected_ids_p] # keep the points anns of detected boxes
 
                     annotations = [detection_anns, counting_anns]
 
@@ -187,7 +206,7 @@ class PerObjectEstimate(nn.Module):
                             # print(bbox_pred_adjusted[box_idx])
 
 
-                # Get gt points' annotations for training for the KeyPoints-based model
+                # Get gt points' annotations
                 if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                     points=None
                     if self.training or (not self.training and annotations is not None):
@@ -366,36 +385,36 @@ class PerObjectEstimate(nn.Module):
                         if self.network_type == "both_for_roots_2":
 
                             ######################################################################################
-                            if config.Detect_and_Estimate.use_new_Find:
+                            # if config.Detect_and_Estimate.use_new_Find:
+                            #
+                            #     config.General.binary_model = False
+                            #     SFMS_lists_len, cls_output_len, current_maps_loss_len = self.find_2_length(
+                            #         current_count_train_inputs)
+                            #     maps_loss += current_maps_loss_len
+                            #
+                            #     SFMS_lists_dia, cls_output_dia, current_maps_loss_dia = self.find_2_diameter(
+                            #         current_count_train_inputs)
+                            #     maps_loss += current_maps_loss_dia
+                            #
+                            #     # the color output is currently binary
+                            #     config.General.binary_model = True
+                            #     SFMS_lists_color, cls_output_color, current_maps_loss_color = self.find_2_color(
+                            #         current_count_train_inputs)
+                            #     maps_loss += current_maps_loss_color
+                            #
+                            #     count_input = {"count_input_len": [SFMS_lists_len, cls_output_len, current_roots_anns],
+                            #                    "count_input_dia": [SFMS_lists_dia, cls_output_dia, current_roots_anns],
+                            #                    "count_input_color": [SFMS_lists_color, cls_output_color,
+                            #                                          current_roots_anns]}
+                            #
+                            #     ######################################################################################
+                            # else:
 
-                                config.General.binary_model = False
-                                SFMS_lists_len, cls_output_len, current_maps_loss_len = self.find_2_length(
-                                    current_count_train_inputs)
-                                maps_loss += current_maps_loss_len
-
-                                SFMS_lists_dia, cls_output_dia, current_maps_loss_dia = self.find_2_diameter(
-                                    current_count_train_inputs)
-                                maps_loss += current_maps_loss_dia
-
-                                # the color output is currently binary
-                                config.General.binary_model = True
-                                SFMS_lists_color, cls_output_color, current_maps_loss_color = self.find_2_color(
-                                    current_count_train_inputs)
-                                maps_loss += current_maps_loss_color
-
-                                count_input = {"count_input_len": [SFMS_lists_len, cls_output_len, current_roots_anns],
-                                               "count_input_dia": [SFMS_lists_dia, cls_output_dia, current_roots_anns],
-                                               "count_input_color": [SFMS_lists_color, cls_output_color,
-                                                                     current_roots_anns]}
-
-                                ######################################################################################
-                            else:
-
-                                # the color output is currently binary
-                                config.General.binary_model = True
-                                SFMS_lists, cls_output, current_maps_loss = self.find_2(current_count_train_inputs)
-                                maps_loss += current_maps_loss
-                                count_input = SFMS_lists, cls_output, current_roots_anns  # annotations[1][0][0] #corrected_counting_anns
+                            # the color output is currently binary
+                            #config.General.binary_model = True
+                            SFMS_lists, cls_output, current_maps_loss = self.find_2(current_count_train_inputs)
+                            maps_loss += current_maps_loss
+                            count_input = SFMS_lists, cls_output, current_roots_anns  # annotations[1][0][0] #corrected_counting_anns
                                 
                         if self.network_type == "both":
                             SFMS_lists, cls_output, current_maps_loss = self.find_2(current_count_train_inputs)
@@ -406,32 +425,32 @@ class PerObjectEstimate(nn.Module):
                             l1 += current_l1
 
                         elif self.network_type == "both_for_roots_2":
-                            if config.Detect_and_Estimate.use_new_Find:
+                            # if config.Detect_and_Estimate.use_new_Find:
+                            #
+                            #     # the color output is currently binary
+                            #     config.General.binary_model = True
+                            #     config.General.binary_loss_version = "L1Loss"
+                            #     count_input_color = count_input["count_input_color"][0], \
+                            #     count_input["count_input_color"][1], count_input["count_input_color"][2]
+                            #     current_color_loss = self.EstimateWithPointsModule_color(count_input_color)
+                            #
+                            #     config.General.binary_model = False
+                            #     count_input_len = count_input["count_input_len"][0], count_input["count_input_len"][1], \
+                            #     count_input["count_input_len"][2]
+                            #     count_input_dia = count_input["count_input_dia"][0], count_input["count_input_dia"][1], \
+                            #     count_input["count_input_dia"][2]
+                            #     current_length_loss = self.EstimateWithPointsModule_length(count_input_len)
+                            #     current_diameter_loss = self.EstimateWithPointsModule_diameter(count_input_dia)
+                            #
+                            # else:
+                            # the color output is currently binary
+                            #config.General.binary_model = True
+                            #config.General.binary_loss_version = "L1Loss"
+                            current_color_loss = self.EstimateWithPointsModule_color(count_input)
 
-                                # the color output is currently binary
-                                config.General.binary_model = True
-                                config.General.binary_loss_version = "L1Loss"
-                                count_input_color = count_input["count_input_color"][0], \
-                                count_input["count_input_color"][1], count_input["count_input_color"][2]
-                                current_color_loss = self.EstimateWithPointsModule_color(count_input_color)
-
-                                config.General.binary_model = False
-                                count_input_len = count_input["count_input_len"][0], count_input["count_input_len"][1], \
-                                count_input["count_input_len"][2]
-                                count_input_dia = count_input["count_input_dia"][0], count_input["count_input_dia"][1], \
-                                count_input["count_input_dia"][2]
-                                current_length_loss = self.EstimateWithPointsModule_length(count_input_len)
-                                current_diameter_loss = self.EstimateWithPointsModule_diameter(count_input_dia)
-
-                            else:
-                                # the color output is currently binary
-                                config.General.binary_model = True
-                                config.General.binary_loss_version = "L1Loss"
-                                current_color_loss = self.EstimateWithPointsModule_color(count_input)
-
-                                config.General.binary_model = False
-                                current_length_loss = self.EstimateWithPointsModule_length(count_input)
-                                current_diameter_loss = self.EstimateWithPointsModule_diameter(count_input)
+                            #config.General.binary_model = False
+                            current_length_loss = self.EstimateWithPointsModule_length(count_input)
+                            current_diameter_loss = self.EstimateWithPointsModule_diameter(count_input)
 
                             color_loss += current_color_loss[0]
                             length_loss += current_length_loss[0]
@@ -447,36 +466,36 @@ class PerObjectEstimate(nn.Module):
             else:
                 if config.AttributeEstimation.estimate_type == 'withKeyPoints':
 
-                    if self.network_type == "both_for_roots_2":
-                        config.General.binary_model = True # for the color model output
+                    # if self.network_type == "both_for_roots_2":
+                    #     config.General.binary_model = True # for the color model output
 
                     ######################################################################################
-                    if config.Detect_and_Estimate.use_new_Find:
-                        config.General.binary_model = False
-                        SFMS_lists_len, cls_output_len = self.find_2_length(bbox_pyramid_p3)
-                        SFMS_lists_dia, cls_output_dia = self.find_2_diameter(bbox_pyramid_p3)
+                    # if config.Detect_and_Estimate.use_new_Find:
+                    #     config.General.binary_model = False
+                    #     SFMS_lists_len, cls_output_len = self.find_2_length(bbox_pyramid_p3)
+                    #     SFMS_lists_dia, cls_output_dia = self.find_2_diameter(bbox_pyramid_p3)
+                    #
+                    #     config.General.binary_model = True
+                    #     SFMS_lists_color, cls_output_color = self.find_2_color(bbox_pyramid_p3)
+                    #
+                    #     count_input={"count_input_len": [SFMS_lists_len, cls_output_len],
+                    #                  "count_input_dia": [SFMS_lists_dia, cls_output_dia],
+                    #                  "count_input_color": [SFMS_lists_color, cls_output_color]}
+                    #
+                    #     ######################################################################################
+                    # else:
 
-                        config.General.binary_model = True
-                        SFMS_lists_color, cls_output_color = self.find_2_color(bbox_pyramid_p3)
+                    SFMS_lists, cls_output = self.find_2(bbox_pyramid_p3)
+                    count_input = SFMS_lists, cls_output
 
-                        count_input={"count_input_len": [SFMS_lists_len, cls_output_len],
-                                     "count_input_dia": [SFMS_lists_dia, cls_output_dia],
-                                     "count_input_color": [SFMS_lists_color, cls_output_color]}
+                    if config.General.twoFind_2:
+                        if config.General.twoBackbone_2:
+                            SFMS_lists2, cls_output2 = self.find_2_b(bbox_pyramid_p3_2)
 
-                        ######################################################################################
-                    else:
+                        else:
+                            SFMS_lists2, cls_output2 = self.find_2_b(bbox_pyramid_p3)
 
-                        SFMS_lists, cls_output = self.find_2(bbox_pyramid_p3)
-                        count_input = SFMS_lists, cls_output
-
-                        if config.General.twoFind_2:
-                            if config.General.twoBackbone_2:
-                                SFMS_lists2, cls_output2 = self.find_2_b(bbox_pyramid_p3_2)
-
-                            else:
-                                SFMS_lists2, cls_output2 = self.find_2_b(bbox_pyramid_p3)
-
-                            count_input_2 = SFMS_lists2, cls_output2
+                        count_input_2 = SFMS_lists2, cls_output2
 
 
                     if self.network_type == "both":
@@ -484,39 +503,39 @@ class PerObjectEstimate(nn.Module):
 
                     elif self.network_type == "both_for_roots_2":
 
-                        if config.detect_and_count.use_new_Find:
+                        # if config.detect_and_count.use_new_Find:
+                        #
+                        #     # the color output is currently binary
+                        #     config.General.binary_model = True
+                        #     config.General.binary_version = "L1Loss"
+                        #     count_input_color = count_input["count_input_color"][0], count_input["count_input_color"][1]
+                        #     color, maps_0_color, maps_1_color, maps_2_color, maps_3_color, maps_4_color, maps_5_color= \
+                        #         self.LeanCountingModule_color(count_input_color)
+                        #
+                        #     config.General.binary_model = False
+                        #     count_input_len = count_input["count_input_len"][0], count_input["count_input_len"][1]
+                        #     count_input_dia = count_input["count_input_dia"][0], count_input["count_input_dia"][1]
+                        #
+                        #     length, maps_0_len, maps_1_len, maps_2_len, maps_3_len, maps_4_len, maps_5_len = \
+                        #         self.LeanCountingModule_length(count_input_len)
+                        #
+                        #     diameter, maps_0_dia, maps_1_dia, maps_2_dia, maps_3_dia, maps_4_dia, maps_5_dia = \
+                        #         self.LeanCountingModule_diameter(count_input_dia)
+                        #
+                        #     #choose what maps tp pass tp inference - ToDo: pass all and correct eval script accordingly
+                        #     maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = maps_0_len, maps_1_len, maps_2_len, maps_3_len, maps_4_len, maps_5_len
+                        #
+                        #     counting_outputs = [torch.cat([color, length, diameter], dim=-1), maps_0, maps_1, maps_2, maps_3, maps_4, maps_5]
+                        #
+                        #
+                        # else:
 
                             # the color output is currently binary
-                            config.General.binary_model = True
-                            config.General.binary_loss_version = "L1Loss"
-                            count_input_color = count_input["count_input_color"][0], count_input["count_input_color"][1]
-                            color, maps_0_color, maps_1_color, maps_2_color, maps_3_color, maps_4_color, maps_5_color= \
-                                self.LeanCountingModule_color(count_input_color)
-
-                            config.General.binary_model = False
-                            count_input_len = count_input["count_input_len"][0], count_input["count_input_len"][1]
-                            count_input_dia = count_input["count_input_dia"][0], count_input["count_input_dia"][1]
-
-                            length, maps_0_len, maps_1_len, maps_2_len, maps_3_len, maps_4_len, maps_5_len = \
-                                self.LeanCountingModule_length(count_input_len)
-
-                            diameter, maps_0_dia, maps_1_dia, maps_2_dia, maps_3_dia, maps_4_dia, maps_5_dia = \
-                                self.LeanCountingModule_diameter(count_input_dia)
-
-                            #choose what maps tp pass tp inference - ToDo: pass all and correct eval script accordingly
-                            maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = maps_0_len, maps_1_len, maps_2_len, maps_3_len, maps_4_len, maps_5_len
-
-                            counting_outputs = [torch.cat([color, length, diameter], dim=-1), maps_0, maps_1, maps_2, maps_3, maps_4, maps_5]
-
-
-                        else:
-
-                            # the color output is currently binary
-                            config.General.binary_model = True
-                            config.General.binary_loss_version = "L1Loss"
+                            #config.General.binary_model = True
+                            #config.General.binary_loss_version = "L1Loss"
                             color,_ ,_ ,_ ,_ , _, _ = self.LeanCountingModule_color(count_input)
 
-                            config.General.binary_model = False
+                            #config.General.binary_model = False
                             if config.General.twoFind_2:
                                 length, maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = self.LeanCountingModule_length(count_input_2)
                             else:
@@ -524,21 +543,21 @@ class PerObjectEstimate(nn.Module):
 
                             diameter,_ ,_ ,_ ,_ , _, _ = self.LeanCountingModule_diameter(count_input)
 
-                            counting_outputs = [torch.cat([color,length,diameter], dim=-1), maps_0, maps_1, maps_2, maps_3, maps_4, maps_5]
+                            estimation_outputs = [torch.cat([color,length,diameter], dim=-1), maps_0, maps_1, maps_2, maps_3, maps_4, maps_5] #counting_outputs
 
                 elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     if self.network_type == "both_for_roots_2":
                         counting_outputs = []
                         for i in range(num_of_boxes):
                             # the color output is currently binary
-                            config.General.binary_model = True
+                            #config.General.binary_model = True
                             current_color = self.EstimateWithRegModule_color(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
                             # if i==0:
                             #     color = current_color
                             # else:
                             #     color = torch.cat((color, current_color), dim=0)
 
-                            config.General.binary_model = False
+                            #config.General.binary_model = False
                             current_length = self.EstimateWithRegModule_length(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
                             current_diameter= self.EstimateWithRegModule_diameter(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
 

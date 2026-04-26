@@ -974,16 +974,22 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                     print()
 
                 if not image_name in state['no_predictions'].keys():
+
                     state['no_predictions'][image_name]= {
-                   'pred': [], 'gt_count': [], 'label': [], 'score': [], 'max_overlap': []
-                    }
+                   'gt_count': [], 'label': [], 'score': [], 'max_overlap': []
+                    } #'pred': [],
+
+                    if config.Detect_and_Estimate.type == "both":
+                        state['no_predictions'][image_name].update({'pred': []})
 
                     if config.Detect_and_Estimate.type == "both_for_roots_2":
-                        state['no_predictions'].update({
+                        state['no_predictions'][image_name].update({
                             'TRL_pred': [], 'TRL_gt': [], 'dia_pred': [], 'dia_gt': [], 'color_pred': [], 'color_gt': []
                         })
 
-                state['no_predictions'][image_name]['pred'].append(0)
+                if config.Detect_and_Estimate.type == "both":
+                    state['no_predictions'][image_name]['pred'].append(0)
+
                 state['no_predictions'][image_name]['gt_count'].append(im_gt_avg)
                 state['no_predictions'][image_name]['label'].append(-1)
                 state['no_predictions'][image_name]['score'].append(-1)
@@ -1037,10 +1043,10 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                     if len(box_annotations_all) > 0:
                         gt_boxes = data['bbox_annot'][0]
                         for i in range(gt_boxes.shape[0]):
-                            x1 = gt_boxes[i, 0].numpy() / scale
-                            y1 = gt_boxes[i, 1].numpy() / scale
-                            x2 = gt_boxes[i, 2].numpy() / scale
-                            y2 = gt_boxes[i, 3].numpy() / scale
+                            x1 = gt_boxes[i, 0].item() / scale[0]
+                            y1 = gt_boxes[i, 1].item() / scale[0]
+                            x2 = gt_boxes[i, 2].item() / scale[0]
+                            y2 = gt_boxes[i, 3].item()/ scale[0]
                             draw.rectangle(((x1, y1), (x2, y2)), outline="blue", width=config.DrawProperties.LINE_WIDTH)
 
                             orig_img_2 = Image.open(image_path)
@@ -1091,7 +1097,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
             adjusted_crops_orig_boxes = []
 
             if sample_anns is not None: #not the detect_with_points model or no predictions
-                if config.AttributeEstimation.estimate_type == 'withKeyPoints':
+                if config.AttributeEstimation.estimate_type == 'withKeyPoints' and estimation_outputs is not None:
                     orig_predicted_detection_maps = [estimation_outputs[1], estimation_outputs[2], estimation_outputs[3],
                                                      estimation_outputs[4], estimation_outputs[6]]  # estimation_outputs[6]
                     all_predicted_detection_maps = []
@@ -1114,21 +1120,21 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
                     #if config.Detect_and_Estimate.type == "both_for_roots_2":
 
-                        #state['detections_data_any_crop'][image_name]['pred'].append(np.round(estimation_outputs[0][b][0].cpu().item())) # [0] - color, [1] - length, [2] - dia
-                    if estimation_outputs is not None:
-                        if config.Detect_and_Estimate.type == "both_for_roots_2":
-                            state['detections_data_any_crop'][image_name]['color_pred'].append(estimation_outputs[0][b][0].cpu().item())
-                            state['detections_data_any_crop'][image_name]['TRL_pred'].append(estimation_outputs[0][b][1].cpu().item())
-                            state['detections_data_any_crop'][image_name]['dia_pred'].append(estimation_outputs[0][b][2].cpu().item())
+                            #state['detections_data_any_crop'][image_name]['pred'].append(np.round(estimation_outputs[0][b][0].cpu().item())) # [0] - color, [1] - length, [2] - dia
+                        if estimation_outputs is not None:
+                            if config.Detect_and_Estimate.type == "both_for_roots_2":
+                                state['detections_data_any_crop'][image_name]['color_pred'].append(estimation_outputs[0][b][0].cpu().item())
+                                state['detections_data_any_crop'][image_name]['TRL_pred'].append(estimation_outputs[0][b][1].cpu().item())
+                                state['detections_data_any_crop'][image_name]['dia_pred'].append(estimation_outputs[0][b][2].cpu().item())
 
-                            color_pred.append(estimation_outputs[0][b][0].cpu().item())
-                            TRL_pred.append(estimation_outputs[0][b][1].cpu().item())
-                            dia_pred.append(estimation_outputs[0][b][2].cpu().item())
+                                color_pred.append(estimation_outputs[0][b][0].cpu().item())
+                                TRL_pred.append(estimation_outputs[0][b][1].cpu().item())
+                                dia_pred.append(estimation_outputs[0][b][2].cpu().item())
 
-                            #adjusted_crops_orig_boxes.append(crops_orig_boxes[b])
-                        else:
-                            state['detections_data_any_crop'][image_name]['pred'].append(np.round(estimation_outputs[0][b].cpu().item()))
-                            count_pred.append(np.round(estimation_outputs[0][b].cpu().item()))
+                                #adjusted_crops_orig_boxes.append(crops_orig_boxes[b])
+                            else:
+                                state['detections_data_any_crop'][image_name]['pred'].append(np.round(estimation_outputs[0][b].cpu().item()))
+                                count_pred.append(np.round(estimation_outputs[0][b].cpu().item()))
 
                         adjusted_crops_orig_boxes.append(crops_orig_boxes[b])
 
@@ -1141,8 +1147,9 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                 orig_predicted_detection_maps[2][b], orig_predicted_detection_maps[3][b],
                                 orig_predicted_detection_maps[4][b]])
 
-                            all_crops_GT_detections_maps.append(
-                                sample_anns['points_annot'][5][b])  # sample_anns['points_annot'][-1][5][0]
+                            if sample_anns is not None:
+                                all_crops_GT_detections_maps.append(
+                                    sample_anns['points_annot'][5][b])  # sample_anns['points_annot'][-1][5][0]
 
                         if sample_anns is not None and args.have_GT: #assuming having GT anns
                             current_count = sample_anns['points_annot'][0][b].item()
@@ -1154,94 +1161,92 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                             # if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             #     all_crops_GT_detections_maps.append(sample_anns['points_annot'][5][b]) #sample_anns['points_annot'][-1][5][0]
 
-
-
-                    #else:
-                        # relevant_points_anns = []
-                        # points_of_current_crop = {}
-                        # current_count = 0
-                        #
-                        # for p in point_anns:
-                        #     if p['x'] <= x2 and p['x'] >= x1 and p['y'] <= y2 and p['y'] >= y1:
-                        #         if len(points_of_current_crop)==0:
-                        #             points_of_current_crop['x']=[]
-                        #             points_of_current_crop['y'] = []
-                        #
-                        #         points_of_current_crop['x'].append(p['x'])
-                        #         points_of_current_crop['y'].append(p['y'])
-                        #
-                        #         current_count +=1
-
-                        #state['detections_data_any_crop'][image_name]['pred'].append(np.round(estimation_outputs[0][b].cpu().item()))
-                        #count_pred.append(np.round(estimation_outputs[0][b].cpu().item()))  # estimation_outputs[0][b].cpu().item())
-                        #adjusted_crops_orig_boxes.append(crops_orig_boxes[b])
-
-                        # filtering the predictions - need to find predicted boxes (and maps) with gt points in them
-                        # if current_count == 0:
-                        #     state['crops_without_gt_points'] +=1
-                        #     if to_draw:
-                        #          relevant_points_anns.append([])
-
-                        #else:
-                            # # rescale points (from orig coordinates) to the crop (the 'new image')
-                            # points_of_current_crop['x'] = points_of_current_crop['x'] - (x1 * np.ones(len(points_of_current_crop['x'])))
-                            # points_of_current_crop['y'] = points_of_current_crop['y'] - (y1 * np.ones(len(points_of_current_crop['y'])))
-                            #
-                            # if not config.Detect_and_Estimate.crop_from_Pi:
-                            #     scale_x = config.AttributeEstimation.crops_size[0] / (x2 - x1)
-                            #     scale_y = config.AttributeEstimation.crops_size[1] / (y2 - y1)
-                            # else:
-                            #     scale_x = sample_anns['img'].shape[2] / (x2 - x1)
-                            #     scale_y = sample_anns['img'].shape[3] / (y2 - y1)
-                            #
-                            #
-                            # points_of_current_crop['x'] = points_of_current_crop['x'] * scale_x
-                            # points_of_current_crop['y'] = points_of_current_crop['y'] * scale_y
-                            #
-                            #if to_draw:
-                            #     points_to_view = []
-                            #     for i in range(current_count):
-                            #         points_to_view.append({'x': points_of_current_crop['x'][i], 'y': points_of_current_crop['y'][i]})
-                            #
-                            #     relevant_points_anns.append(points_to_view)
-                            #
-                            #
-                            # if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-                            #     # generate gt gaussian maps for the crop
-                            #     annotations_group_points_center = [points_of_current_crop]
-                            #
-                            #     annotation_map_1 = compute_keypoints_targets_multi_maps(sample_anns['img'].shape,
-                            #                                                             annotations_group_points_center,
-                            #                                                             radius=config.AttributeEstimation.map_1_R)
-                            #     annotation_map_2 = compute_keypoints_targets_multi_maps(sample_anns['img'].shape,
-                            #                                                             annotations_group_points_center,
-                            #                                                             radius=config.AttributeEstimation.map_2_R)
-                            #     annotation_map_3 = compute_keypoints_targets_multi_maps(sample_anns['img'].shape,
-                            #                                                             annotations_group_points_center,
-                            #                                                             radius=config.AttributeEstimation.map_3_R)
-                            #     annotation_map_4 = compute_keypoints_targets_multi_maps(sample_anns['img'].shape,
-                            #                                                             annotations_group_points_center,
-                            #                                                             radius=config.AttributeEstimation.map_4_R)
-                            #     annotation_map_5 = compute_keypoints_targets_multi_maps(sample_anns['img'].shape,
-                            #                                                             annotations_group_points_center, radius=config.AttributeEstimation.map_5_R)
-                            #
-                            #     sample_anns['points_annot'].append([[current_count],
-                            #                                          annotation_map_1, annotation_map_2, annotation_map_3,
-                            #                                          annotation_map_4, annotation_map_5])
-
-                                # keep predictions and gt only for those that have gt points
-                                # all_crops_GT_detections_maps.append(sample_anns['points_annot'][-1][5][0])
-                                # all_predicted_detection_maps.append(orig_predicted_detection_maps[-1][b])
-                                # if to_draw and config.DrawProperties.DRAW_MAPS: #draw_maps:
-                                #     all_predicted_detection_maps_toDraw.append([
-                                #         orig_predicted_detection_maps[0][b], orig_predicted_detection_maps[1][b],
-                                #         orig_predicted_detection_maps[2][b], orig_predicted_detection_maps[3][b],
-                                #         orig_predicted_detection_maps[4][b]])
-
-                            # elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                            #     sample_anns['points_annot'].append([[current_count]])
-
-                            #crops_count_GT.append(current_count)
+                    # else:
+                    #     relevant_points_anns = []
+                    #     points_of_current_crop = {}
+                    #     current_count = 0
+                    #
+                    #     for p in point_anns:
+                    #         if p['x'] <= x2 and p['x'] >= x1 and p['y'] <= y2 and p['y'] >= y1:
+                    #             if len(points_of_current_crop)==0:
+                    #                 points_of_current_crop['x']=[]
+                    #                 points_of_current_crop['y'] = []
+                    #
+                    #             points_of_current_crop['x'].append(p['x'])
+                    #             points_of_current_crop['y'].append(p['y'])
+                    #
+                    #             current_count +=1
+                    #
+                    #     # state['detections_data_any_crop'][image_name]['pred'].append(np.round(estimation_outputs[0][b].cpu().item()))
+                    #     # count_pred.append(np.round(estimation_outputs[0][b].cpu().item()))  # estimation_outputs[0][b].cpu().item())
+                    #     # adjusted_crops_orig_boxes.append(crops_orig_boxes[b])
+                    #
+                    #     # filtering the predictions - need to find predicted boxes (and maps) with gt points in them
+                    #     # if current_count == 0:
+                    #     #     state['crops_without_gt_points'] +=1
+                    #     #     if to_draw:
+                    #     #          relevant_points_anns.append([])
+                    #     #
+                    #     # else:
+                    #     #     # rescale points (from orig coordinates) to the crop (the 'new image')
+                    #     #     points_of_current_crop['x'] = points_of_current_crop['x'] - (x1 * np.ones(len(points_of_current_crop['x'])))
+                    #     #     points_of_current_crop['y'] = points_of_current_crop['y'] - (y1 * np.ones(len(points_of_current_crop['y'])))
+                    #     #
+                    #     #     if not config.Detect_and_Estimate.crop_from_Pi:
+                    #     #         scale_x = config.AttributeEstimation.crops_size[0] / (x2 - x1)
+                    #     #         scale_y = config.AttributeEstimation.crops_size[1] / (y2 - y1)
+                    #     #     else:
+                    #     #         scale_x = sample_anns['img'].shape[2] / (x2 - x1)
+                    #     #         scale_y = sample_anns['img'].shape[3] / (y2 - y1)
+                    #     #
+                    #     #
+                    #     #     points_of_current_crop['x'] = points_of_current_crop['x'] * scale_x
+                    #     #     points_of_current_crop['y'] = points_of_current_crop['y'] * scale_y
+                    #
+                    #         # if to_draw:
+                    #         #     points_to_view = []
+                    #         #     for i in range(current_count):
+                    #         #         points_to_view.append({'x': points_of_current_crop['x'][i], 'y': points_of_current_crop['y'][i]})
+                    #         #
+                    #         #     relevant_points_anns.append(points_to_view)
+                    #
+                    #
+                    #         if config.AttributeEstimation.estimate_type == 'withKeyPoints':
+                    #             # generate gt gaussian maps for the crop
+                    #             annotations_group_points_center = [points_of_current_crop]
+                    #
+                    #             annotation_map_1 = compute_keypoints_targets_multi_maps(sample_anns['img'].shape,
+                    #                                                                     annotations_group_points_center,
+                    #                                                                     radius=config.AttributeEstimation.map_1_R)
+                    #             annotation_map_2 = compute_keypoints_targets_multi_maps(sample_anns['img'].shape,
+                    #                                                                     annotations_group_points_center,
+                    #                                                                     radius=config.AttributeEstimation.map_2_R)
+                    #             annotation_map_3 = compute_keypoints_targets_multi_maps(sample_anns['img'].shape,
+                    #                                                                     annotations_group_points_center,
+                    #                                                                     radius=config.AttributeEstimation.map_3_R)
+                    #             annotation_map_4 = compute_keypoints_targets_multi_maps(sample_anns['img'].shape,
+                    #                                                                     annotations_group_points_center,
+                    #                                                                     radius=config.AttributeEstimation.map_4_R)
+                    #             annotation_map_5 = compute_keypoints_targets_multi_maps(sample_anns['img'].shape,
+                    #                                                                     annotations_group_points_center, radius=config.AttributeEstimation.map_5_R)
+                    #
+                    #             sample_anns['points_annot'].append([[current_count],
+                    #                                                  annotation_map_1, annotation_map_2, annotation_map_3,
+                    #                                                  annotation_map_4, annotation_map_5])
+                    #
+                    #             #keep predictions and gt only for those that have gt points
+                    #             all_crops_GT_detections_maps.append(sample_anns['points_annot'][-1][5][0])
+                    #             all_predicted_detection_maps.append(orig_predicted_detection_maps[-1][b])
+                    #             if to_draw and config.DrawProperties.DRAW_MAPS: #draw_maps:
+                    #                 all_predicted_detection_maps_toDraw.append([
+                    #                     orig_predicted_detection_maps[0][b], orig_predicted_detection_maps[1][b],
+                    #                     orig_predicted_detection_maps[2][b], orig_predicted_detection_maps[3][b],
+                    #                     orig_predicted_detection_maps[4][b]])
+                    #
+                    #         elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                    #             sample_anns['points_annot'].append([[current_count]])
+                    #
+                    #         crops_count_GT.append(current_count)
 
 
             if sample_anns is not None:
@@ -1289,10 +1294,10 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                 if len(box_annotations_all) > 0:
                     gt_boxes = data['bbox_annot'][0]
                     for i in range(gt_boxes.shape[0]):
-                        x1 = gt_boxes[i, 0].numpy()/scale
-                        y1 = gt_boxes[i, 1].numpy()/scale
-                        x2 = gt_boxes[i, 2].numpy()/scale
-                        y2 = gt_boxes[i, 3].numpy()/scale
+                        x1 = gt_boxes[i, 0].item()/scale[0]
+                        y1 = gt_boxes[i, 1].item()/scale[0]
+                        x2 = gt_boxes[i, 2].item()/scale[0]
+                        y2 = gt_boxes[i, 3].item()/scale[0]
                         draw.rectangle(((x1, y1), (x2, y2)), outline="blue", width=config.DrawProperties.LINE_WIDTH)
 
                 else:
@@ -1349,7 +1354,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                         max_overlap = overlaps[0, assigned_annotation]
 
                         state['detections_data_any_crop'][image_name]['score'].append(float(d[4]))
-                        state['detections_data_any_crop'][image_name]['max_overlap'].append(float(max_overlap))
+                        state['detections_data_any_crop'][image_name]['max_overlap'].append(max_overlap[0])
 
                         if max_overlap >= config.Detection.iou_threshold and assigned_annotation not in detected_annotations:
                             detected_annotations.append(assigned_annotation)
@@ -1638,16 +1643,16 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                         if true_id !=-1:
 
                                             if config.Detect_and_Estimate.type == "both_for_roots_2":
-                                                x1 = gt_boxes[true_id-1, 0].numpy() / scale
-                                                y1 = gt_boxes[true_id-1, 1].numpy() / scale
-                                                x2 = gt_boxes[true_id-1, 2].numpy() / scale
-                                                y2 = gt_boxes[true_id-1, 3].numpy() / scale
+                                                x1 = gt_boxes[true_id-1, 0].item() / scale[0]
+                                                y1 = gt_boxes[true_id-1, 1].item() / scale[0]
+                                                x2 = gt_boxes[true_id-1, 2].item() / scale[0]
+                                                y2 = gt_boxes[true_id-1, 3].item() / scale[0]
                                             else:
                                                 filtered = gt_boxes[gt_boxes[:, 5] == true_id][0]
-                                                x1 = filtered[0].numpy() / scale
-                                                y1 = filtered[1].numpy() / scale
-                                                x2 = filtered[2].numpy() / scale
-                                                y2 = filtered[3].numpy() / scale
+                                                x1 = filtered[0].item() / scale[0]
+                                                y1 = filtered[1].item() / scale[0]
+                                                x2 = filtered[2].item() / scale[0]
+                                                y2 = filtered[3].item() / scale[0]
 
                                             draw2.rectangle(((x1, y1), (x2, y2)), outline="blue", width=config.DrawProperties.LINE_WIDTH)
 

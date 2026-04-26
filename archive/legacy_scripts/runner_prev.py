@@ -946,8 +946,6 @@ def run(args=None):
                                                              'legonet_epoch={}.pt'.format(epoch_num)))
 
 
-
-
             elif args.network_type == 'counting_fat' or args.network_type == 'counting_lean' or args.network_type == 'counting_reg':
             #     print('Evaluating dataset')
             #     count_agreement = counting_eval.eval(dataset_val, legonet, args)

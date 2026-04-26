@@ -138,6 +138,8 @@ def print_args(args, file_path):
         printf("=====================================================================\n\n")
 
 
+
+
 def run(args=None):
 
     if config.Detect_and_Estimate.crop_from_Pi:
@@ -147,6 +149,8 @@ def run(args=None):
             from models import model_bbox_detection as model_file
         elif config.General.model_name=="both":
             from models import model_both as model_file
+        elif config.General.model_name == "both_for_roots_2":
+            from models import model_both_copy as model_file
         else:
             from models import model_3 as model_file
 
@@ -351,16 +355,25 @@ def run(args=None):
 
                 if args.network_type == 'bbox_detection':
                     legonet.load_state_dict(bbox_det_state_dict, strict=False)
-                elif config.General.MODE == 'Training' and  (args.network_type == 'both' or
-                                                             args.network_type == "both_for_roots_2"):
+                elif args.network_type == 'both' or args.network_type == "both_for_roots_2": #config.General.MODE == 'Training' and  (
                     print("Available modules in 'bbox_detection' module: ")
                     print_module_names(legonet.bbox_detection)
                     legonet.bbox_detection.load_state_dict(bbox_det_state_dict, strict=False)
 
-            if args.load_per_object_counting_weights:
+            if args.load_per_object_counting_weights and args.network_type == "both":
                 per_object_state_dict = torch.load(args.per_object_weights_file, map_location=config.General.device)
                 load_submodule_weights(legonet, per_object_state_dict,
                                        submodule_names = ['backbone_2', 'find_2', 'LeanCountingModule'], strict=False)
+
+            if  args.load_per_object_attributes_weights and args.network_type == "both_for_roots_2":
+                per_object_state_dict = torch.load(args.per_object_weights_file, map_location=config.General.device)
+                load_submodule_weights(legonet, per_object_state_dict,
+                                       submodule_names = ['backbone_2', 'find_2', 'LeanCountingModule_length',
+                                                          'LeanCountingModule_diameter', 'LeanCountingModule_color'],
+                                       strict=False)
+
+
+
 
             #########################################
 
@@ -394,16 +407,20 @@ def run(args=None):
                     print(key)
 
         else:
-            model_state_dict = torch.load(args.weights_file_path, map_location=config.General.device)
-            print("Available modules in the weights file:", list_checkpoint_modules(model_state_dict))
-            legonet.load_state_dict(model_state_dict, strict=False)
+            # model_state_dict = torch.load(args.weights_file_path, map_location=config.General.device)
+            # print("Available modules in the weights file:", list_checkpoint_modules(model_state_dict))
+            # legonet.load_state_dict(model_state_dict, strict=False)
+
             # for initial saving of weights from old model pt files:
-            #legonet = torch.load(args.model_path, map_location=config.General.device)
-            #print("Available modules in model file:", list_checkpoint_modules(legonet.state_dict()))
-            #save_partial_weights(args, legonet, tasks=['bbox_detection', "per_object_counting"])
+            legonet = torch.load(args.model_path, map_location=config.General.device)
+            print("Available modules in model file:", list_checkpoint_modules(legonet.state_dict()))
+            if args.network_type == "both":
+                save_partial_weights(args, legonet, tasks=['bbox_detection', "per_object_counting"])
+            elif args.network_type == "both_for_roots_2":
+                save_partial_weights(args, legonet, tasks=['bbox_detection', "per_object_attributes"])
 
 
-    #if args.network_type == "both" or args.network_type == "both_for_roots_2":
+                #if args.network_type == "both" or args.network_type == "both_for_roots_2":
     if args.freeze_detection:
         legonet.freeze_detector()
 
