@@ -56,11 +56,11 @@ if args is None:
 args.gpu_num = '0'
 
 args.STORAGE_PATH = 'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
-args.dataset_name = "roots" #"grapes" #"roots"
-args.network_type = "both_for_roots_2" # "both" #"bbox_detection"
-args.current_results_dir = 'per_object_attributes' #'per_object_counting' #'bbox_detection' # 'per_object_counting'
+args.dataset_name = "grapes" #"grapes" #"roots"
+args.network_type = "both" #"both_for_roots_2" # "both" #"bbox_detection"
+args.current_results_dir = 'per_object_counting' #'per_object_attributes' #'bbox_detection' # 'per_object_counting'
 args.run_script = 'Inference' #'Training' #'Inference'
-val_set = "Val"
+val_set = "Val" #"Test" #"Val"
 
 ######################################################################
 # General paths
@@ -100,8 +100,8 @@ config.Detect_and_Estimate.type = args.network_type
 args.load_weights = True
 args.load_partial_weights = True
 args.load_bbox_det_weights = True
-args.load_per_object_counting_weights = False
-args.load_per_object_attributes_weights = True
+args.load_per_object_counting_weights = True
+args.load_per_object_attributes_weights = False
 args.load_more_partial = False
 
 args.have_GT = True
@@ -305,10 +305,10 @@ if args.run_script == 'Training':
 
 
 if args.dataset_type == 'kcsv':
-    args.kcsv_train = os.path.join(myDatasetsPath, 'train.kcsv')
-    args.kcsv_val = os.path.join(myDatasetsPath, 'val.kcsv')
-    args.kcsv_test = os.path.join(myDatasetsPath, 'test.kcsv')
-    args.kcsv_classes = os.path.join(myDatasetsPath, "classes.kcsv")
+    args.kcsv_train = os.path.join(myDatasetsPath, 'train.txt') #'train.kcsv'
+    args.kcsv_val = os.path.join(myDatasetsPath, 'val.txt')
+    args.kcsv_test = os.path.join(myDatasetsPath, 'test.txt')
+    args.kcsv_classes = os.path.join(myDatasetsPath, "classes.txt")
 
     if args.run_script == 'Training':
         args.val_file = args.kcsv_val
@@ -421,8 +421,6 @@ if args.load_weights:
         args.weights_file_path = get_weights_file(args.weights_dir)
 
         args.model_path = args.weights_file_path # for initial load of old weights file
-
-
 
 # else:
 #     args.weights_file_path = ""
