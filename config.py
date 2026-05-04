@@ -27,10 +27,10 @@ class General:
     dataset_name=''
     files_path = ""
     #binary_model = False
-    binary_loss_version = ""
+    #binary_loss_version = ""
     dataset_type = ""
     current_gpu = ""
-    with_new_layers = True
+    #with_new_layers = True
     twoFind_2 = False
     twoBackbone_2 = False
     predict_empty_image = False

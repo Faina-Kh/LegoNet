@@ -7,13 +7,12 @@ import cv2
 import numpy as np
 from itertools import compress
 
-from legos import legos_3
-import util
+import legos
 import config
-#from legacy_scripts import losses
+#import losses
 import modular_losses
 import anchors
-from legonet.myDataloader import UnNormalizer
+from legonet.my_dataloader import UnNormalizer
 from legonet.eval.both_eval_new_241 import choose_boxes_by_IoUandPrc
 
 
@@ -34,11 +33,11 @@ class LEGONet(nn.Module):
         self.min_score = min_score
 
         if self.backbone_type == "ResNetBackboneModule":
-            self.backbone_1 = legos_3.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_detect')
+            self.backbone_1 = legos.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_detect')
 
             in_channels = 256
-            self.find_1 = legos_3.FindModule(num_features_in = in_channels, num_classes=num_classes, name='find_for_detect', task='detection')
-            self.where = legos_3.WhereModule(network_type, num_features_in = in_channels)
+            self.find_1 = legos.FindModule(num_features_in = in_channels, num_classes=num_classes, name='find_for_detect', task='detection')
+            self.where = legos.WhereModule(network_type, num_features_in = in_channels)
 
             prior = 0.01
             self.find_1.feature_classification.output.weight.data.fill_(0)
@@ -46,29 +45,29 @@ class LEGONet(nn.Module):
             self.where.feature_regression.output.weight.data.fill_(0)
             self.where.feature_regression.output.bias.data.fill_(0)
 
-            self.backbone_2 = legos_3.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_attribute')
+            self.backbone_2 = legos.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_attribute')
 
-            self.find_2 = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes,
-                                             name='find_for_attribute', task='attribute_estimation') #name='find_for_count', task='counting'
+            self.find_2 = legos.FindModule(num_features_in=in_channels, num_classes=num_classes,
+                                           name='find_for_attribute', task='attribute_estimation') #name='find_for_count', task='counting'
 
             if config.General.twoFind_2:
-                self.find_2_b = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
+                self.find_2_b = legos.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
             if config.General.twoBackbone_2:
-                self.backbone_2_b = legos_3.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_count')
+                self.backbone_2_b = legos.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_count')
 
             if config.Detect_and_Estimate.use_new_Find:
                 self.find_2_length = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
-                self.find_2_diameter = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
-                self.find_2_color = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
+                self.find_2_diameter = legos.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
+                self.find_2_color = legos.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
 
 
-        self.FindForCount = legos_3.FindForCount(num_classes)
+        self.FindForCount = legos.FindForCount(num_classes)
 
 
         if self.network_type == "both_for_roots_2":
              config.General.with_new_layers_for_both = True
 
-        self.EstimateWithPointsModule = legos_3.EstimateWithPointsModule(num_classes, inter_losses = config.AttributeEstimation.inter_losses)
+        self.EstimateWithPointsModule = legos.EstimateWithPointsModule(num_classes, inter_losses = config.AttributeEstimation.inter_losses)
 
         if self.network_type == "both_for_roots_2" or config.General.binary_model: #config.General.with_new_layers:
             config.General.binary_model = True
@@ -79,16 +78,16 @@ class LEGONet(nn.Module):
             self.EstimateWithPointsModule_diameter = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.AttributeEstimation.inter_losses, loss_for ="diameter")
 
         self.EstimateWithPointsModule_multiple = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.AttributeEstimation.inter_losses, output_size = output_size)
-        self.EstimateWithPointsModule_multiple_2 = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.AttributeEstimation.inter_losses, output_size=output_size)
-        self.EstimateWithPointsModule_multiple_3 = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.AttributeEstimation.inter_losses, output_size=output_size)
-        self.EstimateWithPointsModule_multiple_4 = legos_3.EstimateWithPointsModule(num_classes, inter_losses=config.AttributeEstimation.inter_losses, output_size=output_size)
+        self.EstimateWithPointsModule_multiple_2 = legos.EstimateWithPointsModule(num_classes, inter_losses=config.AttributeEstimation.inter_losses, output_size=output_size)
+        self.EstimateWithPointsModule_multiple_3 = legos.EstimateWithPointsModule(num_classes, inter_losses=config.AttributeEstimation.inter_losses, output_size=output_size)
+        self.EstimateWithPointsModule_multiple_4 = legos.EstimateWithPointsModule(num_classes, inter_losses=config.AttributeEstimation.inter_losses, output_size=output_size)
 
         self.EstimateWithRegModule = legos_3.EstimateWithRegModule(num_classes)
 
         if self.network_type == "both_for_roots_2" and config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-            self.EstimateWithRegModule_color = legos_3.EstimateWithRegModule(num_classes)
+            self.EstimateWithRegModule_color = legos.EstimateWithRegModule(num_classes)
             self.EstimateWithRegModule_length = legos_3.EstimateWithRegModule(num_classes)
-            self.EstimateWithRegModule_diameter = legos_3.EstimateWithRegModule(num_classes)
+            self.EstimateWithRegModule_diameter = legos.EstimateWithRegModule(num_classes)
 
         self.roi_align = roi_align
         self.regressBoxes = legos_3.BBoxTransform()

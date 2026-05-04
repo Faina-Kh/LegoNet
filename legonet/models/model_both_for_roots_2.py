@@ -2,18 +2,16 @@ import torch
 import torch.nn as nn
 import torchvision.ops
 from torchvision.ops import roi_align
-import math, copy
+import copy
 import cv2
 import numpy as np
 from itertools import compress
 
-from legos import legos_3
-import util
+import legos
+import utils
 import config
-import modular_losses
-import anchors
-import legonet.myDataloader as myDataloader
-from legonet.myDataloader import UnNormalizer
+import legonet.my_dataloader as myDataloader
+from legonet.my_dataloader import UnNormalizer
 from legonet.eval.both_eval_new_241 import choose_boxes_by_IoUandPrc
 
 from model_bbox_detection import BBOX_Detection
@@ -33,15 +31,31 @@ class PerObjectEstimate(nn.Module):
         self.freeze_detection = freeze_detection
 
         self.bbox_detection = BBOX_Detection(num_classes = num_classes, freeze_detection = self.freeze_detection)
-        self.backbone_2 = legos_3.ResNetBackboneModule(name='backbone_for_attribute') #name='backbone_for_count'
+        self.backbone_2 = legos.ResNetBackboneModule(name='backbone_for_attribute') #name='backbone_for_count'
 
-        self.find_2 = legos_3.FindModule(num_classes=num_classes, name='find_for_attribute', task='attribute_estimation',
-                                         Find_for_count = True) #name='find_for_count', task='counting'
+        self.find_2 = legos.FindModule(num_classes=num_classes,
+                                       name='find_for_attribute',
+                                       task='attribute_estimation',
+                                       Find_for_count = False) #name='find_for_count', task='counting'
 
-        if config.AttributeEstimation.estimate_type == 'withKeyPoints': #'reg_fpn_p3_p7_min_sig'
-            self.LeanCountingModule = legos_3.LeanCountingModule() #(num_classes, inter_losses = config.Counting.inter_losses)
-        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-            self.EstimateWithRegModule = legos_3.EstimateWithRegModule(num_classes)
+        #################################################################################################################
+        if config.General.twoFind_2:
+            self.find_2_b = legos.FindModule(num_classes=num_classes, name='find_for_attribute',
+                                               task='attribute_estimation') #name='find_for_count', task='counting')
+        if config.General.twoBackbone_2:
+            self.backbone_2_b = legos.ResNetBackboneModule(name='backbone_for_attribute') #name='backbone_for_count'
+
+        ################################################################################################################
+
+        if config.AttributeEstimation.estimate_type == 'withKeyPoints': #LeanCountingModule
+            self.estimator_length = legos.KeypointBasedEstimator(attribute_name = 'length')
+            self.estimator_diameter = legos.KeypointBasedEstimator(attribute_name = 'diameter')
+            self.estimator_color = legos.KeypointBasedEstimator(attribute_name='color', binary_model=True)
+
+        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig': #CountWithRegModule
+            self.estimator_length = legos.RegressionBasedEstimator(num_classes)
+            self.estimator_diameter = legos.RegressionBasedEstimator(num_classes)
+            self.estimator_color = legos.RegressionBasedEstimator(num_classes, binary_model=True)
 
         self.roi_align = roi_align
 
@@ -99,9 +113,6 @@ class PerObjectEstimate(nn.Module):
                     # find the gt box for each detection
                     pred_to_box_idx = choose_boxes_by_IoUandPrc(bbox_pred, detection_anns, box_scores)
 
-
-                #if self.network_type == "both_for_roots_2":
-
                 if (self.training or (
                         not self.training and annotations is not None)) and counting_anns is not None:  # and config.detect_with_points.detect_points: #
 
@@ -131,20 +142,19 @@ class PerObjectEstimate(nn.Module):
                         if anns_box_ids[i].item() != -1: # check if it's a box with points
                             ans_detected_ids.append(anns_box_ids[i] in true_ids)
 
-                    detection_anns = detection_anns[0][ans_detected_ids].unsqueeze(dim=0)
+                    detection_anns = detection_anns[0][ans_detected_ids].unsqueeze(dim=0) # get detected bboxes annotations
                     if len(ans_detected_ids)>0:
-                        counting_anns[0][0] = counting_anns[0][0][ans_detected_ids]
+                        counting_anns[0][0] = counting_anns[0][0][ans_detected_ids] # keep attribute values for detected boxes
 
                         anns_box_ids_p = counting_anns[0][1][:, 3].float()
                         ans_detected_ids_p = []
                         for i in range(counting_anns[0][1].shape[0]):
                             ans_detected_ids_p.append(anns_box_ids_p[i] in true_ids.cpu())
 
-                        counting_anns[0][1] = counting_anns[0][1][ans_detected_ids_p]
+                        counting_anns[0][1] = counting_anns[0][1][ans_detected_ids_p] # keep the points anns of detected boxes
 
                     annotations = [detection_anns, counting_anns]
 
-                ##########################################################################
                 bbox_pred = torch.cat((bbox_pred, box_scores.unsqueeze(-1)), dim=-1) #[x1,y1,x2,y2,gt_box_id,score]
 
                 if self.training and config.Detection.USE_PERFECT_DETECTION_MODE:
@@ -167,7 +177,7 @@ class PerObjectEstimate(nn.Module):
                         bbox_pred_adjusted[box_idx][0], \
                         bbox_pred_adjusted[box_idx][1], \
                         bbox_pred_adjusted[box_idx][2], \
-                        bbox_pred_adjusted[box_idx][3] = util.augment_bbox_fancy(x1, y1, x2, y2) #util.augment_bbox(x1, y1, x2, y2)   #util.augment_bbox_fancy(x1, y1, x2, y2)
+                        bbox_pred_adjusted[box_idx][3] = utils.augment_bbox_fancy(x1, y1, x2, y2) #utils.augment_bbox(x1, y1, x2, y2)   #utils.augment_bbox_fancy(x1, y1, x2, y2)
                         bbox_pred_adjusted[box_idx][4] = bbox_pred[box_idx][4]
 
                     bbox_pred_adjusted = bbox_pred_adjusted.to(config.General.device)
@@ -182,12 +192,12 @@ class PerObjectEstimate(nn.Module):
                             bbox_pred_adjusted[box_idx][0],\
                             bbox_pred_adjusted[box_idx][1],\
                             bbox_pred_adjusted[box_idx][2],\
-                            bbox_pred_adjusted[box_idx][3] = util.scale_bbox(x1,y1,x2,y2,config.Detection.BBOX_ADJUSTMENT_RATIO)
+                            bbox_pred_adjusted[box_idx][3] = utils.scale_bbox(x1,y1,x2,y2,config.Detection.BBOX_ADJUSTMENT_RATIO)
 
                             # print(bbox_pred_adjusted[box_idx])
 
 
-                # Get gt points' annotations for training for the KeyPoints-based model
+                # Get gt points' annotations
                 if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                     points=None
                     if self.training or (not self.training and annotations is not None):
@@ -255,23 +265,13 @@ class PerObjectEstimate(nn.Module):
                                     #self.view_points_on_img(bbox_crops, points_to_view)
 
                                     relevant_points_anns.append(points_to_view)
+                                    bbox_crops_list.append([bbox_crops, bbox_pred_adjusted[b, 4]]) # add the gt box id
 
-                                    if self.network_type == "both_for_roots_2":
-                                        bbox_crops_list.append([bbox_crops, bbox_pred_adjusted[b, 4]]) # add the gt box id
-                                    else:
-                                        bbox_crops_list.append(bbox_crops)  # torch.tensor(bbox_crops).float().permute(2, 0, 1).unsqueeze(dim=0).to(config.General.device))
 
                                 else:
-                                    #empty_crops_gtidx.append(box_idx)
-
-                                    #if self.network_type == "both_for_roots_2":
-                                        if not self.training:
-                                            if self.network_type == "both_for_roots_2":
-                                                bbox_crops_list.append([bbox_crops, torch.tensor(-1, dtype=float)])
-                                            else:
-                                                bbox_crops_list.append(bbox_crops)
-
-                                            relevant_points_anns.append([])
+                                    if not self.training:
+                                        bbox_crops_list.append([bbox_crops, torch.tensor(-1, dtype=float)])
+                                        relevant_points_anns.append([])
 
                             else:
                                 bbox_crops_list.append(bbox_crops)
@@ -286,10 +286,7 @@ class PerObjectEstimate(nn.Module):
             num_of_boxes = bbox_pred_adjusted.shape[0]
 
             if self.training:
-                if self.network_type == "both_for_roots_2":
-                     sample_list = self.getitem(bbox_crops=bbox_crops_list, points=relevant_points_anns, anns = annotations)
-                else:
-                    sample_list = self.getitem(bbox_crops=bbox_crops_list, points=relevant_points_anns)
+                sample_list = self.getitem(bbox_crops=bbox_crops_list, points=relevant_points_anns, anns = annotations)
             else:
                 if annotations is not None and points is not None:
                     sample_list = self.getitem(bbox_crops=bbox_crops_list, points=relevant_points_anns,
@@ -334,7 +331,6 @@ class PerObjectEstimate(nn.Module):
                         else:
                             bbox_pyramid_p3_2[0] = torch.cat((bbox_pyramid_p3_2[0], bbox_pyramid_feats_2[i][0]),dim=0)
 
-            ###########################################################################
 
             if self.training:
 
@@ -342,219 +338,91 @@ class PerObjectEstimate(nn.Module):
 
                     count_train_inputs = bbox_pyramid_p3, corrected_counting_anns[1:6]  # anchors, None
 
-                    l1 = 0 # for "both"
                     maps_loss = 0
-                    count_loss = 0
-
-                    if self.network_type == "both_for_roots_2":
-                        root_anns = corrected_counting_anns[6:9]
-                        length_loss = 0
-                        diameter_loss = 0
-                        color_loss = 0
+                    root_anns = corrected_counting_anns[6:9]
+                    length_loss = 0
+                    diameter_loss = 0
+                    color_loss = 0
 
                     for i in range(num_of_boxes):
-                        if self.network_type == "both_for_roots_2":
-                            current_roots_anns = [root_anns[0][i][0].unsqueeze(dim=0),root_anns[0][i][1].unsqueeze(dim=0),root_anns[0][i][2].unsqueeze(dim=0)]
-                            #[root_anns[0][i].unsqueeze(dim=0),root_anns[1][i].unsqueeze(dim=0),root_anns[2][i].unsqueeze(dim=0)]
-
-                        
+                        current_roots_anns = [root_anns[0][i][0].unsqueeze(dim=0),root_anns[0][i][1].unsqueeze(dim=0),root_anns[0][i][2].unsqueeze(dim=0)]
                         current_count_train_inputs = [[count_train_inputs[0][0][i].unsqueeze(dim=0)],
                                                       [count_train_inputs[1][0][i].unsqueeze(dim=0), count_train_inputs[1][1][i].unsqueeze(dim=0),
                                                        count_train_inputs[1][2][i].unsqueeze(dim=0), count_train_inputs[1][3][i].unsqueeze(dim=0),
                                                        count_train_inputs[1][4][i].unsqueeze(dim=0)]]
 
-                        if self.network_type == "both_for_roots_2":
+                        SFMS_lists, cls_output, current_maps_loss = self.find_2(current_count_train_inputs)
+                        maps_loss += current_maps_loss
+                        count_input = SFMS_lists, cls_output, current_roots_anns  # annotations[1][0][0] #corrected_counting_anns
 
-                            ######################################################################################
-                            if config.Detect_and_Estimate.use_new_Find:
+                        current_color_loss = self.EstimateWithPointsModule_color(count_input)
+                        current_length_loss = self.EstimateWithPointsModule_length(count_input)
+                        current_diameter_loss = self.EstimateWithPointsModule_diameter(count_input)
 
-                                config.General.binary_model = False
-                                SFMS_lists_len, cls_output_len, current_maps_loss_len = self.find_2_length(
-                                    current_count_train_inputs)
-                                maps_loss += current_maps_loss_len
-
-                                SFMS_lists_dia, cls_output_dia, current_maps_loss_dia = self.find_2_diameter(
-                                    current_count_train_inputs)
-                                maps_loss += current_maps_loss_dia
-
-                                # the color output is currently binary
-                                config.General.binary_model = True
-                                SFMS_lists_color, cls_output_color, current_maps_loss_color = self.find_2_color(
-                                    current_count_train_inputs)
-                                maps_loss += current_maps_loss_color
-
-                                count_input = {"count_input_len": [SFMS_lists_len, cls_output_len, current_roots_anns],
-                                               "count_input_dia": [SFMS_lists_dia, cls_output_dia, current_roots_anns],
-                                               "count_input_color": [SFMS_lists_color, cls_output_color,
-                                                                     current_roots_anns]}
-
-                                ######################################################################################
-                            else:
-
-                                # the color output is currently binary
-                                config.General.binary_model = True
-                                SFMS_lists, cls_output, current_maps_loss = self.find_2(current_count_train_inputs)
-                                maps_loss += current_maps_loss
-                                count_input = SFMS_lists, cls_output, current_roots_anns  # annotations[1][0][0] #corrected_counting_anns
-                                
-                        if self.network_type == "both":
-                            SFMS_lists, cls_output, current_maps_loss = self.find_2(current_count_train_inputs)
-                            maps_loss += current_maps_loss
-
-                            count_input = SFMS_lists, cls_output, corrected_counting_anns[0]  # annotations[1][0][0] #corrected_counting_anns
-                            current_l1 = self.LeanCountingModule(count_input)[0]
-                            l1 += current_l1
-
-                        elif self.network_type == "both_for_roots_2":
-                            if config.Detect_and_Estimate.use_new_Find:
-
-                                # the color output is currently binary
-                                config.General.binary_model = True
-                                config.General.binary_loss_version = "L1Loss"
-                                count_input_color = count_input["count_input_color"][0], \
-                                count_input["count_input_color"][1], count_input["count_input_color"][2]
-                                current_color_loss = self.EstimateWithPointsModule_color(count_input_color)
-
-                                config.General.binary_model = False
-                                count_input_len = count_input["count_input_len"][0], count_input["count_input_len"][1], \
-                                count_input["count_input_len"][2]
-                                count_input_dia = count_input["count_input_dia"][0], count_input["count_input_dia"][1], \
-                                count_input["count_input_dia"][2]
-                                current_length_loss = self.EstimateWithPointsModule_length(count_input_len)
-                                current_diameter_loss = self.EstimateWithPointsModule_diameter(count_input_dia)
-
-                            else:
-                                # the color output is currently binary
-                                config.General.binary_model = True
-                                config.General.binary_loss_version = "L1Loss"
-                                current_color_loss = self.EstimateWithPointsModule_color(count_input)
-
-                                config.General.binary_model = False
-                                current_length_loss = self.EstimateWithPointsModule_length(count_input)
-                                current_diameter_loss = self.EstimateWithPointsModule_diameter(count_input)
-
-                            color_loss += current_color_loss[0]
-                            length_loss += current_length_loss[0]
-                            diameter_loss += current_diameter_loss[0]
+                        color_loss += current_color_loss[0]
+                        length_loss += current_length_loss[0]
+                        diameter_loss += current_diameter_loss[0]
 
                 elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                    counting_loss = self.EstimateWithRegModule([bbox_pyramid_feats[:config.AttributeEstimation.num_of_pyr_levels], corrected_counting_anns[0]])
 
-                #total_loss = total_loss + counting_loss
+                    length_loss = 0
+                    diameter_loss = 0
+                    color_loss = 0
+
+                    for i in range(num_of_boxes):
+                        current_color_loss = self.estimator_color(
+                            [bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels],
+                             corrected_counting_anns[6][i, 0].unsqueeze(dim=0).unsqueeze(dim=0)])
+
+                        current_length_loss = self.estimator_length(
+                            [bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels],
+                             corrected_counting_anns[6][i, 1].unsqueeze(dim=0).unsqueeze(dim=0)])
+                        current_diameter_loss = self.estimator_diameter(
+                            [bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels],
+                             corrected_counting_anns[6][i, 2].unsqueeze(dim=0).unsqueeze(dim=0)])
+
+                        color_loss += current_color_loss
+                        length_loss += current_length_loss
+                        diameter_loss += current_diameter_loss
 
                 including_counting = True
 
             else:
                 if config.AttributeEstimation.estimate_type == 'withKeyPoints':
+                    SFMS_lists, cls_output = self.find_2(bbox_pyramid_p3)
+                    count_input = SFMS_lists, cls_output
 
-                    if self.network_type == "both_for_roots_2":
-                        config.General.binary_model = True # for the color model output
-
-                    ######################################################################################
-                    if config.Detect_and_Estimate.use_new_Find:
-                        config.General.binary_model = False
-                        SFMS_lists_len, cls_output_len = self.find_2_length(bbox_pyramid_p3)
-                        SFMS_lists_dia, cls_output_dia = self.find_2_diameter(bbox_pyramid_p3)
-
-                        config.General.binary_model = True
-                        SFMS_lists_color, cls_output_color = self.find_2_color(bbox_pyramid_p3)
-
-                        count_input={"count_input_len": [SFMS_lists_len, cls_output_len],
-                                     "count_input_dia": [SFMS_lists_dia, cls_output_dia],
-                                     "count_input_color": [SFMS_lists_color, cls_output_color]}
-
-                        ######################################################################################
-                    else:
-
-                        SFMS_lists, cls_output = self.find_2(bbox_pyramid_p3)
-                        count_input = SFMS_lists, cls_output
-
-                        if config.General.twoFind_2:
-                            if config.General.twoBackbone_2:
-                                SFMS_lists2, cls_output2 = self.find_2_b(bbox_pyramid_p3_2)
-
-                            else:
-                                SFMS_lists2, cls_output2 = self.find_2_b(bbox_pyramid_p3)
-
-                            count_input_2 = SFMS_lists2, cls_output2
-
-
-                    if self.network_type == "both":
-                        estimation_outputs = self.LeanCountingModule(count_input)
-
-                    elif self.network_type == "both_for_roots_2":
-
-                        if config.detect_and_count.use_new_Find:
-
-                            # the color output is currently binary
-                            config.General.binary_model = True
-                            config.General.binary_loss_version = "L1Loss"
-                            count_input_color = count_input["count_input_color"][0], count_input["count_input_color"][1]
-                            color, maps_0_color, maps_1_color, maps_2_color, maps_3_color, maps_4_color, maps_5_color= \
-                                self.LeanCountingModule_color(count_input_color)
-
-                            config.General.binary_model = False
-                            count_input_len = count_input["count_input_len"][0], count_input["count_input_len"][1]
-                            count_input_dia = count_input["count_input_dia"][0], count_input["count_input_dia"][1]
-
-                            length, maps_0_len, maps_1_len, maps_2_len, maps_3_len, maps_4_len, maps_5_len = \
-                                self.LeanCountingModule_length(count_input_len)
-
-                            diameter, maps_0_dia, maps_1_dia, maps_2_dia, maps_3_dia, maps_4_dia, maps_5_dia = \
-                                self.LeanCountingModule_diameter(count_input_dia)
-
-                            #choose what maps tp pass tp inference - ToDo: pass all and correct eval script accordingly
-                            maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = maps_0_len, maps_1_len, maps_2_len, maps_3_len, maps_4_len, maps_5_len
-
-                            counting_outputs = [torch.cat([color, length, diameter], dim=-1), maps_0, maps_1, maps_2, maps_3, maps_4, maps_5]
-
+                    if config.General.twoFind_2:
+                        if config.General.twoBackbone_2:
+                            SFMS_lists2, cls_output2 = self.find_2_b(bbox_pyramid_p3_2)
 
                         else:
+                            SFMS_lists2, cls_output2 = self.find_2_b(bbox_pyramid_p3)
 
-                            # the color output is currently binary
-                            config.General.binary_model = True
-                            config.General.binary_loss_version = "L1Loss"
-                            color,_ ,_ ,_ ,_ , _, _ = self.LeanCountingModule_color(count_input)
+                        count_input_2 = SFMS_lists2, cls_output2
 
-                            config.General.binary_model = False
-                            if config.General.twoFind_2:
-                                length, maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = self.LeanCountingModule_length(count_input_2)
-                            else:
-                                length, maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = self.LeanCountingModule_length(count_input)
+                    color,_ ,_ ,_ ,_ , _, _ = self.estimator_color(count_input)
 
-                            diameter,_ ,_ ,_ ,_ , _, _ = self.LeanCountingModule_diameter(count_input)
+                    if config.General.twoFind_2:
+                        length, maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = self.estimator_length(count_input_2)
+                    else:
+                        length, maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = self.estimator_length(count_input)
 
-                            counting_outputs = [torch.cat([color,length,diameter], dim=-1), maps_0, maps_1, maps_2, maps_3, maps_4, maps_5]
+                    diameter,_ ,_ ,_ ,_ , _, _ = self.estimator_diameter(count_input)
+
+                    estimation_outputs = [torch.cat([color,length,diameter], dim=-1), maps_0, maps_1, maps_2, maps_3, maps_4, maps_5] #counting_outputs
 
                 elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                    if self.network_type == "both_for_roots_2":
-                        counting_outputs = []
-                        for i in range(num_of_boxes):
-                            # the color output is currently binary
-                            config.General.binary_model = True
-                            current_color = self.EstimateWithRegModule_color(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
-                            # if i==0:
-                            #     color = current_color
-                            # else:
-                            #     color = torch.cat((color, current_color), dim=0)
+                    counting_outputs = []
+                    for i in range(num_of_boxes):
 
-                            config.General.binary_model = False
-                            current_length = self.EstimateWithRegModule_length(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
-                            current_diameter= self.EstimateWithRegModule_diameter(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
+                        current_color = self.estimator_color(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
+                        current_length = self.estimator_length(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
+                        current_diameter= self.estimator_diameter(bbox_pyramid_feats[i][:config.Counting.num_of_pyr_levels])[0]
 
-                            counting_outputs.append(torch.cat([current_color,current_length,current_diameter]).unsqueeze(0))
-                            # if i == 0:
-                            #     length = current_length
-                            #     diameter = current_diameter
-                            # else:
-                            #     length = torch.cat((length, current_length), dim=0)
-                            #     diameter = torch.cat((diameter, current_diameter), dim=0)
+                        counting_outputs.append(torch.cat([current_color,current_length,current_diameter]).unsqueeze(0))
 
-                        estimation_outputs = [torch.cat(counting_outputs, dim=0)] #counting_outputs
-                        #counting_outputs = [torch.cat([color.unsqueeze(0),length.unsqueeze(0),diameter.unsqueeze(0)], dim=0)]
-
-                    else:
-                        estimation_outputs = self.EstimateWithRegModule(bbox_pyramid_feats[:config.Counting.num_of_pyr_levels])
+                    estimation_outputs = [torch.cat(counting_outputs, dim=0)] #counting_outputs
                     
         else:
             sample_anns=None
@@ -568,33 +436,17 @@ class PerObjectEstimate(nn.Module):
             if counting_anns is not None:
                 if not including_counting: # don't have bbox predictions
                     if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-                        if self.network_type == "both":
-                            return classification_loss, regression_loss, None, None
-
-                        elif self.network_type == "both_for_roots_2":
-                            return classification_loss, regression_loss, None, None, None, None
+                        return classification_loss, regression_loss, None, None, None, None
 
                     elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                        if self.network_type == "both_for_roots_2":
-                            return classification_loss, regression_loss, None, None, None
-
-                        else:
-                            return classification_loss, regression_loss, None
-
+                        return classification_loss, regression_loss, None, None, None
 
                 if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-
-                    if self.network_type == "both":
-                        return classification_loss, regression_loss, l1, maps_loss  #counting_loss #total_loss #classification_loss, regression_loss, counting_loss
-
-                    elif self.network_type == "both_for_roots_2":
-                            return classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss
+                        return classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss
 
                 elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                    if self.network_type == "both_for_roots_2":
-                        return classification_loss, regression_loss, color_loss, length_loss, diameter_loss
-                    else:
-                        return classification_loss, regression_loss, counting_loss
+                    return classification_loss, regression_loss, color_loss, length_loss, diameter_loss
+
 
             # else:
             #     if config.AttributeEstimation.estimate_type == 'withKeyPoints':
@@ -751,13 +603,10 @@ class PerObjectEstimate(nn.Module):
     def getitem(self, bbox_crops, points = None, anns = None):
         filtered_samples = []
         for b in range(len(bbox_crops)):
-            if self.network_type == "both_for_roots_2":
-                if self.training or (not self.training and anns is not None):
-                    current_img = bbox_crops[b][0][0].permute(1, 2, 0).cpu()
-                else:
-                    current_img = bbox_crops[b][0].permute(1, 2, 0).cpu()
+            if self.training or (not self.training and anns is not None):
+                current_img = bbox_crops[b][0][0].permute(1, 2, 0).cpu()
             else:
-                current_img = bbox_crops[b][0].permute(1,2,0).cpu()
+                current_img = bbox_crops[b][0].permute(1, 2, 0).cpu()
 
             sample = {'img': current_img}
 
@@ -794,7 +643,7 @@ class PerObjectEstimate(nn.Module):
                     sample['annot'] = [[annotations_group_num_of_points], annotation_map_1, annotation_map_2,
                                                        annotation_map_3, annotation_map_4, annotation_map_5]
 
-                elif not self.training: # self.network_type == "both_for_roots_2":
+                elif not self.training:
                     annotations_group_num_of_points = 0
                     annotation_map_1 = torch.empty((80,80), dtype=float)
                     annotation_map_2 = torch.empty((80, 80), dtype=float)
@@ -805,23 +654,20 @@ class PerObjectEstimate(nn.Module):
                     sample['annot'] = [[annotations_group_num_of_points], annotation_map_1, annotation_map_2,
                                        annotation_map_3, annotation_map_4, annotation_map_5]
 
+                anns_idx = bbox_crops[b][1].item()
 
-                if self.network_type =="both_for_roots_2":
+                if anns_idx!=-1:
+                    anns_loc = ((anns[1][0][0][:,2] == anns_idx).nonzero(as_tuple=True)[0]).item()
+                    roots_anns = anns[1][0][0][anns_loc]  # [int(anns_idx)]
 
-                    anns_idx = bbox_crops[b][1].item()
+                    points_color = roots_anns[0].unsqueeze(dim=0) #points_count
+                    length = roots_anns[3].unsqueeze(dim=0)
+                    diameter = roots_anns[4].unsqueeze(dim=0)
+                    gt_idx = torch.tensor(anns_idx, dtype=float).unsqueeze(dim=0)
+                    sample['roots_annot'] = torch.cat([points_color, length, diameter, gt_idx]) #points_count
 
-                    if anns_idx!=-1:
-                        anns_loc = ((anns[1][0][0][:,2] == anns_idx).nonzero(as_tuple=True)[0]).item()
-                        roots_anns = anns[1][0][0][anns_loc]  # [int(anns_idx)]
-
-                        points_color = roots_anns[0].unsqueeze(dim=0) #points_count
-                        length = roots_anns[3].unsqueeze(dim=0)
-                        diameter = roots_anns[4].unsqueeze(dim=0)
-                        gt_idx = torch.tensor(anns_idx, dtype=float).unsqueeze(dim=0)
-                        sample['roots_annot'] = torch.cat([points_color, length, diameter, gt_idx]) #points_count
-
-                    else:
-                        sample['roots_annot'] = torch.tensor([-1, 0, 0, -1], dtype=float) # [color, length, dia, gt_box_id]
+                else:
+                    sample['roots_annot'] = torch.tensor([-1, 0, 0, -1], dtype=float) # [color, length, dia, gt_box_id]
 
             filtered_samples.append(sample)
 
@@ -855,9 +701,8 @@ class PerObjectEstimate(nn.Module):
             cv2.rectangle(im, (int(box_x1), int(box_y1)), (int(box_x2), int(box_y2)), color=(0, 0, 255), thickness=2)
 
             for p in point_anns:
-                if network_type == "both_for_roots_2":
-                    if p['bbox_id']!=box_id:
-                        continue
+                if p['bbox_id']!=box_id:
+                    continue
                 if p['x']<=box_x2 and p['x']>=box_x1 and p['y']<=box_y2 and p['y']>=box_y1:
                     p_x.append(p['x'])
                     p_y.append(p['y'])
@@ -911,7 +756,7 @@ class PerObjectEstimate(nn.Module):
 def main():
 
     m = torch.load("D:\\PyCharmProjects\\LEGONet\\lean_weights\\legonet_final.pt")
-    util.save_named_module_weights(m,"D:\\PyCharmProjects\\LEGONet\\lean_weights\\")
+    utils.save_named_module_weights(m,"D:\\PyCharmProjects\\LEGONet\\lean_weights\\")
 
 if __name__ == '__main__':
     main()

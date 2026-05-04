@@ -8,18 +8,19 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import config
-from . import metrics
-from legonet import util
 from legonet.eval import coco_eval, counting_eval, kcsv_eval_2
 from legonet.eval import both_eval_new_241 as both_eval
-from myDataloader import (KCSVDataset, CocoDataset, collater, Resizer, AspectRatioBasedSampler, Augmenter, Normalizer,
-                          UnNormalizer, csv_LCCDataset, LCC_collater, kcsv_collater)
+from my_dataloader import (KCSVDataset, CocoDataset, collater, Resizer, AspectRatioBasedSampler, Augmenter, Normalizer,
+                           UnNormalizer, csv_LCCDataset, LCC_collater, kcsv_collater)
+
+import kcsv_dataloader
 from PIL import Image, ImageDraw, ImageFont
 import random
 import gc
 
 from legoNet_build import model_build
 from manage_weights import list_checkpoint_modules, load_submodule_weights, save_partial_weights, print_module_names
+import utils
 
 
 def remove_prevEpoch():
@@ -141,18 +142,6 @@ def print_args(args, file_path):
 
 
 def run(args=None):
-
-    if config.Detect_and_Estimate.crop_from_Pi:
-        from models import model_crop_from_Pi as model_file # was model_4
-    else:
-        if config.General.model_name=="bbox_detection":
-            from models import model_bbox_detection as model_file
-        elif config.General.model_name=="both":
-            from models import model_both as model_file
-        elif config.General.model_name == "both_for_roots_2":
-            from models import model_both_copy as model_file
-        else:
-            from models import model_3 as model_file
 
     print_args(args, args.txt_results) #util.print_args(args)
 
@@ -324,7 +313,7 @@ def run(args=None):
 
 
     # build the model
-    legonet = model_build(args, model_file, dataset_train, dataset_val)
+    legonet = model_build(args, dataset_train, dataset_val)
     # if args.run_script=='train':
     #     legonet = model.LEGONet(dataset_train = dataset_train, network_type = args.network_type,
     #                             backbone_type = args.backbone_type,
@@ -354,26 +343,28 @@ def run(args=None):
                 print("Available modules in bbox_detection weights file:", list_checkpoint_modules(bbox_det_state_dict))
 
                 if args.network_type == 'bbox_detection':
-                    legonet.load_state_dict(bbox_det_state_dict, strict=False)
+                    #legonet.load_state_dict(bbox_det_state_dict, strict=False)
+                    load_submodule_weights(legonet, bbox_det_state_dict,
+                                           submodule_names=['backbone_1', 'find_1', 'where'], strict=False)
                 elif args.network_type == 'both' or args.network_type == "both_for_roots_2": #config.General.MODE == 'Training' and  (
                     print("Available modules in 'bbox_detection' module: ")
                     print_module_names(legonet.bbox_detection)
-                    legonet.bbox_detection.load_state_dict(bbox_det_state_dict, strict=False)
+                    #legonet.bbox_detection.load_state_dict(bbox_det_state_dict, strict=False)
+                    load_submodule_weights(legonet.bbox_detection, bbox_det_state_dict,
+                                           submodule_names=['backbone_1', 'find_1', 'where'], strict=False)
 
             if args.load_per_object_counting_weights and args.network_type == "both":
                 per_object_state_dict = torch.load(args.per_object_weights_file, map_location=config.General.device)
-                load_submodule_weights(legonet, per_object_state_dict,
-                                       submodule_names = ['backbone_2', 'find_2', 'LeanCountingModule'], strict=False)
+                if args.estimate_type == 'withKeyPoints':
+                    load_submodule_weights(legonet, per_object_state_dict,
+                                       submodule_names = ['backbone_2', 'find_2', 'estimator'], strict=False)
 
-            if  args.load_per_object_attributes_weights and args.network_type == "both_for_roots_2":
+            if args.load_per_object_attributes_weights and args.network_type == "both_for_roots_2":
                 per_object_state_dict = torch.load(args.per_object_weights_file, map_location=config.General.device)
                 load_submodule_weights(legonet, per_object_state_dict,
-                                       submodule_names = ['backbone_2', 'find_2', 'LeanCountingModule_length',
-                                                          'LeanCountingModule_diameter', 'LeanCountingModule_color'],
+                                       submodule_names = ['backbone_2', 'find_2', 'estimator_length',
+                                                          'estimator_diameter', 'estimator_color'],
                                        strict=False)
-
-
-
 
             #########################################
 
@@ -395,34 +386,82 @@ def run(args=None):
                 for key in args.additional_modules_weights.keys():
                     print(key)
                     if key=="find_2_b":
-                        util.load_module_weights_noName(legonet, key, os.path.join(args.additional_modules_weights[key]))
+                        utils.load_module_weights_noName(legonet, key, os.path.join(args.additional_modules_weights[key]))
                         continue
 
                     if key=="backbone_2_b":
-                        util.load_module_weights_noName(legonet, key, os.path.join(args.additional_modules_weights[key]))
+                        utils.load_module_weights_noName(legonet, key, os.path.join(args.additional_modules_weights[key]))
                         continue
 
-                    util.load_module_weights_noName(legonet, key, os.path.join(args.additional_modules_weights[key], key))
+                    utils.load_module_weights_noName(legonet, key, os.path.join(args.additional_modules_weights[key], key))
 
                     print(key)
 
-        else:
-            # model_state_dict = torch.load(args.weights_file_path, map_location=config.General.device)
-            # print("Available modules in the weights file:", list_checkpoint_modules(model_state_dict))
-            # legonet.load_state_dict(model_state_dict, strict=False)
 
-            # for initial saving of weights from old model pt files:
-            legonet = torch.load(args.model_path, map_location=config.General.device)
-            print("Available modules in model file:", list_checkpoint_modules(legonet.state_dict()))
-            if args.network_type == "both":
-                save_partial_weights(args, legonet, tasks=['bbox_detection', "per_object_counting"])
+        elif args.load_full_model_weights:
+            model_state_dict = torch.load(args.full_model_weights, map_location=config.General.device)
+            #legonet.load_state_dict(model_state_dict, strict=False)
+            print("Available modules in the weights file:", list_checkpoint_modules(model_state_dict))
+            print("Check keys:")
+            if args.network_type == "counting_lean":
+                load_submodule_weights(legonet, model_state_dict,
+                                       submodule_names=['backbone', 'find', 'estimator'], strict=False)
+
+            elif args.network_type == "counting_reg":
+                load_submodule_weights(legonet, model_state_dict,
+                                       submodule_names=['backbone', 'estimator'], strict=False)
+
+            elif args.network_type == "both":
+                if args.estimate_type == 'withKeyPoints':  # 'bbox_detection', "per_object_counting"
+                    load_submodule_weights(legonet, model_state_dict,
+                                           submodule_names=["bbox_detection", "per_object_counting"], strict=False)
             elif args.network_type == "both_for_roots_2":
-                save_partial_weights(args, legonet, tasks=['bbox_detection', "per_object_attributes"])
+                if args.estimate_type == 'withKeyPoints':
+                    load_submodule_weights(legonet, model_state_dict,
+                                           submodule_names=["bbox_detection", "per_object_attributes"], strict=False)
+
+    elif args.save_from_model_file:
+        # for initial saving of weights from old model pt files:
+        file_legonet = torch.load(args.model_path, map_location=config.General.device)
+        print("Available modules in model file:", list_checkpoint_modules(file_legonet.state_dict()))
+        if args.network_type == "both":
+            save_partial_weights(args, legonet, file_legonet, tasks=['bbox_detection', "per_object_counting"], output_name = args.output_name)
+
+        elif args.network_type == "both_for_roots_2":
+            save_partial_weights(args, legonet, file_legonet, tasks=['bbox_detection', "per_object_attributes"], output_name = args.output_name)
+
+        elif args.network_type == "counting_lean" or args.network_type == "counting_reg":
+            save_partial_weights(args, legonet, file_legonet, tasks=["per_image_attributes"], output_name = args.output_name)
+    # else:
+    #     if args.load_per_image_weights:
+    #         model_state_dict = torch.load(args.per_image_weights_file, map_location=config.General.device)
+    #     else:
+    #         model_state_dict = torch.load(args.per_object_weights_file, map_location=config.General.device)
+
+        # print("Available modules in the weights file:", list_checkpoint_modules(model_state_dict))
+        # print("Check keys:")
+        # if args.network_type == "counting_lean":
+        #     load_submodule_weights(legonet, model_state_dict,
+        #                            submodule_names=['backbone', 'find', 'estimator'], strict=False)
+        #
+        # elif args.network_type == "counting_reg":
+        #     load_submodule_weights(legonet, model_state_dict,
+        #                            submodule_names = ['backbone', 'estimator'], strict=False)
+        #
+        # elif args.network_type == "both":
+        #     if args.estimate_type =='withKeyPoints': #'bbox_detection', "per_object_counting"
+        #         load_submodule_weights(legonet, model_state_dict,
+        #                                submodule_names=["bbox_detection", "per_object_counting"], strict=False)
+        # elif args.network_type == "both_for_roots_2":
+        #     if args.estimate_type == 'withKeyPoints':
+        #         load_submodule_weights(legonet, model_state_dict,
+        #                                submodule_names=["bbox_detection", "per_object_attributes"], strict=False)
 
 
-                #if args.network_type == "both" or args.network_type == "both_for_roots_2":
-    if args.freeze_detection:
-        legonet.freeze_detector()
+
+    if args.network_type == "bbox_detection" or args.network_type == "both" or args.network_type == "both_for_roots_2":
+        if args.freeze_detection:
+            legonet.freeze_detector()
 
     if config.roots_ablations.freeze_all_except_find_2: # find_2
         # freeze gradients of detection
@@ -1021,7 +1060,7 @@ def run(args=None):
 
             if args.network_type == 'bbox_detection':
 
-                util.printf('Epoch %d summary: classification mean %.5f, regression mean %.5f\n',
+                utils.printf('Epoch %d summary: classification mean %.5f, regression mean %.5f\n',
                         epoch_num,
                         np.mean(epoch_loss_per_task["classification"]),
                         np.mean(epoch_loss_per_task["regression"]))
@@ -1039,7 +1078,7 @@ def run(args=None):
 
                         legonet.eval()
 
-                        util.printf("Evaluating Dataset: ")
+                        utils.printf("Evaluating Dataset: ")
                         mAP, precision , recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
                                                                 score_threshold=config.Detection.min_score,
                                                                 iou_threshold=config.Detection.iou_threshold)
@@ -1056,7 +1095,7 @@ def run(args=None):
                         # else:
                         #     if epoch_num % 5 == 0:
                         #         torch.save(legonet.state_dict(), config.General.weights_dir + '/legonet_epoch={}.pt'.format(epoch_num))
-                        #     util.printf("\n")
+                        #     utils.printf("\n")
 
                     elif (epoch_num+1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
                         torch.save(legonet.state_dict(),
@@ -1086,7 +1125,7 @@ def run(args=None):
             #     count_agreement = counting_eval.eval(dataset_val, legonet, args)
                 if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                     if args.network_type == 'counting_lean':
-                        util.printf(
+                        utils.printf(
                             'Epoch %d summary: l1_estimation_loss %.5f, maps_loss %.5f\n',
                             epoch_num,
                             #np.mean(epoch_loss_per_task["counting"]),
@@ -1094,7 +1133,7 @@ def run(args=None):
                             np.mean(epoch_loss_per_task["maps"]))
 
                 elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                    util.printf(
+                    utils.printf(
                         'Epoch %d summary: counting mean loss %.5f \n',
                         epoch_num,
                         np.mean(epoch_loss_per_task["reg_estimation"]))
@@ -1104,10 +1143,10 @@ def run(args=None):
 
                     legonet.eval()
 
-                    util.printf("Counting evaluation: ")
+                    utils.printf("Counting evaluation: ")
 
                     rel_error = counting_eval.eval(dataloader_val, dataset_val, legonet, args)
-                    #util.printf("rel error: %.3f \n", rel_error)
+                    #utils.printf("rel error: %.3f \n", rel_error)
                     print('Rel_error: {:.3f} | prev_best: {:.3f} \n'.format(rel_error, best_rel_error))
 
                     if rel_error < best_rel_error:
@@ -1123,7 +1162,7 @@ def run(args=None):
             elif args.network_type == 'both' or args.network_type == "both_for_roots_2":
                 if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                     if args.network_type == 'both':
-                        util.printf('Epoch %d summary: classification mean %.5f, regression mean %.5f, '
+                        utils.printf('Epoch %d summary: classification mean %.5f, regression mean %.5f, '
                                     'l1_counting_loss %.5f, maps_loss %.5f\n',
                                     epoch_num,
                                     np.mean(epoch_loss_per_task["classification"]),
@@ -1133,7 +1172,7 @@ def run(args=None):
                                     np.mean(epoch_loss_per_task["maps"]))
 
                     if args.network_type == "both_for_roots_2":
-                        util.printf(
+                        utils.printf(
                             'Epoch %d summary: classification mean %.5f, regression mean %.5f, maps_loss %.5f, count_loss %.5f, length_loss %.5f, diameter_loss %.5f\n',
                             epoch_num,
                             np.mean(epoch_loss_per_task["classification"]),
@@ -1146,7 +1185,7 @@ def run(args=None):
 
                 elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     if args.network_type == "both_for_roots_2":
-                        util.printf(
+                        utils.printf(
                             'Epoch %d summary: classification mean %.5f, regression mean %.5f, color_loss %.5f, length_loss %.5f, diameter_loss %.5f\n',
                             epoch_num,
                             np.mean(epoch_loss_per_task["classification"]),
@@ -1156,7 +1195,7 @@ def run(args=None):
                             np.mean(epoch_loss_per_task["diameter"])
                         )
                     else:
-                        util.printf(
+                        utils.printf(
                             'Epoch %d summary: classification mean %.5f, regression mean %.5f, counting mean %.5f \n',
                             epoch_num,
                             np.mean(epoch_loss_per_task["classification"]),
@@ -1178,7 +1217,7 @@ def run(args=None):
 
                         mAP, precision, recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
                                                              score_threshold=config.Detection.min_score, iou_threshold=config.Detection.iou_threshold)
-                        #util.printf("mAP = %.3f ", mAP)
+                        #utils.printf("mAP = %.3f ", mAP)
                         if len(precision)==0:
                             print('mAP: {:.3f} | precision: None | recall: None | prev_best_mAP: {:.3f} \n'.format(mAP, best_mAP))
                         else:
@@ -1186,10 +1225,10 @@ def run(args=None):
                             print('mAP: {:.3f} | precision: {:.3f} | recall : {:.3f} | prev_best_mAP: {:.3f} \n'.format(
                                 mAP, precision[-1], recall[-1], best_mAP))
 
-                    util.printf(args.network_type + " evaluation: ")
+                    utils.printf(args.network_type + " evaluation: ")
 
                     #if args.do_counting:
-                    # util.printf("Detection evaluation:\n")
+                    # utils.printf("Detection evaluation:\n")
                     # kcsv_eval_2.evaluateMAP(dataset_val, dataloader_val, sampler_val, legonet, score_threshold=0.05, show_PR_curve=False)
                     #kcsv_eval_2.evaluate(dataset_val, dataloader_val, sampler_val, legonet, score_threshold=[0.05, 0.5], iou_threshold=[0.5, 0.75], show_PR_curve=True)
 
@@ -1204,7 +1243,7 @@ def run(args=None):
                         else:
                             rel_error = -1
 
-                        util.printf("rel error: %.3f\n", rel_error)
+                        utils.printf("rel error: %.3f\n", rel_error)
 
                     else:
                         print("Iteration: " + iter_num + " | CUDA not available")
@@ -1221,7 +1260,7 @@ def run(args=None):
                     #         if mAP > best_mAP:
                     #             best_mAP = mAP
                     #             print("Current best:", best_mAP)
-                    #             util.printf("*\n")
+                    #             utils.printf("*\n")
                     #
                     #             dir_files = os.listdir(config.General.experiment_path)
                     #             if len(dir_files) > 0:
@@ -1236,7 +1275,7 @@ def run(args=None):
                                                                       'legonet_epoch={}.pt'.format(epoch_num)))#cont_
 
             elif args.network_type == "counting_lean_multiple_out" or args.network_type == "counting_lean_multiple_out_V2":
-                util.printf(
+                utils.printf(
                     'Epoch %d summary - mean losses: count loss %.5f, TRL %.5f, mean_diameter %.5f, diameter_std %.5f,  maps_loss %.5f\n',
                     epoch_num,
                     np.mean(epoch_loss_per_task["count_obj"]),
@@ -1248,10 +1287,10 @@ def run(args=None):
 
                 if args.eval_in_train:
                     legonet.eval()
-                    util.printf("Start evaluation: ")
+                    utils.printf("Start evaluation: ")
 
                     rel_error = counting_eval.eval(dataloader_val, dataset_val, legonet, args)
-                    #util.printf("rel error: %.3f \n", rel_error)
+                    #utils.printf("rel error: %.3f \n", rel_error)
                     print('Rel_error: {:.3f} | prev_best: {:.3f} \n'.format(rel_error, best_rel_error))
 
                     if rel_error < best_rel_error:
@@ -1321,10 +1360,10 @@ def run(args=None):
                 else:
                     rel_error = -1
 
-                util.printf("rel error: %.3f \n", rel_error)
+                utils.printf("rel error: %.3f \n", rel_error)
 
         else:
-            util.printf("Counting evaluation:\n")
+            utils.printf("Attribute estimation evaluation:\n")
             # # rel_error, _ = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=config.General.to_draw,
             # #                            verbose=True)
             # both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet,
@@ -1345,11 +1384,11 @@ def run(args=None):
 def run_offline_validation_double_detection(args=None):
 
     if config.Detect_and_Estimate.crop_from_Pi:
-        from models import model_crop_from_Pi as model
+        from temp import model_crop_from_Pi as model
     else:
-        from models import model_3 as model
+        import model_3 as model
 
-    util.print_args(args)
+    utils.print_args(args)
 
     # set seeders
     torch.manual_seed(19860318)
@@ -1409,11 +1448,11 @@ def run_offline_validation_double_detection(args=None):
             best_err= 1000000
             #best_mAP = 0
             best_epoch = -1
-            # util.printf("Counting evaluation:\n")
-            #util.printf("Detection evaluation:\n")
+            # utils.printf("Counting evaluation:\n")
+            #utils.printf("Detection evaluation:\n")
             #for i in range(0, 99, 1): # loop backwards
 
-            epoch_files = util.getfiles(os.path.join(config.General.experiment_path), reverse=True)  # util.getfiles(os.path.join(config.General.experiment_path, 'Load_from_weights'), reverse=True)
+            epoch_files = utils.getfiles(os.path.join(config.General.experiment_path), reverse=True)  # utils.getfiles(os.path.join(config.General.experiment_path, 'Load_from_weights'), reverse=True)
 
             for file_name in epoch_files:
 
@@ -1426,7 +1465,7 @@ def run_offline_validation_double_detection(args=None):
                                         min_score=config.Detection.min_score)
 
                 current_model = file_name #'legonet_epoch='+str(i)+'.pt' #file_name)
-                util.load_model_weights(os.path.join(config.General.experiment_path, current_model) , legonet)
+                utils.load_model_weights(os.path.join(config.General.experiment_path, current_model) , legonet)
 
                 use_gpu = True
 
@@ -1447,7 +1486,7 @@ def run_offline_validation_double_detection(args=None):
                     best_err = avg_error  # best_mAP=mAP
                     best_epoch = file_name
 
-                    util.printf("model: %s, avg_error: %.3f, best_model: %s, best_avg_error: %.3f, best_min_score: %.1f, best_iou_th %.1f \n",
+                    utils.printf("model: %s, avg_error: %.3f, best_model: %s, best_avg_error: %.3f, best_min_score: %.1f, best_iou_th %.1f \n",
                                 current_model, avg_error, best_epoch, best_err, best_min_score, best_iou_th)
 
 
@@ -1457,18 +1496,18 @@ def run_offline_validation_double_detection(args=None):
                 best_min_score = score_thresh
 
 
-            util.printf('best_abs_error = %.2f, best_iou_th = %.1f, best_min_score =  %.1f', best_abs_error, best_iou_th, best_min_score)
+            utils.printf('best_abs_error = %.2f, best_iou_th = %.1f, best_min_score =  %.1f', best_abs_error, best_iou_th, best_min_score)
             print()
 
 
 def run_offline_validation(args=None):
 
     if config.Detect_and_Estimate.crop_from_Pi:
-        from models import model_crop_from_Pi as model
+        from temp import model_crop_from_Pi as model
     else:
-        from models import model_3 as model
+        import model_3 as model
 
-    util.print_args(args)
+    utils.print_args(args)
 
     # set seeders
     torch.manual_seed(19860318)
@@ -1522,11 +1561,11 @@ def run_offline_validation(args=None):
             best_err= 1000000
             #best_mAP = 0
             best_epoch = -1
-            # util.printf("Counting evaluation:\n")
-            #util.printf("Detection evaluation:\n")
+            # utils.printf("Counting evaluation:\n")
+            #utils.printf("Detection evaluation:\n")
             #for i in range(0, 99, 1): # loop backwards
 
-            epoch_files = util.getfiles(config.General.experiment_path, reverse=True)
+            epoch_files = utils.getfiles(config.General.experiment_path, reverse=True)
 
             for file_name in epoch_files:
 
@@ -1544,15 +1583,15 @@ def run_offline_validation(args=None):
                                         min_score=config.Detection.min_score)
 
                 current_model = file_name #'legonet_epoch='+str(i)+'.pt' #file_name)
-                util.load_model_weights(os.path.join(config.General.experiment_path, current_model) , legonet)
+                utils.load_model_weights(os.path.join(config.General.experiment_path, current_model) , legonet)
 
                 if args.load_model_and_partial:
                     # load the same detector...
-                    util.load_module_weights(legonet, "backbone_for_detect",
+                    utils.load_module_weights(legonet, "backbone_for_detect",
                                              os.path.join(args.partial_weights_dir, 'backbone_for_detect'))
-                    util.load_module_weights(legonet, "find_for_detect",
+                    utils.load_module_weights(legonet, "find_for_detect",
                                              os.path.join(args.partial_weights_dir, "find_for_detect"))
-                    util.load_module_weights(legonet, "Where_Module",
+                    utils.load_module_weights(legonet, "Where_Module",
                                              os.path.join(args.partial_weights_dir, "Where_Module"))
 
                 use_gpu = True
@@ -1576,9 +1615,9 @@ def run_offline_validation(args=None):
                             best_epoch=file_name
                             #best_epoch=i
 
-                    util.printf("model: %s, rel_error: %.3f, best_model: %s, best_orig_avg_rel_error: %.3f, best_min_score: %.1f, best_iou_th %.1f ",
+                    utils.printf("model: %s, rel_error: %.3f, best_model: %s, best_orig_avg_rel_error: %.3f, best_min_score: %.1f, best_iou_th %.1f ",
                                 current_model, rel_err, best_epoch, best_err, best_min_score, best_iou_th)
-                    util.printf("[%.3f, %d, %d, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f]\n", out[0], out[1], out[2], out[3], out[4], out[5], out[6], out[7], out[8])
+                    utils.printf("[%.3f, %d, %d, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f]\n", out[0], out[1], out[2], out[3], out[4], out[5], out[6], out[7], out[8])
                 else:
                     print("model: {}, There are no images with predicted boxes".format(current_model))
                 # print("##############################################################################################################################################")
@@ -1596,11 +1635,11 @@ def visualize_detection(args, save_path = ""):
 
 
     if config.Detect_and_Estimate.crop_from_Pi:
-        from models import model_crop_from_Pi as model
+        from temp import model_crop_from_Pi as model
     else:
-        from models import model_3 as model
+        import model_3 as model
 
-    util.print_args(args)
+    utils.print_args(args)
 
     if save_path != "":
         if not os.path.exists(save_path):
@@ -1633,7 +1672,7 @@ def visualize_detection(args, save_path = ""):
                                 min_score=config.Detection.min_score)
 
     print('Loading weights from: ', args.model_path)
-    util.load_model_weights(source_model_path=args.model_path, destination_model=legonet)
+    utils.load_model_weights(source_model_path=args.model_path, destination_model=legonet)
 
     use_gpu = True
 

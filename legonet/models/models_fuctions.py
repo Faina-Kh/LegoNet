@@ -5,7 +5,7 @@ import numpy as np
 import cv2
 
 import config
-from legonet.myDataloader import UnNormalizer
+from legonet.my_dataloader import UnNormalizer
 
 
 ##########################################################################################################

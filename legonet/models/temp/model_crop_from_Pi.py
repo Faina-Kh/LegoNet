@@ -2,19 +2,18 @@ import torch
 import torch.nn as nn
 import torchvision.ops
 
-from legacy_scripts import losses
+import losses
 import anchors
 
 import math, copy
 
 #import legos_2
-from legos import legos_3
+import legos
 
-import util
 import config
 from torchvision.ops import roi_align
 
-from legonet.myDataloader import UnNormalizer
+from legonet.my_dataloader import UnNormalizer
 import numpy as np
 import cv2
 
@@ -37,11 +36,11 @@ class LEGONet(nn.Module):
         self.min_score = min_score
 
         if self.backbone_type == "ResNetBackboneModule":
-            self.backbone_1 = legos_3.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_detect')
+            self.backbone_1 = legos.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_detect')
 
             in_channels = 256
             self.find_1 = legos_3.FindModule(num_features_in = in_channels, num_classes=num_classes, name='find_for_detect', task='detection')
-            self.where = legos_3.WhereModule(network_type, num_features_in = in_channels)
+            self.where = legos.WhereModule(network_type, num_features_in = in_channels)
 
             prior = 0.01
             self.find_1.feature_classification.output.weight.data.fill_(0)
@@ -49,23 +48,23 @@ class LEGONet(nn.Module):
             self.where.feature_regression.output.weight.data.fill_(0)
             self.where.feature_regression.output.bias.data.fill_(0)
 
-            self.backbone_2 = legos_3.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_count')
-            self.find_2 = legos_3.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
+            self.backbone_2 = legos.ResNetBackboneModule(depth=50, pretrained=pretrained, name='backbone_for_count')
+            self.find_2 = legos.FindModule(num_features_in=in_channels, num_classes=num_classes, name='find_for_count', task='counting')
             #self.find_2.feature_classification.output_counting.weight.data.fill_(0)
             #self.find_2.feature_classification.output_counting.bias.data.fill_(-math.log((1.0 - prior) / prior))
 
 
-        self.FindForCount = legos_3.FindForCount(num_classes)
+        self.FindForCount = legos.FindForCount(num_classes)
 
-        self.LeanCountingModule = legos_3.LeanCountingModule(num_classes, inter_losses = config.AttributeEstimation.inter_losses)
+        self.LeanCountingModule = legos.LeanCountingModule(num_classes, inter_losses = config.AttributeEstimation.inter_losses)
 
-        self.CountWithRegModule = legos_3.CountWithRegModule(num_classes)
+        self.CountWithRegModule = legos.CountWithRegModule(num_classes)
 
         self.roi_align = roi_align
 
         self.anchors = anchors.Anchors()
         self.regressBoxes = legos_3.BBoxTransform()
-        self.clipBoxes = legos_3.ClipBoxes()
+        self.clipBoxes = legos.ClipBoxes()
 
         self.focalLoss = losses.FocalLoss()
 
@@ -459,11 +458,16 @@ class LEGONet(nn.Module):
                             # img input should be tensor [b,c,h,w]
                             if self.backbone_type == "ResNetBackboneModule":
 
-                               if config.Detect_and_Estimate.two_backbones:
-                                   bbox_pyramid_feats = self.backbone_2(sample['img'].cuda())
+                               # if config.Detect_and_Estimate.two_backbones:
+                               #     bbox_pyramid_feats = self.backbone_2(sample['img'].cuda())
+                               #
+                               # elif config.Detect_and_Estimate.single_backbone:
+                               #      bbox_pyramid_feats = self.backbone_1(sample['img'].cuda())
 
-                               elif config.Detect_and_Estimate.single_backbone:
+                               if config.Detect_and_Estimate.single_backbone:
                                     bbox_pyramid_feats = self.backbone_1(sample['img'].cuda())
+                               else:
+                                   bbox_pyramid_feats = self.backbone_2(sample['img'].cuda())
 
 
                             bbox_pyramid_p3 = [bbox_pyramid_feats[0]]  # [p3]

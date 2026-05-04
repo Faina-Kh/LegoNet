@@ -151,7 +151,7 @@ class ResNetBackboneModule(nn.Module):
         if not self.pretrained:
             init_module_weights(self)
         else:
-            self.load_state_dict(model_zoo.load_url(resnet_module_urls[module_url], model_dir='../../archive/legacy_launchers'), strict=False)
+            self.load_state_dict(model_zoo.load_url(resnet_module_urls[module_url], model_dir='../../../archive/legacy_launchers'), strict=False)
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
@@ -443,8 +443,6 @@ class FeatureClassification(nn.Module):
             new_outputs[2] = new_outputs[2].squeeze(3)
             new_outputs[3] = new_outputs[3].squeeze(3)
             new_outputs[5] = new_outputs[5].squeeze(3)
-
-            #return new_outputs
 
             return {'feature_maps': x1, 'find_maps': new_outputs}
 
@@ -830,14 +828,15 @@ class SmoothStepFunction(nn.Module):
 ########################################################################################################################
 
 
-class LeanCountingModule(nn.Module): #LeanCountingModule #EstimateWithKeyPointsModule
+class KeypointBasedEstimator(nn.Module): #LeanCountingModule #EstimateWithKeyPointsModule
 
-    def __init__(self, output_size = 1, name = "Lean_Estimation_Module", loss_for = "", binary_model = False):
-        super(LeanCountingModule, self).__init__() #LeanEstimationModule
+    def __init__(self, output_size = 1, name = "D+R_module", attribute_name = "", binary_model = False, binary_loss_version = "L1Loss"):
+        super(KeypointBasedEstimator, self).__init__() #LeanCountingModule
 
         self.name = name
-        self.loss_for = loss_for
+        self.attribute_name = attribute_name
         self.binary_model = binary_model
+        self.binary_loss_version = binary_loss_version
 
         # self.ConvForCount = ConvForCount()
         self.GlobalAveragePooling2D = torch.nn.AdaptiveAvgPool2d(output_size=(1, 1))  # assumes input size (N, C, H, W), output is (N,C,H_out,W_out)
@@ -930,11 +929,11 @@ class LeanCountingModule(nn.Module): #LeanCountingModule #EstimateWithKeyPointsM
             if self.binary_model: #config.General.binary_model:
                 #reg_output_downsampled = self.sigmoid_for_binary1(reg_output_downsampled)
 
-                if config.General.binary_loss_version == "L1Loss":
+                if self.binary_loss_version == "L1Loss":
                     reg_output_downsampled = self.forBinary_reg_layer_L1(reg_output_downsampled)
                     sec_reg_output = self.sigmoid_for_binary2(reg_output_downsampled)
 
-                elif config.General.binary_loss_version == "crossEnt":
+                elif self.binary_loss_version == "crossEnt":
                     reg_output_downsampled = self.forBinary_reg_layer_crossEnt(reg_output_downsampled)
                     sec_reg_output = reg_output_downsampled.softmax(dim=1)
             else:
@@ -985,27 +984,27 @@ class LeanCountingModule(nn.Module): #LeanCountingModule #EstimateWithKeyPointsM
                     losses.append(self.L1loss(annotations[0].squeeze(dim=-1)[:,i], output[:,i]))
                 else:
                     if self.binary_model: #config.General.binary_model:
-                        if config.General.binary_loss_version == "L1Loss":
+                        if self.binary_loss_version == "L1Loss":
                             losses.append(self.L1loss(annotations[0].float(), output[:,0]))
-                        elif config.General.binary_loss_version == "crossEnt":
+                        elif self.binary_loss_version == "crossEnt":
                             target = annotations[0].squeeze(dim=1).to(torch.long).to(config.General.device)  #
                             losses.append(self.crossEnt(output, target))
                         #self.binaryLoss(annotations[0].squeeze(dim=1), output[:, i].detach()))
                     else:
-                        if self.loss_for == "length":
+                        if self.attribute_name == "length":
                             losses.append(self.L1loss(annotations[1].float(), output[:, 0])) # self.L1loss(annotations[0].squeeze(dim=1), output[:, i]))
-                        elif self.loss_for == "diameter":
+                        elif self.attribute_name == "diameter":
                             losses.append(self.L1loss(annotations[2].float(), output[:, 0]))
-                        else:
+                        elif self.attribute_name == "color":
                             losses.append(self.L1loss(annotations[0].float(), output[:, 0])) #self.L1loss(annotations[0].squeeze(dim=1), output[:, i]))
 
             return (losses)
 
         else:
-            if self.binary_model and config.General.binary_loss_version == "crossEnt": #config.General.binary_model
+            if self.binary_model and self.binary_loss_version == "crossEnt": #config.General.binary_model
                 output = torch.argmax(output)
 
-            if self.binary_model and config.General.binary_loss_version == "L1Loss": #config.General.binary_model
+            if self.binary_model and self.binary_loss_version == "L1Loss": #config.General.binary_model
                 output = torch.round(output)
 
             return [output,
@@ -1014,10 +1013,13 @@ class LeanCountingModule(nn.Module): #LeanCountingModule #EstimateWithKeyPointsM
 
 class EstimateRegSubmodel(nn.Module):
 
-    def __init__(self, num_features_in=256, FC_num_of_neurons = 128, feature_size = 256, name = 'FC_submodel'):
+    def __init__(self, num_features_in=256, FC_num_of_neurons = 128, feature_size = 256, name = 'FC_submodel',
+                 binary_model = False):
         super(EstimateRegSubmodel, self).__init__()
 
         self.name = name
+        self.binary_model = binary_model
+
         self.FC_num_of_neurons = FC_num_of_neurons
 
         self.conv1 = nn.Conv2d(num_features_in, feature_size, kernel_size=3, padding=1) #'strides': 1,'padding': 'same'
@@ -1047,7 +1049,7 @@ class EstimateRegSubmodel(nn.Module):
         #torch.nn.init.xavier_uniform_(self.regression_output)  # Glorot init, the default in keras Dense
         self.regression_output.bias.data.zero_()
 
-        if config.General.binary_model or config.Detect_and_Estimate.type == "both_for_roots_2":
+        if self.binary_model or config.Detect_and_Estimate.type == "both_for_roots_2":
             self.act_Dense1_sig = nn.Sigmoid()
             self.act_Dense2_sig = nn.Sigmoid()
             self.act_Dense3 = nn.Sigmoid()
@@ -1063,42 +1065,41 @@ class EstimateRegSubmodel(nn.Module):
         GlobalAvgPool_features = self.GlobalAveragePooling2D(out) # needs to be 256*1 vector
         FC_regression = self.FC_regression(GlobalAvgPool_features.squeeze(dim=3).squeeze(dim=2))
 
-        if config.General.binary_model:
+        if self.binary_model:
             FC_regression = self.act_Dense1_sig(FC_regression)
         else:
             FC_regression = self.act_Dense1(FC_regression)
 
         FC2_regression = self.FC_regression2(FC_regression)
 
-        if config.General.binary_model:
+        if self.binary_model:
             FC2_regression = self.act_Dense2_sig(FC2_regression)
         else:
             FC2_regression = self.act_Dense2(FC2_regression)
 
         regression_output = self.regression_output(FC2_regression).double() # activation='relu'
 
-        if config.General.binary_model:
+        if self.binary_model:
             regression_output[:,0] = self.act_Dense3(regression_output[:,0])
 
 
         return regression_output
 
 
-class EstimateWithRegModule(nn.Module): #"CountWithRegModule"
+class RegressionBasedEstimator(nn.Module): #"CountWithRegModule"
 
-    def __init__(self, num_classes, name = "EstimateWithRegModule"):
-        super(EstimateWithRegModule, self).__init__()
+    def __init__(self, num_classes, name = "MSR", binary_model = False):
+        super(RegressionBasedEstimator, self).__init__()
 
         self.name = name
         self.num_classes = num_classes
+        self.binary_model = binary_model
 
         self.L1loss = nn.L1Loss()  # the mae loss
         self.mseLoss = nn.MSELoss()
-
         self.countLoss = modular_losses.mu_sig_gyf()
 
-        if config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-            self.EstimateRegSubmodel = EstimateRegSubmodel()
+        self.regSubmodel = EstimateRegSubmodel(binary_model = self.binary_model)
 
     def forward(self, inputs):
 
@@ -1107,7 +1108,7 @@ class EstimateWithRegModule(nn.Module): #"CountWithRegModule"
         else:
             pyramid_feats = inputs
 
-        output = [self.EstimateRegSubmodel(feature) for feature in pyramid_feats]
+        output = [self.regSubmodel(feature) for feature in pyramid_feats]
 
         ######################################################################################
         best_out = []
@@ -1131,7 +1132,7 @@ class EstimateWithRegModule(nn.Module): #"CountWithRegModule"
             return (self.countLoss(annotations.squeeze(dim=1), best_out.float()))
 
         else:
-            if config.General.binary_model:
+            if self.binary_model:
                 return [torch.round(best_out[:, 0])]
             return [best_out[:,0]] #count pred
 

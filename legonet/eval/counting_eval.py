@@ -141,7 +141,7 @@ def SumOfAbsDifferences(A,B):
 
 def visualize_images(predicted_maps, gt_maps, image_name, imgToVis, draw_path, count_pred, count_GT=None):
     # font = ImageFont.truetype(<font-file>, <font-size>)
-    font = ImageFont.truetype("arial.ttf", 60) #15) #60
+    font = ImageFont.truetype("arial.ttf", 30) #15) #60
     attribute = "TRL" #"count"
 
 
@@ -255,10 +255,10 @@ def eval(dataloader, dataset, model, args):
                         else:
                             count_GT = data['annot'][0].numpy()[0,0,0]
 
-                        count_pred = float(model([data['img'].to(config.General.device).float(), data['annot']])[0].cpu().detach().numpy())
+                        count_pred = float(model([data['img'].to(config.General.device).float(), data['annot']])[0].squeeze().item())
 
                     else:
-                        count_pred = float(model([data['img'].to(config.General.device).float()])[0].cpu().detach().numpy())
+                        count_pred = float(model([data['img'].to(config.General.device).float()])[0].squeeze().item())
 
                     if count_pred<0:
                         count_pred=0
@@ -288,14 +288,11 @@ def eval(dataloader, dataset, model, args):
 
                         ###########################################################################################################
 
-
-
-
                     else:
                         count_outputs = model([data['img'].to(config.General.device).float()])
 
 
-                    count_pred = float(count_outputs[0].cpu().detach().numpy())
+                    count_pred = count_outputs[0].squeeze().item() #float(count_outputs[0].cpu().detach().numpy())
                     #if config.General.binary_model:
                         #count_pred=np.round(count_pred)
 
@@ -325,18 +322,15 @@ def eval(dataloader, dataset, model, args):
                     predicted_maps = count_outputs[1:5]
                     predicted_maps.append(count_outputs[6])
 
-
-
-
                 if (args.network_type == 'counting_lean' or args.network_type ==  "counting_lean_multiple_out" or
-                    args.network_type ==  "counting_lean_multiple_out_V2") and args.visualize_im:
+                    args.network_type ==  "counting_lean_multiple_out_V2") and config.General.to_draw:
                     img = Image.open(os.path.join(dataset.base_dir, full_rgbImage_name))
                     if args.have_GT and args.val_csv_leaf_location_file != "":
-                        visualize_images(predicted_maps, data['annot'][1:6], Image_name, img, args.save_img_path, count_pred, count_GT)
+                        visualize_images(predicted_maps, data['annot'][1:6], Image_name, img, config.DrawProperties.maps_path, count_pred, count_GT)
                     else:
                         if not args.have_GT:
                             count_GT = None
-                        visualize_images(predicted_maps, None, Image_name, img, args.save_img_path, count_pred, count_GT)
+                        visualize_images(predicted_maps, None, Image_name, img, config.DrawProperties.maps_path, count_pred, count_GT)
 
                 if args.have_GT:
                     all_GT_counts.append(count_GT)
@@ -373,7 +367,7 @@ def eval(dataloader, dataset, model, args):
                             avg_rel_error = -1
 
                     else:
-                        if not config.General.binary_model:
+                        if not model.estimator.binary_model: #config.General.binary_model:
                             if count_GT>0:
                                 rel_error = abs(count_GT - count_pred) / count_GT
                                 all_rel_error.append(rel_error)
@@ -458,7 +452,7 @@ def eval(dataloader, dataset, model, args):
 
 
                 else:
-                    if config.General.binary_model:
+                    if  model.estimator.binary_model:
                         if args.have_GT:
 
                             print(
@@ -571,7 +565,7 @@ def eval(dataloader, dataset, model, args):
 
             if args.have_GT:
 
-                if config.General.binary_model:
+                if  model.estimator.binary_model:
                     print('AbsCountDiff: {:.3f} | accuracy {:.3f} \n'.format(
                         AbsCountDiff, 1-AbsCountDiff))
 
@@ -606,14 +600,14 @@ def eval(dataloader, dataset, model, args):
                                     AbsCountDiff, MSE, mean_rel_error))
 
 
-                if config.AttributeEstimation.calc_det_performance and args.save_detection_eval_path != "" and args.have_GT:
+                if config.AttributeEstimation.calc_det_performance and config.General.experiment_path != "" and args.have_GT:
                     recall, precision, ap = calc_recall_precision_ap(T, P)
                     plot_RP_curve(recall, precision, ap,
-                                  save_path=args.save_detection_eval_path)  # config.General.experiment_path)
+                                  save_path=config.General.files_path)  # config.General.experiment_path)
 
                     # print recall and precision  to csv
                     csv_columns = ['recall', 'precision']
-                    csv_file = os.path.join(args.save_detection_eval_path, "parts_recall_precision.csv")
+                    csv_file = os.path.join(config.General.files_path, "parts_recall_precision.csv")
                     f = open(csv_file, 'w', newline='')
                     with f:
                         writer = csv.writer(f)
@@ -648,7 +642,7 @@ def eval(dataloader, dataset, model, args):
                 print("avg dia_mean_error:", np.mean(dia_mean_error_all))
                 print("avg dia_std_error:", np.mean(dia_std_error_all))
 
-            if config.General.binary_model:
+            if  model.estimator.binary_model:
                 if args.have_GT:
                     return AbsCountDiff
                 else:

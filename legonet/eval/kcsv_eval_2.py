@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 
 import tkinter
 
-import util
-from util import printf
+import utils
+from utils import printf
 import config
 
 def compute_overlap(a, b):

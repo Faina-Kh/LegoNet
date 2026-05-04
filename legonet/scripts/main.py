@@ -56,11 +56,18 @@ if args is None:
 args.gpu_num = '0'
 
 args.STORAGE_PATH = 'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
-args.dataset_name = "grapes" #"grapes" #"roots"
-args.network_type = "both" #"both_for_roots_2" # "both" #"bbox_detection"
-args.current_results_dir = 'per_object_counting' #'per_object_attributes' #'bbox_detection' # 'per_object_counting'
+args.dataset_name = "roots" #"grapes" #"roots"
+args.network_type = "both_for_roots_2" #"counting_reg" #"counting_lean" #"both_for_roots_2" # "both" #"bbox_detection"
+args.current_results_dir = 'per_object_attributes_Reg' #'per_object_attributes_KP'  #'TRL_estimator_Reg' #'TRL_estimator_KP' #'per_object_attributes' #'bbox_detection' # 'per_object_counting'
 args.run_script = 'Inference' #'Training' #'Inference'
 val_set = "Val" #"Test" #"Val"
+args.estimate_type = 'reg_fpn_p3_p7_min_sig'  #'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
+
+args.save_from_model_file = False
+args.load_weights = True
+args.load_partial_weights = True
+
+
 
 ######################################################################
 # General paths
@@ -97,12 +104,21 @@ config.Detect_and_Estimate.type = args.network_type
 
 
 # True if loading pre-trained weights
-args.load_weights = True
-args.load_partial_weights = True
-args.load_bbox_det_weights = True
-args.load_per_object_counting_weights = True
-args.load_per_object_attributes_weights = False
+
 args.load_more_partial = False
+
+if args.load_weights and not args.load_partial_weights:
+    args.load_full_model_weights = True
+
+    args.load_bbox_det_weights = False
+    args.load_per_object_counting_weights = False
+    args.load_per_object_attributes_weights = False
+else:
+    args.load_full_model_weights = False
+
+    args.load_bbox_det_weights = True
+    args.load_per_object_counting_weights = True
+    args.load_per_object_attributes_weights = True
 
 args.have_GT = True
 args.num_of_epochs = 300
@@ -116,11 +132,6 @@ args.evaluate_detection = False
 
 args.eval_detection_params = False
 args.evaluate_both = True # relevant to validation, not train (roots)
-
-config.AttributeEstimation.estimate_type = 'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
-
-config.Detect_and_Estimate.two_backbones = True
-
 
 if (args.network_type == "bbox_detection" and args.dataset_name == 'roots') or args.network_type == "both_for_roots_2":
     config.Detection.change_anchors = True
@@ -155,10 +166,8 @@ elif args.dataset_name == 'roots':
         args.dia_loss_weight = 10  # 10 #1000 #10 #100
         args.color_loss_weight = 100  # 100
         args.maps_loss_weight = 1 #10
-        config.General.binary_loss_version = "L1Loss"
+
         #################################################################
-        #config.Detect_and_Estimate.use_new_Find = False
-        #config.General.with_new_layers_for_both = False  # always False for TRL_both, True for regular TRL
 
         args.load_more_partial = False
         limit5Path = ""  # os.path.join("C:\\Users\\Aragorn\\Desktop", "roots project", "Grapevine_data_all",
@@ -192,7 +201,7 @@ elif args.dataset_name == 'roots':
 
         #################################################################
 
-
+config.AttributeEstimation.estimate_type = args.estimate_type
 
 
 ########################################################################################################################
@@ -228,7 +237,7 @@ args.loss_weight = 1  # 1  #1000 #10 #100 # roots_both ablations
 
 ##########################################################################################################
 # ToDo - remove
-config.General.with_new_layers = False  # should be False only for points TRL
+#config.General.with_new_layers = False  # should be False only for points TRL
 
 ##########################################################################################################
 
@@ -373,8 +382,9 @@ if args.run_script == 'Inference':
     else:
         results_dir = config.General.experiment_path
 
-    config.DrawProperties.save_img_path = os.path.join(config.General.experiment_path, "Vis_" + val_set)
-    os.makedirs(config.DrawProperties.save_img_path, exist_ok=True)
+    if args.estimate_type == 'withKeyPoints':
+        config.DrawProperties.save_img_path = os.path.join(config.General.experiment_path, "Vis_" + val_set)
+        os.makedirs(config.DrawProperties.save_img_path, exist_ok=True)
 
     config.General.files_path = os.path.join(results_dir, "OutputFiles_"+ val_set)
     os.makedirs(config.General.files_path, exist_ok=True)
@@ -399,31 +409,78 @@ else:
 # weights related
 ######################################################################
 
-if args.load_weights:
+if  args.network_type == "bbox_detection" or args.network_type == "both" or args.network_type == "both_for_roots_2":
     args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection")
+    os.makedirs(args.bbox_detection_weights_dir, exist_ok=True)
+
+if args.network_type == "both" or args.network_type == "both_for_roots_2":
     if args.network_type == "both":
         args.per_object_weights_dir = os.path.join(args.myExpPath, "Weights", "per_object_counting")
+        if args.estimate_type == 'withKeyPoints':
+            args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'counting_KP')
+        elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
+            args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'counting_Reg')
+
     elif args.network_type == "both_for_roots_2":
         args.per_object_weights_dir = os.path.join(args.myExpPath, "Weights", "per_object_attributes")
-
-    os.makedirs(args.bbox_detection_weights_dir, exist_ok=True)
+        if args.estimate_type == 'withKeyPoints':
+            args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'attributes_KP')
+        elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
+            args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'attributes_Reg')
     os.makedirs(args.per_object_weights_dir, exist_ok=True)
-    # "D:\\from 16\\more_counting_Res\\more_counting_Res\\legonet_epoch=249.pt" #cont_legonet_epoch=14.pt"
 
-    if args.load_bbox_det_weights:
-        args.bbox_detection_weights_file = get_weights_file(args.bbox_detection_weights_dir)
-
-    if args.load_per_object_counting_weights or args.load_per_object_attributes_weights:
-        args.per_object_weights_file = get_weights_file(args.per_object_weights_dir)
-
+if args.network_type == "counting_lean" or args.network_type == "counting_reg":
+    if args.network_type == "counting_lean":
+        args.per_image_weights_dir = os.path.join(args.myExpPath, "Weights", "per_image_attributes", "TRL_KP")
     else:
-        args.weights_dir = os.path.join(args.myExpPath, "Weights",  "per_object_attributes\\keyPoints_based\\2023-05-23_162315")  # args.network_type, "legonet_epoch=249.pt")
-        args.weights_file_path = get_weights_file(args.weights_dir)
+        args.per_image_weights_dir = os.path.join(args.myExpPath, "Weights", "per_image_attributes", "TRL_Reg")
+    os.makedirs(args.per_image_weights_dir, exist_ok=True)
 
-        args.model_path = args.weights_file_path # for initial load of old weights file
+# "D:\\from 16\\more_counting_Res\\more_counting_Res\\legonet_epoch=249.pt" #cont_legonet_epoch=14.pt"
 
-# else:
-#     args.weights_file_path = ""
+if args.load_bbox_det_weights:
+    args.bbox_detection_weights_file = get_weights_file(args.bbox_detection_weights_dir)
+
+if args.load_per_object_counting_weights or args.load_per_object_attributes_weights:
+    args.per_object_weights_file = get_weights_file(args.per_object_weights_dir)
+
+# if args.load_per_image_weights:
+#     args.per_image_weights_file = get_weights_file(args.per_image_weights_dir)
+if args.load_full_model_weights:
+    args.full_model_weights = ""
+
+if args.save_from_model_file:
+    if args.dataset_name == "roots":
+        file_path = "Prev_model_files\\"
+        if args.network_type == "counting_lean":
+            file_path += "keyPoints_based_models\\TRL_only\\2023-01-23_132447"
+            args.output_name = 'TRLwithKeyPoints'
+
+        elif args.network_type == "counting_reg":
+            file_path += "Reg_based_models", "reg_TRL_only\\2023-06-04_175138"
+            args.output_name = 'TRLwithReg'
+
+        elif args.network_type == "both_for_roots_2":
+            if args.estimate_type == 'withKeyPoints':
+                file_path += "keyPoints_based_models\\both_2_detect_3Sets\\2023-05-23_162315"
+                args.output_name = 'AttrWithKeyPoints'
+            elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                file_path += "Reg_based_models\\both_2_detect_3Sets\\2023-05-28_194055"
+                args.output_name = 'AttrWithReg'
+
+    elif args.dataset_name == "grapes":
+        if args.network_type == "both":
+            if args.estimate_type == 'withKeyPoints':
+                file_path = "per_object_counting_trained\\Weights\\2026-04-16_161416"
+            elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                file_path =  ""
+
+    args.weights_dir = os.path.join(args.myExpPath, "Weights", file_path)
+    args.model_path = get_weights_file(args.weights_dir)  # for initial load of old weights file
+
+
+
+
 
 args.partial_weights_dir = ""
 #"C:\\Users\\Aragorn\\Google Drive\\StoragePath\\ExpResults (1)\\KK_Exp_Results_last\\grapes_twoBack_keypoints_sameRadi_fluid_new\\saved_weights_cont_14"

@@ -9,53 +9,116 @@ def rename_state_dict_keys(state_dict, rename_map):
     """
     rename_map: dict like {"old_name": "new_name"}
     """
-    new_state_dict = {}
+    if len(state_dict)>0:
+        new_state_dict = {}
 
-    for k, v in state_dict.items():
-        new_k = k
-        for old, new in rename_map.items():
-            if k.startswith(old):
-                new_k = k.replace(old, new, 1)
-                break
-        new_state_dict[new_k] = v
+        # for k, v in state_dict.items():
+        #     new_k = k
+        #     for old, new in rename_map.items():
+        #         if k.startswith(old):
+        #             new_k = k.replace(old, new, 1)
+        #             break
+        #     new_state_dict[new_k] = v
+
+        for k, v in state_dict.items():
+            parts = k.split(".")
+            parts = [rename_map.get(p, p) for p in parts]
+            new_k = ".".join(parts)
+            new_state_dict[new_k] = v
+    else:
+        new_state_dict = state_dict
 
     return new_state_dict
 
 def list_checkpoint_modules(state_dict):
     return sorted(set(k.split('.')[0] for k in state_dict.keys()))
 
-def save_partial_weights(args, model, tasks = []):
+def save_partial_weights(args, model, file_model, tasks = [], output_name=""):
 
     for task in tasks:
         if task == "bbox_detection":
-            bbox_det_submodules = ['backbone_1', 'find_1', 'where']
-            filtered_state_dict = {
-                k: v for k, v in model.state_dict().items()
-                if any(k.startswith(m) for m in bbox_det_submodules)
-            }
-            torch.save(filtered_state_dict, os.path.join(args.bbox_detection_weights_dir,
-                                                         'legonet_bbox_det_epoch=90.pt')) #'legonet_bbox_det_epoch=249.pt'
+            submodules = ['backbone_1', 'find_1', 'where']
+            rename_map = {}
+            save_path = os.path.join(args.bbox_detection_weights_dir, 'legonet_' + 'bbox_'+args.dataset_name + '.pt')
+            # torch.save(filtered_state_dict, os.path.join(args.bbox_detection_weights_dir,
+            #                                              'legonet_bbox_det_epoch=90.pt')) #'legonet_bbox_det_epoch=249.pt'
 
         if task == "per_object_counting":
-            per_obj_submodules = ['backbone_2', 'find_2', 'LeanCountingModule']
-            filtered_state_dict = {
-                k: v for k, v in model.state_dict().items()
-                if any(k.startswith(m) for m in per_obj_submodules)
-            }
+            if args.estimate_type =='withKeyPoints':
+                submodules = ['backbone_2', 'find_2', 'LeanCountingModule']
 
-            torch.save(filtered_state_dict, os.path.join(args.per_object_weights_dir,
-                                                         'legonet_per_object_count_epoch=249.pt'))
+                rename_map = {'LeanCountingModule': 'estimator'}
+
+            elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                submodules = ['backbone_2', 'find_2', 'CountWithRegModule']
+
+                rename_map = {'CountWithRegModule': 'estimator'}
+
+            save_path = os.path.join(args.per_object_weights_dir, 'legonet_' + output_name + '.pt')
+            # torch.save(filtered_state_dict, os.path.join(args.per_object_weights_dir,
+            #                                              'legonet_per_object_count_epoch=249.pt'))
 
         if task == "per_object_attributes" and args.network_type == "both_for_roots_2":
-            per_obj_submodules = ['backbone_2', 'find_2', 'LeanCountingModule_length', 'LeanCountingModule_diameter',
-                                  'LeanCountingModule_color']
-            filtered_state_dict = {
-                k: v for k, v in model.state_dict().items()
-                if any(k.startswith(m) for m in per_obj_submodules)
-            }
+            if args.estimate_type =='withKeyPoints':
 
-            torch.save(filtered_state_dict, os.path.join(args.per_object_weights_dir,
-                                                         'legonet_per_object_attr_epoch=90.pt'))
+                submodules = ['backbone_2', 'find_2',
+                              'LeanCountingModule_length', 'LeanCountingModule_diameter','LeanCountingModule_color']
+
+                rename_map = {'LeanCountingModule_length': 'estimator_length',
+                              'LeanCountingModule_diameter': 'estimator_diameter',
+                              'LeanCountingModule_color': 'estimator_color'}
+
+            elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                submodules = ['backbone_2', 'find_2',
+                              'CountWithRegModule_length', 'CountWithRegModule_diameter', 'CountWithRegModule_color']
+
+                rename_map = {'CountWithRegModule_length': 'estimator_length',
+                              'CountWithRegModule_diameter': 'estimator_diameter',
+                              'CountWithRegModule_color': 'estimator_color',
+                              'CountRegSubmodel': 'regSubmodel'}
+
+            save_path = os.path.join(args.per_object_weights_dir, 'legonet_' + output_name + '.pt')
+
+            # torch.save(filtered_state_dict, os.path.join(args.per_object_weights_dir,
+            #                                              'legonet_per_object_attr_epoch=90.pt'))
+
+        if task == "per_image_attributes":
+            if args.network_type == "counting_lean":
+                submodules = ['backbone_1', 'find_2', 'LeanCountingModule']
+
+                rename_map = {'backbone_1': 'backbone',
+                              'find_2': 'find',
+                              'LeanCountingModule': 'estimator'}
+
+            elif args.network_type == "counting_reg":
+                submodules = ['backbone_1', 'CountWithRegModule', 'CountRegSubmodel']
+
+                rename_map = {'backbone_1': 'backbone',
+                              'CountWithRegModule': 'estimator',
+                              'CountRegSubmodel': 'regSubmodel'}
+
+            save_path = os.path.join(args.per_image_weights_dir, 'legonet_'+output_name+'.pt')
+
+        filtered_state_dict = {
+            k: v for k, v in file_model.state_dict().items()
+            if any(k == m or k.startswith(m + ".") for m in submodules)
+        }
+
+        renamed_state_dict = rename_state_dict_keys(filtered_state_dict, rename_map)
+        print("Available modules in renamed_state_dict:", list_checkpoint_modules(renamed_state_dict))
+
+        if task == "bbox_detection":
+            load_result = model.bbox_detection.load_state_dict(renamed_state_dict, strict=False)
+        else:
+            load_result = model.load_state_dict(renamed_state_dict, strict=False)
+
+        clean_state_dict = {
+            k: v for k, v in renamed_state_dict.items()
+            if k not in load_result.unexpected_keys
+        }
+        print("Available modules in clean_state_dict:", list_checkpoint_modules(clean_state_dict))
+
+        torch.save(clean_state_dict, save_path)
 
 
 def load_submodule_weights(model, state_dict, submodule_names, strict=True, verbose=True):

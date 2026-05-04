@@ -201,7 +201,7 @@ class csv_LCCDataset(Dataset):
                 except ValueError as e:
                     raise_from(ValueError('invalid CSV annotations file: {}: {}'.format(csv_leaf_location_file, e)), None)
                 self.centers_images_names = [x.replace('rgb', 'centers') for x in rgb_images_names]
-                if 'root' not in self.base_dir and 'Root' not in self.base_dir:
+                if config.General.dataset_name!= 'roots': #'root' not in self.base_dir and 'Root' not in self.base_dir:
                     assert set(list(self.image_data_leaf_location.keys())) == set(
                         self.centers_images_names), 'there are some missing centers annotations'
 
@@ -379,7 +379,7 @@ class csv_LCCDataset(Dataset):
                 raise (ValueError('image {}: doesnt contain label\''.format(img_file)), None)
 
             # Check that the bounding box is valid.
-            if 'root' not in self.base_dir and 'Root' not in self.base_dir:
+            if config.General.dataset_name!= 'roots': #'root' not in self.base_dir and 'Root' not in self.base_dir:
                 if int(float(num_of_leaves)) <= 0:
                     raise ValueError('num_of_leaves must be higher than 0 but is {}'.format(num_of_leaves))
 
@@ -422,7 +422,7 @@ class csv_LCCDataset(Dataset):
         result = {}
         for line, row in enumerate(csv_reader):
             line += 1
-            if "root" not in self.base_dir and "Root" not in self.base_dir:
+            if config.General.dataset_name!= 'roots': #"root" not in self.base_dir and "Root" not in self.base_dir:
                 try:
                     img_file, x, y = row[:3]
                 except ValueError:
@@ -1596,6 +1596,7 @@ def kcsv_collater(data):
     return {'img': padded_imgs, 'bbox_annot': bbox_annot_padded, 'points_annot': points_annot,
             'scale': scale, 'img_name': names}
 
+
 def kcsv_collater_2(data):
     # Turn images and annotations to tensors
 
@@ -1901,7 +1902,6 @@ class Normalizer(object):
                 return {'img':image, 'annot': annots}
             else:
                 return {'img': image}
-
 
 
 class UnNormalizer(object):
