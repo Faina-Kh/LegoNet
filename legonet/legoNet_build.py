@@ -7,7 +7,7 @@ shared lego blocks from ``legos.py``.
 """
 
 from importlib import import_module
-
+import config
 
 def _build_bbox_detection(module, args, dataset):
     return module.BBOX_Detection(num_classes=dataset.num_classes())
@@ -59,6 +59,9 @@ MODEL_REGISTRY = {
         "module_path": "models.model_both_for_roots_2",
         "builder": _build_per_object_estimate,
     },
+    "both_Back2bFind2b":{
+        "module_path": "models.model_both_Back2bFind2b",
+    "builder": _build_per_object_estimate,}
 }
 
 
@@ -68,6 +71,9 @@ def model_build(args, dataset_train, dataset_val):
 
     if args.network_type not in MODEL_REGISTRY:
         raise ValueError(f"Unsupported model variant: {args.network_type}")
+
+    if args.network_type == "both_Back2bFind2b":
+        assert config.AttributeEstimation.estimate_type == 'withKeyPoints'
 
     model_config = MODEL_REGISTRY[args.network_type]
     model_module = import_module(model_config["module_path"])

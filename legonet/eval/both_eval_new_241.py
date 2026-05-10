@@ -455,7 +455,7 @@ def initiate_global_dicts(state=None, image_name='', initiate=False):
         """
 
     is_roots = (config.Detect_and_Estimate.type == "both")
-    is_roots_2 = (config.Detect_and_Estimate.type == "both_for_roots_2")
+    is_roots_2 = (config.Detect_and_Estimate.type == "both_for_roots_2" or config.Detect_and_Estimate.type =="both_Back2bFind2b")
 
     if initiate:
         state = {
@@ -707,14 +707,16 @@ def initiate_global_dicts(state=None, image_name='', initiate=False):
 ##############################################################################################################################
 
 
-def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_maps = True, draw_path= "",
+def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_maps = False, draw_path= "",
          print_to_files=False, args = None):
+    is_roots_2 = (
+                config.Detect_and_Estimate.type == "both_for_roots_2" or config.Detect_and_Estimate.type == "both_Back2bFind2b")
 
     model.eval()
 
     #if to_draw:
     #draw_path = os.path.join("D:\\Faina\\Parts count papers\\paper 2\\docs", "grapes", 'vis_4_6_21')  #config.General.experiment_path, 'vis')
-    if draw_path!= "":
+    if to_draw: #draw_path!= "":
         if not os.path.exists(draw_path):
             os.makedirs(draw_path)
         crops_path = os.path.join(draw_path, "crops")
@@ -729,7 +731,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
     if args.have_GT:
         all_box_annotations, all_count_annotations = _get_count_and_box_annotations(dataset)
 
-    with ((((((torch.no_grad())))))):
+    with (((((((((((torch.no_grad()))))))))))):
 
         state = initiate_global_dicts(initiate=True)
         print()
@@ -740,7 +742,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
             orig_count_GT = []
             count_pred = []
 
-            if config.Detect_and_Estimate.type == "both_for_roots_2":
+            if is_roots_2:
                 #crops_TRL_GT = []
                 orig_TRL_GT = []
                 TRL_pred = []
@@ -765,13 +767,13 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
             else:
                 gt_counts_temp = []
 
-            if len(gt_counts_temp)>0 or config.Detect_and_Estimate.type == "both_for_roots_2":
+            if len(gt_counts_temp)>0 or is_roots_2:
                 if len(gt_counts_temp)>0:
                     im_gt_avg = np.sum(gt_counts_temp[:, 0]) / gt_counts_temp.shape[0]
                     state['per_im_gt_avg'].append(im_gt_avg)
                     state['per_im_gt_avg_dict'][image_name] = im_gt_avg
 
-                    if config.Detect_and_Estimate.type == "both_for_roots_2":
+                    if is_roots_2:
                         TRL_im_gt_sum = np.sum(gt_counts_temp[:, 3]) #/ gt_counts_temp.shape[0]
                         state['TRL_per_im_gt_sum'].append(TRL_im_gt_sum)
                         state['TRL_per_im_gt_sum_dict'][image_name] = TRL_im_gt_sum
@@ -785,7 +787,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                     state['per_im_gt_avg'].append(im_gt_avg)
                     state['per_im_gt_avg_dict'][image_name] = im_gt_avg
 
-                    if config.Detect_and_Estimate.type == "both_for_roots_2":
+                    if is_roots_2:
                         TRL_im_gt_sum = 0 # / gt_counts_temp.shape[0]
                         state['TRL_per_im_gt_sum'].append(TRL_im_gt_sum)
                         state['TRL_per_im_gt_sum_dict'][image_name] = TRL_im_gt_sum
@@ -800,8 +802,11 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
             state = initiate_global_dicts(state, image_name)
 
+            printf(
+                "##############################################################################################\n")
+            printf("image: %s\n", image_name)
+            printf("##############################################################################################\n")
 
-            # print('image_name:', image_name)
             if args.have_GT:
 
                 for i in range(len(box_annotations_temp)): # box_annotations_temp - all gt boxes
@@ -820,27 +825,27 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
                 if len(box_annotations_withPoints)==0 and len(box_annotations_all) > 0:
                     if verbose:
-                        printf(
-                            "##############################################################################################\n")
-                        printf("image: %s\n", image_name)
-                        printf("##############################################################################################\n")
+                        # printf(
+                        #     "##############################################################################################\n")
+                        # printf("image: %s\n", image_name)
+                        # printf("##############################################################################################\n")
                         printf("Has gt boxes but no gt points in any gt box...\n")
                         print()
 
-                    if config.Detect_and_Estimate.type != "both_for_roots_2":
+                    if not is_roots_2:
                         continue
 
                 if len(box_annotations_all) == 0:
                     if verbose:
-                        printf(
-                            "##############################################################################################\n")
-                        printf("image: %s\n", image_name)
-                        printf(
-                            "##############################################################################################\n")
+                        # printf(
+                        #     "##############################################################################################\n")
+                        # printf("image: %s\n", image_name)
+                        # printf(
+                        #     "##############################################################################################\n")
                         printf("No gt boxes ...\n")
                         print()
 
-                    if config.Detect_and_Estimate.type != "both_for_roots_2":
+                    if not is_roots_2:
                         continue
 
                 #from list to tensor:
@@ -862,7 +867,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                     state['all_data_gt_count'].append(c[0])
                     state['gt_objects_withGTpoints'] += 1
 
-                    if config.Detect_and_Estimate.type == "both_for_roots_2":
+                    if is_roots_2:
                         state['all_data_gt_TRL'].append(c[3])
                         state['all_data_gt_dia'].append(c[4])
                         state['all_data_gt_color'].append(c[0])
@@ -912,13 +917,13 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
             # get predictions stats
             current_sum = 0 #for count estimate
-            if config.Detect_and_Estimate.type == "both_for_roots_2":
+            if is_roots_2:
                 current_TRL_sum = 0
                 current_dia_sum = 0
 
             if estimation_outputs is not None:
                 for c_out in estimation_outputs[0]:
-                    if config.Detect_and_Estimate.type == "both_for_roots_2":
+                    if is_roots_2:
                         current_pred = np.round(c_out.cpu()[0].numpy())
 
                         current_TRL_pred = c_out.cpu()[1].numpy()
@@ -942,7 +947,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                 state['per_im_pred_avg'].append(current_sum/estimation_outputs[0].shape[0])  # relevant only to counting
                 state['per_im_pred_dict'][image_name] = state['per_im_pred_avg'][-1]
 
-                if config.Detect_and_Estimate.type == "both_for_roots_2":
+                if is_roots_2:
                     state['TRL_per_im_pred_sum'].append(current_TRL_sum) # / estimation_outputs[0].shape[0])
                     state['TRL_per_im_pred_dict'][image_name] = state['TRL_per_im_pred_sum'][-1]
                     state['dia_per_im_pred_avg'].append(current_dia_sum / estimation_outputs[0].shape[0])
@@ -973,10 +978,10 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                 adjusted_crops_orig_boxes = []
 
                 if verbose:
-                    printf(
-                        "##############################################################################################\n")
-                    printf("image: %s\n", image_name)
-                    printf("##############################################################################################\n")
+                    # printf(
+                    #     "##############################################################################################\n")
+                    # printf("image: %s\n", image_name)
+                    # printf("##############################################################################################\n")
                     printf("Image has no predicted boxes...\n")
                     print()
 
@@ -989,7 +994,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                     if config.Detect_and_Estimate.type == "both":
                         state['no_predictions'][image_name].update({'pred': []})
 
-                    if config.Detect_and_Estimate.type == "both_for_roots_2":
+                    if is_roots_2:
                         state['no_predictions'][image_name].update({
                             'TRL_pred': [], 'TRL_gt': [], 'dia_pred': [], 'dia_gt': [], 'color_pred': [], 'color_gt': []
                         })
@@ -1002,7 +1007,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                 state['no_predictions'][image_name]['score'].append(-1)
                 state['no_predictions'][image_name]['max_overlap'].append(-1)
 
-                if config.Detect_and_Estimate.type == "both_for_roots_2":
+                if is_roots_2:
                     state['no_predictions'][image_name]['TRL_pred'].append(0)
                     state['no_predictions'][image_name]['TRL_gt'].append(TRL_im_gt_sum)
                     state['no_predictions'][image_name]['dia_pred'].append(0)
@@ -1129,7 +1134,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
                             #state['detections_data_any_crop'][image_name]['pred'].append(np.round(estimation_outputs[0][b][0].cpu().item())) # [0] - color, [1] - length, [2] - dia
                         if estimation_outputs is not None:
-                            if config.Detect_and_Estimate.type == "both_for_roots_2":
+                            if is_roots_2:
                                 state['detections_data_any_crop'][image_name]['color_pred'].append(estimation_outputs[0][b][0].cpu().item())
                                 state['detections_data_any_crop'][image_name]['TRL_pred'].append(estimation_outputs[0][b][1].cpu().item())
                                 state['detections_data_any_crop'][image_name]['dia_pred'].append(estimation_outputs[0][b][2].cpu().item())
@@ -1145,18 +1150,19 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
                         adjusted_crops_orig_boxes.append(crops_orig_boxes[b])
 
-                        if config.AttributeEstimation.estimate_type == 'withKeyPoints' and config.DrawProperties.DRAW_MAPS:
-                            all_predicted_detection_maps.append(orig_predicted_detection_maps[-1][b])
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
+                            if config.DrawProperties.DRAW_MAPS:
+                                all_predicted_detection_maps.append(orig_predicted_detection_maps[-1][b])
 
-                            #if to_draw and config.DrawProperties.DRAW_MAPS: #draw_maps:
-                            all_predicted_detection_maps_toDraw.append([
-                                orig_predicted_detection_maps[0][b], orig_predicted_detection_maps[1][b],
-                                orig_predicted_detection_maps[2][b], orig_predicted_detection_maps[3][b],
-                                orig_predicted_detection_maps[4][b]])
+                                #if to_draw and config.DrawProperties.DRAW_MAPS: #draw_maps:
+                                all_predicted_detection_maps_toDraw.append([
+                                    orig_predicted_detection_maps[0][b], orig_predicted_detection_maps[1][b],
+                                    orig_predicted_detection_maps[2][b], orig_predicted_detection_maps[3][b],
+                                    orig_predicted_detection_maps[4][b]])
 
-                            if sample_anns is not None:
-                                all_crops_GT_detections_maps.append(
-                                    sample_anns['points_annot'][5][b])  # sample_anns['points_annot'][-1][5][0]
+                                if sample_anns is not None:
+                                    all_crops_GT_detections_maps.append(
+                                        sample_anns['points_annot'][5][b])  # sample_anns['points_annot'][-1][5][0]
 
                         if sample_anns is not None and args.have_GT: #assuming having GT anns
                             current_count = sample_anns['points_annot'][0][b].item()
@@ -1262,7 +1268,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                 else:
                     max_gt_count_of_crop = -1
 
-                if max_gt_count_of_crop == -1 and config.Detect_and_Estimate.type != "both_for_roots_2":
+                if max_gt_count_of_crop == -1 and not is_roots_2:
                     sample_anns = None
                 else:
                     if config.AttributeEstimation.estimate_type == 'withKeyPoints' and config.DrawProperties.DRAW_MAPS:
@@ -1279,15 +1285,15 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
             if np.sum(crops_count_GT)==0 and len(bbox_pred)>0: #sample_anns is None
                 if verbose and args.have_GT:
-                    printf(
-                        "##############################################################################################\n")
-                    printf("image: %s\n", image_name)
-                    printf(
-                        "##############################################################################################\n")
+                    # printf(
+                    #     "##############################################################################################\n")
+                    # printf("image: %s\n", image_name)
+                    # printf(
+                    #     "##############################################################################################\n")
                     printf("No gt points in any predicted crop...\n")
                     print()
 
-                if config.Detect_and_Estimate.type != "both_for_roots_2":
+                if not is_roots_2:
                     continue
 
 
@@ -1378,14 +1384,14 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                             has_points=False
                             for g in range(len(gt_counts)):
                                 if gt_counts[g][2] == gt_box_id:
-                                    if not (config.Detect_and_Estimate.type == "both_for_roots" or config.Detect_and_Estimate.type == "both_for_roots_2"):
+                                    if not is_roots_2:
                                         gt_count = gt_counts[g][0]
                                         orig_count_GT.append(gt_count)
                                         state['detections_data_any_crop'][image_name]['gt_count'].append(gt_count)
 
                                     has_points=True
 
-                                    if config.Detect_and_Estimate.type == "both_for_roots_2":
+                                    if is_roots_2:
                                         gt_TRL = gt_counts[g][3]
                                         orig_TRL_GT.append(gt_TRL)
                                         gt_dia = gt_counts[g][4]
@@ -1397,7 +1403,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                     #collect the found gt indexes in gt_counts
                                     remove_found_ids.append(g)
 
-                                    if config.Detect_and_Estimate.type == "both_for_roots_2":
+                                    if is_roots_2:
                                         state['detections_data_any_crop'][image_name]['color_gt'].append(gt_color)
                                         state['detections_data_any_crop'][image_name]['TRL_gt'].append(gt_TRL)
                                         state['detections_data_any_crop'][image_name]['dia_gt'].append(gt_dia)
@@ -1408,7 +1414,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                             if not has_points:
 
                                 #state['matched_without_gt_points']+=1
-                                if config.Detect_and_Estimate.type != "both_for_roots_2":
+                                if not is_roots_2:
                                     orig_count_GT.append(-1)
                                     state['detections_data_any_crop'][image_name]['gt_count'].append(0)
 
@@ -1422,18 +1428,18 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
 
                         else:
-                            if config.Detect_and_Estimate.type != "both_for_roots_2":
+                            if not is_roots_2:
                                 orig_count_GT.append(-1)
                             # max_overlap_array.append(-1)
                             max_overlap_array.append(max_overlap)
                             state['FP'] += 1
                             state['detections_data_any_crop'][image_name]['label'].append(0)
-                            if config.Detect_and_Estimate.type != "both_for_roots_2":
+                            if not is_roots_2:
                                 state['detections_data_any_crop'][image_name]['gt_count'].append(-1)
 
                             state['detections_data_any_crop'][image_name]['gt_box_id'].append(torch.tensor(-1, dtype=float))
 
-                            if config.Detect_and_Estimate.type == "both_for_roots_2":
+                            if is_roots_2:
                                 orig_TRL_GT.append(-1)
                                 state['detections_data_any_crop'][image_name]['TRL_gt'].append(-1)
                                 orig_dia_GT.append(-1)
@@ -1453,12 +1459,12 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                         state['detections_data_any_crop'][image_name]['max_overlap'].append(-1)
 
                         state['detections_data_any_crop'][image_name]['label'].append(0)
-                        if config.Detect_and_Estimate.type != "both_for_roots_2":
+                        if not is_roots_2:
                             state['detections_data_any_crop'][image_name]['gt_count'].append(-1)
 
                         state['detections_data_any_crop'][image_name]['gt_box_id'].append(torch.tensor(-1, dtype=float))
 
-                        if config.Detect_and_Estimate.type == "both_for_roots_2":
+                        if is_roots_2:
                             orig_TRL_GT.append(-1)
                             state['detections_data_any_crop'][image_name]['TRL_gt'].append(-1)
                             orig_dia_GT.append(-1)
@@ -1487,7 +1493,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                     state['not_found_gt'][image_name]['max_overlap'].append(-1)
 
 
-                    if config.Detect_and_Estimate.type == "both_for_roots_2":
+                    if is_roots_2:
                         state['not_found_gt'][image_name]['TRL_gt'].append(gt_counts_copy[i][3])
                         state['not_found_gt'][image_name]['TRL_pred'].append(-1)
                         state['not_found_gt'][image_name]['dia_gt'].append(gt_counts_copy[i][4])
@@ -1520,7 +1526,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                     state['T']=state['T']+ t
                                     state['P']=state['P']+ p
 
-                    if config.Detect_and_Estimate.type != "both_for_roots_2":
+                    if not is_roots_2:
                         state['all_crops_GT_counts'].append(crops_count_GT)  # based on the number of points in the crop
                         state['all_predicted_counts'].append(np.round(count_pred))
                         state['all_orig_GT_counts'].append(orig_count_GT) # count in the corresponding annotated box, it is -1 if the crop is false positive
@@ -1539,16 +1545,16 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
 
 
-                    if verbose:
-                        if len(crops_count_GT)>0 or (not args.have_GT and len(estimation_outputs) >0) :
-                            printf("#######################################################################################\n")
-                            printf("image: %s\n", image_name)
-                            printf("#######################################################################################\n")
+                    # if verbose:
+                    #     if len(crops_count_GT)>0 or (not args.have_GT and len(estimation_outputs) >0) :
+                    #         printf("#######################################################################################\n")
+                    #         printf("image: %s\n", image_name)
+                    #         printf("#######################################################################################\n")
 
                     maps_idx=0
                     for i in range(len(crops_count_GT)):
                         if crops_count_GT[i] != -1: # there are true points in the crop
-                            if config.Detect_and_Estimate.type != "both_for_roots_2":
+                            if not is_roots_2:
                                 state['crops_abs_diff'].append(abs(crops_count_GT[i] - np.round(count_pred[i]))) #count_pred[i]))
                                 state['crops_rel_error'].append(abs(crops_count_GT[i] - np.round(count_pred[i])) / crops_count_GT[i])
 
@@ -1580,10 +1586,10 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
                         if verbose:
 
-                            if (config.Detect_and_Estimate.type != "both_for_roots_2" and len(orig_count_GT) > 0) \
-                                    or (config.Detect_and_Estimate.type == "both_for_roots_2" and len(orig_color_GT) > 0):
+                            if (not is_roots_2 and len(orig_count_GT) > 0) \
+                                    or (is_roots_2 and len(orig_color_GT) > 0):
 
-                                    if config.Detect_and_Estimate.type != "both_for_roots_2":
+                                    if not is_roots_2:
                                         if orig_count_GT[i] != -1:
                                             printf("orig_count_GT: %d | orig_predicted_count: %d |orig_abs_diff: %.3f | orig_rel_error: %.3f\n",
                                                    int(orig_count_GT[i]), np.round(count_pred[i]) ,state['orig_abs_diff'][-1], state['orig_rel_error'][-1])
@@ -1649,7 +1655,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                         true_id = int(state['detections_data_any_crop'][image_name]['gt_box_id'][i].item()) # box id starts from 1
                                         if true_id !=-1:
 
-                                            if config.Detect_and_Estimate.type == "both_for_roots_2":
+                                            if is_roots_2:
                                                 x1 = gt_boxes[true_id-1, 0].item() / scale[0]
                                                 y1 = gt_boxes[true_id-1, 1].item() / scale[0]
                                                 x2 = gt_boxes[true_id-1, 2].item() / scale[0]
@@ -1742,7 +1748,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                         maps_idx += 1
 
                     if verbose:
-                        if not args.have_GT and len(estimation_outputs) >0 and config.Detect_and_Estimate.type == "both_for_roots_2":
+                        if not args.have_GT and len(estimation_outputs) >0 and is_roots_2:
                             for i in range(len(TRL_pred)):
                                 printf(
                                     "color_pred: %.3f | TRL_pred: %.3f | dia_pred: %.3f \n",
@@ -1778,7 +1784,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
         # print('Get results summary:')
 
-        if config.Detect_and_Estimate.type != "both_for_roots_2":
+        if not is_roots_2:
             if len(state['all_predicted_counts'])==0:
                 if verbose:
                     print('There are no images with predicted boxes')
@@ -1786,7 +1792,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
             num_of_images = len(state['all_crops_GT_counts'])
             relevant_arr = state['all_crops_GT_counts']
 
-        elif config.Detect_and_Estimate.type == "both_for_roots_2":
+        elif is_roots_2:
             if len(state['all_predicted_TRL'])==0:
                 if verbose:
                     print('There are no images with predicted boxes')
@@ -1797,7 +1803,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
 
         # gather all results
-        if config.Detect_and_Estimate.type == "both_for_roots_2":
+        if is_roots_2:
             #total_crops_GT_TRL = []
             total_predicted_TRL = []
 
@@ -1824,7 +1830,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
         for n in range(num_of_images):
             for j in range(len(relevant_arr[n])):
 
-                if config.Detect_and_Estimate.type == "both_for_roots_2":
+                if is_roots_2:
                     #total_crops_GT_TRL.append(state['all_crops_GT_TRL'][n][j])
                     total_predicted_TRL.append(state['all_predicted_TRL'][n][j])
 
@@ -1851,7 +1857,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                             total_orig_box_for_count+=1
                             total_predicted_for_orig_boxes.append(state['all_predicted_counts'][n][j])
 
-        if config.Detect_and_Estimate.type != "both_for_roots_2":
+        if not is_roots_2:
             if len(total_crops_GT_counts)>0:
                 total_crop_boxes = len(total_crops_GT_counts)
 
@@ -1970,7 +1976,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
         if verbose:
 
-            if config.Detect_and_Estimate.type != "both_for_roots_2":
+            if not is_roots_2:
 
                 printf("====================================================================================================\n")
                 printf("Summary - for crops count \n")
@@ -2008,7 +2014,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                            100 * state['found_orig_objects'] / state['gt_objects_withGTpoints'])
                     printf("precision = %.3f\n\n", precision_det)
 
-            if config.Detect_and_Estimate.type != "both_for_roots" and config.Detect_and_Estimate.type != "both_for_roots_2":
+            if not is_roots_2:
                 printf("====================================================================================================\n")
                 printf("GT data summary\n")
                 printf("all_orig_avg_GT_counts: %.3f\n",   np.mean(state['all_data_gt_count']))
@@ -2029,7 +2035,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
             #print('matched_without_gt_points = ', state['matched_without_gt_points'])
             print('crops_without_gt_points = ', state['crops_without_gt_points'])
 
-            if config.Detect_and_Estimate.type != "both_for_roots_2":
+            if not is_roots_2:
                 print('summaries to num of crops ?')
                 print('avg pred count per crop = {:.2f}'.format(np.mean(state['predicted_counts_any_crop'])))
                 print('var of pred count per crop = {:.2f}'.format(np.var(state['predicted_counts_any_crop'])))
@@ -2093,7 +2099,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
         #export detections info
         if print_to_files and args is not None:
-            if config.Detect_and_Estimate.type == "both_for_roots_2":
+            if is_roots_2:
                 csv_columns = ['img','crop' , 'gt_color', 'pred_color', 'label', 'score', 'max_overlap',  'gt_TRL', 'pred_TRL', 'gt_dia','pred_dia']
             else:
                 csv_columns = ['img', 'gt_count', 'pred_count', 'label', 'score','max_overlap']
@@ -2108,7 +2114,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                         myrow = []
                         myrow.append(img)
                         myrow.append(i)
-                        if config.Detect_and_Estimate.type == "both_for_roots_2":
+                        if is_roots_2:
                             myrow.append(mydata['color_gt'][i])
                             myrow.append(mydata['color_pred'][i])
                         else:
@@ -2118,7 +2124,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                         myrow.append(mydata['score'][i])
                         myrow.append(mydata['max_overlap'][i])
 
-                        if config.Detect_and_Estimate.type == "both_for_roots_2":
+                        if is_roots_2:
                             myrow.append(mydata['TRL_gt'][i])
                             myrow.append(mydata['TRL_pred'][i])
                             myrow.append(mydata['dia_gt'][i])
@@ -2128,7 +2134,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
 
             #export not found gt info
-            if config.Detect_and_Estimate.type == "both_for_roots_2":
+            if is_roots_2:
                 csv_columns = ['img', 'gt_color', 'pred_color', 'label', 'score', 'max_overlap', 'gt_TRL', 'pred_TRL', 'gt_dia', 'pred_dia']
             else:
                 csv_columns = ['img', 'gt_count', 'pred', 'label', 'score', 'max_overlap']
@@ -2142,13 +2148,13 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                     if len(mydata)>0:
                         if config.Detect_and_Estimate.type == "both":
                             data_pred = mydata['pred']
-                        elif config.Detect_and_Estimate.type == "both_for_roots_2":
+                        elif is_roots_2:
                             data_pred = mydata['TRL_pred']
 
                         for i in range(len(data_pred)):
                             myrow = []
                             myrow.append(img)
-                            if config.Detect_and_Estimate.type == "both_for_roots_2":
+                            if is_roots_2:
                                 myrow.append(mydata['color_gt'][i])
                                 myrow.append(mydata['color_pred'][i])
 
@@ -2160,7 +2166,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                             myrow.append(mydata['score'][i])
                             myrow.append(mydata['max_overlap'][i])
 
-                            if config.Detect_and_Estimate.type == "both_for_roots_2":
+                            if is_roots_2:
                                 myrow.append(mydata['TRL_gt'][i])
                                 myrow.append(mydata['TRL_pred'][i])
                                 myrow.append(mydata['dia_gt'][i])
@@ -2174,7 +2180,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                         writer.writerow(myrow)
 
             # export image data of images without box predictions
-            if config.Detect_and_Estimate.type == "both_for_roots_2":
+            if is_roots_2:
                 csv_columns = ['img', 'gt_color', 'pred_color', 'label', 'score','max_overlap', 'gt_TRL', 'pred_TRL', 'gt_dia', 'pred_dia']
             else:
                 csv_columns = ['img', 'gt_count', 'pred', 'label', 'score', 'max_overlap']
@@ -2188,14 +2194,14 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                     mydata = state['no_predictions'][img]
                     if config.Detect_and_Estimate.type == "both":
                         data_pred = mydata['pred']
-                    elif config.Detect_and_Estimate.type == "both_for_roots_2":
+                    elif is_roots_2:
                         data_pred = mydata['TRL_pred']
 
                     if len(data_pred) > 0:
                         for i in range(len(data_pred)):
                             myrow = []
                             myrow.append(img)
-                            if config.Detect_and_Estimate.type == "both_for_roots_2":
+                            if is_roots_2:
                                 myrow.append(mydata['color_gt'][i])
                                 myrow.append(mydata['color_pred'][i])
                             else:
@@ -2206,7 +2212,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                             myrow.append(mydata['score'][i])
                             myrow.append(mydata['max_overlap'][i])
 
-                            if config.Detect_and_Estimate.type == "both_for_roots_2":
+                            if is_roots_2:
                                 myrow.append(mydata['TRL_gt'][i])
                                 myrow.append(mydata['TRL_pred'][i])
                                 myrow.append(mydata['dia_gt'][i])
@@ -2217,7 +2223,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                     else:
                         myrow = []
                         myrow.append(img)
-                        if config.Detect_and_Estimate.type == "both_for_roots_2":
+                        if is_roots_2:
                             myrow.append(-1) #'color_pred'
                             myrow.append(-1) #'color_gt'
                         else:
@@ -2228,7 +2234,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                         myrow.append(-1) #'score'
                         myrow.append(-1) #'max_overlap'
 
-                        if config.Detect_and_Estimate.type == "both_for_roots_2":
+                        if is_roots_2:
                             myrow.append(0) #'TRL_pred'
                             myrow.append(0) #'TRL_gt'
                             myrow.append(0) #'dia_pred'
@@ -2259,7 +2265,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                     myrow.append(precision[w])
                     writer.writerow(myrow)
 
-        if config.Detect_and_Estimate.type != "both_for_roots_2":
+        if not is_roots_2:
             out = [orig_avg_rel_error,
                    state['gt_objects_withGTpoints'],
                    state['found_orig_objects'],

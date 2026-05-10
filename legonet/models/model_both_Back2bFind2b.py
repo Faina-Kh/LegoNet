@@ -38,24 +38,14 @@ class PerObjectEstimate(nn.Module):
                                        task='attribute_estimation',
                                        Find_for_count = False) #name='find_for_count', task='counting'
 
-        #################################################################################################################
-        if config.General.twoFind_2:
-            self.find_2_b = legos.FindModule(num_classes=num_classes, name='find_for_attribute',
+        self.find_2_b = legos.FindModule(num_classes=num_classes, name='find_for_attribute',
                                                task='attribute_estimation') #name='find_for_count', task='counting')
-        if config.General.twoBackbone_2:
-            self.backbone_2_b = legos.ResNetBackboneModule(name='backbone_for_attribute') #name='backbone_for_count'
 
-        ################################################################################################################
+        self.backbone_2_b = legos.ResNetBackboneModule(name='backbone_for_attribute') #name='backbone_for_count'
 
-        if config.AttributeEstimation.estimate_type == 'withKeyPoints': #LeanCountingModule
-            self.estimator_length = legos.KeypointBasedEstimator(attribute_name = 'length')
-            self.estimator_diameter = legos.KeypointBasedEstimator(attribute_name = 'diameter')
-            self.estimator_color = legos.KeypointBasedEstimator(attribute_name='color', binary_model=True)
-
-        elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig': #CountWithRegModule
-            self.estimator_length = legos.RegressionBasedEstimator(num_classes)
-            self.estimator_diameter = legos.RegressionBasedEstimator(num_classes)
-            self.estimator_color = legos.RegressionBasedEstimator(num_classes, binary_model=True)
+        self.estimator_length = legos.KeypointBasedEstimator(attribute_name = 'length')
+        self.estimator_diameter = legos.KeypointBasedEstimator(attribute_name = 'diameter')
+        self.estimator_color = legos.KeypointBasedEstimator(attribute_name='color', binary_model=True)
 
         self.roi_align = roi_align
 
@@ -157,48 +147,18 @@ class PerObjectEstimate(nn.Module):
 
                 bbox_pred = torch.cat((bbox_pred, box_scores.unsqueeze(-1)), dim=-1) #[x1,y1,x2,y2,gt_box_id,score]
 
-                if self.training and config.Detection.USE_PERFECT_DETECTION_MODE:
-                    # ToDo - check the issue of using group_idx[img_idx]] vs just img_idx
-                    bbox_pred = detection_anns[img_idx, :, :4].to(config.General.device)
-                    scores = torch.ones(bbox_pred.shape[0], dtype=torch.float32).to(config.General.device)
-                    bbox_pred = torch.cat((bbox_pred, scores.unsqueeze(-1)), dim=-1)
+                # if self.training and config.Detection.USE_PERFECT_DETECTION_MODE:
+                #     # ToDo - check the issue of using group_idx[img_idx]] vs just img_idx
+                #     bbox_pred = detection_anns[img_idx, :, :4].to(config.General.device)
+                #     scores = torch.ones(bbox_pred.shape[0], dtype=torch.float32).to(config.General.device)
+                #     bbox_pred = torch.cat((bbox_pred, scores.unsqueeze(-1)), dim=-1)
 
                 if len(bbox_pred)==0:
                     continue
 
-                if (self.training and config.Detection.DO_BBOX_AUGMENTATION_FOR_COUNTING): # training and counting augmentation is needed
-                    # create new tensor
-                    bbox_pred_adjusted = torch.zeros([bbox_pred.shape[0], 5])
-
-                    for box_idx in range(bbox_pred.shape[0]):
-                        x1, y1, x2, y2 = bbox_pred[box_idx][0], bbox_pred[box_idx][1], \
-                                         bbox_pred[box_idx][2], bbox_pred[box_idx][3]
-
-                        bbox_pred_adjusted[box_idx][0], \
-                        bbox_pred_adjusted[box_idx][1], \
-                        bbox_pred_adjusted[box_idx][2], \
-                        bbox_pred_adjusted[box_idx][3] = utils.augment_bbox_fancy(x1, y1, x2, y2) #utils.augment_bbox(x1, y1, x2, y2)   #utils.augment_bbox_fancy(x1, y1, x2, y2)
-                        bbox_pred_adjusted[box_idx][4] = bbox_pred[box_idx][4]
-
-                    bbox_pred_adjusted = bbox_pred_adjusted.to(config.General.device)
-
-                else:
-                    # having the option to rescale the bbox during inference according to one rescaling factor - given by BBOX_ADJUSTMENT_RATIO
-                    bbox_pred_adjusted = bbox_pred.clone()
-                    if config.Detection.BBOX_ADJUSTMENT_RATIO != 1.0: # need to enlarge/shrink the bbox
-                        for box_idx in range(bbox_pred_adjusted.shape[0]):
-                            x1, y1, x2, y2 = bbox_pred_adjusted[box_idx][0], bbox_pred_adjusted[box_idx][1], bbox_pred_adjusted[box_idx][2], bbox_pred_adjusted[box_idx][3]
-
-                            bbox_pred_adjusted[box_idx][0],\
-                            bbox_pred_adjusted[box_idx][1],\
-                            bbox_pred_adjusted[box_idx][2],\
-                            bbox_pred_adjusted[box_idx][3] = utils.scale_bbox(x1,y1,x2,y2,config.Detection.BBOX_ADJUSTMENT_RATIO)
-
-                            # print(bbox_pred_adjusted[box_idx])
-
+                bbox_pred_adjusted = bbox_pred.clone()
 
                 # Get gt points' annotations
-                #if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                 points = None
                 if self.training or (not self.training and annotations is not None):
                     point_anns = self.dataset.image_data_points_location[img_info['name']]
@@ -279,7 +239,7 @@ class PerObjectEstimate(nn.Module):
                         else:
                             bbox_crops_list.append(bbox_crops)  # torch.tensor(bbox_crops).float().permute(2, 0, 1).unsqueeze(dim=0).to(config.General.device))
 
-        including_counting = False
+        including_estimates = False
 
         if len(bbox_crops_list)>0:
 
@@ -303,33 +263,27 @@ class PerObjectEstimate(nn.Module):
             num_of_crops = sample_anns['img'].shape[0]
 
             # img input should be tensor [b,c,h,w]
-            if config.Detect_and_Estimate.single_backbone:
+            bbox_pyramid_feats= []
+            bbox_pyramid_p3 = []
 
-                bbox_pyramid_feats = self.backbone_1(sample_anns['img'].to(config.General.device))
+            # for the additional Find and Bakbone modules
+            bbox_pyramid_feats_2 = []
+            bbox_pyramid_p3_2 = []
 
-            else:
-                bbox_pyramid_feats= []
-                bbox_pyramid_p3 = []
+            for i in range(num_of_crops):
+                current= self.backbone_2(sample_anns['img'][i].unsqueeze(dim=0).to(config.General.device))
+                bbox_pyramid_feats.append(current)
+                if i==0:
+                    bbox_pyramid_p3.append(bbox_pyramid_feats[i][0]) ##current[0]
+                else:
+                    bbox_pyramid_p3[0] = torch.cat((bbox_pyramid_p3[0], bbox_pyramid_feats[i][0]), dim=0)  #[bbox_pyramid_feats[0]]  # [bbox_pyramid_feats]  # [p3]
 
-                if config.General.twoBackbone_2:
-                    bbox_pyramid_feats_2 = []
-                    bbox_pyramid_p3_2 = []
-
-                for i in range(num_of_crops):
-                    current= self.backbone_2(sample_anns['img'][i].unsqueeze(dim=0).to(config.General.device))
-                    bbox_pyramid_feats.append(current)
-                    if i==0:
-                        bbox_pyramid_p3.append(bbox_pyramid_feats[i][0]) ##current[0]
-                    else:
-                        bbox_pyramid_p3[0] = torch.cat((bbox_pyramid_p3[0], bbox_pyramid_feats[i][0]), dim=0)  #[bbox_pyramid_feats[0]]  # [bbox_pyramid_feats]  # [p3]
-
-                    if config.General.twoBackbone_2:
-                        current_2 = self.backbone_2_b(sample_anns['img'][i].unsqueeze(dim=0).to(config.General.device))
-                        bbox_pyramid_feats_2.append(current_2)
-                        if i == 0:
-                            bbox_pyramid_p3_2.append(bbox_pyramid_feats_2[i][0])
-                        else:
-                            bbox_pyramid_p3_2[0] = torch.cat((bbox_pyramid_p3_2[0], bbox_pyramid_feats_2[i][0]),dim=0)
+                current_2 = self.backbone_2_b(sample_anns['img'][i].unsqueeze(dim=0).to(config.General.device))
+                bbox_pyramid_feats_2.append(current_2)
+                if i == 0:
+                    bbox_pyramid_p3_2.append(bbox_pyramid_feats_2[i][0])
+                else:
+                    bbox_pyramid_p3_2[0] = torch.cat((bbox_pyramid_p3_2[0], bbox_pyramid_feats_2[i][0]),dim=0)
 
 
             if self.training:
@@ -363,69 +317,29 @@ class PerObjectEstimate(nn.Module):
                         length_loss += current_length_loss[0]
                         diameter_loss += current_diameter_loss[0]
 
-                elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-
-                    length_loss = 0
-                    diameter_loss = 0
-                    color_loss = 0
-
-                    for i in range(num_of_boxes):
-                        current_color_loss = self.estimator_color(
-                            [bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels],
-                             corrected_counting_anns[6][i, 0].unsqueeze(dim=0).unsqueeze(dim=0)])
-
-                        current_length_loss = self.estimator_length(
-                            [bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels],
-                             corrected_counting_anns[6][i, 1].unsqueeze(dim=0).unsqueeze(dim=0)])
-                        current_diameter_loss = self.estimator_diameter(
-                            [bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels],
-                             corrected_counting_anns[6][i, 2].unsqueeze(dim=0).unsqueeze(dim=0)])
-
-                        color_loss += current_color_loss
-                        length_loss += current_length_loss
-                        diameter_loss += current_diameter_loss
-
-                including_counting = True
+                including_estimates = True
 
             else:
-                if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-                    SFMS_lists, cls_output = self.find_2(bbox_pyramid_p3)
-                    count_input = SFMS_lists, cls_output
 
-                    if config.General.twoFind_2:
-                        if config.General.twoBackbone_2:
-                            SFMS_lists2, cls_output2 = self.find_2_b(bbox_pyramid_p3_2)
+                SFMS_lists, cls_output = self.find_2(bbox_pyramid_p3)
 
-                        else:
-                            SFMS_lists2, cls_output2 = self.find_2_b(bbox_pyramid_p3)
+                count_input = SFMS_lists, cls_output
 
-                        count_input_2 = SFMS_lists2, cls_output2
+                SFMS_lists2, cls_output2 = self.find_2_b(bbox_pyramid_p3_2)
 
-                    color,_ ,_ ,_ ,_ , _, _ = self.estimator_color(count_input)
+                count_input_2 = SFMS_lists2, cls_output2
 
-                    if config.General.twoFind_2:
-                        length, maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = self.estimator_length(count_input_2)
-                    else:
-                        length, maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = self.estimator_length(count_input)
+                color,_ ,_ ,_ ,_ , _, _ = self.estimator_color(count_input)
 
-                    diameter,_ ,_ ,_ ,_ , _, _ = self.estimator_diameter(count_input)
+                length, maps_0, maps_1, maps_2, maps_3, maps_4, maps_5 = self.estimator_length(count_input_2)
 
-                    estimation_outputs = [torch.cat([color,length,diameter], dim=-1), maps_0, maps_1, maps_2, maps_3, maps_4, maps_5] #counting_outputs
+                diameter,_ ,_ ,_ ,_ , _, _ = self.estimator_diameter(count_input)
 
-                elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                    counting_outputs = []
-                    for i in range(num_of_boxes):
-
-                        current_color = self.estimator_color(bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels])[0]
-                        current_length = self.estimator_length(bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels])[0]
-                        current_diameter= self.estimator_diameter(bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels])[0]
-
-                        counting_outputs.append(torch.cat([current_color,current_length,current_diameter]).unsqueeze(0))
-
-                    estimation_outputs = [torch.cat(counting_outputs, dim=0)] #counting_outputs
+                estimation_outputs = [torch.cat([color,length,diameter], dim=-1), maps_0, maps_1, maps_2, maps_3, maps_4, maps_5] #counting_outputs
                     
         else:
             sample_anns=None
+
 
         if self.training:
             if not self.bbox_detection.training:
@@ -433,32 +347,10 @@ class PerObjectEstimate(nn.Module):
                 regression_loss = None
 
             if counting_anns is not None:
-                if not including_counting: # don't have bbox predictions
-                    if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-                        return classification_loss, regression_loss, None, None, None, None
+                if not including_estimates: # don't have bbox predictions
+                    return classification_loss, regression_loss, None, None, None, None
 
-                    elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                        return classification_loss, regression_loss, None, None, None
-
-                if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-                        return classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss
-
-                elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                    return classification_loss, regression_loss, color_loss, length_loss, diameter_loss
-
-
-            # else:
-            #     if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-            #         if self.network_type == "both":
-            #             return classification_loss, regression_loss, None, None
-            #         elif self.network_type == "both_for_roots_2":
-            #             return classification_loss, regression_loss, None, None, None, None
-            #
-            #     elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-            #         if self.network_type == "both_for_roots_2":
-            #             return classification_loss, regression_loss, None, None, None
-            #         else:
-            #             return classification_loss, regression_loss, None
+                return classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss
 
         else:
             if bbox_pred_adjusted.shape[0] > 0: #len(bbox_crops_list)>0:
@@ -750,13 +642,4 @@ class PerObjectEstimate(nn.Module):
         cv2.imshow('img', img)
         cv2.waitKey(0)
 
-
-
-def main():
-
-    m = torch.load("D:\\PyCharmProjects\\LEGONet\\lean_weights\\legonet_final.pt")
-    utils.save_named_module_weights(m,"D:\\PyCharmProjects\\LEGONet\\lean_weights\\")
-
-if __name__ == '__main__':
-    main()
 

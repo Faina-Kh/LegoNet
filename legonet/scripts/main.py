@@ -57,11 +57,16 @@ args.gpu_num = '0'
 
 args.STORAGE_PATH = 'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = "roots" #"grapes" #"roots"
-args.network_type = "both_for_roots_2" #"counting_reg" #"counting_lean" #"both_for_roots_2" # "both" #"bbox_detection"
-args.current_results_dir = 'per_object_attributes_Reg' #'per_object_attributes_KP'  #'TRL_estimator_Reg' #'TRL_estimator_KP' #'per_object_attributes' #'bbox_detection' # 'per_object_counting'
+args.network_type = "both_Back2bFind2b" # "both_Back2bFind2b" #"counting_reg" #"counting_lean" #"both_for_roots_2" # "both" #"bbox_detection"
+args.current_results_dir = "both_Back2bFind2b"
+#'per_object_attributes_Reg' #'per_object_attributes_KP'  #'TRL_estimator_Reg' #'TRL_estimator_KP'
+# #'per_object_attributes' #'bbox_detection' # 'per_object_counting'
+
 args.run_script = 'Inference' #'Training' #'Inference'
 val_set = "Val" #"Test" #"Val"
-args.estimate_type = 'reg_fpn_p3_p7_min_sig'  #'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
+args.estimate_type = 'withKeyPoints' #'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
+
+args.evaluate_detection = False
 
 args.save_from_model_file = False
 args.load_weights = True
@@ -105,20 +110,21 @@ config.Detect_and_Estimate.type = args.network_type
 
 # True if loading pre-trained weights
 
-args.load_more_partial = False
 
-if args.load_weights and not args.load_partial_weights:
-    args.load_full_model_weights = True
 
-    args.load_bbox_det_weights = False
-    args.load_per_object_counting_weights = False
-    args.load_per_object_attributes_weights = False
-else:
-    args.load_full_model_weights = False
+if args.load_weights:
+    if not args.load_partial_weights:
+        args.load_full_model_weights = True
 
-    args.load_bbox_det_weights = True
-    args.load_per_object_counting_weights = True
-    args.load_per_object_attributes_weights = True
+        args.load_bbox_det_weights = False
+        args.load_per_object_counting_weights = False
+        args.load_per_object_attributes_weights = False
+    else:
+        args.load_full_model_weights = False
+
+        args.load_bbox_det_weights = True
+        args.load_per_object_counting_weights = True
+        args.load_per_object_attributes_weights = True
 
 args.have_GT = True
 args.num_of_epochs = 300
@@ -128,23 +134,23 @@ args.do_Kfold = False
 args.freeze_detection = True
 args.eval_in_train = True
 
-args.evaluate_detection = False
+
 
 args.eval_detection_params = False
 args.evaluate_both = True # relevant to validation, not train (roots)
 
-if (args.network_type == "bbox_detection" and args.dataset_name == 'roots') or args.network_type == "both_for_roots_2":
+if ((args.network_type == "bbox_detection" and args.dataset_name == 'roots') or args.network_type == "both_for_roots_2"
+        or args.network_type == "both_Back2bFind2b"):
     config.Detection.change_anchors = True
     config.Detection.ratios = np.array([0.5, 1, 3])  # np.array([0.5, 1, 3]) #np.array([0.5, 1, 4]) #np.array([0.5, 1, 2])
     print("Detection.ratios:", config.Detection.ratios)
 
-
 if args.network_type != "bbox_detection":
     args.freeze_detection = True
 
-if args.network_type == 'bbox_detection' or args.network_type == "both" or args.network_type == "both_for_roots_2":
+if (args.network_type == 'bbox_detection' or args.network_type == "both" or args.network_type == "both_for_roots_2" or
+        args.network_type == "both_Back2bFind2b"):
     config.Detection.min_score = 0.7  # 0.7 #0.05
-
 
 if args.dataset_name == 'grapes':
     if args.network_type == "bbox_detection":
@@ -156,42 +162,17 @@ if args.dataset_name == 'grapes':
 
 elif args.dataset_name == 'roots':
 
-    if args.network_type == 'bbox_detection' or args.network_type == "both_for_roots_2":
+    if (args.network_type == 'bbox_detection' or args.network_type == "both_for_roots_2" or
+            args.network_type == "both_Back2bFind2b"):
         config.Detection.iou_threshold = 0.5 #0.7 #0.9  # 0.5 #[0.3, 0.5, 0.7, 0.9, 0.95] #0.5
         config.Detection.min_score = 0.7 # 0.8  #0.7 #0.95 #0.5 #0.05
 
-    if args.network_type == "both_for_roots_2":
+    if args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
         config.General.predict_empty_image = True  # why?
         config.AttributeEstimation.do_nmcs = False
         args.dia_loss_weight = 10  # 10 #1000 #10 #100
         args.color_loss_weight = 100  # 100
         args.maps_loss_weight = 1 #10
-
-        #################################################################
-
-        args.load_more_partial = False
-        limit5Path = ""  # os.path.join("C:\\Users\\Aragorn\\Desktop", "roots project", "Grapevine_data_all",
-        # "Results\\both_2_with detect", "changed_colorModel","2023-02-28_184758", "saved_weights_epoch_231")
-        # should be in (path too long) : "I0.7_s 0.7_limit5_10dia_100color", #"fixed_detect", p
-        # "2023-02-28_184758", "saved_weights_epoch_231")
-
-        all_3setsPath = ""  # os.path.join("C:\\Users\\Aragorn\\Desktop", "roots project", "Grapevine_data_all",
-        #  "Results\\both_2_detect_3Sets\\I0.5_s0.7_10_dia_100_color", "2023-05-23_162315","saved_weights_epoch_90")
-
-        args.additional_modules_weights = ""
-        # {"backbone_2":limit5Path,
-        #  "find_2": limit5Path,
-        #  "LeanCountingModule_color": limit5Path,
-        #  "LeanCountingModule_length": all_3setsPath,
-        #  "LeanCountingModule_diameter": limit5Path}
-
-        config.General.twoFind_2 = False
-        config.General.twoBackbone_2 = False
-
-        if config.General.twoFind_2:
-            args.additional_modules_weights["find_2_b"] = os.path.join(all_3setsPath, "find_2")
-        if config.General.twoBackbone_2:
-            args.additional_modules_weights["backbone_2_b"] = os.path.join(all_3setsPath, "backbone_2")
 
         # #os.path.join(args.dataset_path,"Results\\detection\\IOU 0.7_score 0.7_limit_5\\2023-02-15_154227","saved_weights_epoch_280")
         # "IOU 0.9_score 0.7_limit_5\\2023-02-16_150507" ,"saved_weights_epoch_158")
@@ -199,7 +180,7 @@ elif args.dataset_name == 'roots':
         # "C:\\Users\\Aragorn\\Google Drive\\StoragePath\\ExpResults\\KK_Exp_Results\\grapes_twoBack_keypoints_sameRadi_fluid_new\\saved_weights_cont_14"
         # #os.path.join(results_dir, 'wheat_MS5_s0.7_640\\saved_weights_211\\detector_weights')
 
-        #################################################################
+
 
 config.AttributeEstimation.estimate_type = args.estimate_type
 
@@ -246,7 +227,8 @@ args.loss_weight = 1  # 1  #1000 #10 #100 # roots_both ablations
 ######################################################################
 assert args.dataset_name == "grapes" or args.dataset_name == "roots"
 assert (args.network_type == "bbox_detection" or args.network_type == "counting_lean" or
-        args.network_type == "counting_reg" or args.network_type == "both" or args.network_type == "both_for_roots_2")
+        args.network_type == "counting_reg" or args.network_type == "both" or args.network_type == "both_for_roots_2"
+        or args.network_type == "both_Back2bFind2b" )
 
 
 # ToDo- replace args.network_type = "both" or args.network_type = "both_for_roots_2" with 'perObjectEstimate
@@ -267,10 +249,15 @@ if args.run_script == 'Training':
     config.General.to_draw = False
     config.DrawProperties.DRAW_MAPS = False
     config.AttributeEstimation.calc_det_performance = False
-else:
-    config.General.to_draw = True
-    config.DrawProperties.DRAW_MAPS = True
-    config.AttributeEstimation.calc_det_performance = True
+# else:
+#     config.General.to_draw = True
+#     if args.estimate_type == 'withKeyPoints':
+#         config.DrawProperties.DRAW_MAPS = True
+#         config.AttributeEstimation.calc_det_performance = True
+#     else:
+#         config.DrawProperties.DRAW_MAPS = False
+#         config.AttributeEstimation.calc_det_performance = False
+
 
 
 ########################################################################################################################
@@ -286,9 +273,9 @@ elif args.dataset_name == "roots":
         args.dataset_type = 'csv_LCC'
     else:
         args.dataset_type = "roots_json"
-else:
-    args.dataset_type = "coco"
-    args.dataset_name = 'tomato_fruit_12_3_18'
+# else:
+#     args.dataset_type = "coco"
+#     args.dataset_name = 'tomato_fruit_12_3_18'
 
 if args.network_type == "bbox_detection":
     config.General.NETWORK_TYPE = config.NetworkType.detection
@@ -296,7 +283,7 @@ elif args.network_type == "counting_lean":
     config.General.NETWORK_TYPE = config.NetworkType.counting_lean
 elif args.network_type == "counting_reg":
     config.General.NETWORK_TYPE = config.NetworkType.counting_reg
-elif args.network_type == "both" or args.network_type == "both_for_roots_2":
+elif args.network_type == "both" or args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
     config.General.NETWORK_TYPE = config.NetworkType.detection_and_counting
 
 
@@ -358,16 +345,16 @@ elif args.dataset_name == "roots":
             args.train_json_file = os.path.join(myDatasetsPath, 'sub_Train', "Train_Dia_Length_Color.txt")
             args.val_json_file = os.path.join(myDatasetsPath, "sub_" + val_set, val_set + "_Dia_Length_Color.txt")
 
-elif args.dataset_type == "csv_LCC" and args.dataset_name != "roots":
-
-    ds = 'A4'
-    args.dataset_name = 'Counting Datasets\\CVPPP2017_LCC_training\\training\\' + ds
-    args.train_csv_leaf_number_file = os.path.join(myDatasetsPath, args.dataset_name, 'train', ds + '_Train.csv')
-    args.train_csv_leaf_location_file = os.path.join(myDatasetsPath, args.dataset_name, 'train',
-                                                     ds + '_Train_leaf_location.csv')
-    args.val_csv_leaf_number_file = os.path.join(myDatasetsPath, args.dataset_name, 'val', ds + '_Val.csv')
-    args.val_csv_leaf_location_file = os.path.join(myDatasetsPath, args.dataset_name, 'val',
-                                                   ds + '_Val_leaf_location.csv')
+# elif args.dataset_type == "csv_LCC" and args.dataset_name != "roots":
+#
+#     ds = 'A4'
+#     args.dataset_name = 'Counting Datasets\\CVPPP2017_LCC_training\\training\\' + ds
+#     args.train_csv_leaf_number_file = os.path.join(myDatasetsPath, args.dataset_name, 'train', ds + '_Train.csv')
+#     args.train_csv_leaf_location_file = os.path.join(myDatasetsPath, args.dataset_name, 'train',
+#                                                      ds + '_Train_leaf_location.csv')
+#     args.val_csv_leaf_number_file = os.path.join(myDatasetsPath, args.dataset_name, 'val', ds + '_Val.csv')
+#     args.val_csv_leaf_location_file = os.path.join(myDatasetsPath, args.dataset_name, 'val',
+#                                                    ds + '_Val_leaf_location.csv')
 
 
 if args.have_GT:
@@ -382,7 +369,7 @@ if args.run_script == 'Inference':
     else:
         results_dir = config.General.experiment_path
 
-    if args.estimate_type == 'withKeyPoints':
+    if config.General.to_draw:
         config.DrawProperties.save_img_path = os.path.join(config.General.experiment_path, "Vis_" + val_set)
         os.makedirs(config.DrawProperties.save_img_path, exist_ok=True)
 
@@ -409,25 +396,37 @@ else:
 # weights related
 ######################################################################
 
-if  args.network_type == "bbox_detection" or args.network_type == "both" or args.network_type == "both_for_roots_2":
-    args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection")
+if  (args.network_type == "bbox_detection" or args.network_type == "both" or args.network_type == "both_for_roots_2" or
+        args.network_type == "both_Back2bFind2b"):
+
+    if args.network_type == "both_Back2bFind2b":
+        args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection_Back2bFind2b")
+    else:
+        args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection")
     os.makedirs(args.bbox_detection_weights_dir, exist_ok=True)
 
-if args.network_type == "both" or args.network_type == "both_for_roots_2":
-    if args.network_type == "both":
-        args.per_object_weights_dir = os.path.join(args.myExpPath, "Weights", "per_object_counting")
-        if args.estimate_type == 'withKeyPoints':
-            args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'counting_KP')
-        elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
-            args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'counting_Reg')
+    if not args.network_type == "bbox_detection":
 
-    elif args.network_type == "both_for_roots_2":
-        args.per_object_weights_dir = os.path.join(args.myExpPath, "Weights", "per_object_attributes")
-        if args.estimate_type == 'withKeyPoints':
-            args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'attributes_KP')
-        elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
-            args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'attributes_Reg')
-    os.makedirs(args.per_object_weights_dir, exist_ok=True)
+        if args.network_type == "both":
+            args.per_object_weights_dir = os.path.join(args.myExpPath, "Weights", "per_object_counting")
+            if args.estimate_type == 'withKeyPoints':
+                args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'counting_KP')
+            elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'counting_Reg')
+
+        elif args.network_type == "both_for_roots_2":
+            args.per_object_weights_dir = os.path.join(args.myExpPath, "Weights", "per_object_attributes")
+            if args.estimate_type == 'withKeyPoints':
+                args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'attributes_KP')
+            elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'attributes_Reg')
+
+        elif args.network_type == "both_Back2bFind2b":
+            args.per_object_weights_dir = os.path.join(args.myExpPath, "Weights", "per_object_attributes",
+                                                       'both_Back2bFind2b')
+
+        os.makedirs(args.per_object_weights_dir, exist_ok=True)
+
 
 if args.network_type == "counting_lean" or args.network_type == "counting_reg":
     if args.network_type == "counting_lean":
@@ -468,6 +467,41 @@ if args.save_from_model_file:
                 file_path += "Reg_based_models\\both_2_detect_3Sets\\2023-05-28_194055"
                 args.output_name = 'AttrWithReg'
 
+        elif args.network_type == "both_Back2bFind2b":
+            args.output_name = 'AttrWith2B2F'
+            #args.load_more_partial = True
+            #args.partial_weights_dir = file_path + "Three_datasets_detection\\2023-05-20_230659\\saved_weights_epoch_69"
+            weights_dir_path = os.path.join(args.myExpPath, "Weights", "Prev_model_files")
+            bbox_path = weights_dir_path + "\\Three_datasets_detection\\2023-05-20_230659\\legonet_epoch=69.pt"
+
+            limit5Path = weights_dir_path + "\\keyPoints_based_models\\both_2_with detect\\limit5\\2023-02-28_184758\\legonet_epoch=231.pt" #\\saved_weights_epoch_231"
+            # os.path.join("C:\\Users\\Aragorn\\Desktop", "roots project", "Grapevine_data_all",
+            # "Results\\both_2_with detect", "changed_colorModel","2023-02-28_184758", "saved_weights_epoch_231")
+            # should be in (path too long) : "I0.7_s 0.7_limit5_10dia_100color", #"fixed_detect", p
+            # "2023-02-28_184758", "saved_weights_epoch_231")
+
+            all_3setsPath = weights_dir_path + "\\keyPoints_based_models\\both_2_detect_3Sets\\2023-05-23_162315\\legonet_epoch=90.pt" #saved_weights_epoch_90"
+            # os.path.join("C:\\Users\\Aragorn\\Desktop", "roots project", "Grapevine_data_all",
+            #  "Results\\both_2_detect_3Sets\\I0.5_s0.7_10_dia_100_color", "2023-05-23_162315","saved_weights_epoch_90")
+            args.model_path = {"bbox_path": bbox_path, "limit5Path": limit5Path, "all_3setsPath": all_3setsPath}
+
+            args.additional_modules_weights = \
+                {"backbone_2": limit5Path,
+                 "find_2": limit5Path,
+                 "LeanCountingModule_color": limit5Path,
+                 "LeanCountingModule_length": all_3setsPath,
+                 "LeanCountingModule_diameter": limit5Path,
+                 "find_2_b": os.path.join(all_3setsPath, "find_2"),
+                 "backbone_2_b": os.path.join(all_3setsPath, "backbone_2")
+                 }
+
+            # config.General.twoFind_2 = False
+            # config.General.twoBackbone_2 = False
+
+            # args.additional_modules_weights["find_2_b"] = os.path.join(all_3setsPath, "find_2")
+            # args.additional_modules_weights["backbone_2_b"] = os.path.join(all_3setsPath, "backbone_2")
+
+
     elif args.dataset_name == "grapes":
         if args.network_type == "both":
             if args.estimate_type == 'withKeyPoints':
@@ -475,14 +509,11 @@ if args.save_from_model_file:
             elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
                 file_path =  ""
 
-    args.weights_dir = os.path.join(args.myExpPath, "Weights", file_path)
-    args.model_path = get_weights_file(args.weights_dir)  # for initial load of old weights file
+    if not args.network_type == "both_Back2bFind2b":
+        args.weights_dir = os.path.join(args.myExpPath, "Weights", file_path)
+        args.model_path = get_weights_file(args.weights_dir)  # for initial load of old weights file
 
 
-
-
-
-args.partial_weights_dir = ""
 #"C:\\Users\\Aragorn\\Google Drive\\StoragePath\\ExpResults (1)\\KK_Exp_Results_last\\grapes_twoBack_keypoints_sameRadi_fluid_new\\saved_weights_cont_14"
 # #os.path.join(results_dir, 'wheat_MS5_s0.7_640\\saved_weights_211\\detector_weights')
 #os.path.join(results_dir,'grapes_twoBack_reg_P3_P5_fluid_new', 'saved_weights_164')

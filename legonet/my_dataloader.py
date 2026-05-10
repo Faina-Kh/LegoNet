@@ -678,6 +678,7 @@ class KCSVDataset(Dataset):
 
         self.have_GT = have_GT
 
+        self.is_roots_2 = config.Detect_and_Estimate.type == "both_for_roots_2" or config.Detect_and_Estimate.type =="both_Back2bFind2b"
 
         # Take base_dir from annotations file if not explicitly specified.
         if self.base_dir is None:
@@ -719,12 +720,11 @@ class KCSVDataset(Dataset):
             else:
                 self.json_data = None
 
-            if config.General.NETWORK_TYPE.name == "counting_lean_multiple_out":
-                self.image_data_bbox, self.image_data_points_location, self.image_data_outputs = self._read_annotations(classes=self.classes, json_data=self.json_data)
-            elif self.have_GT:
+            if self.have_GT:
                 self.image_data_bbox, self.image_data_points_location = self._read_annotations(classes=self.classes, json_data=self.json_data)
 
         self.img_info = self.get_img_info()
+
 
 
     def get_img_info(self):
@@ -812,14 +812,10 @@ class KCSVDataset(Dataset):
 
         img = self.load_image(idx, pre_process = self.pre_process)
 
-        if config.General.NETWORK_TYPE.name == "counting_lean_multiple_out":
+        if self.have_GT:
             bbox_annot, points_annot = self.load_annotations(idx)
-
         else:
-            if self.have_GT:
-                bbox_annot, points_annot = self.load_annotations(idx)
-            else:
-                bbox_annot, points_annot = None, None
+            bbox_annot, points_annot = None, None
 
         if points_annot is None and bbox_annot is None:
             annot = {}
@@ -950,7 +946,7 @@ class KCSVDataset(Dataset):
             for idx, annot in enumerate(annots):
                 if len(annot['points'])>0:
                     class_name = annot['points_class']
-                    if config.Detect_and_Estimate.type != 'both_for_roots_2':
+                    if not self.is_roots_2: #config.Detect_and_Estimate.type != 'both_for_roots_2':
                         counts[idx, 0] = float(annot['points_count'])
                     else:
                         counts[idx, 0] = float(annot['Root_Color'])
@@ -1146,7 +1142,7 @@ class KCSVDataset(Dataset):
                         # result_bbox
 
                         # find box coordinates
-                        if config.Detect_and_Estimate.type != 'both_for_roots_2':
+                        if not self.is_roots_2: #config.Detect_and_Estimate.type != 'both_for_roots_2':
                             result_bbox[img_file].append({'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2,
                                                           'bbox_class': points_class, 'bbox_id': bbox_id, 'points': points_in_box,
                                                           'points_count': points_num,

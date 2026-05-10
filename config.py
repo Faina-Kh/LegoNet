@@ -4,7 +4,7 @@ import numpy as np
 class DrawProperties:
     POINT_RADIUS = 5
     LINE_WIDTH = 5
-    DRAW_MAPS = True
+    DRAW_MAPS = False
     save_img_path = ''
     maps_path = ''
 
@@ -23,7 +23,7 @@ class General:
     NETWORK_TYPE = ""#NetworkType.counting_lean_multiple_out
     SAVE_EVERY_N_EPOCHS = 5
     experiment_path = ""
-    to_draw = True
+    to_draw = False
     dataset_name=''
     files_path = ""
     #binary_model = False
@@ -31,8 +31,8 @@ class General:
     dataset_type = ""
     current_gpu = ""
     #with_new_layers = True
-    twoFind_2 = False
-    twoBackbone_2 = False
+    #twoFind_2 = False
+    #twoBackbone_2 = False
     predict_empty_image = False
     model_name = ""
     device = ""
@@ -54,7 +54,6 @@ class Detection:
     change_anchors = False
     ratios=None
 
-
 class AttributeEstimation:
     crops_size = [640,640]
     map_1_R = (6, 6)
@@ -63,7 +62,7 @@ class AttributeEstimation:
     map_4_R = (3, 5)
     map_5_R = (3, 3)
 
-    calc_det_performance = True
+    calc_det_performance = False
     do_nmcs = False
     estimate_type = "" #'reg_fpn_p3_p7_min_sig' #('reg_fpn_p3' #) #'withKeyPoints'
     inter_losses = True

@@ -125,12 +125,12 @@ def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05,
                     #[image.cuda().float(), [data['bbox_annot'], None], torch.tensor(group_idx), False])  # image.cuda().float().unsqueeze(dim=0))
             else:
 
-                if config.Detect_and_Estimate.type == "both_for_roots_2":
+                if config.Detect_and_Estimate.type == "both_for_roots_2" or config.Detect_and_Estimate.type == "both_Back2bFind2b":
                     if 'points_annot' in data.keys():
                         detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
                             model([image.to(config.General.device).float(),
                                    [data['bbox_annot'], data['points_annot']],
-                                   torch.tensor(group_idx), True])
+                                   torch.tensor(group_idx)]) #, True])
 
                     else:
                         continue
@@ -647,7 +647,7 @@ def evaluateMAP_simple(generator,
     #     print('th={}, pr={}, rc={}'.format(th, pr, rc))
 
 
-    return np.mean(mAP), np.mean(precision), np.mean(recall) #np.mean(mAP), precision, recall #  None, None precision, recall
+    return np.mean(mAP), precision, recall #np.mean(precision), np.mean(recall) #np.mean(mAP), precision, recall #  None, None precision, recall
 
 
 def evaluate_double_detection(dataset_val_with_counts,
