@@ -26,13 +26,13 @@ class General:
     to_draw = False
     dataset_name=''
     files_path = ""
-    binary_model = False
-    binary_loss_version = ""
+    #binary_model = False
+    #binary_loss_version = ""
     dataset_type = ""
     current_gpu = ""
-    with_new_layers = True
-    twoFind_2 = False
-    twoBackbone_2 = False
+    #with_new_layers = True
+    #twoFind_2 = False
+    #twoBackbone_2 = False
     predict_empty_image = False
     model_name = ""
     device = ""
@@ -45,9 +45,9 @@ class Detection:
     NMS_THRESHOLD = 0.5
     BBOX_ADJUSTMENT_RATIO = 1.0
     DO_BBOX_AUGMENTATION_FOR_COUNTING = False
-    BBOX_SCALING_FOR_COUNTING_AUGMENTATION = np.linspace(start=0.5, stop=1.5, num=11)
+    # BBOX_SCALING_FOR_COUNTING_AUGMENTATION = np.linspace(start=0.5, stop=1.5, num=11)
     iou_threshold = 0.5
-    min_score = 0.7
+    min_score = 0.05 #0.7
     iou_threshold_list = [0.5]
     min_score_list = []
     USE_PERFECT_DETECTION_MODE = False
@@ -81,8 +81,8 @@ class Detect_and_Estimate:
     use_new_Find = False
     crop_from_Pi = False
 
-class detect_with_points:
-    detect_points = False
+# class detect_with_points:
+#     detect_points = False
 
 class roots_ablations:
     freeze_all_except_find_2 = False

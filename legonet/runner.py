@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torchvision import transforms
 from torch.utils.data import DataLoader
-import config
+import config #config_new
 from legonet.eval import coco_eval, counting_eval, kcsv_eval_2
 from legonet.eval import both_eval_new_241 as both_eval
 from my_dataloader import (KCSVDataset, CocoDataset, collater, Resizer, AspectRatioBasedSampler, Augmenter, Normalizer,

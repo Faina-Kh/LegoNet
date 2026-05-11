@@ -3,7 +3,7 @@ import sys
 import argparse
 import torch
 import time
-import config
+import config #config_new
 import paths
 import numpy as np
 from pathlib import Path
@@ -57,16 +57,16 @@ args.gpu_num = '0'
 
 args.STORAGE_PATH = 'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = "roots" #"grapes" #"roots"
-args.network_type = "both_Back2bFind2b" # "both_Back2bFind2b" #"counting_reg" #"counting_lean" #"both_for_roots_2" # "both" #"bbox_detection"
-args.current_results_dir = "both_Back2bFind2b"
+args.network_type = "bbox_detection" #"both_Back2bFind2b" # "both_Back2bFind2b" #"counting_reg" #"counting_lean" #"both_for_roots_2" # "both" #"bbox_detection"
+args.current_results_dir = 'Recheck_bbox_detection'
 #'per_object_attributes_Reg' #'per_object_attributes_KP'  #'TRL_estimator_Reg' #'TRL_estimator_KP'
-# #'per_object_attributes' #'bbox_detection' # 'per_object_counting'
+# #'per_object_attributes' #'bbox_detection' # 'per_object_counting' # "both_Back2bFind2b"
 
 args.run_script = 'Inference' #'Training' #'Inference'
-val_set = "Val" #"Test" #"Val"
+val_set = "Test" #"Test" #"Val"
 args.estimate_type = 'withKeyPoints' #'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
 
-args.evaluate_detection = False
+args.evaluate_detection = True
 
 args.save_from_model_file = False
 args.load_weights = True
@@ -91,6 +91,8 @@ config.General.MODE = args.run_script
 config.General.model_name = args.network_type
 config.Detect_and_Estimate.type = args.network_type
 
+config.AttributeEstimation.calc_det_performance = args.evaluate_detection
+
 #"grapes diff radii"
 #"grapes_twoBack_keyP_sameRadii_train perfect det_fancy aug_20Per_test perfect det"
 #"grapes_twoBack_keyP_sameRadii_perfect det_fancy aug_40Per"
@@ -110,21 +112,20 @@ config.Detect_and_Estimate.type = args.network_type
 
 # True if loading pre-trained weights
 
-
+args.load_full_model_weights = False
+args.load_bbox_det_weights = False
+args.load_per_object_counting_weights = False
+args.load_per_object_attributes_weights = False
 
 if args.load_weights:
     if not args.load_partial_weights:
         args.load_full_model_weights = True
 
-        args.load_bbox_det_weights = False
-        args.load_per_object_counting_weights = False
-        args.load_per_object_attributes_weights = False
     else:
-        args.load_full_model_weights = False
-
         args.load_bbox_det_weights = True
-        args.load_per_object_counting_weights = True
-        args.load_per_object_attributes_weights = True
+        if not args.network_type == "bbox_detection":
+            args.load_per_object_counting_weights = True
+            args.load_per_object_attributes_weights = True
 
 args.have_GT = True
 args.num_of_epochs = 300
@@ -133,7 +134,6 @@ args.do_Kfold = False
 # task specific definitions - ToDo - organize per task type
 args.freeze_detection = True
 args.eval_in_train = True
-
 
 
 args.eval_detection_params = False
@@ -151,6 +151,7 @@ if args.network_type != "bbox_detection":
 if (args.network_type == 'bbox_detection' or args.network_type == "both" or args.network_type == "both_for_roots_2" or
         args.network_type == "both_Back2bFind2b"):
     config.Detection.min_score = 0.7  # 0.7 #0.05
+    config.Detection.iou_threshold = 0.5
 
 if args.dataset_name == 'grapes':
     if args.network_type == "bbox_detection":
@@ -161,11 +162,6 @@ if args.dataset_name == 'grapes':
     config.Detection.NMS_THRESHOLD = 0.3  # default was 0.5 in config
 
 elif args.dataset_name == 'roots':
-
-    if (args.network_type == 'bbox_detection' or args.network_type == "both_for_roots_2" or
-            args.network_type == "both_Back2bFind2b"):
-        config.Detection.iou_threshold = 0.5 #0.7 #0.9  # 0.5 #[0.3, 0.5, 0.7, 0.9, 0.95] #0.5
-        config.Detection.min_score = 0.7 # 0.8  #0.7 #0.95 #0.5 #0.05
 
     if args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
         config.General.predict_empty_image = True  # why?
