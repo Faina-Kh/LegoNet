@@ -42,14 +42,14 @@ class General:
 
 class Detection:
     backbone_type = "ResNetBackboneModule"
-    NMS_THRESHOLD = 0.5
+    NMS_THRESHOLD = 0.3 #0.5
     BBOX_ADJUSTMENT_RATIO = 1.0
     DO_BBOX_AUGMENTATION_FOR_COUNTING = False
     BBOX_SCALING_FOR_COUNTING_AUGMENTATION = np.linspace(start=0.5, stop=1.5, num=11)
     iou_threshold = 0.5
     min_score = 0.7
     iou_threshold_list = [0.5]
-    min_score_list = []
+    min_score_list = [0.05, 0.5, 0.7]
     USE_PERFECT_DETECTION_MODE = False
     change_anchors = False
     ratios=None
@@ -66,7 +66,7 @@ class AttributeEstimation:
     do_nmcs = False
     estimate_type = "" #'reg_fpn_p3_p7_min_sig' #('reg_fpn_p3' #) #'withKeyPoints'
     inter_losses = True
-    num_of_pyr_levels = 3
+    num_of_pyr_levels = 5
     double_counting = False
     Find_for_count = True
 

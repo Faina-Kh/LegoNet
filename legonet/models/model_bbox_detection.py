@@ -41,6 +41,14 @@ class BBOX_Detection(nn.Module):
         self.clipBoxes = legos.ClipBoxes()
         self.focalLoss = losses.FocalLoss()
 
+        self.freeze_bn()
+
+    def freeze_bn(self):
+        '''Freeze BatchNorm layers.'''
+        for layer in self.modules():
+            if isinstance(layer, nn.BatchNorm2d):
+                layer.eval()
+
     def freeze_detector(self):
         self.eval()
         # for p in self.parameters():

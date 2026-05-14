@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 from itertools import compress
 
-import legos
+import legos_3_prev as legos
 import config
 import losses
 import anchors

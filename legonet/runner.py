@@ -346,9 +346,27 @@ def run(args=None):
                 print("Available modules in bbox_detection weights file:", list_checkpoint_modules(bbox_det_state_dict))
 
                 if args.network_type == 'bbox_detection':
-                    #legonet.load_state_dict(bbox_det_state_dict, strict=False)
+                    legonet.load_state_dict(bbox_det_state_dict, strict=True) #strict=False
                     load_submodule_weights(legonet, bbox_det_state_dict,
-                                           submodule_names=['backbone_1', 'find_1', 'where'], strict=False)
+                                           submodule_names=['backbone_1', 'find_1', 'where'], strict=True) #strict=False
+
+                    ############################################################################
+
+                    # utils.load_module_weights(legonet, "backbone_for_detect",
+                    #                           os.path.join(args.partial_weights_dir, 'backbone_for_detect'))
+                    # utils.load_module_weights(legonet, "find_for_detect",
+                    #                           os.path.join(args.partial_weights_dir, "find_for_detect"))
+                    # utils.load_module_weights(legonet, "Where_Module",
+                    #                           os.path.join(args.partial_weights_dir, "Where_Module"))
+
+                    #####################################################################################
+
+
+
+
+
+
+
                 elif (args.network_type == 'both' or args.network_type == "both_for_roots_2"
                       or args.network_type == "both_Back2bFind2b"): #config.General.MODE == 'Training' and  (
                     print("Available modules in 'bbox_detection' module: ")
@@ -379,9 +397,6 @@ def run(args=None):
                                                             'estimator_length', 'estimator_diameter', 'estimator_color'],
                                            strict=False)
 
-
-
-
         elif args.load_full_model_weights:
             model_state_dict = torch.load(args.full_model_weights, map_location=config.General.device)
             #legonet.load_state_dict(model_state_dict, strict=False)
@@ -403,6 +418,10 @@ def run(args=None):
                 if args.estimate_type == 'withKeyPoints':
                     load_submodule_weights(legonet, model_state_dict,
                                            submodule_names=["bbox_detection", "per_object_attributes"], strict=False)
+
+            elif args.network_type == "bbox_detection":
+                load_submodule_weights(legonet, model_state_dict,
+                                       submodule_names=['backbone_1', 'find_1', 'where'], strict=False)
 
     elif args.save_from_model_file:
         # for initial saving of weights from old model pt files:
@@ -465,7 +484,10 @@ def run(args=None):
         if not args.network_type == "both_Back2bFind2b":
             print("Available modules in model file:", list_checkpoint_modules(file_legonet.state_dict()))
 
-        if args.network_type == "both":
+        if args.network_type == 'bbox_detection':
+            save_partial_weights(args, legonet, file_legonet, tasks=['bbox_detection'])
+
+        elif args.network_type == "both":
             save_partial_weights(args, legonet, file_legonet, tasks=['bbox_detection', "per_object_counting"], output_name = args.output_name)
 
         elif args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
@@ -524,10 +546,10 @@ def run(args=None):
 
     legonet = legonet.to(config.General.device)
 
-    # if isinstance(legonet, torch.nn.DataParallel): # ToDo - check this
-    #     legonet.module.freeze_bn()
-    # else:
-    #     legonet.freeze_bn()
+    if isinstance(legonet, torch.nn.DataParallel): # ToDo - check this
+        legonet.module.freeze_bn()
+    else:
+        legonet.freeze_bn()
 
     freeze_bn(unwrap_model(legonet))
 
@@ -546,7 +568,7 @@ def run(args=None):
         for epoch_num in range(args.epochs):
 
             legonet.train()
-            freeze_bn(unwrap_model(legonet)) #legonet.freeze_bn()
+            legonet.freeze_bn() # freeze_bn(unwrap_model(legonet)) #legonet.freeze_bn()
             legonet.freeze_detector()
 
             epoch_loss = []
@@ -1127,9 +1149,9 @@ def run(args=None):
                         mAP, precision , recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
                                                                 score_threshold=config.Detection.min_score,
                                                                 iou_threshold=config.Detection.iou_threshold)
-                        print(f'Current mAP = {mAP:.3f}, precision = {precision[-1]:.3f}, recall = {recall[-1]:.3f}\n')
+                        print(f'Current mAP = {mAP:.3f}, precision = {precision:.3f}, recall = {recall:.3f}\n')
                         with open(args.txt_results, 'a') as f:
-                            f.write(f'Epoch: {epoch_num}, mAP = {mAP:.3f}, precision = {precision[-1]:.3f}, recall = {recall[-1]:.3f}\n')
+                            f.write(f'Epoch: {epoch_num}, mAP = {mAP:.3f}, precision = {precision:.3f}, recall = {recall:.3f}\n')
 
                         if mAP > best_mAP:
                             best_mAP = mAP
@@ -1368,34 +1390,35 @@ def run(args=None):
         if config.General.NETWORK_TYPE == config.NetworkType.detection or \
                 config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting:
             # includes objects without points...
+            if config.General.NETWORK_TYPE == config.NetworkType.detection or args.evaluate_detection:
+                if args.evaluate_detection and args.have_GT:
+                    print()
+                    print("Object detection evaluation:\n")
+                    if args.eval_detection_params:
+                        average_precisions_all= kcsv_eval_2.evaluate(dataset_val, dataloader_val, sampler_val, legonet,
+                                                                     iou_threshold=config.Detection.iou_threshold_list,
+                                                                     score_threshold=config.Detection.min_score_list,
+                                                                     save_path= args.test_dir, show_PR_curve=True)
 
-            if args.evaluate_detection and args.have_GT:
+                        print("iou, score, class_mAP")
+                        for i in range(len(average_precisions_all)):
+                            print(average_precisions_all[i])
+
+                    else:
+                        print(f"Results for min score: {config.Detection.min_score}, iou_threshold: {config.Detection.iou_threshold}")
+                        mAP, precision, recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val,
+                                                                                legonet, score_threshold=config.Detection.min_score,
+                                                                                iou_threshold=config.Detection.iou_threshold,
+                                                                                generate_PR_curve=True)
+                        print(f'mAP = {mAP:.3f}, precision = {precision:.3f}, recall = {recall:.3f}')
+
+                        with open(args.txt_results, 'a') as f:
+                            f.write(f'mAP = {mAP:.3f}, precision = {precision:.3f}, recall = {recall:.3f}\n')
+                        if config.General.to_draw:
+                            vis_bbox(dataloader_val, sampler_val, dataset_val, legonet, unnormalize = UnNormalizer())
                 print()
-                print("Object detection evaluation:\n")
-                if args.eval_detection_params:
-                    average_precisions_all= kcsv_eval_2.evaluate(dataset_val, dataloader_val, sampler_val, legonet,
-                                                                 iou_threshold=config.Detection.iou_threshold_list,
-                                                                 score_threshold=config.Detection.min_score_list,save_path= args.test_dir, show_PR_curve=True)
 
-                    print("iou, score, class_mAP")
-                    for i in range(len(average_precisions_all)):
-                        print(average_precisions_all[i])
-
-                else:
-                    print(f"Results for min score: {config.Detection.min_score}, iou_threshold: {config.Detection.iou_threshold}")
-                    mAP, precision, recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val,
-                                                                            legonet, score_threshold=config.Detection.min_score,
-                                                                            iou_threshold=config.Detection.iou_threshold,
-                                                                            generate_PR_curve=True)
-                    print(f'mAP = {mAP:.3f}, precision = {precision[-1]:.3f}, recall = {recall[-1]:.3f}')
-
-                    with open(args.txt_results, 'a') as f:
-                        f.write(f'mAP = {mAP:.3f}, precision = {precision[-1]:.3f}, recall = {recall[-1]:.3f}\n')
-                    if config.General.to_draw:
-                        vis_bbox(dataloader_val, sampler_val, dataset_val, legonet, unnormalize = UnNormalizer())
-            print()
-
-            if args.evaluate_both:
+            elif args.evaluate_both:
 
                 out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=config.General.to_draw,
                                      draw_maps = config.DrawProperties.DRAW_MAPS, verbose=True,

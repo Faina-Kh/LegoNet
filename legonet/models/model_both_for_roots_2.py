@@ -59,6 +59,14 @@ class PerObjectEstimate(nn.Module):
 
         self.roi_align = roi_align
 
+        self.freeze_bn()
+
+    def freeze_bn(self):
+        '''Freeze BatchNorm layers.'''
+        for layer in self.modules():
+            if isinstance(layer, nn.BatchNorm2d):
+                layer.eval()
+
     def freeze_detector(self):
         self.bbox_detection.eval()
         # for p in self.bbox_detection.parameters():

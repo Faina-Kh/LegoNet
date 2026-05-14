@@ -66,7 +66,7 @@ class AttributeEstimation:
     do_nmcs = False
     estimate_type = "" #'reg_fpn_p3_p7_min_sig' #('reg_fpn_p3' #) #'withKeyPoints'
     inter_losses = True
-    num_of_pyr_levels = 3
+    num_of_pyr_levels = 5
     double_counting = False
     Find_for_count = True
 

@@ -132,6 +132,9 @@ def load_model_weights(source_model_path, destination_model):
             name = k[7:]  # remove `module.`
         else:
             name = k
+
+        # if 'FatCountingModule.sec_reg_layer' in name:
+        #     continue
         new_state_dict[name] = v
 
     destination_model.load_state_dict(new_state_dict)

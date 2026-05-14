@@ -159,11 +159,13 @@ def save_partial_weights(args, model, file_model, tasks = [], output_name=""):
                 k: v for k, v in file_model.state_dict().items()
                 if any(k == m or k.startswith(m + ".") for m in submodules)
             }
+            if args.network_type != "bbox_detection":
+                renamed_state_dict = rename_state_dict_keys(filtered_state_dict, rename_map)
+                print("Available modules in renamed_state_dict:", list_checkpoint_modules(renamed_state_dict))
+            else:
+                renamed_state_dict = filtered_state_dict
 
-            renamed_state_dict = rename_state_dict_keys(filtered_state_dict, rename_map)
-            print("Available modules in renamed_state_dict:", list_checkpoint_modules(renamed_state_dict))
-
-        if task == "bbox_detection":
+        if args.network_type != "bbox_detection" and task == "bbox_detection":
             load_result = model.bbox_detection.load_state_dict(renamed_state_dict, strict=False)
         else:
             load_result = model.load_state_dict(renamed_state_dict, strict=False)

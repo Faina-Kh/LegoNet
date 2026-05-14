@@ -53,12 +53,12 @@ if args is None:
 ########################################################################################################################
 # user definitions
 ########################################################################################################################
-args.gpu_num = '0'
+args.gpu_num = '1'
 
-args.STORAGE_PATH = 'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
+args.STORAGE_PATH = 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = "roots" #"grapes" #"roots"
-args.network_type = "bbox_detection" #"both_Back2bFind2b" # "both_Back2bFind2b" #"counting_reg" #"counting_lean" #"both_for_roots_2" # "both" #"bbox_detection"
-args.current_results_dir = 'Recheck_bbox_detection'
+args.network_type = "both_for_roots_2" # "counting_lean" #"both_Back2bFind2b" # "both_Back2bFind2b" #"counting_reg" #"counting_lean" #"both_for_roots_2" # "both" #"bbox_detection"
+args.current_results_dir = os.path.join('per_object_attributes_KP', 'epoch=90') #'TRL_estimator_KP' #'bbox_detection_prevLoad' #'Recheck_bbox_detection'
 #'per_object_attributes_Reg' #'per_object_attributes_KP'  #'TRL_estimator_Reg' #'TRL_estimator_KP'
 # #'per_object_attributes' #'bbox_detection' # 'per_object_counting' # "both_Back2bFind2b"
 
@@ -159,7 +159,6 @@ if args.dataset_name == 'grapes':
         config.General.filter_empty_bbox = args.filter_empty_bbox
 
     config.AttributeEstimation.do_nmcs = True
-    config.Detection.NMS_THRESHOLD = 0.3  # default was 0.5 in config
 
 elif args.dataset_name == 'roots':
 
@@ -365,9 +364,9 @@ if args.run_script == 'Inference':
     else:
         results_dir = config.General.experiment_path
 
-    if config.General.to_draw:
-        config.DrawProperties.save_img_path = os.path.join(config.General.experiment_path, "Vis_" + val_set)
-        os.makedirs(config.DrawProperties.save_img_path, exist_ok=True)
+
+    config.DrawProperties.save_img_path = os.path.join(config.General.experiment_path, "Vis_" + val_set)
+    os.makedirs(config.DrawProperties.save_img_path, exist_ok=True)
 
     config.General.files_path = os.path.join(results_dir, "OutputFiles_"+ val_set)
     os.makedirs(config.General.files_path, exist_ok=True)
@@ -398,7 +397,7 @@ if  (args.network_type == "bbox_detection" or args.network_type == "both" or arg
     if args.network_type == "both_Back2bFind2b":
         args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection_Back2bFind2b")
     else:
-        args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection")
+        args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection_epoch69") #"bbox_detection")
     os.makedirs(args.bbox_detection_weights_dir, exist_ok=True)
 
     if not args.network_type == "bbox_detection":
@@ -435,6 +434,9 @@ if args.network_type == "counting_lean" or args.network_type == "counting_reg":
 
 if args.load_bbox_det_weights:
     args.bbox_detection_weights_file = get_weights_file(args.bbox_detection_weights_dir)
+    args.partial_weights_dir = os.path.join(args.myExpPath, "Weights",
+                                            "Prev_model_files\\Three_datasets_detection\\2023-05-20_230659",
+                                            "saved_weights_epoch_69")
 
 if args.load_per_object_counting_weights or args.load_per_object_attributes_weights:
     args.per_object_weights_file = get_weights_file(args.per_object_weights_dir)
@@ -442,7 +444,7 @@ if args.load_per_object_counting_weights or args.load_per_object_attributes_weig
 # if args.load_per_image_weights:
 #     args.per_image_weights_file = get_weights_file(args.per_image_weights_dir)
 if args.load_full_model_weights:
-    args.full_model_weights = ""
+    args.full_model_weights = get_weights_file(args.bbox_detection_weights_dir)
 
 if args.save_from_model_file:
     if args.dataset_name == "roots":
@@ -466,7 +468,7 @@ if args.save_from_model_file:
         elif args.network_type == "both_Back2bFind2b":
             args.output_name = 'AttrWith2B2F'
             #args.load_more_partial = True
-            #args.partial_weights_dir = file_path + "Three_datasets_detection\\2023-05-20_230659\\saved_weights_epoch_69"
+
             weights_dir_path = os.path.join(args.myExpPath, "Weights", "Prev_model_files")
             bbox_path = weights_dir_path + "\\Three_datasets_detection\\2023-05-20_230659\\legonet_epoch=69.pt"
 
@@ -496,6 +498,9 @@ if args.save_from_model_file:
 
             # args.additional_modules_weights["find_2_b"] = os.path.join(all_3setsPath, "find_2")
             # args.additional_modules_weights["backbone_2_b"] = os.path.join(all_3setsPath, "backbone_2")
+
+        elif args.network_type == "bbox_detection":
+            file_path += "Three_datasets_detection\\2023-05-20_230659"
 
 
     elif args.dataset_name == "grapes":

@@ -268,7 +268,7 @@ def evaluate(generator,
 
     if show_PR_curve:
         dims = [len(score_threshold), len(iou_threshold)]
-        fig, axs = plt.subplots(dims[0], dims[1], sharex=True, sharey=True)
+        fig, axs = plt.subplots(dims[0], dims[1], sharex=True, sharey=True, squeeze=False)
 
 
 
@@ -349,17 +349,17 @@ def evaluate(generator,
                 average_precision = _compute_ap(recall, precision)
                 average_precisions[label] = average_precision, num_annotations
 
-                util.printf("mAP (score >= %.3f, IoU >= %.3f)\n",score, iou)
+                utils.printf("mAP (score >= %.3f, IoU >= %.3f)\n",score, iou)
                 for label in range(generator.num_classes()):
                     class_name = generator.label_to_name(label)
                     class_mAP = average_precisions[label][0]
-                    util.printf("%s: %.4f\n", class_name, class_mAP)
+                    utils.printf("%s: %.4f\n", class_name, class_mAP)
                     average_precisions_all.append([iou, score, class_mAP])
 
                 if show_PR_curve:
                     axs[score_index,iou_index].plot(recall, precision)
                     axs[score_index,iou_index].set_title("score:"+str(score)+ ", IoU:"+str(iou), fontsize=8)
-                    #axs[score_index,iou_index].set(xlabel='recall', ylabel='precision')
+                    axs[score_index,iou_index].set(xlabel='recall', ylabel='precision')
                     axs[score_index, iou_index].tick_params(axis="x", labelsize=6)
                     axs[score_index, iou_index].tick_params(axis="y", labelsize=6)
 
@@ -630,7 +630,7 @@ def evaluateMAP_simple(generator,
         plt.grid(True)
         plt.xlabel("Recall")
         plt.ylabel("Precision")
-        plt.savefig(os.path.join(config.DrawProperties.save_img_path,"PR_curve_objects.png"))
+        plt.savefig(os.path.join(config.General.files_path,"PR_curve_objects.png"))
 
 
 
@@ -647,7 +647,7 @@ def evaluateMAP_simple(generator,
     #     print('th={}, pr={}, rc={}'.format(th, pr, rc))
 
 
-    return np.mean(mAP), precision, recall #np.mean(precision), np.mean(recall) #np.mean(mAP), precision, recall #  None, None precision, recall
+    return np.mean(mAP), precision[-1], recall[-1] #np.mean(precision), np.mean(recall) #np.mean(mAP), precision, recall #  None, None precision, recall
 
 
 def evaluate_double_detection(dataset_val_with_counts,
