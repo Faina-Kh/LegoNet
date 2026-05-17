@@ -163,7 +163,10 @@ if args.dataset_name == 'grapes':
 elif args.dataset_name == 'roots':
 
     if args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
-        config.General.predict_empty_image = True  # why?
+        ########
+        config.General.predict_empty_image = False  # why?
+        #############
+
         config.AttributeEstimation.do_nmcs = False
         args.dia_loss_weight = 10  # 10 #1000 #10 #100
         args.color_loss_weight = 100  # 100

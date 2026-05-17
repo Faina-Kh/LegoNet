@@ -1148,7 +1148,8 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                 state['detections_data_any_crop'][image_name]['pred'].append(np.round(estimation_outputs[0][b].cpu().item()))
                                 count_pred.append(np.round(estimation_outputs[0][b].cpu().item()))
 
-                        adjusted_crops_orig_boxes.append(crops_orig_boxes[b])
+                        if len(crops_orig_boxes) > 0:
+                            adjusted_crops_orig_boxes.append(crops_orig_boxes[b])
 
                         if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                             if config.DrawProperties.DRAW_MAPS:
