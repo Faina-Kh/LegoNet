@@ -15,7 +15,7 @@ from torchvision import transforms
 from utils import printf
 from legonet.eval.counting_eval import SumOfAbsDifferences
 from legonet.eval.kcsv_eval_2 import _get_count_and_box_annotations, compute_overlap, _compute_ap
-from legonet.eval.count_detection_eval import points_detection_evaluation, calc_recall_precision_ap
+from legonet.eval.count_detection_eval import points_detection_t_p, calc_points_recall_precision_ap
 from legonet.my_dataloader import UnNormalizer
 
 import config
@@ -43,7 +43,7 @@ def _get_detections(detection_outputs, scale):
 
     return scores.cpu().numpy(), boxes
 
-def plot_PR_curve(recall, precision, ap, save_path):
+def plot_PR_curve(recall, precision, ap, save_path, plots_name=""):
     plt.figure()
     plt.step(recall, precision, color='b', alpha=0.99)
     plt.fill_between(recall, precision, step='post', color='b', alpha=0.1)
@@ -51,10 +51,10 @@ def plot_PR_curve(recall, precision, ap, save_path):
     plt.ylabel('Precision')
     plt.ylim([0.0, 1.05])
     plt.xlim([0.0, 1.0])
-    plt.title('Key Points Precision-Recall curve: AP={0:0.2f}'.format(ap))
+    plt.title('Precision-Recall curve: AP={0:0.2f}'.format(ap))
     if not os.path.exists(save_path):
         os.makedirs(save_path)
-    plot_path = os.path.join(save_path + '\\Points_PR_curve.png')
+    plot_path = os.path.join(save_path + '\\'+ plots_name) #'Points_PR_curve.png')
     plt.savefig(plot_path)
     plt.close(plot_path)
 
@@ -335,7 +335,7 @@ def compute_keypoints_targets_multi_maps(image_shape, annotations_points_centers
 
     return per_img_anns
 
-def objects_recall_precision(all_annotations, all_detections, draw_path):
+def objects_recall_precision(all_annotations, all_detections):
 
     average_precisions = {}
 
@@ -402,13 +402,13 @@ def objects_recall_precision(all_annotations, all_detections, draw_path):
     # compute average precision
     mAP = _compute_ap(recall, precision)
 
-    plot_PR_curve(recall, precision, mAP, save_path= config.General.experiment_path ) #"D:\\Faina\\Parts count papers\\paper 2\\docs\\grapes")#draw_path)
-    plt.plot(recall, precision)
-    plt.title('mAP = {:.2f}'.format(np.mean(mAP)))
-    plt.grid(True)
-    plt.xlabel("Recall")
-    plt.ylabel("Precision")
-    plt.savefig(os.path.join(draw_path,"objects_PR_curve.png"))
+    plot_PR_curve(recall, precision, mAP, save_path= config.General.files_path,  plots_name = "objects_PR_curve.png") #"D:\\Faina\\Parts count papers\\paper 2\\docs\\grapes")#draw_path)
+    # plt.plot(recall, precision)
+    # plt.title('mAP = {:.2f}'.format(np.mean(mAP)))
+    # plt.grid(True)
+    # plt.xlabel("Recall")
+    # plt.ylabel("Precision")
+    # plt.savefig(os.path.join(draw_path,"objects_PR_curve.png"))
 
     return mAP, precision, recall
 
@@ -717,8 +717,8 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
     #if to_draw:
     #draw_path = os.path.join("D:\\Faina\\Parts count papers\\paper 2\\docs", "grapes", 'vis_4_6_21')  #config.General.experiment_path, 'vis')
     if to_draw: #draw_path!= "":
-        if not os.path.exists(draw_path):
-            os.makedirs(draw_path)
+        # if not os.path.exists(draw_path):
+        #     os.makedirs(draw_path)
         crops_path = os.path.join(draw_path, "crops")
         if not os.path.exists(crops_path):
             os.makedirs(crops_path)
@@ -1151,19 +1151,19 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                         if len(crops_orig_boxes) > 0:
                             adjusted_crops_orig_boxes.append(crops_orig_boxes[b])
 
-                        if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-                            if config.DrawProperties.DRAW_MAPS:
-                                all_predicted_detection_maps.append(orig_predicted_detection_maps[-1][b])
+                        if config.AttributeEstimation.estimate_type == 'withKeyPoints' and estimation_outputs is not None:
+                            #if config.DrawProperties.DRAW_MAPS:
+                            all_predicted_detection_maps.append(orig_predicted_detection_maps[-1][b])
 
-                                #if to_draw and config.DrawProperties.DRAW_MAPS: #draw_maps:
-                                all_predicted_detection_maps_toDraw.append([
-                                    orig_predicted_detection_maps[0][b], orig_predicted_detection_maps[1][b],
-                                    orig_predicted_detection_maps[2][b], orig_predicted_detection_maps[3][b],
-                                    orig_predicted_detection_maps[4][b]])
+                            #if to_draw and config.DrawProperties.DRAW_MAPS: #draw_maps:
+                            all_predicted_detection_maps_toDraw.append([
+                                orig_predicted_detection_maps[0][b], orig_predicted_detection_maps[1][b],
+                                orig_predicted_detection_maps[2][b], orig_predicted_detection_maps[3][b],
+                                orig_predicted_detection_maps[4][b]])
 
-                                if sample_anns is not None:
-                                    all_crops_GT_detections_maps.append(
-                                        sample_anns['points_annot'][5][b])  # sample_anns['points_annot'][-1][5][0]
+                            if sample_anns is not None:
+                                all_crops_GT_detections_maps.append(
+                                    sample_anns['points_annot'][5][b])  # sample_anns['points_annot'][-1][5][0]
 
                         if sample_anns is not None and args.have_GT: #assuming having GT anns
                             current_count = sample_anns['points_annot'][0][b].item()
@@ -1272,7 +1272,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                 if max_gt_count_of_crop == -1 and not is_roots_2:
                     sample_anns = None
                 else:
-                    if config.AttributeEstimation.estimate_type == 'withKeyPoints' and config.DrawProperties.DRAW_MAPS:
+                    if config.AttributeEstimation.estimate_type == 'withKeyPoints': # and config.DrawProperties.DRAW_MAPS:
                         # if not config.Detect_and_Estimate.type == "both_for_roots_2":
                         #     all_crops_GT_detections_maps = torch.tensor(all_crops_GT_detections_maps)
                         # elif args.have_GT:
@@ -1523,7 +1523,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                         if config.AttributeEstimation.calc_det_performance:
                             if len(all_predicted_detection_maps)>0:
                                 for b in range(all_predicted_detection_maps.shape[0]):
-                                    t, p = points_detection_evaluation(all_predicted_detection_maps[b, :, :], all_crops_GT_detections_maps[b, :, :])
+                                    t, p = points_detection_t_p(all_predicted_detection_maps[b, :, :], all_crops_GT_detections_maps[b, :, :])
                                     state['T']=state['T']+ t
                                     state['P']=state['P']+ p
 
@@ -1595,11 +1595,11 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                             printf("orig_count_GT: %d | orig_predicted_count: %d |orig_abs_diff: %.3f | orig_rel_error: %.3f\n",
                                                    int(orig_count_GT[i]), np.round(count_pred[i]) ,state['orig_abs_diff'][-1], state['orig_rel_error'][-1])
 
-                                            print('max_overlap = ', max_overlap_array[i])
+                                            printf('max_overlap =  %.3f', max_overlap_array[i])
 
                                         else:
                                             print('No gt box with iou>=', config.Detection.iou_threshold)
-                                            print('max_overlap = ', max_overlap_array[i])
+                                            printf('max_overlap =  %.3f', max_overlap_array[i])
 
                                     else:
                                         if orig_color_GT[i] != -1:
@@ -1616,13 +1616,13 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                                  orig_dia_GT[i], dia_pred[i], state['orig_abs_diff_dia'][-1], state['orig_rel_error_dia'][-1]
                                             )
 
-                                            print('max_overlap = ', max_overlap_array[i])
+                                            printf('max_overlap =   %.3f', max_overlap_array[i])
 
 
                                         else:
                                             print('No gt box with iou>=', config.Detection.iou_threshold)
                                             if max_overlap_array is not None:
-                                                print('max_overlap = ', max_overlap_array[i])
+                                                printf('max_overlap =   %.3f', max_overlap_array[i])
                             print()
 
                         if to_draw: # drawings of true detections
@@ -1697,7 +1697,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                     img3.save(os.path.join(crops_path, box_name_3))
 
                                     if (config.AttributeEstimation.estimate_type == 'withKeyPoints' and
-                                            crops_count_GT[i] != 0 and config.DrawProperties.DRAW_MAPS): #draw_maps:
+                                            crops_count_GT[i] != 0): # and config.DrawProperties.DRAW_MAPS): #draw_maps:
 
                                         true_maps = []
                                         # if config.Detect_and_Estimate.type != "both_for_roots_2":
@@ -1763,8 +1763,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
         # obj detection results
         if args.evaluate_detection:
-            mAP, precision, recall = objects_recall_precision(state['all_annotations'], state['all_detections'],
-                                                              config.General.experiment_path)
+            mAP, precision, recall = objects_recall_precision(state['all_annotations'], state['all_detections'])
             print(f'Object detection evaluation: mAP = {mAP:.3f}, precision = {precision[-1]:.3f}, recall = {recall[-1]:.3f}')
 
             # ToDo - check difference in comparison to evaluation with kcsv_2 (in runner)
@@ -2249,13 +2248,13 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
         model.train()
         print()
         if config.AttributeEstimation.calc_det_performance:
-            recall, precision, ap = calc_recall_precision_ap(state['T'], state['P'])
-            print(f'Points detection evaluation: mAP = {ap:.3f}')
-            plot_PR_curve(recall, precision, ap, save_path=draw_path) #config.General.experiment_path)
+            recall, precision, ap = calc_points_recall_precision_ap(state['T'], state['P'])
+            print(f'Points detection evaluation: mAP = {ap:.3f}, recall = {recall[-1]:.3f}, precision = {precision[-1]:.3f}')
+            plot_PR_curve(recall, precision, ap, save_path=config.General.files_path, plots_name = 'Points_PR_curve.png') #config.General.experiment_path)
 
             # print recall and precision  to csv
             csv_columns = ['recall', 'precision']
-            csv_file = os.path.join(draw_path, "parts_recall_precision.csv")
+            csv_file = os.path.join(config.General.files_path, "parts_recall_precision.csv")
             f = open(csv_file, 'w', newline='')
             with f:
                 writer = csv.writer(f)

@@ -3,7 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
-from legonet.eval.count_detection_eval import points_detection_evaluation, calc_recall_precision_ap
+from legonet.eval.count_detection_eval import points_detection_t_p, calc_points_recall_precision_ap
 
 #from legonet.eval.both_eval_new import visualize_images
 import config
@@ -349,7 +349,7 @@ def eval(dataloader, dataset, model, args):
                             true_maps = data['annot'][1:]
                             for m in range(len(predicted_maps)):
                                 for b in range(predicted_maps[0].shape[0]):
-                                    t, p = points_detection_evaluation(predicted_maps[m][b], true_maps[m][b])
+                                    t, p = points_detection_t_p(predicted_maps[m][b], true_maps[m][b])
                                     T = T + t
                                     P = P + p
 
@@ -601,7 +601,7 @@ def eval(dataloader, dataset, model, args):
 
 
                 if config.AttributeEstimation.calc_det_performance and config.General.experiment_path != "" and args.have_GT:
-                    recall, precision, ap = calc_recall_precision_ap(T, P)
+                    recall, precision, ap = calc_points_recall_precision_ap(T, P)
                     plot_RP_curve(recall, precision, ap,
                                   save_path=config.General.files_path)  # config.General.experiment_path)
 
