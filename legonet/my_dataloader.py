@@ -903,11 +903,11 @@ class KCSVDataset(Dataset):
     def load_image(self, image_index, pre_process):
         image_path = os.path.join(self.base_dir, self.img_info[self.image_ids[image_index]]['name'])
         image = np.asarray(Image.open(image_path).convert('RGB'))
-        # if pre_process == "keras_like":
-        #     # transform the image to bgr
-        #     return image[:, :, ::-1].copy()
-        # else:
-        #     return image
+        if pre_process == "keras_like":
+            # transform the image to bgr
+            return image[:, :, ::-1].copy()
+        else:
+            return image
         return image
 
     def get_output_counting(self, image_name):

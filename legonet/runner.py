@@ -551,11 +551,12 @@ def run(args=None):
     else:
         legonet.freeze_bn()
 
-    freeze_bn(unwrap_model(legonet))
+    #freeze_bn(unwrap_model(legonet))
 
     if args.run_script=='Training':
 
         legonet.training = True
+
         optimizer = optim.Adam(legonet.parameters(), lr=1e-5)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3, eps=0.0001) #eps=0.0001 like in the keras code instead of the default verbose=True,
         loss_hist = collections.deque(maxlen=500)
@@ -1418,7 +1419,7 @@ def run(args=None):
                             vis_bbox(dataloader_val, sampler_val, dataset_val, legonet, unnormalize = UnNormalizer())
                 print()
 
-            elif args.evaluate_both:
+            if args.evaluate_both:
 
                 out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=config.General.to_draw,
                                      draw_maps = config.DrawProperties.DRAW_MAPS, verbose=True,
