@@ -33,14 +33,12 @@ class ImageEstimatorWithKeypoints(nn.Module):
         )
         self.estimator = legos.KeypointBasedEstimator() #self.LeanCountingModule
 
-        self.freeze_bn()
+    def freeze_detector(self) -> None:
+        """No-op for the counting-only model.
 
-    def freeze_bn(self):
-        '''Freeze BatchNorm layers.'''
-        for layer in self.modules():
-            if isinstance(layer, nn.BatchNorm2d):
-                layer.eval()
-
+        ``runner.py`` calls ``freeze_detector`` for every model type, so the
+        counting-only variants provide a compatible stub.
+        """
 
     def forward(self, inputs):
         if self.training:
