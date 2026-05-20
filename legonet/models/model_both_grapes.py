@@ -89,8 +89,7 @@ class PerObjectEstimate(nn.Module):
                 classification_loss, regression_loss = self.bbox_detection(img_batch[img_idx].unsqueeze(dim=0))
 
             # detection eval output:
-            if ((detection_outputs[0].to(config.General.device)).equal(torch.zeros(0).to(config.General.device))
-                    and not config.Detection.USE_PERFECT_DETECTION_MODE):
+            if (detection_outputs[0].to(config.General.device)).equal(torch.zeros(0).to(config.General.device)):
                 bbox_pred_adjusted=torch.empty(0)
                 continue
 
@@ -151,45 +150,10 @@ class PerObjectEstimate(nn.Module):
                 ##########################################################################
                 bbox_pred = torch.cat((bbox_pred, box_scores.unsqueeze(-1)), dim=-1) #[x1,y1,x2,y2,gt_box_id,score]
 
-                if self.training and config.Detection.USE_PERFECT_DETECTION_MODE:
-                    # ToDo - check the issue of using group_idx[img_idx]] vs just img_idx
-                    bbox_pred = detection_anns[img_idx, :, :4].to(config.General.device)
-                    scores = torch.ones(bbox_pred.shape[0], dtype=torch.float32).to(config.General.device)
-                    bbox_pred = torch.cat((bbox_pred, scores.unsqueeze(-1)), dim=-1)
-
                 if len(bbox_pred)==0:
                     continue
 
-                if (self.training and config.Detection.DO_BBOX_AUGMENTATION_FOR_COUNTING): # training and counting augmentation is needed
-                    # create new tensor
-                    bbox_pred_adjusted = torch.zeros([bbox_pred.shape[0], 5])
-
-                    for box_idx in range(bbox_pred.shape[0]):
-                        x1, y1, x2, y2 = bbox_pred[box_idx][0], bbox_pred[box_idx][1], \
-                                         bbox_pred[box_idx][2], bbox_pred[box_idx][3]
-
-                        bbox_pred_adjusted[box_idx][0], \
-                        bbox_pred_adjusted[box_idx][1], \
-                        bbox_pred_adjusted[box_idx][2], \
-                        bbox_pred_adjusted[box_idx][3] = utils.augment_bbox_fancy(x1, y1, x2, y2) #utils.augment_bbox(x1, y1, x2, y2)   #utils.augment_bbox_fancy(x1, y1, x2, y2)
-                        bbox_pred_adjusted[box_idx][4] = bbox_pred[box_idx][4]
-
-                    bbox_pred_adjusted = bbox_pred_adjusted.to(config.General.device)
-
-                else:
-                    # having the option to rescale the bbox during inference according to one rescaling factor - given by BBOX_ADJUSTMENT_RATIO
-                    bbox_pred_adjusted = bbox_pred.clone()
-                    if config.Detection.BBOX_ADJUSTMENT_RATIO != 1.0: # need to enlarge/shrink the bbox
-                        for box_idx in range(bbox_pred_adjusted.shape[0]):
-                            x1, y1, x2, y2 = bbox_pred_adjusted[box_idx][0], bbox_pred_adjusted[box_idx][1], bbox_pred_adjusted[box_idx][2], bbox_pred_adjusted[box_idx][3]
-
-                            bbox_pred_adjusted[box_idx][0],\
-                            bbox_pred_adjusted[box_idx][1],\
-                            bbox_pred_adjusted[box_idx][2],\
-                            bbox_pred_adjusted[box_idx][3] = utils.scale_bbox(x1,y1,x2,y2,config.Detection.BBOX_ADJUSTMENT_RATIO)
-
-                            # print(bbox_pred_adjusted[box_idx])
-
+                bbox_pred_adjusted = bbox_pred.clone()
 
                 # Get gt points' annotations for training for the KeyPoints-based model
                 if config.AttributeEstimation.estimate_type == 'withKeyPoints':
@@ -296,35 +260,17 @@ class PerObjectEstimate(nn.Module):
             num_of_crops = sample_anns['img'].shape[0]
 
             # img input should be tensor [b,c,h,w]
-            if config.Detect_and_Estimate.single_backbone:
+            bbox_pyramid_feats= []
+            bbox_pyramid_p3 = []
 
-                bbox_pyramid_feats = self.backbone_1(sample_anns['img'].to(config.General.device))
+            for i in range(num_of_crops):
+                current= self.backbone_2(sample_anns['img'][i].unsqueeze(dim=0).to(config.General.device))
+                bbox_pyramid_feats.append(current)
+                if i==0:
+                    bbox_pyramid_p3.append(bbox_pyramid_feats[i][0]) ##current[0]
+                else:
+                    bbox_pyramid_p3[0] = torch.cat((bbox_pyramid_p3[0], bbox_pyramid_feats[i][0]), dim=0)  #[bbox_pyramid_feats[0]]  # [bbox_pyramid_feats]  # [p3]
 
-            else:
-                bbox_pyramid_feats= []
-                bbox_pyramid_p3 = []
-
-                if config.General.twoBackbone_2:
-                    bbox_pyramid_feats_2 = []
-                    bbox_pyramid_p3_2 = []
-
-                for i in range(num_of_crops):
-                    current= self.backbone_2(sample_anns['img'][i].unsqueeze(dim=0).to(config.General.device))
-                    bbox_pyramid_feats.append(current)
-                    if i==0:
-                        bbox_pyramid_p3.append(bbox_pyramid_feats[i][0]) ##current[0]
-                    else:
-                        bbox_pyramid_p3[0] = torch.cat((bbox_pyramid_p3[0], bbox_pyramid_feats[i][0]), dim=0)  #[bbox_pyramid_feats[0]]  # [bbox_pyramid_feats]  # [p3]
-
-                    if config.General.twoBackbone_2:
-                        current_2 = self.backbone_2_b(sample_anns['img'][i].unsqueeze(dim=0).to(config.General.device))
-                        bbox_pyramid_feats_2.append(current_2)
-                        if i == 0:
-                            bbox_pyramid_p3_2.append(bbox_pyramid_feats_2[i][0])
-                        else:
-                            bbox_pyramid_p3_2[0] = torch.cat((bbox_pyramid_p3_2[0], bbox_pyramid_feats_2[i][0]),dim=0)
-
-            ###########################################################################
 
             if self.training:
 
@@ -356,13 +302,6 @@ class PerObjectEstimate(nn.Module):
 
                     SFMS_lists, cls_output = self.find_2(bbox_pyramid_p3)
                     count_input = SFMS_lists, cls_output
-
-                    if config.General.twoFind_2:
-                        if config.General.twoBackbone_2:
-                            SFMS_lists2, cls_output2 = self.find_2_b(bbox_pyramid_p3_2)
-
-                        else:
-                            SFMS_lists2, cls_output2 = self.find_2_b(bbox_pyramid_p3)
 
                     estimation_outputs = self.estimator(count_input)
 

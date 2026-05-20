@@ -3,7 +3,6 @@ import torch.nn as nn
 import torchvision.ops
 import math
 
-import losses
 import anchors
 import legos
 import config
@@ -22,8 +21,7 @@ class BBOX_Detection(nn.Module):
         self.freeze_detection = freeze_detection
 
         self.backbone_1 = legos.ResNetBackboneModule(depth=ResNet_depth, pretrained=pretrained, name='backbone_for_detect')
-        self.find_1 = legos.FindModule(num_classes=num_classes, name='find_for_detect', task='bbox_detection') #,
-                                         #freeze_detection=self.freeze_detection) #num_features_in = in_channels,
+        self.find_1 = legos.FindModule(num_classes=num_classes, name='find_for_detect', task='bbox_detection')
         self.where = legos.WhereModule(network_type) #, num_features_in = in_channels
 
         # weights initialization
@@ -39,7 +37,6 @@ class BBOX_Detection(nn.Module):
 
         self.regressBoxes = legos.BBoxTransform()
         self.clipBoxes = legos.ClipBoxes()
-        self.focalLoss = losses.FocalLoss()
 
         self.freeze_bn()
 

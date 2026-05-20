@@ -94,8 +94,7 @@ class PerObjectEstimate(nn.Module):
                 classification_loss, regression_loss = self.bbox_detection(img_batch[img_idx].unsqueeze(dim=0))
 
             # detection eval output:
-            if ((detection_outputs[0].to(config.General.device)).equal(torch.zeros(0).to(config.General.device))
-                    and not config.Detection.USE_PERFECT_DETECTION_MODE):
+            if (detection_outputs[0].to(config.General.device)).equal(torch.zeros(0).to(config.General.device)):
                 bbox_pred_adjusted=torch.empty(0)
                 continue
 
@@ -154,12 +153,6 @@ class PerObjectEstimate(nn.Module):
                     annotations = [detection_anns, counting_anns]
 
                 bbox_pred = torch.cat((bbox_pred, box_scores.unsqueeze(-1)), dim=-1) #[x1,y1,x2,y2,gt_box_id,score]
-
-                # if self.training and config.Detection.USE_PERFECT_DETECTION_MODE:
-                #     # ToDo - check the issue of using group_idx[img_idx]] vs just img_idx
-                #     bbox_pred = detection_anns[img_idx, :, :4].to(config.General.device)
-                #     scores = torch.ones(bbox_pred.shape[0], dtype=torch.float32).to(config.General.device)
-                #     bbox_pred = torch.cat((bbox_pred, scores.unsqueeze(-1)), dim=-1)
 
                 if len(bbox_pred)==0:
                     continue

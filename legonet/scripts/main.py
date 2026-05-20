@@ -53,7 +53,7 @@ if args is None:
 ########################################################################################################################
 # user definitions
 ########################################################################################################################
-args.gpu_num = '1'
+args.gpu_num = '0'
 
 args.STORAGE_PATH = 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = "roots" #"grapes" #"roots"
@@ -74,8 +74,6 @@ val_set = "Test" #"Test" #"Val"
 
 args.evaluate_detection = True
 args.evaluate_both = True # relevant to validation, not train (roots)
-
-config.General.predict_empty_image = False
 
 args.save_from_model_file = False
 args.load_weights = True
@@ -177,9 +175,7 @@ if args.dataset_name == 'grapes':
 elif args.dataset_name == 'roots':
 
     if args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
-        ########
-        #config.General.predict_empty_image = True  # why?
-        #############
+        config.General.predict_empty_image = False
 
         config.AttributeEstimation.do_nmcs = False
         args.dia_loss_weight = 10  # 10 #1000 #10 #100
@@ -224,15 +220,6 @@ args.pre_process = 'torch_like' #'keras_like'  # torch_like
 args.backbone_type = "ResNetBackboneModule"
 
 args.loss_weight = 1  # 1  #1000 #10 #100 # roots_both ablations
-
-#config.General.binary_model = False
-
-
-##########################################################################################################
-# ToDo - remove
-#config.General.with_new_layers = False  # should be False only for points TRL
-
-##########################################################################################################
 
 ######################################################################
 # Checks
@@ -286,9 +273,6 @@ elif args.dataset_name == "roots":
         args.dataset_type = 'csv_LCC'
     else:
         args.dataset_type = "roots_json"
-# else:
-#     args.dataset_type = "coco"
-#     args.dataset_name = 'tomato_fruit_12_3_18'
 
 if args.network_type == "bbox_detection":
     config.General.NETWORK_TYPE = config.NetworkType.detection
@@ -299,8 +283,6 @@ elif args.network_type == "counting_reg":
 elif args.network_type == "both" or args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
     config.General.NETWORK_TYPE = config.NetworkType.detection_and_counting
 
-
-
 ########################################################################################################################
 # Define the paths
 ########################################################################################################################
@@ -309,8 +291,6 @@ if args.run_script == 'Training':
     time_stemp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     config.General.weights_dir += "\\"+time_stemp
     os.makedirs(config.General.weights_dir, exist_ok=True)
-# else:
-#     config.General.weights_dir = args.weights_dir # user defined path
 
 
 if args.dataset_type == 'kcsv':
@@ -327,7 +307,6 @@ if args.dataset_type == 'kcsv':
         args.val_file = args.kcsv_test
 
 elif args.dataset_name == "roots":
-    #sample_n = "200"
 
     if args.do_Kfold:
         k = "1"
@@ -358,16 +337,7 @@ elif args.dataset_name == "roots":
             args.train_json_file = os.path.join(myDatasetsPath, 'sub_Train', "Train_Dia_Length_Color.txt")
             args.val_json_file = os.path.join(myDatasetsPath, "sub_" + val_set, val_set + "_Dia_Length_Color.txt")
 
-# elif args.dataset_type == "csv_LCC" and args.dataset_name != "roots":
-#
-#     ds = 'A4'
-#     args.dataset_name = 'Counting Datasets\\CVPPP2017_LCC_training\\training\\' + ds
-#     args.train_csv_leaf_number_file = os.path.join(myDatasetsPath, args.dataset_name, 'train', ds + '_Train.csv')
-#     args.train_csv_leaf_location_file = os.path.join(myDatasetsPath, args.dataset_name, 'train',
-#                                                      ds + '_Train_leaf_location.csv')
-#     args.val_csv_leaf_number_file = os.path.join(myDatasetsPath, args.dataset_name, 'val', ds + '_Val.csv')
-#     args.val_csv_leaf_location_file = os.path.join(myDatasetsPath, args.dataset_name, 'val',
-#                                                    ds + '_Val_leaf_location.csv')
+
 
 
 if args.have_GT:
@@ -513,9 +483,6 @@ if args.save_from_model_file:
                  "find_2_b": os.path.join(all_3setsPath, "find_2"),
                  "backbone_2_b": os.path.join(all_3setsPath, "backbone_2")
                  }
-
-            # config.General.twoFind_2 = False
-            # config.General.twoBackbone_2 = False
 
             # args.additional_modules_weights["find_2_b"] = os.path.join(all_3setsPath, "find_2")
             # args.additional_modules_weights["backbone_2_b"] = os.path.join(all_3setsPath, "backbone_2")

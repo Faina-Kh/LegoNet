@@ -856,8 +856,7 @@ class KCSVDataset(Dataset):
         if self.transform:
             sample = self.transform(sample)
 
-        if (not config.General.NETWORK_TYPE == config.NetworkType.detection or
-                config.AttributeEstimation.double_counting):
+        if not config.General.NETWORK_TYPE == config.NetworkType.detection:
             if self.have_GT:
                 if len(sample['annot']['points_annot']) > 0:
                     annotations_group_num_of_points, annotations_group_points_center = sample['annot']['points_annot']
@@ -1038,8 +1037,7 @@ class KCSVDataset(Dataset):
         # points annotations
         ###################################################################################
 
-        if config.General.NETWORK_TYPE == config.NetworkType.detection and not config.AttributeEstimation.double_counting\
-                and not config.General.filter_empty_bbox:
+        if config.General.NETWORK_TYPE == config.NetworkType.detection and not config.General.filter_empty_bbox:
             points_annotations = None
         else:
             points_annotations = self.get_output_counting(image_name) #[counts: count, point class, box id, centers: x,y, point class, box id]
@@ -1248,8 +1246,7 @@ class KCSVDataset(Dataset):
                 else:
                     result_points[img_file].append({'x': x1, 'y': y1, 'points_class': class_name})
 
-            if (config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting or
-                    config.AttributeEstimation.double_counting or config.General.filter_empty_bbox):
+            if (config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting or config.General.filter_empty_bbox):
                 result_bbox = self.points_to_bbox(result_bbox, result_points)
 
         if config.General.NETWORK_TYPE.name == "counting_lean_multiple_out":
@@ -1535,8 +1532,7 @@ def kcsv_collater(data):
 
         if points_annot is not None:
             points_annot[0] = torch.tensor(points_annot[0])
-            if (not config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting and
-                    not config.AttributeEstimation.double_counting):
+            if not config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting:
                 points_annot[1] = torch.tensor(points_annot[1])
                 points_annot[2] = torch.tensor(points_annot[2])
                 points_annot[3] = torch.tensor(points_annot[3])
@@ -1605,10 +1601,7 @@ def kcsv_collater_2(data):
     max_width = np.array(widths).max()
     max_height = np.array(heights).max()
 
-    if not config.Detect_and_Estimate.crop_from_Pi:
-        padded_imgs = torch.zeros(batch_size, max_height, max_width, 3)
-    else:
-        padded_imgs = torch.zeros(batch_size, max_height, max_width, 256)
+    padded_imgs = torch.zeros(batch_size, max_height, max_width, 3)
 
     for i in range(batch_size):
         # imgs[i] = torch.tensor(imgs[i]) #, dtype=torch.double, device=torch.device('cuda:0'))
@@ -1630,10 +1623,7 @@ def kcsv_collater_2(data):
             ann = []
             for j in range(batch_size):
                 if i==0:
-                    if not config.Detect_and_Estimate.crop_from_Pi:
-                        annots_temp = torch.tensor(annots[j][i]).float()
-                    else:
-                        annots_temp = torch.FloatTensor(annots[j][i]).cuda()
+                    annots_temp = torch.tensor(annots[j][i]).float()
 
                 else:
                     annots_temp = torch.tensor(annots[j][i]) #annots[j][i]
@@ -1694,10 +1684,7 @@ def kcsv_collater_2(data):
                     ann = []
                     for j in range(batch_size):
                         if i == 0:
-                            if not config.Detect_and_Estimate.crop_from_Pi:
-                                annots_temp = torch.tensor(annots[j][i]).float()
-                            else:
-                                annots_temp = torch.FloatTensor(annots[j][i]).cuda()
+                            annots_temp = torch.tensor(annots[j][i]).float()
 
                         else:
                             annots_temp = torch.tensor(annots[j][i])  # annots[j][i]
