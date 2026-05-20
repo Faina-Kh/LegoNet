@@ -1420,6 +1420,7 @@ def run(args=None):
                 print()
 
             if args.evaluate_both:
+                print("Attribute estimation evaluation:\n")
 
                 out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=config.General.to_draw,
                                      draw_maps = config.DrawProperties.DRAW_MAPS, verbose=True,

@@ -2247,7 +2247,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
         model.train()
         print()
-        if config.AttributeEstimation.calc_det_performance:
+        if config.AttributeEstimation.calc_det_performance and config.AttributeEstimation.estimate_type == 'withKeyPoints':
             recall, precision, ap = calc_points_recall_precision_ap(state['T'], state['P'])
             print(f'Points detection evaluation: mAP = {ap:.3f}, recall = {recall[-1]:.3f}, precision = {precision[-1]:.3f}')
             plot_PR_curve(recall, precision, ap, save_path=config.General.files_path, plots_name = 'Points_PR_curve.png') #config.General.experiment_path)

@@ -206,7 +206,7 @@ def eval(dataloader, dataset, model, args):
 
     model.eval()
 
-    with torch.no_grad():
+    with (torch.no_grad()):
 
         all_GT_counts = []
         all_predicted_counts = []
@@ -600,7 +600,7 @@ def eval(dataloader, dataset, model, args):
                                     AbsCountDiff, MSE, mean_rel_error))
 
 
-                if config.AttributeEstimation.calc_det_performance and config.General.experiment_path != "" and args.have_GT:
+                if config.AttributeEstimation.calc_det_performance and config.General.experiment_path != "" and args.have_GT and config.AttributeEstimation.estimate_type == 'withKeyPoints':
                     recall, precision, ap = calc_points_recall_precision_ap(T, P)
                     plot_RP_curve(recall, precision, ap,
                                   save_path=config.General.files_path)  # config.General.experiment_path)

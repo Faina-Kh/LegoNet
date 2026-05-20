@@ -57,20 +57,35 @@ args.gpu_num = '1'
 
 args.STORAGE_PATH = 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = "roots" #"grapes" #"roots"
-args.network_type = "both_for_roots_2" # "counting_lean" #"both_Back2bFind2b" # "both_Back2bFind2b" #"counting_reg" #"counting_lean" #"both_for_roots_2" # "both" #"bbox_detection"
-args.current_results_dir = os.path.join('per_object_attributes_KP', 'epoch=90') #'TRL_estimator_KP' #'bbox_detection_prevLoad' #'Recheck_bbox_detection'
+args.network_type ="counting_reg"
+# "counting_lean" #"both_Back2bFind2b" # "both_Back2bFind2b" #"counting_reg" #"counting_lean" #"both_for_roots_2" # "both" #"bbox_detection"
+
+args.current_results_dir = 'TRL_estimator_reg' #'TRL_estimator_KP' #"both_Back2bFind2b_detection_epoch69")
+#'TRL_estimator_KP' #'bbox_detection_prevLoad' #'Recheck_bbox_detection'
 #'per_object_attributes_Reg' #'per_object_attributes_KP'  #'TRL_estimator_Reg' #'TRL_estimator_KP'
 # #'per_object_attributes' #'bbox_detection' # 'per_object_counting' # "both_Back2bFind2b"
+args.estimate_type = 'reg_fpn_p3_p7_min_sig' #'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
+
+args.to_draw = False
 
 args.run_script = 'Inference' #'Training' #'Inference'
 val_set = "Test" #"Test" #"Val"
-args.estimate_type = 'withKeyPoints' #'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
+
 
 args.evaluate_detection = True
+args.evaluate_both = True # relevant to validation, not train (roots)
+
+config.General.predict_empty_image = False
 
 args.save_from_model_file = False
 args.load_weights = True
-args.load_partial_weights = True
+
+if args.network_type == "counting_lean" or args.network_type == "counting_reg":
+    args.load_partial_weights = False
+else:
+    args.load_partial_weights = True
+
+
 
 
 
@@ -135,9 +150,8 @@ args.do_Kfold = False
 args.freeze_detection = True
 args.eval_in_train = True
 
-
 args.eval_detection_params = False
-args.evaluate_both = True # relevant to validation, not train (roots)
+
 
 if ((args.network_type == "bbox_detection" and args.dataset_name == 'roots') or args.network_type == "both_for_roots_2"
         or args.network_type == "both_Back2bFind2b"):
@@ -164,7 +178,7 @@ elif args.dataset_name == 'roots':
 
     if args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
         ########
-        config.General.predict_empty_image = False  # why?
+        #config.General.predict_empty_image = True  # why?
         #############
 
         config.AttributeEstimation.do_nmcs = False
@@ -247,14 +261,15 @@ if args.run_script == 'Training':
     config.General.to_draw = False
     config.DrawProperties.DRAW_MAPS = False
     config.AttributeEstimation.calc_det_performance = False
-# else:
-#     config.General.to_draw = True
-#     if args.estimate_type == 'withKeyPoints':
-#         config.DrawProperties.DRAW_MAPS = True
-#         config.AttributeEstimation.calc_det_performance = True
-#     else:
-#         config.DrawProperties.DRAW_MAPS = False
-#         config.AttributeEstimation.calc_det_performance = False
+
+elif args.to_draw:
+    config.General.to_draw = True
+    if args.estimate_type == 'withKeyPoints':
+        config.DrawProperties.DRAW_MAPS = True
+        config.AttributeEstimation.calc_det_performance = True
+    else:
+        config.DrawProperties.DRAW_MAPS = False
+        config.AttributeEstimation.calc_det_performance = False
 
 
 
@@ -367,9 +382,9 @@ if args.run_script == 'Inference':
     else:
         results_dir = config.General.experiment_path
 
-
-    config.DrawProperties.save_img_path = os.path.join(config.General.experiment_path, "Vis_" + val_set)
-    os.makedirs(config.DrawProperties.save_img_path, exist_ok=True)
+    if args.to_draw:
+        config.DrawProperties.save_img_path = os.path.join(config.General.experiment_path, "Vis_" + val_set)
+        os.makedirs(config.DrawProperties.save_img_path, exist_ok=True)
 
     config.General.files_path = os.path.join(results_dir, "OutputFiles_"+ val_set)
     os.makedirs(config.General.files_path, exist_ok=True)
@@ -398,7 +413,7 @@ if  (args.network_type == "bbox_detection" or args.network_type == "both" or arg
         args.network_type == "both_Back2bFind2b"):
 
     if args.network_type == "both_Back2bFind2b":
-        args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection_Back2bFind2b")
+        args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection_Back2bFind2b") #"bbox_detection_Back2bFind2b")
     else:
         args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection_epoch69") #"bbox_detection")
     os.makedirs(args.bbox_detection_weights_dir, exist_ok=True)
@@ -447,7 +462,10 @@ if args.load_per_object_counting_weights or args.load_per_object_attributes_weig
 # if args.load_per_image_weights:
 #     args.per_image_weights_file = get_weights_file(args.per_image_weights_dir)
 if args.load_full_model_weights:
-    args.full_model_weights = get_weights_file(args.bbox_detection_weights_dir)
+    if args.network_type == "counting_lean" or args.network_type == "counting_reg":
+        args.full_model_weights = get_weights_file(args.per_image_weights_dir)
+    else:
+        args.full_model_weights = get_weights_file(args.bbox_detection_weights_dir)
 
 if args.save_from_model_file:
     if args.dataset_name == "roots":
