@@ -218,8 +218,8 @@ def load_submodule_weights(model, state_dict, submodule_names, strict=True, verb
         result = submodule.load_state_dict(filtered_dict, strict=strict)
 
         if verbose:
-            print("Missing keys:", result.missing_keys)
-            print("Unexpected keys:", result.unexpected_keys)
+            print(f"Missing keys: {result.missing_keys}")
+            print(f"Unexpected keys: {result.unexpected_keys} \n")
 
     #return result
 

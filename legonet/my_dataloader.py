@@ -150,7 +150,6 @@ class csv_LCCDataset(Dataset):
             pre_process = 'keras_like',
             ann_type = None,
             transform = None,
-            lean_version = " ",
             json_file = None,
             have_GT = True
 
@@ -164,7 +163,6 @@ class csv_LCCDataset(Dataset):
         self.pre_process = pre_process
         self.ann_type = ann_type
         self.transform = transform
-        self.lean_version = lean_version
         self.json_file = json_file
 
         self.have_GT = have_GT
@@ -571,29 +569,6 @@ class csv_LCCDataset(Dataset):
         if self.have_GT:
             annot = self.get_output_forV20([idx])
 
-        if config.General.NETWORK_TYPE == config.NetworkType.counting_lean_multiple_out:
-            image_name = self.bgr_images_names[idx]
-
-            if self.have_GT:
-                for key in self.json_data.keys():
-                    if 'original_name' in self.json_data[key].keys():
-                        current_name = self.json_data[key]['original_name']
-                    else:
-                        current_name = self.json_data[key]['processed_name']
-
-                    if image_name == current_name:
-                        current_anns = self.json_data[key]
-
-                        out_anns = np.array([[current_anns['roots_num'],
-                        current_anns['TRL'],
-                        current_anns['roots_dia_mean'],
-                        current_anns['roots_dia_std'],
-                        annot[0][0][1]]])
-
-                        annot = (out_anns, annot[1])
-
-                        break
-
         if self.have_GT:
             sample = {'img': img, 'annot': annot}
 
@@ -611,26 +586,14 @@ class csv_LCCDataset(Dataset):
                 sample['annot'] = [annotations_group_num_of_leaves[0]]
 
             elif len(sample['annot']) == 2:
-
-                if config.General.NETWORK_TYPE == config.NetworkType.counting_lean_multiple_out:
-                    _, annotations_group_leaves_center = sample['annot']
-                else:
-                    annotations_group_num_of_leaves, annotations_group_leaves_center = sample['annot']
+                annotations_group_num_of_leaves, annotations_group_leaves_center = sample['annot']
 
                 # compute keypoints after the transformation are done
-                if self.lean_version != "version_3":
-                    annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_1_R)
-                    annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_2_R)
-                    annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_3_R)
-                    annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_4_R)
-                    annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_5_R)
-                else:
-                    annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_1_R, pyramid_level=3)
-                    annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_2_R, pyramid_level=4)
-                    annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_3_R, pyramid_level=5)
-                    annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_4_R, pyramid_level=6)
-                    annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_5_R, pyramid_level=7)
-
+                annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_1_R)
+                annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_2_R)
+                annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_3_R)
+                annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_4_R)
+                annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_5_R)
 
                 if config.General.NETWORK_TYPE == config.NetworkType.counting_lean_multiple_out:
                     sample['annot'] = [sample['annot'][0][0:4][0],  #roots_num, TRL, roots_dia_mean, roots_dia_std,
@@ -640,7 +603,6 @@ class csv_LCCDataset(Dataset):
                     sample['annot'] = [annotations_group_num_of_leaves[0], annotation_map_1, annotation_map_2, annotation_map_3, annotation_map_4, annotation_map_5]
             # plt.imsave(draw_path + '/' + 'ann_map_'+str(1)+ '_anno.png', annotation_map_1)
 
-        sample['lean_version'] = self.lean_version
 
         return sample
 
@@ -1413,8 +1375,6 @@ def LCC_collater(data):
         have_GT = False
 
     scales = [s['scale'] for s in data if 'scale' in s.keys()]
-
-    lean_version = data[0]['lean_version']
 
     batch_size = len(imgs)
 

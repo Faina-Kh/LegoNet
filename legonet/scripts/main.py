@@ -57,19 +57,22 @@ args.gpu_num = '0'
 
 args.STORAGE_PATH = 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = "roots" #"grapes" #"roots"
-args.network_type ="counting_reg"
-# "counting_lean" #"both_Back2bFind2b" # "both_Back2bFind2b" #"counting_reg" #"counting_lean" #"both_for_roots_2" # "both" #"bbox_detection"
+args.network_type = "counting_lean"
+# "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
 
-args.current_results_dir = 'TRL_estimator_reg' #'TRL_estimator_KP' #"both_Back2bFind2b_detection_epoch69")
-#'TRL_estimator_KP' #'bbox_detection_prevLoad' #'Recheck_bbox_detection'
-#'per_object_attributes_Reg' #'per_object_attributes_KP'  #'TRL_estimator_Reg' #'TRL_estimator_KP'
-# #'per_object_attributes' #'bbox_detection' # 'per_object_counting' # "both_Back2bFind2b"
-args.estimate_type = 'reg_fpn_p3_p7_min_sig' #'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
+args.current_results_dir = 'TRL_estimator_KP'
+#'TRL_estimator_KP' # 'TRL_estimator_reg' #'per_object_attributes_Reg' #'per_object_attributes_KP'
+#'bbox_detection' # 'per_object_counting' # "both_Back2bFind2b"
 
+args.estimate_type = 'withKeyPoints' #'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
 args.to_draw = False
+args.run_script = 'Training' #'Training' #'Inference'
+val_set = "Val" #"Test" #"Val"
 
-args.run_script = 'Inference' #'Training' #'Inference'
-val_set = "Test" #"Test" #"Val"
+args.num_of_epochs = 2
+args.have_GT = True
+
+#--------------------------------------------------------------------------------------------------------------
 
 
 args.evaluate_detection = True
@@ -82,8 +85,6 @@ if args.network_type == "counting_lean" or args.network_type == "counting_reg":
     args.load_partial_weights = False
 else:
     args.load_partial_weights = True
-
-
 
 
 
@@ -140,8 +141,8 @@ if args.load_weights:
             args.load_per_object_counting_weights = True
             args.load_per_object_attributes_weights = True
 
-args.have_GT = True
-args.num_of_epochs = 300
+
+#args.num_of_epochs = 300
 args.do_Kfold = False
 
 # task specific definitions - ToDo - organize per task type
@@ -189,9 +190,7 @@ elif args.dataset_name == 'roots':
         # #os.path.join(results_dir, 'wheat_MS5_s0.7_640\\saved_weights_211\\detector_weights')
 
 
-
 config.AttributeEstimation.estimate_type = args.estimate_type
-
 
 ########################################################################################################################
 # GPU settings
@@ -338,8 +337,6 @@ elif args.dataset_name == "roots":
             args.val_json_file = os.path.join(myDatasetsPath, "sub_" + val_set, val_set + "_Dia_Length_Color.txt")
 
 
-
-
 if args.have_GT:
     args.base_dir = None
 else:
@@ -350,14 +347,13 @@ if args.run_script == 'Inference':
         results_dir = os.path.join(config.General.experiment_path, 'Inf_min_score_'+str(config.Detection.min_score))
         os.makedirs(results_dir, exist_ok=True)
     else:
-        results_dir = config.General.experiment_path
+        results_dir = os.path.join(config.General.experiment_path)
 
     if args.to_draw:
         config.DrawProperties.save_img_path = os.path.join(config.General.experiment_path, "Vis_" + val_set)
         os.makedirs(config.DrawProperties.save_img_path, exist_ok=True)
 
-    config.General.files_path = os.path.join(results_dir, "OutputFiles_"+ val_set)
-    os.makedirs(config.General.files_path, exist_ok=True)
+    config.General.files_path = os.path.join(results_dir, "OutputFiles_"+ val_set) #, 'Test2')
 
     args.txt_results = os.path.join(config.General.files_path,
                                     "with_Vis_results_"+val_set +".txt" if config.General.to_draw else
@@ -371,21 +367,25 @@ if args.run_script == 'Inference':
         os.makedirs(config.DrawProperties.maps_path, exist_ok=True)
 
 else:
-    args.txt_results = os.path.join(config.General.experiment_path, "Train_results.txt")
-    args.output_csv = os.path.join(config.General.experiment_path, "Train_results.csv")
+    config.General.files_path = os.path.join(config.General.experiment_path, "OutputFiles_Train")  # , 'Test2')
 
+    args.txt_results = os.path.join(config.General.files_path, "Train_results.txt")
+    args.output_csv = os.path.join(config.General.files_path, "Train_results.csv")
+
+os.makedirs(config.General.files_path, exist_ok=True)
 
 ######################################################################
 # weights related
 ######################################################################
 
+
 if  (args.network_type == "bbox_detection" or args.network_type == "both" or args.network_type == "both_for_roots_2" or
         args.network_type == "both_Back2bFind2b"):
-
-    if args.network_type == "both_Back2bFind2b":
-        args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection_Back2bFind2b") #"bbox_detection_Back2bFind2b")
-    else:
-        args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection_epoch69") #"bbox_detection")
+    args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection")
+    # if args.network_type == "both_Back2bFind2b":
+    #     args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection_Back2bFind2b") #"bbox_detection_Back2bFind2b")
+    # else:
+    #     args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection_epoch69") #"bbox_detection")
     os.makedirs(args.bbox_detection_weights_dir, exist_ok=True)
 
     if not args.network_type == "bbox_detection":
@@ -415,7 +415,7 @@ if args.network_type == "counting_lean" or args.network_type == "counting_reg":
     if args.network_type == "counting_lean":
         args.per_image_weights_dir = os.path.join(args.myExpPath, "Weights", "per_image_attributes", "TRL_KP")
     else:
-        args.per_image_weights_dir = os.path.join(args.myExpPath, "Weights", "per_image_attributes", "TRL_Reg")
+        args.per_image_weights_dir = os.path.join(args.myExpPath, "Weights", "per_image_attributes", "TRL_Reg") #os.path.join(args.myExpPath, 'TRL_estimator_reg\\Weights\\2026-05-21_121532') #os.path.join(args.myExpPath, "Weights", "per_image_attributes", "TRL_Reg")
     os.makedirs(args.per_image_weights_dir, exist_ok=True)
 
 # "D:\\from 16\\more_counting_Res\\more_counting_Res\\legonet_epoch=249.pt" #cont_legonet_epoch=14.pt"

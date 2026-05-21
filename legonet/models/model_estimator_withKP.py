@@ -33,12 +33,20 @@ class ImageEstimatorWithKeypoints(nn.Module):
         )
         self.estimator = legos.KeypointBasedEstimator() #self.LeanCountingModule
 
-    def freeze_detector(self) -> None:
-        """No-op for the counting-only model.
+        self.freeze_bn()
 
-        ``runner.py`` calls ``freeze_detector`` for every model type, so the
-        counting-only variants provide a compatible stub.
-        """
+    def freeze_bn(self):
+        '''Freeze BatchNorm layers.'''
+        for layer in self.modules():
+            if isinstance(layer, nn.BatchNorm2d):
+                layer.eval()
+
+    # def freeze_detector(self) -> None:
+    #     """No-op for the counting-only model.
+    #
+    #     ``runner.py`` calls ``freeze_detector`` for every model type, so the
+    #     counting-only variants provide a compatible stub.
+    #     """
 
     def forward(self, inputs):
         if self.training:
@@ -57,7 +65,7 @@ class ImageEstimatorWithKeypoints(nn.Module):
             count_train_inputs = [[p3], annotations_on_device[1:6]]
             sfms_lists, cls_output, maps_loss = self.find(count_train_inputs)
             count_input = sfms_lists, cls_output, annotations_on_device
-            l1_loss = self.estimator(count_input)[0]
+            l1_loss = self.estimator(count_input)[0] #[0])
             return l1_loss, maps_loss
 
         sfms_lists, cls_output = self.find([p3])

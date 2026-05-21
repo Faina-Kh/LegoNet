@@ -997,6 +997,9 @@ class KeypointBasedEstimator(nn.Module): #LeanCountingModule #EstimateWithKeyPoi
                             losses.append(self.L1loss(annotations[2].float(), output[:, 0]))
                         elif self.attribute_name == "color":
                             losses.append(self.L1loss(annotations[0].float(), output[:, 0])) #self.L1loss(annotations[0].squeeze(dim=1), output[:, i]))
+                        else:
+                            losses.append(self.L1loss(annotations[0].float(), output))
+
 
             return (losses)
 
