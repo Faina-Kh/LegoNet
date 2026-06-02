@@ -1,19 +1,21 @@
 import os
 import sys
 import argparse
-import torch
 import time
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 import config #config_new
 import paths
 import numpy as np
-from pathlib import Path
 import csv
 from datetime import datetime
 
 import warnings
 warnings.filterwarnings("ignore")
-
-import legonet.runner
 
 startTime = time.time()
 
@@ -31,8 +33,53 @@ def print_to_csv(args, executionTime):
             for line in f_in:
                 writer.writerow(line.strip().split("|"))
 
+
+def parse_bool(value):
+    """Parse a command-line boolean value."""
+    if isinstance(value, bool):
+        return value
+
+    lowered = value.lower()
+    if lowered in ("1", "true", "yes", "y"):
+        return True
+    if lowered in ("0", "false", "no", "n"):
+        return False
+
+    raise argparse.ArgumentTypeError("Expected one of: true, false, yes, no, 1, 0.")
+
+
 def parse_args(args):
     parser = argparse.ArgumentParser(description='main script.')
+    parser.add_argument("--gpu-num", default=None, help="CUDA device index exposed to the run.")
+    parser.add_argument("--storage-path", default=None, help="Root storage path containing Datasets and ExpResults.")
+    parser.add_argument("--dataset-name", choices=["grapes", "roots"], default=None)
+    parser.add_argument(
+        "--network-type",
+        choices=[
+            "bbox_detection",
+            "counting_lean",
+            "counting_reg",
+            "both",
+            "both_for_roots_2",
+            "both_Back2bFind2b",
+        ],
+        default=None,
+    )
+    parser.add_argument("--current-results-dir", default=None)
+    parser.add_argument(
+        "--estimate-type",
+        choices=["withKeyPoints", "reg_fpn_p3_p7_min_sig"],
+        default=None,
+    )
+    parser.add_argument("--run-script", choices=["Training", "Inference"], default=None)
+    parser.add_argument("--val-set", choices=["Val", "Test"], default=None)
+    parser.add_argument("--num-of-epochs", type=int, default=None)
+    parser.add_argument("--have-gt", type=parse_bool, default=None)
+    parser.add_argument("--to-draw", type=parse_bool, default=None)
+    parser.add_argument("--evaluate-detection", type=parse_bool, default=None)
+    parser.add_argument("--evaluate-both", type=parse_bool, default=None)
+    parser.add_argument("--save-from-model-file", type=parse_bool, default=None)
+    parser.add_argument("--load-weights", type=parse_bool, default=None)
 
     return parser.parse_args(args)
 
@@ -53,34 +100,34 @@ if args is None:
 ########################################################################################################################
 # user definitions
 ########################################################################################################################
-args.gpu_num = '1'
+args.gpu_num = args.gpu_num or '1'
 
-args.STORAGE_PATH = 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
-args.dataset_name = "roots" #"grapes" #"roots"
-args.network_type = "bbox_detection"
+args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
+args.dataset_name = args.dataset_name or "roots" #"grapes" #"roots"
+args.network_type = args.network_type or "bbox_detection"
 # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
 
-args.current_results_dir = "bbox_detection"
+args.current_results_dir = args.current_results_dir or "bbox_detection"
 #'per_object_attributes_KP'
 #'TRL_estimator_KP' # 'TRL_estimator_reg' #'per_object_attributes_Reg' #'per_object_attributes_KP'
 #'bbox_detection' # 'per_object_counting' # "both_Back2bFind2b"
 
-args.estimate_type = 'withKeyPoints' #'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
-args.to_draw = False
-args.run_script = 'Inference' #'Training' #'Inference'
-val_set = "Test" #"Test" #"Val"
+args.estimate_type = args.estimate_type or 'withKeyPoints' #'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
+args.to_draw = False if args.to_draw is None else args.to_draw
+args.run_script = args.run_script or 'Inference' #'Training' #'Inference'
+val_set = args.val_set or "Test" #"Test" #"Val"
 
-args.num_of_epochs = 2
-args.have_GT = True
+args.num_of_epochs = args.num_of_epochs or 2
+args.have_GT = True if args.have_gt is None else args.have_gt
 
 #--------------------------------------------------------------------------------------------------------------
 
 
-args.evaluate_detection = True
-args.evaluate_both = False # relevant to validation, not train (roots)
+args.evaluate_detection = True if args.evaluate_detection is None else args.evaluate_detection
+args.evaluate_both = False if args.evaluate_both is None else args.evaluate_both # relevant to validation, not train (roots)
 
-args.save_from_model_file = False
-args.load_weights = True
+args.save_from_model_file = False if args.save_from_model_file is None else args.save_from_model_file
+args.load_weights = True if args.load_weights is None else args.load_weights
 
 if args.network_type == "counting_lean" or args.network_type == "counting_reg":
     args.load_partial_weights = False
@@ -197,6 +244,8 @@ config.AttributeEstimation.estimate_type = args.estimate_type
 ########################################################################################################################
 # GPU settings
 ########################################################################################################################
+import torch
+
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_num
 
 # Check if GPU is available
@@ -515,6 +564,8 @@ if args.save_from_model_file:
 ########################################################################################################################
 
 # Run training or validation of a specific model
+import legonet.runner
+
 legonet.runner.run(args)
 
 # run validation on multiple models with different min_score and iou_threshold

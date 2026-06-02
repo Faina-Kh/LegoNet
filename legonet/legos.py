@@ -551,18 +551,7 @@ class FindModule(nn.Module):
                 else:
                     cls_output_downsampled = self.GlobalSumPooling2D(cls_output_Step_Function2)
 
-                ##########################################################################################################
-                #cls_output_downsampled = self.GlobalSumPooling2D(cls_output_Step_Function2)
-                ##########################################################################################################
-
                 cls_output.append(cls_output_downsampled)
-
-                ##############################################################################################
-                # print(torch.min(cls_output_Step_Function1.data), torch.max(cls_output_Step_Function1.data))
-                # print(torch.min(cls_output_MaxPooled.data), torch.max(cls_output_MaxPooled.data))
-                # print(torch.min(cls_output_Step_Function2.data), torch.max(cls_output_Step_Function2.data))
-                # print(cls_output_downsampled.data)
-                ###############################################################################################
 
                 if self.training:
                     if config.AttributeEstimation.inter_losses:
@@ -576,40 +565,6 @@ class FindModule(nn.Module):
                     else:
                         maps_loss = self.focalLoss(annotations[4], classification[5])
 
-                    #####################################################################################################
-                    #print('losses: l1 = {:.4f}, l2 = {:.4f}, l3 = {:.4f}, l4 = {:.4f}, l5 = {:.4f}\n'.format(l1, l2,l3,l4,l5))
-
-                    #m1=classification[0]
-                    # m2 = classification[1]
-                    # m3 = classification[2]
-                    # m4 = classification[3]
-                    # m5 = classification[5]
-                    #
-                    # gt1 = annotations[0]
-                    # gt2 = annotations[1]
-                    # gt3 = annotations[2]
-                    # gt4 = annotations[3]
-                    # gt5 = annotations[4]
-
-                    #
-                    # print('gt1 - min: {}, max: {}, sum: {:.4f} , mean: {:.4f}'.format(torch.min(gt1), torch.max(gt1), torch.sum(gt1), torch.mean(gt1)))
-                    # print('m1 -  min: {}, max: {}, sum: {:.4f} , mean: {:.4f}\n'.format(torch.min(m1), torch.max(m1), torch.sum(m1), torch.mean(m1)))
-                    #
-                    # print('gt2 - min: {}, max: {}, sum: {:.4f} , mean: {:.4f}'.format(torch.min(gt2), torch.max(gt2), torch.sum(gt2), torch.mean(gt2)))
-                    # print('m2 -  min: {}, max: {}, sum: {:.4f} , mean: {:.4f}\n'.format(torch.min(m2), torch.max(m2), torch.sum(m2), torch.mean(m2)))
-                    #
-                    # print('gt3 - min: {}, max: {}, sum: {:.4f} , mean: {:.4f}'.format(torch.min(gt3), torch.max(gt3), torch.sum(gt3), torch.mean(gt3)))
-                    # print('m3 -  min: {}, max: {}, sum: {:.4f} , mean: {:.4f}\n'.format(torch.min(m3), torch.max(m3), torch.sum(m3), torch.mean(m3)))
-                    #
-                    # print('gt4 - min: {}, max: {}, sum: {:.4f} , mean: {:.4f}'.format(torch.min(gt4), torch.max(gt4), torch.sum(gt4), torch.mean(gt4)))
-                    # print('m4 -  min: {}, max: {}, sum: {:.4f} , mean: {:.4f}\n'.format(torch.min(m4), torch.max(m4), torch.sum(m4), torch.mean(m4)))
-                    #
-                    # print('gt5 - min: {}, max: {}, sum: {:.4f} , mean: {:.4f}'.format(torch.min(gt5), torch.max(gt5),torch.sum(gt5), torch.mean(gt5)))
-                    # print('m5 -  min: {}, max: {}, sum: {:.4f} , mean: {:.4f}\n'.format(torch.min(m5), torch.max(m5), torch.sum(m5), torch.mean(m5)))
-
-                    ##################################################################################################################################
-
-                    #loss_for_SFMS.append([l1, l2,l3,l4,l5])
 
             if self.training:
                 return SFMS_lists, cls_output, maps_loss
