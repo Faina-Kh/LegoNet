@@ -89,9 +89,9 @@ class BBOX_Detection(nn.Module):
             classification_vector = torch.cat(classifications, dim=1)
             regression_vector = self.where(pyramid_feats)
 
-            transformed_anchors = self.regressBoxes(anchors, regression_vector)
+            transformed_anchors = self.regressBoxes(anchors, regression_vector) #regression_vector
             transformed_anchors = self.clipBoxes(transformed_anchors, img_batch)
-            detection_outputs = self.get_detection_output(transformed_anchors, classification_vector)
+            detection_outputs = self.get_detection_output(transformed_anchors, classification_vector) #classification_vector
 
             return detection_outputs
 

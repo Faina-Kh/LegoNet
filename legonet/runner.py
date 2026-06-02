@@ -330,9 +330,9 @@ def run(args=None):
                 print("Available modules in bbox_detection weights file:", list_checkpoint_modules(bbox_det_state_dict))
 
                 if args.network_type == 'bbox_detection':
-                    legonet.load_state_dict(bbox_det_state_dict, strict=True) #strict=False
+                    legonet.load_state_dict(bbox_det_state_dict, strict=False) #strict=False
                     load_submodule_weights(legonet, bbox_det_state_dict,
-                                           submodule_names=['backbone_1', 'find_1', 'where'], strict=True) #strict=False
+                                           submodule_names=['backbone_1', 'find_1', 'where'], strict=False) #strict=False
 
                 elif (args.network_type == 'both' or args.network_type == "both_for_roots_2"
                       or args.network_type == "both_Back2bFind2b"): #config.General.MODE == 'Training' and  (
@@ -356,8 +356,7 @@ def run(args=None):
                     load_submodule_weights(legonet, per_object_state_dict,
                                            submodule_names = ['backbone_2', 'find_2',
                                                               'estimator_length', 'estimator_diameter', 'estimator_color',
-                                                              'find_2_b', 'backbone_2_b'],
-                                           strict=False)
+                                                              'find_2_b', 'backbone_2_b'], strict=False)
                 else:
                     load_submodule_weights(legonet, per_object_state_dict,
                                            submodule_names=['backbone_2', 'find_2',

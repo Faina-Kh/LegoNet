@@ -53,21 +53,22 @@ if args is None:
 ########################################################################################################################
 # user definitions
 ########################################################################################################################
-args.gpu_num = '0'
+args.gpu_num = '1'
 
 args.STORAGE_PATH = 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = "roots" #"grapes" #"roots"
-args.network_type = "counting_lean"
+args.network_type = "bbox_detection"
 # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
 
-args.current_results_dir = 'TRL_estimator_KP'
+args.current_results_dir = "bbox_detection"
+#'per_object_attributes_KP'
 #'TRL_estimator_KP' # 'TRL_estimator_reg' #'per_object_attributes_Reg' #'per_object_attributes_KP'
 #'bbox_detection' # 'per_object_counting' # "both_Back2bFind2b"
 
 args.estimate_type = 'withKeyPoints' #'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
 args.to_draw = False
-args.run_script = 'Training' #'Training' #'Inference'
-val_set = "Val" #"Test" #"Val"
+args.run_script = 'Inference' #'Training' #'Inference'
+val_set = "Test" #"Test" #"Val"
 
 args.num_of_epochs = 2
 args.have_GT = True
@@ -76,7 +77,7 @@ args.have_GT = True
 
 
 args.evaluate_detection = True
-args.evaluate_both = True # relevant to validation, not train (roots)
+args.evaluate_both = False # relevant to validation, not train (roots)
 
 args.save_from_model_file = False
 args.load_weights = True
@@ -152,8 +153,9 @@ args.eval_in_train = True
 args.eval_detection_params = False
 
 
-if ((args.network_type == "bbox_detection" and args.dataset_name == 'roots') or args.network_type == "both_for_roots_2"
-        or args.network_type == "both_Back2bFind2b"):
+if args.dataset_name == 'roots':
+    #((args.network_type == "bbox_detection" and args.dataset_name == 'roots') or args.network_type == "both_for_roots_2"
+        #or args.network_type == "both_Back2bFind2b"):
     config.Detection.change_anchors = True
     config.Detection.ratios = np.array([0.5, 1, 3])  # np.array([0.5, 1, 3]) #np.array([0.5, 1, 4]) #np.array([0.5, 1, 2])
     print("Detection.ratios:", config.Detection.ratios)
@@ -161,10 +163,10 @@ if ((args.network_type == "bbox_detection" and args.dataset_name == 'roots') or 
 if args.network_type != "bbox_detection":
     args.freeze_detection = True
 
-if (args.network_type == 'bbox_detection' or args.network_type == "both" or args.network_type == "both_for_roots_2" or
-        args.network_type == "both_Back2bFind2b"):
-    config.Detection.min_score = 0.7  # 0.7 #0.05
-    config.Detection.iou_threshold = 0.5
+# if (args.network_type == 'bbox_detection' or args.network_type == "both" or args.network_type == "both_for_roots_2" or
+#         args.network_type == "both_Back2bFind2b"):
+#     config.Detection.min_score = 0.7  # 0.7 #0.05
+#     config.Detection.iou_threshold = 0.5
 
 if args.dataset_name == 'grapes':
     if args.network_type == "bbox_detection":
@@ -381,7 +383,7 @@ os.makedirs(config.General.files_path, exist_ok=True)
 
 if  (args.network_type == "bbox_detection" or args.network_type == "both" or args.network_type == "both_for_roots_2" or
         args.network_type == "both_Back2bFind2b"):
-    args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection")
+    args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection_epoch69") #"bbox_detection")
     # if args.network_type == "both_Back2bFind2b":
     #     args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection_Back2bFind2b") #"bbox_detection_Back2bFind2b")
     # else:
@@ -422,9 +424,9 @@ if args.network_type == "counting_lean" or args.network_type == "counting_reg":
 
 if args.load_bbox_det_weights:
     args.bbox_detection_weights_file = get_weights_file(args.bbox_detection_weights_dir)
-    args.partial_weights_dir = os.path.join(args.myExpPath, "Weights",
-                                            "Prev_model_files\\Three_datasets_detection\\2023-05-20_230659",
-                                            "saved_weights_epoch_69")
+    # args.partial_weights_dir = os.path.join(args.myExpPath, "Weights",
+    #                                         "Prev_model_files\\Three_datasets_detection\\2023-05-20_230659",
+    #                                         "saved_weights_epoch_69")
 
 if args.load_per_object_counting_weights or args.load_per_object_attributes_weights:
     args.per_object_weights_file = get_weights_file(args.per_object_weights_dir)

@@ -32,9 +32,9 @@ class General:
 
 
 class Detection:
-    NMS_THRESHOLD = 0.5
+    NMS_THRESHOLD = 0.3 #0.5
     iou_threshold = 0.5
-    min_score = 0.05 #0.7
+    min_score = 0.7 #0.05 #0.7
     iou_threshold_list = [0.5]
     min_score_list = []
     change_anchors = False
