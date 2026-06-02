@@ -6,8 +6,8 @@ import copy
 import cv2
 import numpy as np
 from itertools import compress
-import legos
-import utils
+from legonet import legos
+from legonet import utils
 import config
 import legonet.my_dataloader as myDataloader
 from legonet.my_dataloader import UnNormalizer

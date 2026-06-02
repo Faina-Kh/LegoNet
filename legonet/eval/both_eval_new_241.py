@@ -12,7 +12,7 @@ import PIL
 from PIL import Image
 from torchvision import transforms
 
-from utils import printf
+from legonet.utils import printf
 from legonet.eval.counting_eval import SumOfAbsDifferences
 from legonet.eval.kcsv_eval_2 import _get_count_and_box_annotations, compute_overlap, _compute_ap
 from legonet.eval.count_detection_eval import points_detection_t_p, calc_points_recall_precision_ap

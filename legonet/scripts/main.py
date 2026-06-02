@@ -50,11 +50,24 @@ def parse_bool(value):
 
 def parse_args(args):
     parser = argparse.ArgumentParser(description='main script.')
-    parser.add_argument("--gpu-num", default=None, help="CUDA device index exposed to the run.")
-    parser.add_argument("--storage-path", default=None, help="Root storage path containing Datasets and ExpResults.")
-    parser.add_argument("--dataset-name", choices=["grapes", "roots"], default=None)
+    parser.add_argument(
+        "run_script_positional",
+        nargs="?",
+        choices=["Training", "Inference"],
+        help="Optional run mode shortcut.",
+    )
+    parser.add_argument("--gpu-num", "--gpu_num", default=None, help="CUDA device index exposed to the run.")
+    parser.add_argument(
+        "--storage-path",
+        "--STORAGE_PATH",
+        "--storage_path",
+        default=None,
+        help="Root storage path containing Datasets and ExpResults.",
+    )
+    parser.add_argument("--dataset-name", "--dataset_name", choices=["grapes", "roots"], default=None)
     parser.add_argument(
         "--network-type",
+        "--network_type",
         choices=[
             "bbox_detection",
             "counting_lean",
@@ -65,23 +78,28 @@ def parse_args(args):
         ],
         default=None,
     )
-    parser.add_argument("--current-results-dir", default=None)
+    parser.add_argument("--current-results-dir", "--current_results_dir", default=None)
     parser.add_argument(
         "--estimate-type",
+        "--estimate_type",
         choices=["withKeyPoints", "reg_fpn_p3_p7_min_sig"],
         default=None,
     )
-    parser.add_argument("--run-script", choices=["Training", "Inference"], default=None)
-    parser.add_argument("--val-set", choices=["Val", "Test"], default=None)
-    parser.add_argument("--num-of-epochs", type=int, default=None)
-    parser.add_argument("--have-gt", type=parse_bool, default=None)
-    parser.add_argument("--to-draw", type=parse_bool, default=None)
-    parser.add_argument("--evaluate-detection", type=parse_bool, default=None)
-    parser.add_argument("--evaluate-both", type=parse_bool, default=None)
-    parser.add_argument("--save-from-model-file", type=parse_bool, default=None)
-    parser.add_argument("--load-weights", type=parse_bool, default=None)
+    parser.add_argument("--run-script", "--run_script", choices=["Training", "Inference"], default=None)
+    parser.add_argument("--val-set", "--val_set", choices=["Val", "Test"], default=None)
+    parser.add_argument("--num-of-epochs", "--num_of_epochs", type=int, default=None)
+    parser.add_argument("--have-gt", "--have_GT", type=parse_bool, default=None)
+    parser.add_argument("--to-draw", "--to_draw", type=parse_bool, default=None)
+    parser.add_argument("--evaluate-detection", "--evaluate_detection", type=parse_bool, default=None)
+    parser.add_argument("--evaluate-both", "--evaluate_both", type=parse_bool, default=None)
+    parser.add_argument("--save-from-model-file", "--save_from_model_file", type=parse_bool, default=None)
+    parser.add_argument("--load-weights", "--load_weights", type=parse_bool, default=None)
 
-    return parser.parse_args(args)
+    parsed_args = parser.parse_args(args)
+    if parsed_args.run_script is None:
+        parsed_args.run_script = parsed_args.run_script_positional
+
+    return parsed_args
 
 def get_weights_file(weights_dir):
     files = [p for p in Path(weights_dir).iterdir() if p.is_file()]

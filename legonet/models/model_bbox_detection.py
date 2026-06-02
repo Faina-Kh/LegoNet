@@ -3,8 +3,8 @@ import torch.nn as nn
 import torchvision.ops
 import math
 
-import anchors
-import legos
+from legonet import anchors
+from legonet import legos
 import config
 
 

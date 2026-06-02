@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-import legos
+from legonet import legos
 import config
 
 

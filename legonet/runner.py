@@ -10,16 +10,27 @@ from torch.utils.data import DataLoader
 import config #config_new
 from legonet.eval import coco_eval, counting_eval, kcsv_eval_2
 from legonet.eval import both_eval_new_241 as both_eval
-from my_dataloader import (KCSVDataset, CocoDataset, collater, Resizer, AspectRatioBasedSampler, Augmenter, Normalizer,
-                           UnNormalizer, csv_LCCDataset, LCC_collater, kcsv_collater)
+from legonet.my_dataloader import (
+    KCSVDataset,
+    CocoDataset,
+    collater,
+    Resizer,
+    AspectRatioBasedSampler,
+    Augmenter,
+    Normalizer,
+    UnNormalizer,
+    csv_LCCDataset,
+    LCC_collater,
+    kcsv_collater,
+)
 
 from PIL import Image, ImageDraw, ImageFont
 import random
 import gc
 
-from legoNet_build import model_build
+from legonet.legoNet_build import model_build
 from manage_weights import list_checkpoint_modules, load_submodule_weights, save_partial_weights, print_module_names
-import utils
+from legonet import utils
 
 
 def remove_prevEpoch():

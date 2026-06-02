@@ -40,27 +40,27 @@ def _build_reg_estimator(module, args, dataset):
 
 MODEL_REGISTRY = {
     "bbox_detection": {
-        "module_path": "models.model_bbox_detection",
+        "module_path": "legonet.models.model_bbox_detection",
         "builder": _build_bbox_detection,
     },
     "counting_lean": {
-        "module_path": "models.model_estimator_withKP",
+        "module_path": "legonet.models.model_estimator_withKP",
         "builder": _build_KP_estimator,
     },
     "counting_reg": {
-        "module_path": "models.model_estimator_withReg",
+        "module_path": "legonet.models.model_estimator_withReg",
         "builder": _build_reg_estimator,
     },
     "both": {
-        "module_path": "models.model_both_grapes",
+        "module_path": "legonet.models.model_both_grapes",
         "builder": _build_per_object_estimate,
     },
     "both_for_roots_2": {
-        "module_path": "models.model_both_for_roots_2",
+        "module_path": "legonet.models.model_both_for_roots_2",
         "builder": _build_per_object_estimate,
     },
     "both_Back2bFind2b":{
-        "module_path": "models.model_both_Back2bFind2b",
+        "module_path": "legonet.models.model_both_Back2bFind2b",
     "builder": _build_per_object_estimate,}
 }
 

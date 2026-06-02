@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 
 import tkinter
 
-import utils
-from utils import printf
+from legonet import utils
+from legonet.utils import printf
 import config
 
 def compute_overlap(a, b):
