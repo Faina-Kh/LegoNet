@@ -99,6 +99,7 @@ def parse_args(args):
 
     return parsed_args
 
+
 def get_weights_file(weights_dir):
     files = [p for p in Path(weights_dir).iterdir() if p.is_file()]
     if len(files) > 0:
