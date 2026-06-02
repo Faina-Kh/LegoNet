@@ -12,7 +12,7 @@ import config
 import legonet.my_dataloader as myDataloader
 from legonet.my_dataloader import UnNormalizer
 from legonet.eval.both_eval_new_241 import choose_boxes_by_IoUandPrc
-from model_bbox_detection import BBOX_Detection
+from legonet.models.model_bbox_detection import BBOX_Detection
 
 
 

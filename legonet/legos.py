@@ -3,9 +3,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
-import matplotlib.pyplot as plt
 import config
-import modular_losses
+from legonet import modular_losses
 import gc
 
 

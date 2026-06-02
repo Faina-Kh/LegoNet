@@ -90,8 +90,6 @@ def parse_args(args):
     parser.add_argument("--num-of-epochs", "--num_of_epochs", type=int, default=None)
     parser.add_argument("--have-gt", "--have_GT", type=parse_bool, default=None)
     parser.add_argument("--to-draw", "--to_draw", type=parse_bool, default=None)
-    parser.add_argument("--evaluate-detection", "--evaluate_detection", type=parse_bool, default=None)
-    parser.add_argument("--evaluate-both", "--evaluate_both", type=parse_bool, default=None)
     parser.add_argument("--save-from-model-file", "--save_from_model_file", type=parse_bool, default=None)
     parser.add_argument("--load-weights", "--load_weights", type=parse_bool, default=None)
 
@@ -122,10 +120,10 @@ args.gpu_num = args.gpu_num or '1'
 
 args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = args.dataset_name or "roots" #"grapes" #"roots"
-args.network_type = args.network_type or "bbox_detection"
+args.network_type = args.network_type or "bbox_detection" #"both_for_roots_2" #"bbox_detection"
 # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
 
-args.current_results_dir = args.current_results_dir or "bbox_detection"
+args.current_results_dir = args.current_results_dir or 'bbox_detection_2'
 #'per_object_attributes_KP'
 #'TRL_estimator_KP' # 'TRL_estimator_reg' #'per_object_attributes_Reg' #'per_object_attributes_KP'
 #'bbox_detection' # 'per_object_counting' # "both_Back2bFind2b"
@@ -140,9 +138,16 @@ args.have_GT = True if args.have_gt is None else args.have_gt
 
 #--------------------------------------------------------------------------------------------------------------
 
+if args.network_type == "both" or args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
+    args.evaluate_both = True # relevant to Inference
+    args.evaluate_detection = True
+elif args.network_type == "bbox_detection":
+    args.evaluate_both = False  # relevant to Inference
+    args.evaluate_detection = True
+else:
+    args.evaluate_both = False
+    args.evaluate_detection = False
 
-args.evaluate_detection = True if args.evaluate_detection is None else args.evaluate_detection
-args.evaluate_both = False if args.evaluate_both is None else args.evaluate_both # relevant to validation, not train (roots)
 
 args.save_from_model_file = False if args.save_from_model_file is None else args.save_from_model_file
 args.load_weights = True if args.load_weights is None else args.load_weights
@@ -242,7 +247,7 @@ if args.dataset_name == 'grapes':
 
 elif args.dataset_name == 'roots':
 
-    if args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
+    if args.network_type == "bbox_detection" or args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
         config.General.predict_empty_image = False
 
         config.AttributeEstimation.do_nmcs = False
