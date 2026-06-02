@@ -76,8 +76,6 @@ def build_command(
         bool_arg(have_gt),
         "--to-draw",
         bool_arg(to_draw),
-        "--evaluate-detection",
-        bool_arg(evaluate_detection),
         "--load-weights",
         bool_arg(load_weights),
     ]
@@ -113,7 +111,6 @@ with st.sidebar:
     num_of_epochs = st.number_input("Number of epochs", min_value=1, value=2, step=1)
     have_gt = st.checkbox("Have ground truth", value=True)
     to_draw = st.checkbox("Draw visualizations", value=False)
-    evaluate_detection = st.checkbox("Evaluate detection", value=True)
     load_weights = st.checkbox("Load weights", value=True)
 
 command = build_command(
@@ -129,7 +126,6 @@ command = build_command(
     num_of_epochs=int(num_of_epochs),
     have_gt=have_gt,
     to_draw=to_draw,
-    evaluate_detection=evaluate_detection,
     load_weights=load_weights,
 )
 
