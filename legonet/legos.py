@@ -6,6 +6,7 @@ import torch.utils.model_zoo as model_zoo
 import config
 from legonet import modular_losses
 import gc
+from pathlib import Path
 
 
 
@@ -42,6 +43,25 @@ resnet_module_urls = {
     'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
     'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
 }
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+PRETRAINED_WEIGHTS_DIR = REPO_ROOT / ".cache" / "pretrained"
+LOCAL_RESNET_WEIGHTS = {
+    "resnet50": REPO_ROOT / "resnet50-19c8e357.pth",
+}
+
+
+def load_pretrained_resnet_weights(module_url):
+    """Load ResNet weights from the repo first, then a repo-local cache."""
+    local_weights_file = LOCAL_RESNET_WEIGHTS.get(module_url)
+    if local_weights_file is not None and local_weights_file.exists():
+        return torch.load(str(local_weights_file), map_location="cpu")
+
+    PRETRAINED_WEIGHTS_DIR.mkdir(parents=True, exist_ok=True)
+    return model_zoo.load_url(
+        resnet_module_urls[module_url],
+        model_dir=str(PRETRAINED_WEIGHTS_DIR),
+    )
 
 ########################################################################################################################
 # backbone related modules
@@ -150,7 +170,7 @@ class ResNetBackboneModule(nn.Module):
         if not self.pretrained:
             init_module_weights(self)
         else:
-            self.load_state_dict(model_zoo.load_url(resnet_module_urls[module_url], model_dir='../../../archive/legacy_launchers'), strict=False)
+            self.load_state_dict(load_pretrained_resnet_weights(module_url), strict=False)
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
