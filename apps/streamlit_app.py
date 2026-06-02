@@ -47,7 +47,6 @@ def build_command(
     num_of_epochs: int,
     have_gt: bool,
     to_draw: bool,
-    evaluate_detection: bool,
     load_weights: bool,
 ) -> list[str]:
     """Build the LegoNet main.py command from GUI settings."""
