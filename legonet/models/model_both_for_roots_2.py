@@ -11,7 +11,7 @@ from legonet import utils
 import config
 import legonet.my_dataloader as myDataloader
 from legonet.my_dataloader import UnNormalizer
-from legonet.eval.both_eval_new_241 import choose_boxes_by_IoUandPrc
+from legonet.eval.perObject_eval import choose_boxes_by_IoUandPrc
 from legonet.models.model_bbox_detection import BBOX_Detection
 
 

@@ -1,7 +1,4 @@
-from pycocotools.cocoeval import COCOeval
-import json
 import torch
-
 import numpy as np
 import cv2
 import os
@@ -11,28 +8,19 @@ matplotlib.use("TkAgg")
 import PIL
 from PIL import Image
 from torchvision import transforms
-
-from legonet.utils import printf
-from legonet.eval.counting_eval import SumOfAbsDifferences
-from legonet.eval.kcsv_eval_2 import _get_count_and_box_annotations, compute_overlap, _compute_ap
-from legonet.eval.count_detection_eval import points_detection_t_p, calc_points_recall_precision_ap
-from legonet.my_dataloader import UnNormalizer
-
 import config
 import csv
-import copy
-from itertools import compress
+from thop import profile, clever_format
 
-from torchvision.ops import roi_align
+from legonet.utils import printf
+from legonet.eval.attribute_estimation_eval import SumOfAbsDifferences
+from legonet.eval.BBOX_detection_eval import _get_count_and_box_annotations, compute_overlap, _compute_ap
+from legonet.eval.KP_detection_eval import points_detection_t_p, calc_points_recall_precision_ap
+from legonet.my_dataloader import UnNormalizer
+
 
 unnormalize = UnNormalizer()
 
-
-
-from thop import profile, clever_format
-#from fvcore.nn import FlopCountAnalysis
-#from ptflops import get_model_complexity_info
-########################################################################################################################
 
 def _get_detections(detection_outputs, scale):
     scores, labels, boxes = detection_outputs
@@ -408,32 +396,8 @@ def objects_recall_precision(all_annotations, all_detections):
 
     return mAP, precision, recall
 
-######################################################################################
-
 
 def initiate_global_dicts(state=None, image_name='', initiate=False):
-    # global T, P
-    # global all_predicted_counts, all_crops_GT_counts, crops_abs_diff, crops_rel_error
-    # global all_orig_GT_counts, state['orig_abs_diff'], orig_rel_error
-    # global all_data_gt_count, gt_objects_withGTpoints, found_orig_objects, FP
-    # global predicted_counts_any_crop, matched_without_gt_points, crops_without_gt_points, detections_data_any_crop
-    # global not_found_gt, no_predictions
-    # global per_im_gt_avg , per_im_gt_avg_dict, per_im_pred_avg, per_im_pred_dict
-    # global num_of_gt_boxes, all_detections, all_annotations
-    #
-    # if config.Detect_and_Estimate.type == "both_for_roots_2":
-    #     global all_predicted_TRL, all_predicted_dia, all_predicted_color
-    #     global all_crops_GT_TRL, crops_abs_diff_TRL, crops_rel_error_TRL
-    #     global all_crops_GT_dia, crops_abs_diff_dia, crops_rel_error_dia
-    #     global all_orig_GT_TRL, state['orig_abs_diff']_TRL, orig_rel_error_TRL
-    #     global all_orig_GT_dia, state['orig_abs_diff']_dia, orig_rel_error_dia
-    #     global all_orig_GT_color, state['orig_abs_diff']_color
-    #     global all_data_gt_TRL, predicted_TRL_any_crop
-    #     global all_data_gt_dia, predicted_dia_any_crop
-    #     global all_data_gt_color, predicted_color_any_crop
-    #     global TRL_per_im_gt_sum, TRL_per_im_gt_sum_dict, TRL_per_im_pred_sum, TRL_per_im_pred_dict
-    #     global dia_per_im_gt_avg, dia_per_im_gt_avg_dict, dia_per_im_pred_avg, dia_per_im_pred_dict
-
     """
         Initialize or extend the evaluation state dictionary.
 
@@ -536,7 +500,6 @@ def initiate_global_dicts(state=None, image_name='', initiate=False):
 
         return state
 
-
     if state is None:
         raise ValueError("state must be provided when initiate=False")
 
@@ -544,7 +507,6 @@ def initiate_global_dicts(state=None, image_name='', initiate=False):
         raise ValueError("image_name must be provided when initiate=False")
 
     state['detections_data_any_crop'][image_name] = {
-        #'pred': [],
         'gt_count': [],
         'label': [],
         'score': [],
@@ -700,11 +662,11 @@ def initiate_global_dicts(state=None, image_name='', initiate=False):
     #             'dia_gt': []
     #         })
 
-##############################################################################################################################
+
 
 
 def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_maps = False, draw_path= "",
-         print_to_files=False, args = None):
+         print_to_files=False, args = None, do_profile = False):
     is_roots_2 = (
                 config.Detect_and_Estimate.type == "both_for_roots_2" or config.Detect_and_Estimate.type == "both_Back2bFind2b")
 
@@ -892,21 +854,17 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
 
 
-            # if iter_num==0:
-            #     print("Both_2 FLOPS:")
-            #
-            #     # Use thop to profile the model
-            #     input = input
-            #     flops, params = profile(model, inputs=(input,))
-            #
-            #     # Print the estimated FLOPS and parameters
-            #     flops_str, params_str = clever_format([flops, params], "%.3f")
-            #     print(f"FLOPS: {flops_str}")
-            #     print(f"Params: {params_str}")
+            if iter_num==0 and do_profile:
+                print("Both_2 FLOPS:")
 
+                # Use thop to profile the model
+                input = input
+                flops, params = profile(model, inputs=(input,))
 
-
-
+                # Print the estimated FLOPS and parameters
+                flops_str, params_str = clever_format([flops, params], "%.3f")
+                print(f"FLOPS: {flops_str}")
+                print(f"Params: {params_str}")
 
             # from torchsummary import summary
             # summary(model, params = [(3,832,1088), [data['bbox_annot'], data['points_annot']], torch.tensor(group_idx), True] )
@@ -1704,7 +1662,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
             total_predicted_for_orig_boxes = []
             total_orig_box_for_count = 0
 
-
         for n in range(num_of_images):
             for j in range(len(relevant_arr[n])):
 
@@ -1747,16 +1704,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                 crops_avg_abs_count_diff = -1
                 crops_avg_rel_error = -1
                 crops_MSE = -1
-
-            #if config.detect_and_count.type == "both_for_roots":
-                #crops_avg_abs_TRL_diff = SumOfAbsDifferences(total_crops_GT_TRL, total_predicted_TRL) / total_crop_boxes
-                #crops_avg_rel_error_TRL = np.mean(crops_rel_error_TRL)
-                #crops_MSE_TRL = np.mean((np.array(total_crops_GT_TRL) - np.array(total_predicted_TRL)) ** 2)
-
-                #crops_avg_abs_dia_diff = SumOfAbsDifferences(total_crops_GT_dia, total_predicted_dia) / total_crop_boxes
-                #dia_crops_avg_rel_error = np.mean(crops_rel_error_dia)
-                #dia_crops_MSE = np.mean((np.array(total_crops_GT_dia) - np.array(total_predicted_dia)) ** 2)
-
 
             if total_orig_box_for_count>0:
                 orig_avg_abs_count_diff = SumOfAbsDifferences(total_orig_GT_counts, total_predicted_for_orig_boxes) / total_orig_box_for_count
@@ -1812,8 +1759,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
                 precision_det = -1
 
-
-
         else:
             if total_orig_box_for_TRL > 0:
 
@@ -1849,8 +1794,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                 orig_mean_GT_dia = -1
 
                 precision_det = -1
-
-
 
         if verbose:
 
@@ -1972,8 +1915,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                                                                                             abs_error_dia[-1]))
                     abs_error_dia_nonZero = [dia for dia in abs_error_dia if dia > 0]
                     print("Avg of per image rel_error of dia:{:0.4f}".format(np.mean(abs_error_dia)))
-
-
 
         #export detections info
         if print_to_files and args is not None:
@@ -2119,8 +2060,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                             myrow.append(0) #'dia_gt'
 
                         writer.writerow(myrow)
-
-
 
 
         model.train()

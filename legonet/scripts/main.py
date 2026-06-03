@@ -3,6 +3,7 @@ import sys
 import argparse
 import time
 from pathlib import Path
+import torch
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
@@ -262,13 +263,11 @@ elif args.dataset_name == 'roots':
         # "C:\\Users\\Aragorn\\Google Drive\\StoragePath\\ExpResults\\KK_Exp_Results\\grapes_twoBack_keypoints_sameRadi_fluid_new\\saved_weights_cont_14"
         # #os.path.join(results_dir, 'wheat_MS5_s0.7_640\\saved_weights_211\\detector_weights')
 
-
 config.AttributeEstimation.estimate_type = args.estimate_type
 
 ########################################################################################################################
 # GPU settings
 ########################################################################################################################
-import torch
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_num
 

@@ -8,8 +8,8 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import config #config_new
-from legonet.eval import coco_eval, counting_eval, kcsv_eval_2
-from legonet.eval import both_eval_new_241 as both_eval
+from legonet.eval import attribute_estimation_eval, BBOX_detection_eval
+from legonet.eval import perObject_eval as both_eval
 from legonet.my_dataloader import (
     KCSVDataset,
     CocoDataset,
@@ -890,21 +890,14 @@ def run(args=None):
                         np.mean(epoch_loss_per_task["classification"]),
                         np.mean(epoch_loss_per_task["regression"]))
 
-
-                if args.dataset_type == "coco":
-
-                    if args.eval_in_train:
-                        print('Evaluating dataset')
-                        coco_eval.evaluate_coco(dataset_val, legonet)
-
-                elif args.dataset_type == 'kcsv' and args.kcsv_val is not None:
+                if args.dataset_type == 'kcsv' and args.kcsv_val is not None:
 
                     if args.eval_in_train:
 
                         legonet.eval()
 
                         utils.printf("Evaluating Dataset: ")
-                        mAP, precision , recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
+                        mAP, precision , recall = BBOX_detection_eval.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
                                                                 score_threshold=config.Detection.min_score,
                                                                 iou_threshold=config.Detection.iou_threshold)
                         print(f'Current mAP = {mAP:.3f}, precision = {precision:.3f}, recall = {recall:.3f}\n')
@@ -930,8 +923,8 @@ def run(args=None):
 
                     if args.evaluate_detection:
                         legonet.eval()
-                        mAP, _, _ = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
-                                                             score_threshold=config.Detection.min_score, iou_threshold=config.Detection.iou_threshold)
+                        mAP, _, _ = BBOX_detection_eval.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
+                                                             score_threshold=config.Detection.min_score, iou_threshold=config.Detection.iou_threshold) #kcsv_eval_2
                         print(f'Current mAP = {best_mAP:.3f}\n')
                         # if len(precision)==0:
                         #     print('mAP: {:.3f} | precision: None | recall: None | prev_best_mAP: {:.3f} \n'.format(mAP, best_mAP))
@@ -946,8 +939,6 @@ def run(args=None):
                                                              'legonet_epoch={}.pt'.format(epoch_num)))
 
             elif args.network_type == 'counting_lean' or args.network_type == 'counting_reg':
-            #     print('Evaluating dataset')
-            #     count_agreement = counting_eval.eval(dataset_val, legonet, args)
                 if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                     if args.network_type == 'counting_lean':
                         utils.printf(
@@ -970,7 +961,7 @@ def run(args=None):
 
                     utils.printf("Counting evaluation: ")
 
-                    rel_error = counting_eval.eval(dataloader_val, dataset_val, legonet, args)
+                    rel_error = attribute_estimation_eval.eval(dataloader_val, dataset_val, legonet, args)
                     #utils.printf("rel error: %.3f \n", rel_error)
                     print('Rel_error: {:.3f} | prev_best: {:.3f} \n'.format(rel_error, best_rel_error))
 
@@ -1041,7 +1032,7 @@ def run(args=None):
                         print()
                         print("Object detection evaluation: ")
 
-                        mAP, precision, recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
+                        mAP, precision, recall = BBOX_detection_eval.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
                                                              score_threshold=config.Detection.min_score, iou_threshold=config.Detection.iou_threshold)
                         #utils.printf("mAP = %.3f ", mAP)
                         if len(precision)==0:
@@ -1052,13 +1043,6 @@ def run(args=None):
                                 mAP, precision[-1], recall[-1], best_mAP))
 
                     utils.printf(args.network_type + " evaluation: ")
-
-                    #if args.do_counting:
-                    # utils.printf("Detection evaluation:\n")
-                    # kcsv_eval_2.evaluateMAP(dataset_val, dataloader_val, sampler_val, legonet, score_threshold=0.05, show_PR_curve=False)
-                    #kcsv_eval_2.evaluate(dataset_val, dataloader_val, sampler_val, legonet, score_threshold=[0.05, 0.5], iou_threshold=[0.5, 0.75], show_PR_curve=True)
-
-                    #rel_error, _ = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=False, verbose=True, print_to_files=False)
 
                     if torch.cuda.is_available():
                         out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=False, verbose=False,
@@ -1089,8 +1073,8 @@ def run(args=None):
                     legonet.eval()
                     utils.printf("Start evaluation: ")
 
-                    rel_error = counting_eval.eval(dataloader_val, dataset_val, legonet, args)
-                    #utils.printf("rel error: %.3f \n", rel_error)
+                    rel_error = attribute_estimation_eval.eval(dataloader_val, dataset_val, legonet, args)
+
                     print('Rel_error: {:.3f} | prev_best: {:.3f} \n'.format(rel_error, best_rel_error))
 
                     if rel_error < best_rel_error:
@@ -1123,7 +1107,7 @@ def run(args=None):
                     print()
                     print("Object detection evaluation:\n")
                     if args.eval_detection_params:
-                        average_precisions_all= kcsv_eval_2.evaluate(dataset_val, dataloader_val, sampler_val, legonet,
+                        average_precisions_all= BBOX_detection_eval.evaluate(dataset_val, dataloader_val, sampler_val, legonet,
                                                                      iou_threshold=config.Detection.iou_threshold_list,
                                                                      score_threshold=config.Detection.min_score_list,
                                                                      save_path= args.test_dir, show_PR_curve=True)
@@ -1134,7 +1118,7 @@ def run(args=None):
 
                     else:
                         print(f"Results for min score: {config.Detection.min_score}, iou_threshold: {config.Detection.iou_threshold}")
-                        mAP, precision, recall = kcsv_eval_2.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val,
+                        mAP, precision, recall = BBOX_detection_eval.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val,
                                                                                 legonet, score_threshold=config.Detection.min_score,
                                                                                 iou_threshold=config.Detection.iou_threshold,
                                                                                 generate_PR_curve=True)
@@ -1162,16 +1146,11 @@ def run(args=None):
 
         else:
             utils.printf("Attribute estimation evaluation:\n")
-            # # rel_error, _ = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=config.General.to_draw,
-            # #                            verbose=True)
-            # both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet,
-            #                               to_draw=config.General.to_draw,
-            #                               verbose=True)
 
             if config.General.NETWORK_TYPE == config.NetworkType.counting_reg or config.General.NETWORK_TYPE == config.NetworkType.counting_lean\
                     or config.General.NETWORK_TYPE == config.NetworkType.counting_lean_multiple_out:
 
-                rel_error = counting_eval.eval(dataloader_val, dataset_val, legonet, args)
+                rel_error = attribute_estimation_eval.eval(dataloader_val, dataset_val, legonet, args) #counting_eval.eval
 
                 print("Final avg rel error:", rel_error)
 

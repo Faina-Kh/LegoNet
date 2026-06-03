@@ -1,9 +1,21 @@
 import cv2
 import numpy as np
-import torch
-import matplotlib.pyplot as plt
-import config
 
+
+
+def extract_plant_BB(image_name, activation_map):
+    image_shape = activation_map.shape
+    mask_image_path = image_name + '_fg.png'
+    plant_mask_image = cv2.imread(mask_image_path, 0)
+
+    plant_mask_image = cv2.resize(plant_mask_image, (image_shape[1], image_shape[0]))
+    Ys, Xs = np.nonzero(plant_mask_image)
+    y_min = np.min(Ys)
+    y_max = np.max(Ys)
+    x_min = np.min(Xs)
+    x_max = np.max(Xs)
+
+    return (x_max - x_min),(y_max - y_min)
 
 def points_detection_t_p(detections_map_1, GT_centers, alpha=0.1): #local_soft_max_activations, image_name, model, image, GT_centers, alpha=0.1):
     # local_soft_max_activations = get_activations(model, model_inputs=image[0], print_shape_only=False,
@@ -52,20 +64,23 @@ def points_detection_t_p(detections_map_1, GT_centers, alpha=0.1): #local_soft_m
     return t, p
 
 
-def extract_plant_BB(image_name, activation_map):
-    image_shape = activation_map.shape
-    mask_image_path = image_name + '_fg.png'
-    plant_mask_image = cv2.imread(mask_image_path, 0)
+def measure_ap_forKP(rec, prec):
+    # correct AP calculation
+    # append sentinel values at the end
+    mrec = np.concatenate(([0.], rec, [1.]))
+    mpre = np.concatenate(([0.], prec, [0.]))
 
-    plant_mask_image = cv2.resize(plant_mask_image, (image_shape[1], image_shape[0]))
-    Ys, Xs = np.nonzero(plant_mask_image)
-    y_min = np.min(Ys)
-    y_max = np.max(Ys)
-    x_min = np.min(Xs)
-    x_max = np.max(Xs)
+    # compute the precision envelope
+    for i in range(mpre.size - 1, 0, -1):
+        mpre[i - 1] = np.maximum(mpre[i - 1], mpre[i])
 
-    return (x_max - x_min),(y_max - y_min)
+    # to calculate area under PR curve, look for points
+    # where X axis (recall) changes value
+    i = np.where(mrec[1:] != mrec[:-1])[0]
 
+    # and sum (\Delta recall) * prec
+    ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
+    return ap
 
 def calc_points_recall_precision_ap(T, P):
     P = np.array(P)
@@ -97,26 +112,8 @@ def calc_points_recall_precision_ap(T, P):
         recall = [0]
         precision = [0]
 
-    ap = measure_ap(recall, precision)
+    ap = measure_ap_forKP(recall, precision)
 
     return recall, precision, ap
 
-
-def measure_ap(rec, prec):
-    # correct AP calculation
-    # first append sentinel values at the end
-    mrec = np.concatenate(([0.], rec, [1.]))
-    mpre = np.concatenate(([0.], prec, [0.]))
-
-    # compute the precision envelope
-    for i in range(mpre.size - 1, 0, -1):
-        mpre[i - 1] = np.maximum(mpre[i - 1], mpre[i])
-
-    # to calculate area under PR curve, look for points
-    # where X axis (recall) changes value
-    i = np.where(mrec[1:] != mrec[:-1])[0]
-
-    # and sum (\Delta recall) * prec
-    ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
-    return ap
 
