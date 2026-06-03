@@ -15,7 +15,7 @@ from thop import profile, clever_format
 from legonet.utils import printf
 from legonet.eval.attribute_estimation_eval import SumOfAbsDifferences
 from legonet.eval.detection_eval import compute_overlap, _compute_ap, plot_PR_curve
-from legonet.eval.KP_detection_eval import points_detection_t_p, calc_points_recall_precision_ap
+from legonet.eval.KP_detection_eval import points_detection_t_p, calc_points_recall_precision_ap, visualize_KeyPointsHeatmaps
 from legonet.my_dataloader import UnNormalizer
 
 
@@ -1451,8 +1451,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
                                     state['orig_abs_diff_color'].append(abs(orig_color_GT[i] - color_pred[i]))  # count_pred[i]))
 
-
-
                         if verbose:
 
                             if (not is_roots_2 and len(orig_count_GT) > 0) \
@@ -1591,8 +1589,10 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                                 else:
                                                     current_pred = []
 
-                                                visualize_pointMaps(current_pred, current_true,
-                                                                    image_name.split(".jpg")[0] +'_crop_' + str(i) +'_map_' + str(p+1), imgToVis, config.DrawProperties.maps_path)
+                                                map_name = image_name.split(".jpg")[0] +'_crop_' + str(i) +'_map_' + str(p+1)
+                                                #visualize_pointMaps(current_pred, current_true, map_name, imgToVis, config.DrawProperties.maps_path)
+                                                visualize_KeyPointsHeatmaps(current_pred, current_true, image_name,
+                                                                            map_name, imgToVis, config.DrawProperties.maps_path)
 
 
                                         # Visualize the fifth map

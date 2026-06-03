@@ -1,6 +1,11 @@
+import os
 import cv2
+import torch
 import numpy as np
-
+import matplotlib.pyplot as plt
+from PIL import Image
+from PIL import ImageFont
+from PIL import ImageDraw
 
 
 def extract_plant_BB(image_name, activation_map):
@@ -116,4 +121,64 @@ def calc_points_recall_precision_ap(T, P):
 
     return recall, precision, ap
 
+
+
+def visualize_KeyPointsHeatmaps(predicted_maps, gt_maps, image_name, map_name, imgToVis, draw_path, count_pred = None,
+                                count_GT=None, font_size = 30, attribute_name = "TRL"): #"count"
+
+    font = ImageFont.truetype("arial.ttf", font_size) #15) #60
+
+    if gt_maps is not None:
+        if gt_maps[0][0].sum() == 0:
+            draw_path = os.path.join(draw_path, "no GT objects" )
+            os.makedirs(draw_path, exist_ok=True)
+
+    # Draw GT activations:
+    img_copy = imgToVis.copy()
+    background = img_copy.convert("RGBA")
+    BG_w, BG_h = background.size
+
+    background_2 = img_copy.convert('L')   #convert image to monochrome
+    background_2.save(draw_path + '/' + image_name + '_background.png')
+    background_2 = Image.open(draw_path + '/' + image_name + '_background.png')
+    background_2=background_2.convert("RGBA")
+
+    if gt_maps is not None:
+        anno = gt_maps.clone() #.cpu().numpy().copy()
+
+    if gt_maps is not None:
+        plt.imsave(draw_path + '/' + map_name+ '_anno.png', anno[0])
+        gt_anns = Image.open(draw_path + '/' + map_name+ '_anno.png')
+        gt_anns = gt_anns.resize((BG_w, BG_h), Image.Resampling.LANCZOS) #Image.ANTIALIAS)
+        gt_anns.save(draw_path + '/' + map_name + '_anno.png')
+
+        alphaBlended = Image.blend(gt_anns, background_2, 0.7)
+
+        if count_GT is not None:
+            draw = ImageDraw.Draw(alphaBlended)
+            draw.text((50, 50), "GT "+ attribute_name+ " = "+str(np.round(count_GT, 2)), (255, 255, 255), font=font)
+
+        alphaBlended.save(draw_path + '/' + map_name+'_Blended_GT.png')
+
+    # Relu map #######################################################################################################
+
+    plt.imsave(draw_path + '/' + map_name+ '_Relu.png', predicted_maps[0].cpu())
+    relu_pred = Image.open(draw_path + '/' + map_name+ '_Relu.png')
+
+    relu_pred = relu_pred.resize((BG_w, BG_h))  # Image.ANTIALIAS
+    relu_pred.save(draw_path + '/' + map_name+ '_Relu.png')
+
+    alphaBlended_relu = Image.blend(relu_pred, background_2.convert('RGBA'), 0.7)
+
+    if count_pred is not None:
+        draw = ImageDraw.Draw(alphaBlended_relu)
+        draw.text((50, 50), "Pred "+ attribute_name+ " = " + str(np.round(count_pred, 2)),
+                  (255, 255, 255), font=font)
+
+    alphaBlended_relu.save(draw_path + '/' + map_name+ '_Blended_Relu.png')
+
+    os.remove(draw_path + '/' + map_name + '_Relu.png')
+    if gt_maps is not None:
+         os.remove(draw_path + '/' + map_name+ '_anno.png')
+    os.remove(draw_path + '/' + image_name + '_background.png')
 

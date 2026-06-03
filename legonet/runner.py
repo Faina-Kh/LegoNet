@@ -897,7 +897,7 @@ def run(args=None):
                         legonet.eval()
 
                         utils.printf("Evaluating Dataset: ")
-                        mAP, precision , recall = BBOX_detection_eval.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
+                        mAP, precision , recall = detection_eval.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
                                                                 score_threshold=config.Detection.min_score,
                                                                 iou_threshold=config.Detection.iou_threshold)
                         print(f'Current mAP = {mAP:.3f}, precision = {precision:.3f}, recall = {recall:.3f}\n')
@@ -923,7 +923,7 @@ def run(args=None):
 
                     if args.evaluate_detection:
                         legonet.eval()
-                        mAP, _, _ = BBOX_detection_eval.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
+                        mAP, _, _ = detection_eval.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
                                                              score_threshold=config.Detection.min_score, iou_threshold=config.Detection.iou_threshold) #kcsv_eval_2
                         print(f'Current mAP = {best_mAP:.3f}\n')
                         # if len(precision)==0:
@@ -1032,7 +1032,7 @@ def run(args=None):
                         print()
                         print("Object detection evaluation: ")
 
-                        mAP, precision, recall = BBOX_detection_eval.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
+                        mAP, precision, recall = detection_eval.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
                                                              score_threshold=config.Detection.min_score, iou_threshold=config.Detection.iou_threshold)
                         #utils.printf("mAP = %.3f ", mAP)
                         if len(precision)==0:
@@ -1107,7 +1107,7 @@ def run(args=None):
                     print()
                     print("Object detection evaluation:\n")
                     if args.eval_detection_params:
-                        average_precisions_all= BBOX_detection_eval.evaluate_detection_params(dataset_val, dataloader_val, sampler_val, legonet,
+                        average_precisions_all= detection_eval.evaluate_detection_params(dataset_val, dataloader_val, sampler_val, legonet,
                                                                                               iou_threshold=config.Detection.iou_threshold_list,
                                                                                               score_threshold=config.Detection.min_score_list,
                                                                                               save_path= args.test_dir, show_PR_curve=True)
@@ -1118,7 +1118,7 @@ def run(args=None):
 
                     else:
                         print(f"Results for min score: {config.Detection.min_score}, iou_threshold: {config.Detection.iou_threshold}")
-                        mAP, precision, recall = BBOX_detection_eval.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val,
+                        mAP, precision, recall = detection_eval.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val,
                                                                                 legonet, score_threshold=config.Detection.min_score,
                                                                                 iou_threshold=config.Detection.iou_threshold,
                                                                                 generate_PR_curve=True)

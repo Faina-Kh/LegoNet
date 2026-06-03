@@ -1,15 +1,12 @@
 import torch
 import os
-import matplotlib.pyplot as plt
 import numpy as np
 import config
 import csv
 from PIL import Image
-from PIL import ImageFont
-from PIL import ImageDraw
 from thop import profile, clever_format
 
-from legonet.eval.KP_detection_eval import points_detection_t_p, calc_points_recall_precision_ap
+from legonet.eval.KP_detection_eval import points_detection_t_p, calc_points_recall_precision_ap, visualize_KeyPointsHeatmaps
 from legonet.eval.detection_eval import plot_PR_curve
 
 
@@ -33,66 +30,6 @@ def SumOfAbsDifferences(A,B):
         out += abs(A[i] - B[i])
 
     return out
-
-
-def visualize_KeyPointsHeatmaps(predicted_maps, gt_maps, image_name, imgToVis, draw_path, count_pred, count_GT=None,
-                                font_size = 30, attribute_name = "TRL"): #"count"
-
-    font = ImageFont.truetype("arial.ttf", font_size) #15) #60
-
-    if gt_maps is not None:
-        if torch.sum(gt_maps[0][0]) == torch.zeros(1):
-            draw_path = os.path.join(draw_path, "no GT objects" )
-            os.makedirs(draw_path, exist_ok=True)
-
-    # Draw GT activations:
-    img_copy = imgToVis.copy()
-    background = img_copy.convert("RGBA")
-    BG_w, BG_h = background.size
-
-    background_2 = img_copy.convert('L')   #convert image to monochrome
-    background_2.save(draw_path + '/' + image_name + '_background.png')
-    background_2 = Image.open(draw_path + '/' + image_name + '_background.png')
-    background_2=background_2.convert("RGBA")
-
-    if gt_maps is not None:
-        anno = gt_maps.copy() #.cpu().numpy().copy()
-
-    for i in [0]: #range(5):
-        if gt_maps is not None:
-            plt.imsave(draw_path + '/' + image_name + '_map_'+str(i+1)+ '_anno.png', anno[i][0])
-            gt_anns = Image.open(draw_path + '/' + image_name +'_map_'+str(i+1)+ '_anno.png')
-            gt_anns = gt_anns.resize((BG_w, BG_h), Image.Resampling.LANCZOS) #Image.ANTIALIAS)
-            gt_anns.save(draw_path + '/' + image_name + '_map_'+str(i+1) + '_anno.png')
-
-            alphaBlended = Image.blend(gt_anns, background_2, 0.7)
-
-            draw = ImageDraw.Draw(alphaBlended)
-
-            if count_GT is not None:
-                draw.text((50, 50), "GT "+ attribute_name+ " = "+str(np.round(count_GT, 2)), (255, 255, 255), font=font)
-
-            alphaBlended.save(draw_path + '/' + image_name + '_map_'+str(i+1)+'_Blended_GT.png')
-
-        # Relu map #######################################################################################################
-
-        plt.imsave(draw_path + '/' + image_name +'_map_'+str(i+1)+ '_Relu.png', predicted_maps[i][0].cpu())
-        relu_pred = Image.open(draw_path + '/' + image_name +'_map_'+str(i+1)+ '_Relu.png')
-
-        relu_pred = relu_pred.resize((BG_w, BG_h))  # Image.ANTIALIAS
-        relu_pred.save(draw_path + '/' + image_name +'_map_'+str(i+1)+ '_Relu.png')
-
-        alphaBlended_relu = Image.blend(relu_pred, background_2.convert('RGBA'), 0.7)
-
-        draw = ImageDraw.Draw(alphaBlended_relu)
-        draw.text((50, 50), "Pred "+attribute_name+ " = " + str(np.round(count_pred, 2)), (255, 255, 255), font=font)
-
-        alphaBlended_relu.save(draw_path + '/' + image_name +'_map_'+str(i+1)+ '_Blended_Relu.png')
-
-        os.remove(draw_path + '/' + image_name + '_map_' + str(i+1) + '_Relu.png')
-        if gt_maps is not None:
-             os.remove(draw_path + '/' + image_name +'_map_'+str(i+1)+ '_anno.png')
-    os.remove(draw_path + '/' + image_name + '_background.png')
 
 
 def eval(dataloader, dataset, model, args, do_profile = False):
@@ -185,11 +122,23 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                 if args.network_type == 'counting_lean' and config.General.to_draw:
                     img = Image.open(os.path.join(dataset.base_dir, full_rgbImage_name))
                     if args.have_GT and args.val_csv_leaf_location_file != "":
-                        visualize_KeyPointsHeatmaps(predicted_maps, data['annot'][1:6], Image_name, img, config.DrawProperties.maps_path, count_pred, count_GT)
+                        gt_maps = data['annot'][1:6]
+
                     else:
-                        if not args.have_GT:
-                            count_GT = None
-                        visualize_KeyPointsHeatmaps(predicted_maps, None, Image_name, img, config.DrawProperties.maps_path, count_pred, count_GT)
+                        count_GT = None
+                        gt_maps = None
+
+                    for i in [4]:  # range(5):
+                        map_name = Image_name + '_map_' + str(i + 1)
+                        if gt_maps is not None:
+                            visualize_KeyPointsHeatmaps(predicted_maps[i], gt_maps[i], Image_name, map_name, img,
+                                                        config.DrawProperties.maps_path, count_pred, count_GT)
+                        else:
+                            visualize_KeyPointsHeatmaps(predicted_maps[i], None, Image_name, map_name, img,
+                                                        config.DrawProperties.maps_path, count_pred, count_GT)
+
+
+
 
                 if args.have_GT:
                     all_GT_counts.append(count_GT)
