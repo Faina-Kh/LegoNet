@@ -1,19 +1,14 @@
 import numpy as np
-import json
 import os
-
 import torch
-import matplotlib
-# matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-#plt.style.use('seaborn')
-
-
-import tkinter
 
 from legonet import utils
 from legonet.utils import printf
 import config
+
+
+
 
 def compute_overlap(a, b):
     """
@@ -87,6 +82,22 @@ def plot_precision_recall(saved_im_dir,AP, recalls, precisions):
     image_path = os.path.join(saved_im_dir, "Precision-Recall Curve_AP " + str(AP) + ".jpg")
     plt.savefig(image_path)
     plt.close(image_path)
+
+
+def plot_PR_curve(recall, precision, ap, save_path, plots_name=""):
+    plt.figure()
+    plt.step(recall, precision, color='b', alpha=0.99)
+    plt.fill_between(recall, precision, step='post', color='b', alpha=0.1)
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.ylim([0.0, 1.05])
+    plt.xlim([0.0, 1.0])
+    plt.title('Precision-Recall curve: AP={0:0.2f}'.format(ap))
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    plot_path = os.path.join(save_path + '\\'+ plots_name) #'Points_PR_curve.png')
+    plt.savefig(plot_path)
+    plt.close(plot_path)
 
 
 def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05, max_detections=100, save_path=None):
@@ -205,55 +216,17 @@ def  _get_annotations(generator):
     return all_annotations
 
 
-def _get_count_and_box_annotations(generator):
-    """ Get the ground truth annotations from the generator.
-    The result is a list of lists such that the size is:
-        all_detections[num_images][num_classes] = annotations[num_detections, 5]
-    # Arguments
-        generator : The generator used to retrieve ground truth annotations.
-    # Returns
-        A list of lists containing the annotations for each image in the generator.
-    """
-    all_box_annotations = [[None for i in range(generator.num_classes())] for j in range(len(generator))]
-    all_count_annotations = [[None for i in range(generator.num_classes())] for j in range(len(generator))]
 
-    for i in range(len(generator)):
-        # load the annotations
-        annotations = generator.load_annotations(i)
-
-        # copy detections to all_annotations
-        for label in range(generator.num_classes()):
-            box_anns=annotations[0]  #[x1,y1,x2,y2,class,box_id]
-            if len(annotations[1])>0:
-                count_anns=np.array(annotations[1][0])
-                all_count_annotations[i][label] = count_anns[count_anns[:, 1] == label, :].copy()
-
-            else:
-                count_anns=[]
-                all_count_annotations[i][label] = []
-
-            if len(box_anns) > 0:
-                all_box_annotations[i][label] = box_anns[box_anns[:, 4] == label, :].copy()
-            else:
-                all_box_annotations[i][label] = []
-
-
-        print('{}/{}'.format(i + 1, len(generator)), end='\r')
-
-    return all_box_annotations,all_count_annotations
-
-
-
-def evaluate(generator,
-             dataloader_val,
-             sampler_val,
-             model,
-             iou_threshold=[0.25, 0.5, 0.75],
-             score_threshold=[0.01, 0.05, 0.5],
-             max_detections=100,
-             save_path=None,
-             show_PR_curve = False
-             ):
+def evaluate_detection_params(generator,
+                              dataloader_val,
+                              sampler_val,
+                              model,
+                              iou_threshold=[0.25, 0.5, 0.75],
+                              score_threshold=[0.01, 0.05, 0.5],
+                              max_detections=100,
+                              save_path=None,
+                              show_PR_curve = False
+                              ):
     """ Evaluate a given dataset using a given retinanet.
     # Arguments
         generator       : The generator that represents the dataset to evaluate.
@@ -269,7 +242,6 @@ def evaluate(generator,
     if show_PR_curve:
         dims = [len(score_threshold), len(iou_threshold)]
         fig, axs = plt.subplots(dims[0], dims[1], sharex=True, sharey=True, squeeze=False)
-
 
 
     # gather all annotations
@@ -299,10 +271,8 @@ def evaluate(generator,
                     detections = all_detections[i][label]
                     annotations = all_annotations[i][label]
 
-                    ##################################################
                     if detections is None:
                         continue
-                    #################################################
 
                     num_annotations += annotations.shape[0]
                     detected_annotations = []
@@ -327,7 +297,7 @@ def evaluate(generator,
                             false_positives = np.append(false_positives, 1)
                             true_positives = np.append(true_positives, 0)
 
-                # no annotations -> AP for this class is 0 (is this correct?)
+                # no annotations -> AP for this class is 0
                 if num_annotations == 0:
                     average_precisions[label] = 0, 0
                     continue
@@ -362,8 +332,6 @@ def evaluate(generator,
                     axs[score_index,iou_index].set(xlabel='recall', ylabel='precision')
                     axs[score_index, iou_index].tick_params(axis="x", labelsize=6)
                     axs[score_index, iou_index].tick_params(axis="y", labelsize=6)
-
-
 
     if show_PR_curve:
         plt.savefig(os.path.join(save_path, "thresh.jpg"))
@@ -405,120 +373,6 @@ def evaluate(generator,
 
     return average_precisions_all #average_precisions
 
-
-def evaluateMAP(generator,
-                dataloader_val,
-                sampler_val,
-                model,
-                iou_threshold=[0.3, 0.5, 0.7, 0.9],
-                score_threshold=0.05,
-                max_detections=1000,
-                save_path=None,
-                generate_PR_curve = False
-                ):
-    """ Evaluate a given dataset using a given model.
-    # Arguments
-        generator       : The generator that represents the dataset to evaluate.
-        model           : The model to evaluate.
-        iou_threshold   : The threshold used to consider when a detection is positive or negative.
-        score_threshold : The score confidence threshold to use for detections.
-        max_detections  : The maximum number of detections to use per image.
-        save_path       : The path to save images with visualized detections to.
-    # Returns
-        A dict mapping class names to mAP scores.
-    """
-
-    # gather all annotations
-    all_annotations = _get_annotations(generator)
-
-    score = score_threshold
-
-    # gather all detections
-    all_detections = _get_detections(generator, model, dataloader_val, sampler_val,
-                                         score_threshold = score,
-                                         max_detections = max_detections,
-                                         save_path=save_path)
-    average_precisions = {}
-
-    output = {}
-    for iou in iou_threshold:
-        output[iou] = {}
-
-        for label in range(generator.num_classes()):
-            false_positives = np.zeros((0,))
-            true_positives = np.zeros((0,))
-            scores = np.zeros((0,))
-            num_annotations = 0.0
-
-            for i in range(len(generator)):
-                detections = all_detections[i][label]
-                annotations = all_annotations[i][label]
-                num_annotations += annotations.shape[0]
-                detected_annotations = []
-
-                for d in detections:
-                    scores = np.append(scores, d[4])
-
-                    if annotations.shape[0] == 0:
-                        false_positives = np.append(false_positives, 1)
-                        true_positives = np.append(true_positives, 0)
-                        continue
-
-                    overlaps = compute_overlap(np.expand_dims(d, axis=0), annotations)
-                    assigned_annotation = np.argmax(overlaps, axis=1)
-                    max_overlap = overlaps[0, assigned_annotation]
-
-                    if max_overlap >= iou and assigned_annotation not in detected_annotations:
-                        false_positives = np.append(false_positives, 0)
-                        true_positives = np.append(true_positives, 1)
-                        detected_annotations.append(assigned_annotation)
-                    else:
-                        false_positives = np.append(false_positives, 1)
-                        true_positives = np.append(true_positives, 0)
-
-            # no annotations -> AP for this class is 0 (is this correct?)
-            if num_annotations == 0:
-                average_precisions[label] = 0, 0
-                continue
-
-            # sort by score
-            indices = np.argsort(-scores)
-            false_positives = false_positives[indices]
-            true_positives = true_positives[indices]
-
-            # compute false positives and true positives
-            false_positives = np.cumsum(false_positives)
-            true_positives = np.cumsum(true_positives)
-
-            # compute recall and precision
-            recall = true_positives / num_annotations
-            precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
-
-            # compute average precision
-            average_precision = _compute_ap(recall, precision)
-            average_precisions[label] = average_precision, num_annotations
-
-        class_name = []
-        class_mAP  = []
-        for label in range(generator.num_classes()):
-            class_name.append(generator.label_to_name(label))
-            class_mAP.append(average_precisions[label][0])
-
-        output[iou]["class_name"] = class_name
-        output[iou]["class_mAP"]  = class_mAP
-
-        if generate_PR_curve:
-            class_map_str = "{:.3f}".format(class_mAP[0])
-            plt.plot(recall, precision, label=class_name[0] + " IoU = " + str(iou) + " mAP = " + class_map_str )
-
-    if generate_PR_curve:
-        plt.legend(loc="best")
-        plt.grid(True)
-        plt.xlabel("Recall")
-        plt.ylabel("Precision")
-        plt.savefig(os.path.join(config.General.experiment_path,"PR_curve.png"))
-
-    return output
 
 def evaluateMAP_simple(generator,
                 dataloader_val,
@@ -649,236 +503,3 @@ def evaluateMAP_simple(generator,
 
     return np.mean(mAP), precision[-1], recall[-1] #np.mean(precision), np.mean(recall) #np.mean(mAP), precision, recall #  None, None precision, recall
 
-
-def evaluate_double_detection(dataset_val_with_counts,
-                            generator,
-                            dataloader_val,
-                            sampler_val,
-                            model,
-                            iou_threshold=0.5,
-                            score_threshold=0.05,
-                            max_detections=1000,
-                            verbose = True,
-                            assign_parts_to_obj = True,
-                            generate_PR_curve=False
-                            ):
-    """ Evaluate a given dataset using a given model.
-    # Arguments
-        generator       : The generator that represents the dataset to evaluate.
-        model           : The model to evaluate.
-        iou_threshold   : The threshold used to consider when a detection is positive or negative.
-        score_threshold : The score confidence threshold to use for detections.
-        max_detections  : The maximum number of detections to use per image.
-        save_path       : The path to save images with visualized detections to.
-    # Returns
-        A dict mapping class names to mAP scores.
-    """
-
-    # gather all annotations
-    all_annotations = _get_annotations(generator)
-
-    score = score_threshold
-
-    # gather all detections
-    all_detections = _get_detections(generator, model, dataloader_val, sampler_val,
-                                         score_threshold = score,
-                                         max_detections = max_detections)
-    average_precisions = {}
-
-    tp = []
-    fp = []
-
-    _, all_count_annotations = _get_count_and_box_annotations(dataset_val_with_counts)
-    per_img_avg_pred_count = []
-    per_img_avg_gt_count = []
-    per_imge_rel_error = []
-    ####################################################################################################
-    for iter_num, data in enumerate(dataloader_val):
-        group_idx = sampler_val.groups[iter_num]
-        img_id = generator.image_ids[group_idx[0]]
-
-        assert generator.img_info[img_id]['name'] == dataset_val_with_counts.img_info[img_id]['name']
-        if verbose:
-            printf("#######################################################################################\n")
-            printf("image: %s\n", generator.img_info[img_id]['name'])
-            printf("#######################################################################################\n")
-
-        gt_counts_temp = all_count_annotations[img_id][0]
-        gt_count = np.sum(gt_counts_temp[:, 0]) / gt_counts_temp.shape[0]
-        per_img_avg_gt_count.append(gt_count)
-
-        obj_detections = all_detections[img_id][0]
-        part_detections = all_detections[img_id][1]
-
-        if assign_parts_to_obj:
-            if verbose:
-                print('assign_parts_to_obj')
-            count_per_obj = []
-            for obj_box in obj_detections:
-                count=0
-
-                for p in part_detections:
-                    w = p[2] - p[0]
-                    h = p[3] - p[1]
-                    px = p[0] + 0.5*w
-                    py = p[1] + 0.5*h
-
-                    if px<= obj_box[2] and px>= obj_box[0] and py<= obj_box[3] and py>= obj_box[1]:
-                        count+=1
-
-                if count>0:
-                    count_per_obj.append(count)
-
-
-
-        if len(obj_detections) > 0:
-
-            if assign_parts_to_obj:
-                if len(count_per_obj) > 0:
-                    pred_count = np.mean(count_per_obj)
-                else:
-                    pred_count = -1
-
-            else:
-                pred_count = len(part_detections)/len(obj_detections)
-
-
-            if not pred_count == -1:
-                per_img_avg_pred_count.append(pred_count)
-                per_imge_rel_error.append(np.abs(pred_count - gt_count) / gt_count)
-                if verbose:
-                    printf("avg_gt_count: %.2f | avg_pred_count: %.2f | rel_error: %.3f\n",
-                           gt_count, pred_count, per_imge_rel_error[-1])
-
-            else:
-                if verbose:
-                    print("Couldn't assign parts to objects")
-
-        else:
-            if verbose:
-                print('No detected objects')
-
-    avg_error = np.mean(per_imge_rel_error)
-    if verbose:
-        print("=====================================================================================================\n")
-        print("Avg rel error: ", avg_error)
-
-
-        print("=====================================================================================================\n")
-        print('Per image gt stats')
-        print('avg of image gt averages = ', np.mean(per_img_avg_gt_count))
-        print('var of image gt averages = ', np.var(per_img_avg_gt_count))
-        #print("per image gt avg: ", np.round(per_img_avg_gt_count, 2))
-        print()
-
-        print("=====================================================================================================\n")
-        print('Per image pred stats')
-        print('avg of image pred averages = ', np.mean(per_img_avg_pred_count))
-        print('var of image pred averages = ', np.var(per_img_avg_pred_count))
-        # print("per image pred avg: ", np.round(per_img_avg_pred_count, 2))
-        print()
-
-    return avg_error
-    ###################################################################################################
-
-    #
-    # get_gt = True
-    # for label in range(generator.num_classes()):
-    #     false_positives = np.zeros((0,))
-    #     true_positives = np.zeros((0,))
-    #     scores = np.zeros((0,))
-    #     num_annotations = 0.0
-    #
-    #     #for i in range(len(generator)):
-    #     for iter_num, data in enumerate(dataloader_val):
-    #         group_idx = sampler_val.groups[iter_num]
-    #         img_id = generator.image_ids[group_idx[0]]
-    #         if get_gt:
-    #             gt_counts_temp = all_count_annotations[img_id][0]
-    #             per_img_avg_gt_count.append(np.sum(gt_counts_temp[:, 0]) / gt_counts_temp.shape[0])
-    #
-    #         detections = all_detections[img_id][label] #all_detections[i][label]
-    #         annotations = all_annotations[img_id][label]  #all_annotations[i][label]
-    #
-    #         num_annotations += annotations.shape[0]
-    #         detected_annotations = []
-    #
-    #         ########################################################################
-    #         scores_temp = np.zeros((0,))
-    #         for d in detections:
-    #             scores_temp = np.append(scores_temp, d[4])
-    #
-    #         indices = np.argsort(-scores_temp)
-    #
-    #         detections = detections[indices,:]
-    #
-    #         ########################################################################
-    #
-    #
-    #         for d in detections:
-    #             scores = np.append(scores, d[4])
-    #
-    #             if annotations.shape[0] == 0:
-    #                 false_positives = np.append(false_positives, 1)
-    #                 true_positives = np.append(true_positives, 0)
-    #                 continue
-    #
-    #             overlaps = compute_overlap(np.expand_dims(d, axis=0), annotations)
-    #             assigned_annotation = np.argmax(overlaps, axis=1)
-    #             max_overlap = overlaps[0, assigned_annotation]
-    #
-    #             if max_overlap >= iou_threshold and assigned_annotation not in detected_annotations:
-    #                 false_positives = np.append(false_positives, 0)
-    #                 true_positives = np.append(true_positives, 1)
-    #                 detected_annotations.append(assigned_annotation)
-    #             else:
-    #                 false_positives = np.append(false_positives, 1)
-    #                 true_positives = np.append(true_positives, 0)
-    #
-    #     get_gt = False
-    #
-    #
-    #     # no annotations -> AP for this class is 0 (is this correct?)
-    #     if num_annotations == 0:
-    #         average_precisions[label] = 0, 0
-    #         continue
-    #
-    #     # sort by score
-    #     indices = np.argsort(-scores)
-    #     false_positives = false_positives[indices]
-    #     true_positives = true_positives[indices]
-    #
-    #     # compute false positives and true positives
-    #     false_positives = np.cumsum(false_positives)
-    #     true_positives = np.cumsum(true_positives)
-    #
-    #     # compute recall and precision
-    #     recall = true_positives / num_annotations
-    #     precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
-    #
-    #     # compute average precision
-    #     average_precision = _compute_ap(recall, precision)
-    #     average_precisions[label] = average_precision, num_annotations
-    #
-    #     if true_positives.size != 0:
-    #         tp.append(np.max(true_positives))
-    #     else:
-    #         tp.append(0.0)
-    #
-    #     if false_positives.size !=0:
-    #         fp.append(np.max(false_positives))
-    #     else:
-    #         fp.append(0.0)
-    #
-    # count_tp = 0
-    # count_all = 0
-    # if tp[0] != 0:
-    #     count_tp = tp[1]/tp[0]
-    #
-    # if (tp[0] + fp[0]) != 0:
-    #     count_all = (tp[1] + fp[1])/(tp[0] + fp[0])
-    #
-    # # count all : # all class 1/ # all class 0
-    # # count tp: # tp class 1/ # tp class 0
-    #
-    # return avg_error, count_tp, count_all, tp, fp

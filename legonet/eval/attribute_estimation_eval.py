@@ -10,23 +10,9 @@ from PIL import ImageDraw
 from thop import profile, clever_format
 
 from legonet.eval.KP_detection_eval import points_detection_t_p, calc_points_recall_precision_ap
+from legonet.eval.detection_eval import plot_PR_curve
 
 
-
-def plot_RP_curve(recall, precision, ap, save_path):
-    plt.figure()
-    plt.step(recall, precision, color='b', alpha=0.99)
-    plt.fill_between(recall, precision, step='post', color='b', alpha=0.1)
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
-    plt.ylim([0.0, 1.05])
-    plt.xlim([0.0, 1.0])
-    plt.title('2-class Precision-Recall curve: AP={0:0.2f}'.format(ap))
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
-    plot_path = os.path.join(save_path + '\\RP_curve.png')
-    plt.savefig(plot_path)
-    plt.close(plot_path)
 
 
 def SumOfDifferences(A, B):
@@ -56,7 +42,7 @@ def visualize_KeyPointsHeatmaps(predicted_maps, gt_maps, image_name, imgToVis, d
 
     if gt_maps is not None:
         if torch.sum(gt_maps[0][0]) == torch.zeros(1):
-            draw_path = os.path.join(draw_path, "no roots pred" )
+            draw_path = os.path.join(draw_path, "no GT objects" )
             os.makedirs(draw_path, exist_ok=True)
 
     # Draw GT activations:
@@ -325,10 +311,6 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                             abs(count_GT - count_pred)))
 
 
-        # if args.calc_det_performance:
-        #     recall, precision, ap = calc_recall_precision_ap(T, P)
-        #     plot_RP_curve(recall, precision, ap) #, save_path)
-
         print('\n Summary:')
 
         if args.have_GT:
@@ -378,8 +360,8 @@ def eval(dataloader, dataset, model, args, do_profile = False):
 
                 if config.AttributeEstimation.calc_det_performance and config.General.experiment_path != "" and args.have_GT and config.AttributeEstimation.estimate_type == 'withKeyPoints':
                     recall, precision, ap = calc_points_recall_precision_ap(T, P)
-                    plot_RP_curve(recall, precision, ap,
-                                  save_path=config.General.files_path)  # config.General.experiment_path)
+                    plot_PR_curve(recall, precision, ap,
+                                  save_path=config.General.files_path, plots_name = 'Points_PR_curve.png')  # config.General.experiment_path)
 
                     # print recall and precision  to csv
                     csv_columns = ['recall', 'precision']

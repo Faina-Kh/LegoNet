@@ -14,9 +14,10 @@ from thop import profile, clever_format
 
 from legonet.utils import printf
 from legonet.eval.attribute_estimation_eval import SumOfAbsDifferences
-from legonet.eval.BBOX_detection_eval import _get_count_and_box_annotations, compute_overlap, _compute_ap
+from legonet.eval.detection_eval import compute_overlap, _compute_ap, plot_PR_curve
 from legonet.eval.KP_detection_eval import points_detection_t_p, calc_points_recall_precision_ap
 from legonet.my_dataloader import UnNormalizer
+
 
 
 unnormalize = UnNormalizer()
@@ -31,20 +32,44 @@ def _get_detections(detection_outputs, scale):
 
     return scores.cpu().numpy(), boxes
 
-def plot_PR_curve(recall, precision, ap, save_path, plots_name=""):
-    plt.figure()
-    plt.step(recall, precision, color='b', alpha=0.99)
-    plt.fill_between(recall, precision, step='post', color='b', alpha=0.1)
-    plt.xlabel('Recall')
-    plt.ylabel('Precision')
-    plt.ylim([0.0, 1.05])
-    plt.xlim([0.0, 1.0])
-    plt.title('Precision-Recall curve: AP={0:0.2f}'.format(ap))
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
-    plot_path = os.path.join(save_path + '\\'+ plots_name) #'Points_PR_curve.png')
-    plt.savefig(plot_path)
-    plt.close(plot_path)
+
+def _get_count_and_box_annotations(generator):
+    """ Get the ground truth annotations from the generator.
+    The result is a list of lists such that the size is:
+        all_detections[num_images][num_classes] = annotations[num_detections, 5]
+    # Arguments
+        generator : The generator used to retrieve ground truth annotations.
+    # Returns
+        A list of lists containing the annotations for each image in the generator.
+    """
+    all_box_annotations = [[None for i in range(generator.num_classes())] for j in range(len(generator))]
+    all_count_annotations = [[None for i in range(generator.num_classes())] for j in range(len(generator))]
+
+    for i in range(len(generator)):
+        # load the annotations
+        annotations = generator.load_annotations(i)
+
+        # copy detections to all_annotations
+        for label in range(generator.num_classes()):
+            box_anns=annotations[0]  #[x1,y1,x2,y2,class,box_id]
+            if len(annotations[1])>0:
+                count_anns=np.array(annotations[1][0])
+                all_count_annotations[i][label] = count_anns[count_anns[:, 1] == label, :].copy()
+
+            else:
+                count_anns=[]
+                all_count_annotations[i][label] = []
+
+            if len(box_anns) > 0:
+                all_box_annotations[i][label] = box_anns[box_anns[:, 4] == label, :].copy()
+            else:
+                all_box_annotations[i][label] = []
+
+
+        print('{}/{}'.format(i + 1, len(generator)), end='\r')
+
+    return all_box_annotations,all_count_annotations
+
 
 def find_points_in_bbox(img, point_anns, bbox_pred, scale):
 
@@ -248,6 +273,7 @@ def view_points_on_img(img, point_anns):
 
     cv2.imshow('img', img)
     cv2.waitKey(0)
+
 
 ##########################################################################################
 def image_output_shape(image_shape, pyramid_level=3):

@@ -8,7 +8,7 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import config #config_new
-from legonet.eval import attribute_estimation_eval, BBOX_detection_eval
+from legonet.eval import attribute_estimation_eval, detection_eval
 from legonet.eval import perObject_eval as both_eval
 from legonet.my_dataloader import (
     KCSVDataset,
@@ -1107,10 +1107,10 @@ def run(args=None):
                     print()
                     print("Object detection evaluation:\n")
                     if args.eval_detection_params:
-                        average_precisions_all= BBOX_detection_eval.evaluate(dataset_val, dataloader_val, sampler_val, legonet,
-                                                                     iou_threshold=config.Detection.iou_threshold_list,
-                                                                     score_threshold=config.Detection.min_score_list,
-                                                                     save_path= args.test_dir, show_PR_curve=True)
+                        average_precisions_all= BBOX_detection_eval.evaluate_detection_params(dataset_val, dataloader_val, sampler_val, legonet,
+                                                                                              iou_threshold=config.Detection.iou_threshold_list,
+                                                                                              score_threshold=config.Detection.min_score_list,
+                                                                                              save_path= args.test_dir, show_PR_curve=True)
 
                         print("iou, score, class_mAP")
                         for i in range(len(average_precisions_all)):
