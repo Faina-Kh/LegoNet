@@ -9,33 +9,6 @@ import gc
 from pathlib import Path
 
 
-
-class FindForCount(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-
-class CountFeatureClassification(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-
-class FatCountingModule(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-
-class LeanCountingModule(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-class CountWithRegModule(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-
-
-
 resnet_module_urls = {
     'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
     'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
@@ -63,8 +36,83 @@ def load_pretrained_resnet_weights(module_url):
         model_dir=str(PRETRAINED_WEIGHTS_DIR),
     )
 
+
+def init_module_weights(m):
+    for m in m.modules():
+        if isinstance(m, nn.Conv2d):
+            n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+            m.weight.data.normal_(0, math.sqrt(2. / n))
+        elif isinstance(m, nn.BatchNorm2d):
+            m.weight.data.fill_(1)
+            m.bias.data.zero_()
+
+
+class LocalNMS(nn.Module):
+    '''
+    This layer computes a local Non-Maxima Suppression keeping only a single non-zero element for a local window
+    input:
+        kernel_size - size of window for local NMS.
+        strides - overlap factor
+        beta - to decay the rest of the element an exponent is used and 'beta' is the exponent magnitude element
+    '''
+    def __init__(self, kernel_size = (3,3), strides=(1,1), beta=100, name = "LocalNMS"):
+        super(LocalNMS, self).__init__()
+        self.name = name
+        self.kernel_size = kernel_size
+        self.strides = strides
+        self.beta = beta
+        self.max_pool_layer = nn.MaxPool2d(kernel_size=self.kernel_size, stride=self.strides, padding=1)
+
+    def forward(self, x):
+        '''
+        :param inputs: a 2-dim matrix
+        :return: the local NMS of inputs
+        '''
+        p = x
+        q = self.max_pool_layer(p)
+        abs_p_minus_q= torch.abs(p-q)
+        exp_abs = torch.exp(-abs_p_minus_q*self.beta)
+        p_hat = torch.mul(p,exp_abs)
+        return p_hat
+
+
+class GlobalSumPooling2D(nn.Module):
+    '''
+    This layer computes the sum of elements in a 2-dim matrix
+    '''
+    def __init__(self):
+        super(GlobalSumPooling2D, self).__init__()
+
+        self.name = "GlobalSumPooling2D"
+
+    def forward(self, x):
+        '''
+        :param x: a 2-dim matrix
+        :return: the global sum of x
+        '''
+
+        sum_pooling = torch.sum(x, dim=(1,2)).view(x.size(0),1) #torch.sum(x.view(x.size(0), -1))
+        return sum_pooling
+
+
+class SmoothStepFunction(nn.Module):
+    def __init__(self, threshold = 0.8, beta = 15, name = "SmoothStepFunction"):
+        super(SmoothStepFunction,self).__init__()
+        self.name = name
+        self.threshold = threshold
+        self.beta = beta
+
+    def forward(self, x):
+        threshold_factor = torch.ones_like(x) * self.threshold
+        sigmoid_input = torch.sub(x, threshold_factor) * self.beta
+        smooth_step_function = torch.sigmoid(sigmoid_input)
+        return smooth_step_function
+
+
+
 ########################################################################################################################
-# backbone related modules
+# Backbone related modules
+########################################################################################################################
 
 class PyramidFeatures(nn.Module):
     def __init__(self, C3_size, C4_size, C5_size, feature_size=256):
@@ -280,7 +328,8 @@ class Bottleneck(nn.Module):
         return out
 
 ########################################################################################################################
-# find related modules
+# 'Find' related modules
+########################################################################################################################
 
 class FeatureClassification(nn.Module):
     def __init__(self, num_features_in = 256, num_classes=80, num_anchors=9, feature_size=256, name = "FeatureClassification", task=''): #pretrained=False,
@@ -350,9 +399,6 @@ class FeatureClassification(nn.Module):
             self.output_counting.bias.data.fill_(0.1)  #.zero_()
 
             self.output_act_counting= nn.ReLU()
-
-        # if not pretrained:
-        #     init_module_weights(self)
 
     def forward(self, x):
 
@@ -471,7 +517,6 @@ class FindModule(nn.Module):
                  name = "Find_Module", task="", Find_for_count = ""):
         super(FindModule, self).__init__()
 
-        #self.freeze_detection = freeze_detection
         self.Find_for_count = Find_for_count
         self.task = task
         self.name = name
@@ -487,10 +532,15 @@ class FindModule(nn.Module):
         self.LocalNMS = LocalNMS(kernel_size=(3, 3), strides=(1, 1), beta=100)
         self.SmoothStepFunction1 = SmoothStepFunction(threshold=0.8, beta=15)
         self.GlobalSumPooling2D = GlobalSumPooling2D()
-        self.focalLoss = modular_losses.focal_gyf()
 
-        #if (config.General.binary_model and self.task!='detection') or (config.General.other): #or (self.task == 'counting' and not config.prev_color_model):
-        if self.task!='bbox_detection':
+        if self.task == 'bbox_detection':
+            self.focalLoss = modular_losses.FindKeyPointsFocalLoss()
+
+        elif self.task == 'attribute_estimation':
+            self.focalLoss = modular_losses.FindFocalLoss()
+
+
+        if self.task == 'attribute_estimation':
             if not self.Find_for_count: #if config.General.binary_model: #if config.General.with_new_layers:
                 self.sigmoid_for_binary = torch.nn.Sigmoid()
                 self.conv1 = nn.Conv2d(in_channels = 1, out_channels = 256, kernel_size=3, padding=1)
@@ -507,12 +557,13 @@ class FindModule(nn.Module):
     def forward(self, inputs):
 
         if self.training:
-            if self.task == 'attribute_estimation':  # 'counting':
-                pyramid_feats, annotations = inputs
-            elif self.task=='bbox_detection': #and self.bbox_ #not self.freeze_detection:
+
+            if self.task=='bbox_detection':
                 pyramid_feats, anchors, annotations = inputs
-            # elif self.task=='detection' and self.freeze_detection: #the bbox_detection is a sub-task of the model
-            #     pyramid_feats = inputs
+
+            elif self.task == 'attribute_estimation':
+                pyramid_feats, annotations = inputs
+
         else:
             pyramid_feats = inputs
 
@@ -532,17 +583,15 @@ class FindModule(nn.Module):
                     classifications.append(out2.contiguous().view(batch_size, -1, self.num_classes))
 
                 classifications = torch.cat(classifications, dim=1)
-                find_loss = modular_losses.FindFocalLoss()(classifications, anchors, annotations)
+                find_loss = self.focalLoss(classifications, anchors, annotations)#modular_losses.FindFocalLoss()(classifications, anchors, annotations)
                 return SFMS_lists, find_loss
 
             else:
                 return SFMS_lists
 
-        elif self.task=='attribute_estimation': #'counting':
+        elif self.task=='attribute_estimation':
 
             cls_output = []
-            #loss_for_SFMS = []
-            #maps_loss = 0
 
             for SFMS in SFMS_lists:
 
@@ -558,10 +607,6 @@ class FindModule(nn.Module):
                     x1 = self.conv1(x1)
                     x1 = self.act_1(x1)
                     x1 = self.conv2(x1)
-
-                    # if config.General.other:
-                    #     a=1
-                    # else:
                     x1 = self.sigmoid_for_binary(x1)
                     x1 = x1.view(x1.shape[0],6400)
                     x1 = self.linear(x1)
@@ -593,7 +638,8 @@ class FindModule(nn.Module):
 
 
 ########################################################################################################################
-# where related modules
+# 'Where' related modules
+########################################################################################################################
 
 class FeatureWhere(nn.Module):
     def __init__(self, num_features_in = 256, pretrained = False, num_anchors=9, feature_size=256, name = "FeatureWhere"):
@@ -734,75 +780,10 @@ class ClipBoxes(nn.Module):
         return boxes
 
 ########################################################################################################################
-# counting related modules
-
-class LocalNMS(nn.Module):
-    '''
-    This layer computes a local Non-Maxima Supression keeping only a single non-zero element for a local window
-    input:
-        kernel_size - size of window for local NMS.
-        strides - overlap factor
-        beta - to decay the rest of the element an exponent is used and 'beta' is the exponent magnitude element
-    '''
-    def __init__(self, kernel_size = (3,3), strides=(1,1), beta=100, name = "LocalNMS"):
-        super(LocalNMS, self).__init__()
-        self.name = name
-        self.kernel_size = kernel_size
-        self.strides = strides
-        self.beta = beta
-        self.max_pool_layer = nn.MaxPool2d(kernel_size=self.kernel_size, stride=self.strides, padding=1)
-
-    def forward(self, x):
-        '''
-        for more information see our paper!
-        :param inputs: a 2-dim matrix
-        :return: the local NMS of inputs
-        '''
-        p = x
-        q = self.max_pool_layer(p)
-        abs_p_minus_q= torch.abs(p-q)
-        exp_abs = torch.exp(-abs_p_minus_q*self.beta)
-        p_hat = torch.mul(p,exp_abs)
-        return p_hat
-
-
-class GlobalSumPooling2D(nn.Module):
-    '''
-    This layer computes the sum of elements in a 2-dim matrix
-    '''
-    def __init__(self):
-        super(GlobalSumPooling2D, self).__init__()
-
-        self.name = "GlobalSumPooling2D"
-
-    def forward(self, x):
-        '''
-        :param x: a 2-dim matrix
-        :return: the global sum of x
-        '''
-
-        sum_pooling = torch.sum(x, dim=(1,2)).view(x.size(0),1) #torch.sum(x.view(x.size(0), -1))
-        return sum_pooling
-
-
-class SmoothStepFunction(nn.Module):
-    def __init__(self, threshold = 0.8, beta = 15, name = "SmoothStepFunction"):
-        super(SmoothStepFunction,self).__init__()
-        self.name = name
-        self.threshold = threshold
-        self.beta = beta
-
-    def forward(self, x):
-        threshold_factor = torch.ones_like(x) * self.threshold
-        sigmoid_input = torch.sub(x, threshold_factor) * self.beta
-        smooth_step_function = torch.sigmoid(sigmoid_input)
-        return smooth_step_function
-
-
+# Attribute estimation related modules
 ########################################################################################################################
 
-
-class KeypointBasedEstimator(nn.Module): #LeanCountingModule #EstimateWithKeyPointsModule
+class KeypointBasedEstimator(nn.Module):
 
     def __init__(self, output_size = 1, name = "D+R_module", attribute_name = "", binary_model = False, binary_loss_version = "L1Loss"):
         super(KeypointBasedEstimator, self).__init__() #LeanCountingModule
@@ -848,11 +829,6 @@ class KeypointBasedEstimator(nn.Module): #LeanCountingModule #EstimateWithKeyPoi
             self.reg_layer_4.weight.data.normal_(mean=0.5, std=0.1)
 
             self.act_4 = nn.ReLU()
-
-        # not in the fat version...
-        #self.sec_reg_layer.bias.data.zero_()
-        #self.last_reg_layer.bias.data.zero_()
-        #self.focalLoss = modular_losses.focal_gyf()  # losses.FocalLoss()
 
         self.L1loss = nn.L1Loss()
 
@@ -1063,7 +1039,7 @@ class EstimateRegSubmodel(nn.Module):
         return regression_output
 
 
-class RegressionBasedEstimator(nn.Module): #"CountWithRegModule"
+class RegressionBasedEstimator(nn.Module):
 
     def __init__(self, num_classes, name = "MSR", binary_model = False):
         super(RegressionBasedEstimator, self).__init__()
@@ -1074,7 +1050,7 @@ class RegressionBasedEstimator(nn.Module): #"CountWithRegModule"
 
         self.L1loss = nn.L1Loss()  # the mae loss
         self.mseLoss = nn.MSELoss()
-        self.countLoss = modular_losses.mu_sig_gyf()
+        self.estimationLoss = modular_losses.BnnLoss()
 
         self.regSubmodel = EstimateRegSubmodel(binary_model = self.binary_model)
 
@@ -1087,7 +1063,6 @@ class RegressionBasedEstimator(nn.Module): #"CountWithRegModule"
 
         output = [self.regSubmodel(feature) for feature in pyramid_feats]
 
-        ######################################################################################
         best_out = []
         for i in range(pyramid_feats[0].shape[0]): # num of input images
             best_p=-1
@@ -1102,25 +1077,16 @@ class RegressionBasedEstimator(nn.Module): #"CountWithRegModule"
 
         best_out=torch.cat(best_out, dim=0)
 
-        ######################################################################################
+
         if self.training:
             if config.Detect_and_Estimate.type == "both_for_roots_2":
-                return (self.countLoss(annotations.squeeze(dim=1), best_out))
-            return (self.countLoss(annotations.squeeze(dim=1), best_out.float()))
+                return (self.estimationLoss(annotations.squeeze(dim=1), best_out))
+            return (self.estimationLoss(annotations.squeeze(dim=1), best_out.float()))
 
         else:
             if self.binary_model:
                 return [torch.round(best_out[:, 0])]
-            return [best_out[:,0]] #count pred
+            return [best_out[:,0]]
 
 ########################################################################################################################
 
-
-def init_module_weights(m):
-    for m in m.modules():
-        if isinstance(m, nn.Conv2d):
-            n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-            m.weight.data.normal_(0, math.sqrt(2. / n))
-        elif isinstance(m, nn.BatchNorm2d):
-            m.weight.data.fill_(1)
-            m.bias.data.zero_()

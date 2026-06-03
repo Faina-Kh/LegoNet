@@ -22,14 +22,9 @@ def calc_iou(a, b):
     return IoU
 
 
-
-class focal_gyf(nn.Module):
-
+class FindKeyPointsFocalLoss(nn.Module):
+    # classification loss for key points detection -for attribute estimation
     def forward(self, y_true, y_pred, alpha=0.1):
-
-        #import matplotlib.pyplot as plt
-        #from torchvision import transforms
-        #plt.imshow(transforms.ToPILImage(labels.cpu()))
 
         labels         = y_true
         classification = y_pred
@@ -51,24 +46,16 @@ class focal_gyf(nn.Module):
 
         cls_loss = focal_weight * regression_loss
 
-        return torch.sum(cls_loss)  #torch.mean(cls_loss)  #torch.sum(cls_loss)
+        return torch.sum(cls_loss)
 
 
 class FindFocalLoss(nn.Module):
-    #def __init__(self):
-
+    # classification loss for bbox detection
     def forward(self, classifications, anchors, annotations):
         alpha = 0.25
         gamma = 2.0
         batch_size = classifications.shape[0]
         classification_losses = []
-
-        anchor = anchors[0, :, :]
-
-        anchor_widths  = anchor[:, 2] - anchor[:, 0]
-        anchor_heights = anchor[:, 3] - anchor[:, 1]
-        anchor_ctr_x   = anchor[:, 0] + 0.5 * anchor_widths
-        anchor_ctr_y   = anchor[:, 1] + 0.5 * anchor_heights
 
         for j in range(batch_size):
 
@@ -87,9 +74,6 @@ class FindFocalLoss(nn.Module):
             IoU = calc_iou(anchors[0, :, :], bbox_annotation[:, :4]) # num_anchors x num_annotations
 
             IoU_max, IoU_argmax = torch.max(IoU, dim=1) # num_anchors x 1
-
-            #import pdb
-            #pdb.set_trace()
 
             # compute the loss for classification
             targets = torch.ones(classification.shape) * -1
@@ -126,11 +110,8 @@ class FindFocalLoss(nn.Module):
 
 
 class WhereLoss(nn.Module):
-    #def __init__(self):
 
     def forward(self, regressions, anchors, annotations):
-        alpha = 0.25
-        gamma = 2.0
 
         batch_size = regressions.shape[0]
         regression_losses = []
@@ -151,23 +132,15 @@ class WhereLoss(nn.Module):
 
             if bbox_annotation.shape[0] == 0:
                 regression_losses.append(torch.tensor(0).float().cuda())
-
                 continue
 
             IoU = calc_iou(anchors[0, :, :], bbox_annotation[:, :4]) # num_anchors x num_annotations
-
             IoU_max, IoU_argmax = torch.max(IoU, dim=1) # num_anchors x 1
 
-            #import pdb
-            #pdb.set_trace()
-
-
             positive_indices = torch.ge(IoU_max, 0.5)
-
             assigned_annotations = bbox_annotation[IoU_argmax, :]
 
             # compute the loss for regression
-
             if positive_indices.sum() > 0:
                 assigned_annotations = assigned_annotations[positive_indices, :]
 
@@ -195,8 +168,6 @@ class WhereLoss(nn.Module):
 
                 targets = targets/torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).cuda()
 
-                negative_indices = 1 + (~positive_indices)
-
                 regression_diff = torch.abs(targets - regression[positive_indices, :])
 
                 regression_loss = torch.where(
@@ -211,13 +182,9 @@ class WhereLoss(nn.Module):
         return torch.stack(regression_losses).mean(dim=0, keepdim=True)
 
 
-class mu_sig_gyf(nn.Module):
+class BnnLoss(nn.Module):
+    # Based on the [Kendall & Gal, 2017] paper
     def forward(self, y_true, pred):
-
-        #y_pred_log_var = keras.backend.map_fn(lambda x: x, pred[0])
-        #y_pred = y_pred_log_var[0]
-        #log_var = y_pred_log_var[1]
-
         y_pred = pred[:,0]
         log_var = pred[:,1]
 
