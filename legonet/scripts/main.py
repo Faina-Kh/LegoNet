@@ -20,6 +20,10 @@ warnings.filterwarnings("ignore")
 
 startTime = time.time()
 
+
+import faulthandler
+faulthandler.enable()
+
 ########################################################################################################################
 
 def print_to_csv(args, executionTime):
@@ -118,38 +122,46 @@ if args is None:
 ########################################################################################################################
 # user definitions
 ########################################################################################################################
-args.gpu_num = args.gpu_num or '1'
+args.gpu_num = args.gpu_num or '0'
 
 args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = args.dataset_name or "roots" #"grapes" #"roots"
-args.network_type = args.network_type or "bbox_detection" #"both_for_roots_2" #"bbox_detection"
+args.network_type = args.network_type or "both_for_roots_2"
 # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
 
-args.current_results_dir = args.current_results_dir or 'bbox_detection_2'
+args.current_results_dir = args.current_results_dir or 'try_both_roots_3'
 #'per_object_attributes_KP'
 #'TRL_estimator_KP' # 'TRL_estimator_reg' #'per_object_attributes_Reg' #'per_object_attributes_KP'
 #'bbox_detection' # 'per_object_counting' # "both_Back2bFind2b"
 
 args.estimate_type = args.estimate_type or 'withKeyPoints' #'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
-args.to_draw = False if args.to_draw is None else args.to_draw
+
+
+args.to_draw = True #False if args.to_draw is None else args.to_draw
+
+
+
 args.run_script = args.run_script or 'Inference' #'Training' #'Inference'
-val_set = args.val_set or "Test" #"Test" #"Val"
+val_set = args.val_set or "Val" #"Test" #"Val"
 
 args.num_of_epochs = args.num_of_epochs or 2
 args.have_GT = True if args.have_gt is None else args.have_gt
 
 #--------------------------------------------------------------------------------------------------------------
 
-if args.network_type == "both" or args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
-    args.evaluate_both = True # relevant to Inference
-    args.evaluate_detection = True
-elif args.network_type == "bbox_detection":
-    args.evaluate_both = False  # relevant to Inference
-    args.evaluate_detection = True
-else:
-    args.evaluate_both = False
-    args.evaluate_detection = False
+# if args.network_type == "both" or args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
+#     args.evaluate_both = True # relevant to Inference
+#     args.evaluate_detection = True
+# elif args.network_type == "bbox_detection":
+#     args.evaluate_both = False  # relevant to Inference
+#     args.evaluate_detection = True
+# else:
+#     args.evaluate_both = False
+#     args.evaluate_detection = False
 
+args.evaluate_both = True
+args.evaluate_detection = False
+#-----------------------------------------
 
 args.save_from_model_file = False if args.save_from_model_file is None else args.save_from_model_file
 args.load_weights = True if args.load_weights is None else args.load_weights

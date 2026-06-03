@@ -69,6 +69,8 @@ class PerObjectEstimate(nn.Module):
         for param in self.bbox_detection.where.parameters():
             param.requires_grad = False
 
+
+
     def forward(self, inputs):
 
         img_batch, annotations, group_idx = inputs
@@ -206,37 +208,63 @@ class PerObjectEstimate(nn.Module):
                         if self.training or (not self.training and annotations is not None): # training
 
                             if points is not None:
-                                current_points = points[b]
+                                current_points = {
+                                    "x": np.array(points[b]["x"], dtype=np.float32).copy(),
+                                    "y": np.array(points[b]["y"], dtype=np.float32).copy(),
+                                }
+
+                                #current_points = points[b]
                                 points_to_view = []
 
                                 # for boxes that include points
                                 if len(current_points['x'])>0:
-                                    current_points['x'] = current_points['x'] - (x1.cpu().numpy()) * np.ones(len(current_points['x']))
-                                    current_points['y'] = current_points['y'] - (y1.cpu().numpy()) * np.ones(len(current_points['y']))
+                                    # current_points['x'] = current_points['x'] - (x1.cpu().numpy()) * np.ones(len(current_points['x']))
+                                    # current_points['y'] = current_points['y'] - (y1.cpu().numpy()) * np.ones(len(current_points['y']))
+                                    #
+                                    # scale_x = config.AttributeEstimation.crops_size[0] / (x2 - x1).cpu().numpy()
+                                    # scale_y = config.AttributeEstimation.crops_size[1] / (y2 - y1).cpu().numpy()
+                                    # current_points['x'] = current_points['x']*scale_x
+                                    # current_points['y'] = current_points['y']*scale_y
+                                    #
+                                    # for i in range(len(current_points['x'])):
+                                    #    points_to_view.append({'x':current_points['x'][i], 'y':current_points['y'][i]})
+                                    # #self.view_points_on_img(bbox_crops, points_to_view)
 
-                                    scale_x = config.AttributeEstimation.crops_size[0] / (x2 - x1).cpu().numpy()
-                                    scale_y = config.AttributeEstimation.crops_size[1] / (y2 - y1).cpu().numpy()
-                                    current_points['x'] = current_points['x']*scale_x
-                                    current_points['y'] = current_points['y']*scale_y
+                                    x1_np = x1.detach().cpu().numpy()
+                                    y1_np = y1.detach().cpu().numpy()
+                                    x2_np = x2.detach().cpu().numpy()
+                                    y2_np = y2.detach().cpu().numpy()
 
-                                    for i in range(len(current_points['x'])):
-                                       points_to_view.append({'x':current_points['x'][i], 'y':current_points['y'][i]})
-                                    #self.view_points_on_img(bbox_crops, points_to_view)
+                                    current_points["x"] = current_points["x"] - x1_np
+                                    current_points["y"] = current_points["y"] - y1_np
+
+                                    scale_x = config.AttributeEstimation.crops_size[0] / (x2_np - x1_np)
+                                    scale_y = config.AttributeEstimation.crops_size[1] / (y2_np - y1_np)
+
+                                    current_points["x"] = current_points["x"] * scale_x
+                                    current_points["y"] = current_points["y"] * scale_y
+
+                                    for i in range(len(current_points["x"])):
+                                        points_to_view.append({
+                                            "x": current_points["x"][i],
+                                            "y": current_points["y"][i]
+                                        })
 
                                     relevant_points_anns.append(points_to_view)
+
                                     bbox_crops_list.append([bbox_crops, bbox_pred_adjusted[b, 4]]) # add the gt box id
 
 
                                 else:
                                     if not self.training:
-                                        bbox_crops_list.append([bbox_crops, torch.tensor(-1, dtype=float)])
+                                        bbox_crops_list.append([bbox_crops, torch.tensor(-1, dtype=float)]) #self.make_empty_box_id_like(bbox_crops)]) #torch.tensor(-1, dtype=float)])
                                         relevant_points_anns.append([])
 
                             else:
                                 bbox_crops_list.append(bbox_crops)
 
                         else:
-                            bbox_crops_list.append(bbox_crops)  # torch.tensor(bbox_crops).float().permute(2, 0, 1).unsqueeze(dim=0).to(config.General.device))
+                            bbox_crops_list.append(bbox_crops) #self.make_empty_box_id_like(bbox_crops)])  # torch.tensor(bbox_crops).float().permute(2, 0, 1).unsqueeze(dim=0).to(config.General.device))
 
         including_counting = False
 
@@ -395,6 +423,17 @@ class PerObjectEstimate(nn.Module):
 
             else:
                 return detection_outputs, estimation_outputs, None, None, None  #[],...
+
+
+    def make_empty_box_id_like(self, crop):
+        return torch.tensor(
+            -1,
+            dtype=torch.float32,
+            device=crop.device if torch.is_tensor(crop) else "cpu"
+        )
+
+
+
 
     def get_detection_output(self, transformed_anchors, classification_vector):
 

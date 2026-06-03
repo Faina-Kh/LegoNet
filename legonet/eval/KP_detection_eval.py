@@ -144,10 +144,10 @@ def visualize_KeyPointsHeatmaps(predicted_maps, gt_maps, image_name, map_name, i
     background_2=background_2.convert("RGBA")
 
     if gt_maps is not None:
-        anno = gt_maps.clone() #.cpu().numpy().copy()
+        anno = gt_maps.copy() #.cpu().numpy().copy()
 
     if gt_maps is not None:
-        plt.imsave(draw_path + '/' + map_name+ '_anno.png', anno[0])
+        plt.imsave(draw_path + '/' + map_name+ '_anno.png', anno)
         gt_anns = Image.open(draw_path + '/' + map_name+ '_anno.png')
         gt_anns = gt_anns.resize((BG_w, BG_h), Image.Resampling.LANCZOS) #Image.ANTIALIAS)
         gt_anns.save(draw_path + '/' + map_name + '_anno.png')
@@ -162,7 +162,7 @@ def visualize_KeyPointsHeatmaps(predicted_maps, gt_maps, image_name, map_name, i
 
     # Relu map #######################################################################################################
 
-    plt.imsave(draw_path + '/' + map_name+ '_Relu.png', predicted_maps[0].cpu())
+    plt.imsave(draw_path + '/' + map_name+ '_Relu.png', predicted_maps.cpu())
     relu_pred = Image.open(draw_path + '/' + map_name+ '_Relu.png')
 
     relu_pred = relu_pred.resize((BG_w, BG_h))  # Image.ANTIALIAS

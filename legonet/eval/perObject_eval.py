@@ -1591,7 +1591,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
                                                 map_name = image_name.split(".jpg")[0] +'_crop_' + str(i) +'_map_' + str(p+1)
                                                 #visualize_pointMaps(current_pred, current_true, map_name, imgToVis, config.DrawProperties.maps_path)
-                                                visualize_KeyPointsHeatmaps(current_pred, current_true, image_name,
+                                                visualize_KeyPointsHeatmaps(current_pred, current_true, image_name.split(".jpg")[0],
                                                                             map_name, imgToVis, config.DrawProperties.maps_path)
 
 
