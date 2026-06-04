@@ -160,7 +160,7 @@ with st.sidebar:
         gpu_num = ""
 
     st.header("Advanced")
-    current_results_dir = st.text_input("Current results dir", value="bbox_detection")
+    current_results_dir = st.text_input("Current results dir", value=network_type+"_Results")
     if network_type in ESTIMATE_SELECT_NETWORK_OPTIONS:
         estimate_type = st.selectbox("Estimate type", ESTIMATE_TYPES, index=0)
     else:
@@ -169,7 +169,8 @@ with st.sidebar:
     if run_script == "Training":
         num_of_epochs = st.number_input("Number of epochs", min_value=1, value=300, step=1)
     else:
-        num_of_epochs = 2
+        num_of_epochs = 0
+
 
     have_gt = st.checkbox("Have ground truth", value=True)
     to_draw = st.checkbox("Draw visualizations", value=False)
