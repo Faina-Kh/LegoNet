@@ -1582,12 +1582,12 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                                                 if len(true_maps)>0:
                                                     current_true = true_maps[p]
                                                 else:
-                                                    current_true = []
+                                                    current_true = None
 
                                                 if len(pred_maps) > 0:
-                                                    current_pred = pred_maps[p]
+                                                    current_pred = pred_maps[p].cpu()
                                                 else:
-                                                    current_pred = []
+                                                    current_pred = None
 
                                                 map_name = image_name.split(".jpg")[0] +'_crop_' + str(i) +'_map_' + str(p+1)
                                                 #visualize_pointMaps(current_pred, current_true, map_name, imgToVis, config.DrawProperties.maps_path)

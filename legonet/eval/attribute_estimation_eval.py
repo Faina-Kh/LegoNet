@@ -34,7 +34,7 @@ def SumOfAbsDifferences(A,B):
 
 def eval(dataloader, dataset, model, args, do_profile = False):
 
-    print('\n',"Start evaluation")
+    print("Start evaluation")
 
     model.eval()
 
@@ -62,8 +62,13 @@ def eval(dataloader, dataset, model, args, do_profile = False):
             for iter_num, data in enumerate(dataloader):
 
                 full_rgbImage_name = dataset.bgr_images_names[dataloader.batch_sampler.groups[iter_num][0]] #[iter_num]
-                Image_name = full_rgbImage_name.split(".jpg")[0]  # ("_rgb")[0]
 
+                if full_rgbImage_name.lower().endswith((".jpg", ".jpeg")):
+                    Image_name = full_rgbImage_name.split(".jpg")[0]
+                elif full_rgbImage_name.lower().endswith(".png"):
+                    Image_name = full_rgbImage_name.split(".png")[0]
+
+                #Image_name = full_rgbImage_name.split(".jpg")[0]  # ("_rgb")[0]
 
                 if args.network_type == "counting_reg":
                     if args.have_GT:
@@ -118,6 +123,16 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                     predicted_maps = count_outputs[1:5]
                     predicted_maps.append(count_outputs[6])
 
+                    #---------------------------------------
+                    # import matplotlib.pyplot as plt
+                    #
+                    # i=0
+                    # my_tensor = predicted_maps[i]
+                    # tensor_2d = my_tensor.squeeze().detach().cpu().numpy()
+                    #
+                    # plt.imsave(config.DrawProperties.maps_path + '/' + 'pred_map_'+str(i)+'.png' , tensor_2d)
+
+                    # ---------------------------------------
 
                 if args.network_type == 'counting_lean' and config.General.to_draw:
                     img = Image.open(os.path.join(dataset.base_dir, full_rgbImage_name))
@@ -128,16 +143,16 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                         count_GT = None
                         gt_maps = None
 
-                    for i in [4]:  # range(5):
+                    for i in [4]:  # range(5): #which heatmaps to visualize, numbered from 0 to 4
                         map_name = Image_name + '_map_' + str(i + 1)
+                        predicted_map = predicted_maps[i].cpu().numpy()[0]
                         if gt_maps is not None:
-                            visualize_KeyPointsHeatmaps(predicted_maps[i], gt_maps[i], Image_name, map_name, img,
+                            gt_map = gt_maps[i].cpu().numpy()[0]
+                            visualize_KeyPointsHeatmaps(predicted_map, gt_map, Image_name, map_name, img,
                                                         config.DrawProperties.maps_path, count_pred, count_GT)
                         else:
-                            visualize_KeyPointsHeatmaps(predicted_maps[i], None, Image_name, map_name, img,
+                            visualize_KeyPointsHeatmaps(predicted_map, None, Image_name, map_name, img,
                                                         config.DrawProperties.maps_path, count_pred, count_GT)
-
-
 
 
                 if args.have_GT:

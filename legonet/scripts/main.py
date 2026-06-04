@@ -126,10 +126,10 @@ args.gpu_num = args.gpu_num or '0'
 
 args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = args.dataset_name or "roots" #"grapes" #"roots"
-args.network_type = args.network_type or "both_for_roots_2"
+args.network_type = args.network_type or "counting_lean"
 # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
 
-args.current_results_dir = args.current_results_dir or 'try_both_roots_3'
+args.current_results_dir = args.current_results_dir or 'try_lean_8'
 #'per_object_attributes_KP'
 #'TRL_estimator_KP' # 'TRL_estimator_reg' #'per_object_attributes_Reg' #'per_object_attributes_KP'
 #'bbox_detection' # 'per_object_counting' # "both_Back2bFind2b"
@@ -144,7 +144,7 @@ args.to_draw = True #False if args.to_draw is None else args.to_draw
 args.run_script = args.run_script or 'Inference' #'Training' #'Inference'
 val_set = args.val_set or "Val" #"Test" #"Val"
 
-args.num_of_epochs = args.num_of_epochs or 2
+args.num_of_epochs = args.num_of_epochs or 300
 args.have_GT = True if args.have_gt is None else args.have_gt
 
 #--------------------------------------------------------------------------------------------------------------

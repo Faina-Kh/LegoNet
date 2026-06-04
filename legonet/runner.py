@@ -1147,8 +1147,8 @@ def run(args=None):
         else:
             utils.printf("Attribute estimation evaluation:\n")
 
-            if config.General.NETWORK_TYPE == config.NetworkType.counting_reg or config.General.NETWORK_TYPE == config.NetworkType.counting_lean\
-                    or config.General.NETWORK_TYPE == config.NetworkType.counting_lean_multiple_out:
+            if (config.General.NETWORK_TYPE == config.NetworkType.counting_reg or
+                    config.General.NETWORK_TYPE == config.NetworkType.counting_lean):
 
                 rel_error = attribute_estimation_eval.eval(dataloader_val, dataset_val, legonet, args) #counting_eval.eval
 

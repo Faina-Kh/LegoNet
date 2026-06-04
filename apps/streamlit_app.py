@@ -107,7 +107,7 @@ with st.sidebar:
     st.header("Advanced")
     current_results_dir = st.text_input("Current results dir", value="bbox_detection")
     estimate_type = st.selectbox("Estimate type", ESTIMATE_TYPES, index=0)
-    num_of_epochs = st.number_input("Number of epochs", min_value=1, value=2, step=1)
+    num_of_epochs = st.number_input("Number of epochs", min_value=1, value=300, step=1)
     have_gt = st.checkbox("Have ground truth", value=True)
     to_draw = st.checkbox("Draw visualizations", value=False)
     load_weights = st.checkbox("Load weights", value=True)
