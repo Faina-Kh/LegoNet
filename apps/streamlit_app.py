@@ -19,6 +19,16 @@ NETWORK_OPTIONS = (
 RUN_MODES = ("Inference", "Training")
 VAL_SETS = ("Test", "Val")
 ESTIMATE_TYPES = ("withKeyPoints", "reg_fpn_p3_p7_min_sig")
+OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS = ("both", "both_for_roots_2", "both_Back2bFind2b")
+MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection",)
+ESTIMATE_SELECT_NETWORK_OPTIONS = ("both", "both_for_roots_2")
+DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
+    "bbox_detection": "withKeyPoints",
+    "counting_lean": "withKeyPoints",
+    "counting_reg": "reg_fpn_p3_p7_min_sig",
+    "both": "withKeyPoints",
+    "both_Back2bFind2b": "withKeyPoints",
+}
 
 
 def find_project_root(start: Path) -> Path:
@@ -34,6 +44,16 @@ def bool_arg(value: bool) -> str:
     return "true" if value else "false"
 
 
+def has_cuda_gpu() -> bool:
+    """Return whether the active Python environment can see a CUDA GPU."""
+    try:
+        import torch
+    except ImportError:
+        return False
+
+    return torch.cuda.is_available()
+
+
 def build_command(
     main_script: Path,
     storage_path: str,
@@ -47,6 +67,7 @@ def build_command(
     num_of_epochs: int,
     have_gt: bool,
     to_draw: bool,
+    evaluate_detection: bool,
     load_weights: bool,
 ) -> list[str]:
     """Build the LegoNet main.py command from GUI settings."""
@@ -75,6 +96,8 @@ def build_command(
         bool_arg(have_gt),
         "--to-draw",
         bool_arg(to_draw),
+        "--evaluate-detection",
+        bool_arg(evaluate_detection),
         "--load-weights",
         bool_arg(load_weights),
     ]
@@ -85,8 +108,36 @@ def format_command(command: list[str]) -> str:
     return " ".join(f'"{part}"' if " " in part else part for part in command)
 
 
+def expected_experiment_root(storage_path: str, dataset_name: str, current_results_dir: str) -> Path:
+    """Return the experiment folder where main.py writes results for these settings."""
+    return Path(storage_path) / "ExpResults" / dataset_name / current_results_dir
+
+
+def find_recent_artifacts(experiment_root: Path, limit: int = 12) -> list[Path]:
+    """Find recent text and CSV outputs below the experiment folder."""
+    if not experiment_root.exists():
+        return []
+
+    artifacts = [
+        path
+        for pattern in ("*.csv", "*.txt")
+        for path in experiment_root.rglob(pattern)
+        if path.is_file()
+    ]
+    return sorted(artifacts, key=lambda path: path.stat().st_mtime, reverse=True)[:limit]
+
+
+def read_preview(path: Path, max_chars: int = 4000) -> str:
+    """Read a small preview from a result file."""
+    try:
+        return path.read_text(encoding="utf-8", errors="replace")[:max_chars]
+    except OSError as exc:
+        return f"Could not read {path}: {exc}"
+
+
 PROJECT_ROOT = find_project_root(Path(__file__).resolve())
 MAIN_SCRIPT = PROJECT_ROOT / "legonet" / "scripts" / "main.py"
+GPU_AVAILABLE = has_cuda_gpu()
 
 st.set_page_config(page_title="LegoNet Runner", page_icon="L", layout="wide")
 
@@ -102,14 +153,32 @@ with st.sidebar:
     network_type = st.selectbox("Network type", NETWORK_OPTIONS, index=0)
     run_script = st.selectbox("Run mode", RUN_MODES, index=0)
     val_set = st.selectbox("Validation set", VAL_SETS, index=0)
-    gpu_num = st.text_input("GPU number", value="0")
+    use_gpu = st.checkbox("Use GPU", value=GPU_AVAILABLE)
+    if use_gpu:
+        gpu_num = st.text_input("GPU number", value="0")
+    else:
+        gpu_num = ""
 
     st.header("Advanced")
     current_results_dir = st.text_input("Current results dir", value="bbox_detection")
-    estimate_type = st.selectbox("Estimate type", ESTIMATE_TYPES, index=0)
-    num_of_epochs = st.number_input("Number of epochs", min_value=1, value=300, step=1)
+    if network_type in ESTIMATE_SELECT_NETWORK_OPTIONS:
+        estimate_type = st.selectbox("Estimate type", ESTIMATE_TYPES, index=0)
+    else:
+        estimate_type = DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(network_type, "withKeyPoints")
+
+    if run_script == "Training":
+        num_of_epochs = st.number_input("Number of epochs", min_value=1, value=300, step=1)
+    else:
+        num_of_epochs = 2
+
     have_gt = st.checkbox("Have ground truth", value=True)
     to_draw = st.checkbox("Draw visualizations", value=False)
+    if network_type in OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS:
+        evaluate_detection = st.checkbox("Evaluate detection", value=True)
+    elif network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS:
+        evaluate_detection = True
+    else:
+        evaluate_detection = False
     load_weights = st.checkbox("Load weights", value=True)
 
 command = build_command(
@@ -125,8 +194,11 @@ command = build_command(
     num_of_epochs=int(num_of_epochs),
     have_gt=have_gt,
     to_draw=to_draw,
+    evaluate_detection=evaluate_detection,
     load_weights=load_weights,
 )
+storage_root = Path(storage_path)
+experiment_root = expected_experiment_root(storage_path, dataset_name, current_results_dir)
 
 left, right = st.columns([2, 1])
 
@@ -138,8 +210,27 @@ with right:
     st.subheader("Project")
     st.text_input("Project root", value=str(PROJECT_ROOT), disabled=True)
     st.text_input("Python", value=sys.executable, disabled=True)
+    st.text_input("Expected output root", value=str(experiment_root), disabled=True)
 
-run_clicked = st.button("Run LegoNet", type="primary")
+if storage_path.strip() and not storage_root.exists():
+    st.warning("The selected storage path does not exist on this machine.")
+
+if not use_gpu:
+    st.warning("Running this code may require a GPU depending on the selected network and hardware.")
+
+cuda_required_for_selected_run = (
+    run_script == "Training"
+    and network_type in OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS
+    and not use_gpu
+)
+if cuda_required_for_selected_run:
+    st.error("This training mode requires CUDA in the current code.")
+
+run_clicked = st.button(
+    "Run LegoNet",
+    type="primary",
+    disabled=cuda_required_for_selected_run,
+)
 
 if run_clicked:
     if not storage_path.strip():
@@ -167,3 +258,23 @@ if run_clicked:
     if result.stderr:
         st.subheader("Errors")
         st.code(result.stderr)
+
+st.divider()
+st.subheader("Recent Result Files")
+
+artifacts = find_recent_artifacts(experiment_root)
+if not artifacts:
+    st.info("No CSV or text result files found yet for the selected experiment folder.")
+else:
+    selected_artifact = st.selectbox(
+        "Result file",
+        artifacts,
+        format_func=lambda path: str(path.relative_to(experiment_root)),
+    )
+    st.caption(str(selected_artifact))
+    st.download_button(
+        "Download selected file",
+        data=selected_artifact.read_bytes(),
+        file_name=selected_artifact.name,
+    )
+    st.code(read_preview(selected_artifact))
