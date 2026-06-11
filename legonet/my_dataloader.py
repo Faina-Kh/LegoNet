@@ -687,8 +687,6 @@ class KCSVDataset(Dataset):
 
         self.img_info = self.get_img_info()
 
-
-
     def get_img_info(self):
         img_info = []
         if self.have_GT:
@@ -1004,29 +1002,29 @@ class KCSVDataset(Dataset):
         else:
             points_annotations = self.get_output_counting(image_name) #[counts: count, point class, box id, centers: x,y, point class, box id]
 
-        if config.General.dataset_name == 'grapes':  # and filter_empty...
-            boxes_to_remove = []
-            for p_annot in points_annotations[0]:
-                if math.isnan(p_annot[1]):
-                    boxes_to_remove.append(p_annot[2])
-
-            points_counts = points_annotations[0]
-            points_coords = points_annotations[1]
-            for box_id in boxes_to_remove:
-                # result1 = np.where(bbox_annot == box_id)
-                # bbox_annot=np.delete(bbox_annot,result1[0][0],0)
-                for idx1 in range(len(bbox_annotations)):
-                    if bbox_annotations[idx1][5] == box_id:
-                        bbox_annotations = np.delete(bbox_annotations, [idx1], 0)
-                        break
-
-                # points_counts = np.delete(points_counts, result2[0][0],0)
-                for idx2 in range(len(points_counts)):
-                    if points_counts[idx2][2] == box_id:
-                        points_counts = np.delete(points_counts, [idx2], 0)
-                        break
-
-            points_annotations = (points_counts, points_coords)
+        # if config.General.dataset_name == 'grapes':  # and filter_empty...
+        #     boxes_to_remove = []
+        #     for p_annot in points_annotations[0]:
+        #         if math.isnan(p_annot[1]):
+        #             boxes_to_remove.append(p_annot[2])
+        #
+        #     points_counts = points_annotations[0]
+        #     points_coords = points_annotations[1]
+        #     for box_id in boxes_to_remove:
+        #         # result1 = np.where(bbox_annot == box_id)
+        #         # bbox_annot=np.delete(bbox_annot,result1[0][0],0)
+        #         for idx1 in range(len(bbox_annotations)):
+        #             if bbox_annotations[idx1][5] == box_id:
+        #                 bbox_annotations = np.delete(bbox_annotations, [idx1], 0)
+        #                 break
+        #
+        #         # points_counts = np.delete(points_counts, result2[0][0],0)
+        #         for idx2 in range(len(points_counts)):
+        #             if points_counts[idx2][2] == box_id:
+        #                 points_counts = np.delete(points_counts, [idx2], 0)
+        #                 break
+        #
+        #     points_annotations = (points_counts, points_coords)
 
         return bbox_annotations, points_annotations
 
@@ -1131,12 +1129,6 @@ class KCSVDataset(Dataset):
 
                         bbox_id += 1
 
-                    if config.General.NETWORK_TYPE.name == "counting_lean_multiple_out":
-                        image_outputs[img_file] = {}
-                        image_outputs[img_file]["TRL"] = current['TRL']
-                        image_outputs[img_file]['roots_num'] = current['roots_num']
-                        image_outputs[img_file]['roots_dia_mean'] = current['roots_dia_mean']
-                        image_outputs[img_file]['roots_dia_std'] = current['roots_dia_std']
 
         else:
             for line, row in enumerate(csv_reader):
@@ -1209,34 +1201,52 @@ class KCSVDataset(Dataset):
                     result_points[img_file].append({'x': x1, 'y': y1, 'points_class': class_name})
 
             if (config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting or config.General.filter_empty_bbox):
-                result_bbox = self.points_to_bbox(result_bbox, result_points)
-
-        if config.General.NETWORK_TYPE.name == "counting_lean_multiple_out":
-            return result_bbox, result_points, image_outputs
+                result_bbox, result_points = self.points_to_bbox(result_bbox, result_points)
 
         return result_bbox, result_points
 
     def points_to_bbox(self, result_bbox, result_points):
+        img_to_remove = []
 
         for img in result_points.keys():
-            for i in range(len(result_points[img])):
-                x1_p,y1_p = result_points[img][i]['x'], result_points[img][i]['y']
+            if len(result_points[img])>0:
+                for i in range(len(result_points[img])):
+                    x1_p,y1_p = result_points[img][i]['x'], result_points[img][i]['y']
 
-                for j in range(len(result_bbox[img])):
-                    x1,y1,x2,y2 = result_bbox[img][j]['x1'], result_bbox[img][j]['y1'],result_bbox[img][j]['x2'],result_bbox[img][j]['y2']
-                    if x1_p >= x1 and x1_p <= x2 and y1_p >= y1 and y1_p <= y2:
-                        result_points[img][i]['bbox_id'] = result_bbox[img][j]['bbox_id']
-                        result_bbox[img][j]['points'].append(result_points[img][i])
-                        break
+                    for j in range(len(result_bbox[img])):
+                        x1,y1,x2,y2 = result_bbox[img][j]['x1'], result_bbox[img][j]['y1'],result_bbox[img][j]['x2'],result_bbox[img][j]['y2']
+                        if x1_p >= x1 and x1_p <= x2 and y1_p >= y1 and y1_p <= y2:
+                            result_points[img][i]['bbox_id'] = result_bbox[img][j]['bbox_id']
+                            result_bbox[img][j]['points'].append(result_points[img][i])
+                            break
+            elif config.General.filter_empty_bbox:
+                # img is an empty image
+                img_to_remove.append(img)
+
+        for img in img_to_remove:
+            del result_points[img]
+            del result_bbox[img]
 
         for img in result_bbox.keys():
+            boxes_to_remove = []
             for j in range(len(result_bbox[img])):
                 if len(result_bbox[img][j]['points'])>0:
                     result_bbox[img][j]['points_count'] = len(result_bbox[img][j]['points'])
                     result_bbox[img][j]['points_class'] = result_points[img][0]['points_class']
 
+                elif config.General.filter_empty_bbox:
+                    boxes_to_remove.append(j)
 
-        return result_bbox
+            # delete empty bounding boxes
+            boxes_to_remove = set(boxes_to_remove)
+            result_bbox[img] = [
+                box for i, box in enumerate(result_bbox[img])
+                if i not in boxes_to_remove
+            ]
+
+
+
+        return result_bbox, result_points
 
     def name_to_label(self, name):
         return self.classes[name]

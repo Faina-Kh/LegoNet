@@ -39,8 +39,6 @@ def save_partial_weights(args, model, file_model, tasks = [], output_name=""):
             submodules = ['backbone_1', 'find_1', 'where']
             rename_map = {}
             save_path = os.path.join(args.bbox_detection_weights_dir, 'legonet_' + 'bbox_'+args.dataset_name + '.pt')
-            # torch.save(filtered_state_dict, os.path.join(args.bbox_detection_weights_dir,
-            #                                              'legonet_bbox_det_epoch=90.pt')) #'legonet_bbox_det_epoch=249.pt'
 
         if task == "per_object_counting":
             if args.estimate_type =='withKeyPoints':
@@ -109,7 +107,6 @@ def save_partial_weights(args, model, file_model, tasks = [], output_name=""):
 
         if args.network_type == "both_Back2bFind2b":
             if task == "bbox_detection":
-
                 file_bbox = file_model["file_bbox"]
                 print("Available modules in bbox file:", list_checkpoint_modules(file_bbox.state_dict()))
 
@@ -152,12 +149,19 @@ def save_partial_weights(args, model, file_model, tasks = [], output_name=""):
                 renamed_state_dict.update(renamed_state_dict_2)
                 print("Available modules in renamed_state_dict:", list_checkpoint_modules(renamed_state_dict))
 
-
         else:
-            filtered_state_dict = {
-                k: v for k, v in file_model.state_dict().items()
-                if any(k == m or k.startswith(m + ".") for m in submodules)
-            }
+            if args.dataset_name == 'grapes' and task == "bbox_detection":
+                filtered_state_dict = {  # bbox_detection_state_dict
+                    k.replace("bbox_detection.", "", 1): v
+                    for k, v in file_model.items()
+                    if k.startswith("bbox_detection.")
+                }
+            else:
+                filtered_state_dict = {
+                    k: v for k, v in file_model.state_dict().items()
+                    if any(k == m or k.startswith(m + ".") for m in submodules)
+                }
+
             if args.network_type != "bbox_detection":
                 renamed_state_dict = rename_state_dict_keys(filtered_state_dict, rename_map)
                 print("Available modules in renamed_state_dict:", list_checkpoint_modules(renamed_state_dict))

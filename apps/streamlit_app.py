@@ -16,18 +16,20 @@ NETWORK_OPTIONS = (
     "both_for_roots_2",
     "both_Back2bFind2b",
 )
+NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "counting_lean", "counting_reg", "both_for_roots_2",
+                                          "both_Back2bFind2b"),
+                                'grapes': ("bbox_detection", "both")
+                                }
 RUN_MODES = ("Inference", "Training")
 VAL_SETS = ("Test", "Val")
 ESTIMATE_TYPES = ("withKeyPoints", "reg_fpn_p3_p7_min_sig")
 OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS = ("both", "both_for_roots_2", "both_Back2bFind2b")
-MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection",)
+MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection")
 ESTIMATE_SELECT_NETWORK_OPTIONS = ("both", "both_for_roots_2")
 DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
-    "bbox_detection": "withKeyPoints",
     "counting_lean": "withKeyPoints",
     "counting_reg": "reg_fpn_p3_p7_min_sig",
-    "both": "withKeyPoints",
-    "both_Back2bFind2b": "withKeyPoints",
+    "both_Back2bFind2b": "withKeyPoints"
 }
 
 
@@ -150,9 +152,16 @@ with st.sidebar:
         value=r"C:\Users\bordezki\Desktop\LegoNet",
     )
     dataset_name = st.selectbox("Dataset", DATASET_OPTIONS, index=0)
-    network_type = st.selectbox("Network type", NETWORK_OPTIONS, index=0)
+
+    network_type = st.selectbox("Network type", NETWORKS_OPTIONS_BY_DATASETS[dataset_name], index=0)
+
     run_script = st.selectbox("Run mode", RUN_MODES, index=0)
-    val_set = st.selectbox("Validation set", VAL_SETS, index=0)
+
+    if run_script == 'Inference':
+        val_set = st.selectbox("Validation set", VAL_SETS, index=0)
+    else:
+        val_set = "Val"
+
     use_gpu = st.checkbox("Use GPU", value=GPU_AVAILABLE)
     if use_gpu:
         gpu_num = st.text_input("GPU number", value="0")
@@ -160,26 +169,25 @@ with st.sidebar:
         gpu_num = ""
 
     st.header("Advanced")
-    current_results_dir = st.text_input("Current results dir", value=network_type+"_Results")
     if network_type in ESTIMATE_SELECT_NETWORK_OPTIONS:
         estimate_type = st.selectbox("Estimate type", ESTIMATE_TYPES, index=0)
     else:
-        estimate_type = DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(network_type, "withKeyPoints")
+        estimate_type = DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(network_type, "reg_fpn_p3_p7_min_sig")
 
     if run_script == "Training":
         num_of_epochs = st.number_input("Number of epochs", min_value=1, value=300, step=1)
     else:
         num_of_epochs = 0
 
+    current_results_dir = st.text_input("Current results dir", value=network_type+'_'+val_set+"_Results")
 
     have_gt = st.checkbox("Have ground truth", value=True)
     to_draw = st.checkbox("Draw visualizations", value=False)
     if network_type in OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS:
         evaluate_detection = st.checkbox("Evaluate detection", value=True)
-    elif network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS:
-        evaluate_detection = True
     else:
-        evaluate_detection = False
+        evaluate_detection = network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
+
     load_weights = st.checkbox("Load weights", value=True)
 
 command = build_command(

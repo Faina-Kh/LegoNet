@@ -417,7 +417,10 @@ def run(args=None):
 
 
         if not args.network_type == "both_Back2bFind2b":
-            print("Available modules in model file:", list_checkpoint_modules(file_legonet.state_dict()))
+            if args.dataset_name == "roots":
+                print("Available modules in model file:", list_checkpoint_modules(file_legonet.state_dict()))
+            elif args.dataset_name == "grapes":
+                print("Available modules in the weights file:", list_checkpoint_modules(file_legonet))
 
         if args.network_type == 'bbox_detection':
             save_partial_weights(args, legonet, file_legonet, tasks=['bbox_detection'])
@@ -430,6 +433,8 @@ def run(args=None):
 
         elif args.network_type == "counting_lean" or args.network_type == "counting_reg":
             save_partial_weights(args, legonet, file_legonet, tasks=["per_image_attributes"], output_name = args.output_name)
+
+        return
 
     if (args.network_type == "bbox_detection" or args.network_type == "both" or args.network_type == "both_for_roots_2"
             or args.network_type == "both_Back2bFind2b"):

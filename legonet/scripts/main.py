@@ -9,7 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-import config #config_new
+import config
 import paths
 import numpy as np
 import csv
@@ -55,12 +55,7 @@ def parse_bool(value):
 
 def parse_args(args):
     parser = argparse.ArgumentParser(description='main script.')
-    parser.add_argument(
-        "run_script_positional",
-        nargs="?",
-        choices=["Training", "Inference"],
-        help="Optional run mode shortcut.",
-    )
+
     parser.add_argument("--gpu-num", "--gpu_num", default=None, help="CUDA device index exposed to the run.")
     parser.add_argument(
         "--storage-path",
@@ -97,10 +92,11 @@ def parse_args(args):
     parser.add_argument("--to-draw", "--to_draw", type=parse_bool, default=None)
     parser.add_argument("--save-from-model-file", "--save_from_model_file", type=parse_bool, default=None)
     parser.add_argument("--load-weights", "--load_weights", type=parse_bool, default=None)
+    parser.add_argument("--evaluate-detection", "--evaluate_detection", type=parse_bool, default=None)
 
     parsed_args = parser.parse_args(args)
-    if parsed_args.run_script is None:
-        parsed_args.run_script = parsed_args.run_script_positional
+    # if parsed_args.run_script is None:
+    #     parsed_args.run_script = parsed_args.run_script_positional
 
     return parsed_args
 
@@ -118,60 +114,63 @@ if args is None:
     args = sys.argv[1:]
     args = parse_args(args)
 
+DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
+    "counting_lean": "withKeyPoints",
+    "counting_reg": "reg_fpn_p3_p7_min_sig",
+    "both_Back2bFind2b": "withKeyPoints",
+    "both": "withKeyPoints" # dont have currently weights for "reg_fpn_p3_p7_min_sig"
+}
 
+MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection")
+
+BOTH_NETWORKS = ("both", "both_for_roots_2", "both_Back2bFind2b")
+
+INCLUDE_BBOX_DETECTION = ("bbox_detection", "both", "both_for_roots_2", "both_Back2bFind2b")
+
+
+NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "counting_lean", "counting_reg", "both_for_roots_2",
+                                          "both_Back2bFind2b"),
+                                'grapes': ("bbox_detection", "both")
+                                }
 ########################################################################################################################
 # user definitions
 ########################################################################################################################
 args.gpu_num = args.gpu_num or '0'
 
 args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
-args.dataset_name = args.dataset_name or "roots" #"grapes" #"roots"
-args.network_type = args.network_type or "counting_lean"
-# "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
-
-args.current_results_dir = args.current_results_dir or 'try_lean_8'
-#'per_object_attributes_KP'
-#'TRL_estimator_KP' # 'TRL_estimator_reg' #'per_object_attributes_Reg' #'per_object_attributes_KP'
-#'bbox_detection' # 'per_object_counting' # "both_Back2bFind2b"
-
-args.estimate_type = args.estimate_type or 'withKeyPoints' #'withKeyPoints' #'reg_fpn_p3_p7_min_sig'
-
-
-args.to_draw = True #False if args.to_draw is None else args.to_draw
-
-
-
+args.dataset_name = args.dataset_name or "grapes" #"grapes" #"roots"
+args.network_type = args.network_type or "both" # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
+args.estimate_type = args.estimate_type or DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "reg_fpn_p3_p7_min_sig")
+args.to_draw = args.to_draw or False
 args.run_script = args.run_script or 'Inference' #'Training' #'Inference'
-val_set = args.val_set or "Val" #"Test" #"Val"
-
+args.val_set = args.val_set or "Test" #"Test" #"Val"
+args.current_results_dir = args.current_results_dir or args.network_type+ '_'+args.val_set+'_Results_249'
 args.num_of_epochs = args.num_of_epochs or 300
-args.have_GT = True if args.have_gt is None else args.have_gt
+args.have_GT = args.have_gt or True
+args.load_weights = args.load_weights or True
+args.save_from_model_file = args.save_from_model_file or False
 
+
+assert args.load_weights != args.save_from_model_file
 #--------------------------------------------------------------------------------------------------------------
 
-# if args.network_type == "both" or args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
-#     args.evaluate_both = True # relevant to Inference
-#     args.evaluate_detection = True
-# elif args.network_type == "bbox_detection":
-#     args.evaluate_both = False  # relevant to Inference
-#     args.evaluate_detection = True
-# else:
-#     args.evaluate_both = False
-#     args.evaluate_detection = False
+args.evaluate_detection = args.evaluate_detection or True #(args.network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS)
+args.evaluate_both = args.network_type in BOTH_NETWORKS
 
-args.evaluate_both = True
-args.evaluate_detection = False
-#-----------------------------------------
+########################################################################################################################
+# GPU settings
+########################################################################################################################
 
-args.save_from_model_file = False if args.save_from_model_file is None else args.save_from_model_file
-args.load_weights = True if args.load_weights is None else args.load_weights
+os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_num
 
-if args.network_type == "counting_lean" or args.network_type == "counting_reg":
-    args.load_partial_weights = False
+# Check if GPU is available
+if torch.cuda.is_available():
+    device = torch.device("cuda:0")
+    print(f'Running on physical GPU {args.gpu_num}')
 else:
-    args.load_partial_weights = True
+    device = torch.device("cpu")
 
-
+config.General.device = device
 
 ######################################################################
 # General paths
@@ -185,7 +184,6 @@ config.General.experiment_path = os.path.join(args.myExpPath, args.current_resul
 os.makedirs(config.General.experiment_path, exist_ok=True)
 
 config.General.dataset_name= args.dataset_name
-#args.network_type + '\\Inf_min_score_0.7' #"grapes_detection_minScore 0.05" #"grapes_detection_filterBBOX_minScore 0.7"
 config.General.MODE = args.run_script
 config.General.model_name = args.network_type
 config.Detect_and_Estimate.type = args.network_type
@@ -211,24 +209,6 @@ config.AttributeEstimation.calc_det_performance = args.evaluate_detection
 
 # True if loading pre-trained weights
 
-args.load_full_model_weights = False
-args.load_bbox_det_weights = False
-args.load_per_object_counting_weights = False
-args.load_per_object_attributes_weights = False
-
-if args.load_weights:
-    if not args.load_partial_weights:
-        args.load_full_model_weights = True
-
-    else:
-        args.load_bbox_det_weights = True
-        if not args.network_type == "bbox_detection":
-            args.load_per_object_counting_weights = True
-            args.load_per_object_attributes_weights = True
-
-
-#args.num_of_epochs = 300
-args.do_Kfold = False
 
 # task specific definitions - ToDo - organize per task type
 args.freeze_detection = True
@@ -236,33 +216,26 @@ args.eval_in_train = True
 
 args.eval_detection_params = False
 
-
-if args.dataset_name == 'roots':
-    #((args.network_type == "bbox_detection" and args.dataset_name == 'roots') or args.network_type == "both_for_roots_2"
-        #or args.network_type == "both_Back2bFind2b"):
-    config.Detection.change_anchors = True
-    config.Detection.ratios = np.array([0.5, 1, 3])  # np.array([0.5, 1, 3]) #np.array([0.5, 1, 4]) #np.array([0.5, 1, 2])
-    print("Detection.ratios:", config.Detection.ratios)
-
 if args.network_type != "bbox_detection":
     args.freeze_detection = True
 
-# if (args.network_type == 'bbox_detection' or args.network_type == "both" or args.network_type == "both_for_roots_2" or
-#         args.network_type == "both_Back2bFind2b"):
-#     config.Detection.min_score = 0.7  # 0.7 #0.05
-#     config.Detection.iou_threshold = 0.5
-
 if args.dataset_name == 'grapes':
-    if args.network_type == "bbox_detection":
-        args.filter_empty_bbox = True
-        config.General.filter_empty_bbox = args.filter_empty_bbox
+    #if args.network_type == "bbox_detection":
+    args.filter_empty_bbox = True
+    config.General.filter_empty_bbox = args.filter_empty_bbox
+
+    config.General.predict_empty_image = False
 
     config.AttributeEstimation.do_nmcs = True
 
 elif args.dataset_name == 'roots':
 
-    if args.network_type == "bbox_detection" or args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
-        config.General.predict_empty_image = False
+    if args.network_type in INCLUDE_BBOX_DETECTION: #args.network_type == "bbox_detection" or args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
+        config.Detection.change_anchors = True
+        config.Detection.ratios = np.array([0.5, 1, 3])  # np.array([0.5, 1, 3]) #np.array([0.5, 1, 4]) #np.array([0.5, 1, 2])
+        print("Detection.ratios:", config.Detection.ratios)
+
+        #config.General.predict_empty_image = False
 
         config.AttributeEstimation.do_nmcs = False
         args.dia_loss_weight = 10  # 10 #1000 #10 #100
@@ -276,21 +249,6 @@ elif args.dataset_name == 'roots':
         # #os.path.join(results_dir, 'wheat_MS5_s0.7_640\\saved_weights_211\\detector_weights')
 
 config.AttributeEstimation.estimate_type = args.estimate_type
-
-########################################################################################################################
-# GPU settings
-########################################################################################################################
-
-os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_num
-
-# Check if GPU is available
-if torch.cuda.is_available():
-    device = torch.device("cuda:0")
-    print(f'Running on physical GPU {args.gpu_num}')
-else:
-    device = torch.device("cpu")
-
-config.General.device = device
 
 
 ######################################################################
@@ -320,16 +278,17 @@ assert (args.network_type == "bbox_detection" or args.network_type == "counting_
 # config.Estimate.estimate_type
 
 
-assert val_set == 'Val' or val_set == 'Test'
+assert args.val_set == 'Val' or args.val_set == 'Test'
 
 assert (config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig' or
         config.AttributeEstimation.estimate_type == 'withKeyPoints')
 
 assert args.run_script =='Training' or args.run_script =='Inference'
+
 if args.run_script == 'Training':
     assert args.have_GT == True
+    assert args.val_set == "Val"
     args.epochs = args.num_of_epochs
-    val_set = "Val"
     config.General.to_draw = False
     config.DrawProperties.DRAW_MAPS = False
     config.AttributeEstimation.calc_det_performance = False
@@ -344,14 +303,12 @@ elif args.to_draw:
         config.AttributeEstimation.calc_det_performance = False
 
 
-
 ########################################################################################################################
 # Define the data format and network options
 ########################################################################################################################
 
 if args.dataset_name == "grapes":
     args.dataset_type = "kcsv"
-
 
 elif args.dataset_name == "roots":
     if args.network_type == "counting_lean" or args.network_type == "counting_reg":
@@ -371,6 +328,7 @@ elif args.network_type == "both" or args.network_type == "both_for_roots_2" or a
 ########################################################################################################################
 # Define the paths
 ########################################################################################################################
+
 if args.run_script == 'Training':
     config.General.weights_dir = os.path.join(config.General.experiment_path, "Weights")
     time_stemp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
@@ -386,41 +344,24 @@ if args.dataset_type == 'kcsv':
 
     if args.run_script == 'Training':
         args.val_file = args.kcsv_val
-    elif val_set == 'Val':
+    elif args.val_set == 'Val':
         args.val_file = args.kcsv_val
     else:
         args.val_file = args.kcsv_test
 
 elif args.dataset_name == "roots":
+    args.train_csv_leaf_number_file = os.path.join(myDatasetsPath, 'sub_Train', "Train.csv")
+    args.train_csv_leaf_location_file = os.path.join(myDatasetsPath, 'sub_Train','Train_pointsOutput.csv')
+    args.train_json_file = None
 
-    if args.do_Kfold:
-        k = "1"
-        args.train_csv_leaf_number_file = os.path.join(myDatasetsPath,'sub_Train_'+k, "Train.csv")
-        args.train_csv_leaf_location_file = os.path.join(myDatasetsPath,'sub_Train_'+k, 'Train_pointsOutput.csv')
-        args.train_json_file = None
+    args.val_csv_leaf_number_file = os.path.join(myDatasetsPath, "sub_" + args.val_set, args.val_set + ".csv")
+    args.val_csv_leaf_location_file = os.path.join(myDatasetsPath, "sub_" + args.val_set,
+                                                   args.val_set + "_pointsOutput.csv")
+    args.val_json_file = None
 
-        args.val_csv_leaf_number_file = os.path.join(myDatasetsPath,"sub_"+val_set +"_"+k,  val_set+".csv" )
-        args.val_csv_leaf_location_file = os.path.join(myDatasetsPath, "sub_"+val_set +"_"+k,
-                                                       val_set+"_pointsOutput.csv")
-        args.val_json_file = None
-
-        if args.dataset_type == "roots_json":
-            args.train_json_file = os.path.join(myDatasetsPath, 'sub_Train_' + k, "Train_Dia_Length_Color.txt")
-            args.val_json_file = os.path.join(myDatasetsPath, "sub_" + val_set + "_" + k,
-                                              val_set + "_Dia_Length_Color.txt")
-    else:
-        args.train_csv_leaf_number_file = os.path.join(myDatasetsPath, 'sub_Train', "Train.csv")
-        args.train_csv_leaf_location_file = os.path.join(myDatasetsPath, 'sub_Train','Train_pointsOutput.csv')
-        args.train_json_file = None
-
-        args.val_csv_leaf_number_file = os.path.join(myDatasetsPath, "sub_" + val_set, val_set + ".csv")
-        args.val_csv_leaf_location_file = os.path.join(myDatasetsPath, "sub_" + val_set,
-                                                       val_set + "_pointsOutput.csv")
-        args.val_json_file = None
-
-        if args.dataset_type == "roots_json":
-            args.train_json_file = os.path.join(myDatasetsPath, 'sub_Train', "Train_Dia_Length_Color.txt")
-            args.val_json_file = os.path.join(myDatasetsPath, "sub_" + val_set, val_set + "_Dia_Length_Color.txt")
+    if args.dataset_type == "roots_json":
+        args.train_json_file = os.path.join(myDatasetsPath, 'sub_Train', "Train_Dia_Length_Color.txt")
+        args.val_json_file = os.path.join(myDatasetsPath, "sub_" + args.val_set, args.val_set + "_Dia_Length_Color.txt")
 
 
 if args.have_GT:
@@ -436,17 +377,17 @@ if args.run_script == 'Inference':
         results_dir = os.path.join(config.General.experiment_path)
 
     if args.to_draw:
-        config.DrawProperties.save_img_path = os.path.join(config.General.experiment_path, "Vis_" + val_set)
+        config.DrawProperties.save_img_path = os.path.join(results_dir, "Vis_" + args.val_set)
         os.makedirs(config.DrawProperties.save_img_path, exist_ok=True)
 
-    config.General.files_path = os.path.join(results_dir, "OutputFiles_"+ val_set) #, 'Test2')
+    config.General.files_path = os.path.join(results_dir, "OutputFiles_"+ args.val_set) #, 'Test2')
 
     args.txt_results = os.path.join(config.General.files_path,
-                                    "with_Vis_results_"+val_set +".txt" if config.General.to_draw else
-                                    "without_Vis_results_"+val_set +".txt")
+                                    "with_Vis_results_"+ args.val_set +".txt" if config.General.to_draw else
+                                    "without_Vis_results_"+ args.val_set +".txt")
     args.output_csv = os.path.join(config.General.files_path,
-                                   "with_Vis_results_"+ val_set +".csv" if config.General.to_draw else
-                                   "without_Vis_results_"+ val_set +".csv")
+                                   "with_Vis_results_"+ args.val_set +".csv" if config.General.to_draw else
+                                   "without_Vis_results_"+ args.val_set +".csv")
 
     if config.DrawProperties.DRAW_MAPS:
         config.DrawProperties.maps_path = os.path.join(config.DrawProperties.save_img_path, "points_maps")
@@ -464,14 +405,36 @@ os.makedirs(config.General.files_path, exist_ok=True)
 # weights related
 ######################################################################
 
+args.load_full_model_weights = False
+args.load_bbox_det_weights = False
+args.load_per_object_counting_weights = False
+args.load_per_object_attributes_weights = False
 
-if  (args.network_type == "bbox_detection" or args.network_type == "both" or args.network_type == "both_for_roots_2" or
-        args.network_type == "both_Back2bFind2b"):
-    args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection_epoch69") #"bbox_detection")
-    # if args.network_type == "both_Back2bFind2b":
-    #     args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection_Back2bFind2b") #"bbox_detection_Back2bFind2b")
-    # else:
-    #     args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection_epoch69") #"bbox_detection")
+if args.load_weights:
+
+    if args.network_type == "counting_lean" or args.network_type == "counting_reg":
+        args.load_partial_weights = False
+    else:
+        args.load_partial_weights = True
+
+    if not args.load_partial_weights:
+        args.load_full_model_weights = True
+
+    else:
+        args.load_bbox_det_weights = True
+        if not args.network_type == "bbox_detection":
+            args.load_per_object_counting_weights = True
+            args.load_per_object_attributes_weights = True
+
+
+if args.network_type in INCLUDE_BBOX_DETECTION:
+    args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection")
+    # if args.dataset_name == 'roots':
+    #     args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection") #"bbox_detection") "bbox_detection_epoch69"
+    # elif args.dataset_name == 'grapes':
+    #     args.bbox_detection_weights_dir = os.path.join(args.myExpPath, 'per_object_counting', #'grapes_det_correct_filter_Score_0.7_nms_0.3',
+    #                                                    "Weights", '2026-04-16_161416') #'2026-04-06_221233')
+
     os.makedirs(args.bbox_detection_weights_dir, exist_ok=True)
 
     if not args.network_type == "bbox_detection":
@@ -524,8 +487,8 @@ if args.load_full_model_weights:
         args.full_model_weights = get_weights_file(args.bbox_detection_weights_dir)
 
 if args.save_from_model_file:
+    file_path = "Prev_model_files\\"
     if args.dataset_name == "roots":
-        file_path = "Prev_model_files\\"
         if args.network_type == "counting_lean":
             file_path += "keyPoints_based_models\\TRL_only\\2023-01-23_132447"
             args.output_name = 'TRLwithKeyPoints'
@@ -580,7 +543,8 @@ if args.save_from_model_file:
     elif args.dataset_name == "grapes":
         if args.network_type == "both":
             if args.estimate_type == 'withKeyPoints':
-                file_path = "per_object_counting_trained\\Weights\\2026-04-16_161416"
+                file_path += "per_object_counting_trained\\Weights\\2026-04-16_161416"
+                args.output_name = 'CountWithKeyPoints'
             elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
                 file_path =  ""
 
