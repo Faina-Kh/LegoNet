@@ -150,17 +150,25 @@ def save_partial_weights(args, model, file_model, tasks = [], output_name=""):
                 print("Available modules in renamed_state_dict:", list_checkpoint_modules(renamed_state_dict))
 
         else:
-            if args.dataset_name == 'grapes' and task == "bbox_detection":
-                filtered_state_dict = {  # bbox_detection_state_dict
-                    k.replace("bbox_detection.", "", 1): v
-                    for k, v in file_model.items()
-                    if k.startswith("bbox_detection.")
-                }
-            else:
-                filtered_state_dict = {
-                    k: v for k, v in file_model.state_dict().items()
-                    if any(k == m or k.startswith(m + ".") for m in submodules)
-                }
+            filtered_state_dict = {
+                k: v for k, v in file_model.state_dict().items()
+                if any(k == m or k.startswith(m + ".") for m in submodules)
+            }
+            # if args.dataset_name == 'grapes' and task == "bbox_detection":
+            #     filtered_state_dict = {
+            #         k: v for k, v in file_model.state_dict().items()
+            #         if any(k == m or k.startswith(m + ".") for m in submodules)
+            #     }
+            #     filtered_state_dict = {  # bbox_detection_state_dict
+            #         k.replace("bbox_detection.", "", 1): v
+            #         for k, v in file_model.items()
+            #         if k.startswith("bbox_detection.")
+            #     }
+            # else:
+            #     filtered_state_dict = {
+            #         k: v for k, v in file_model.state_dict().items()
+            #         if any(k == m or k.startswith(m + ".") for m in submodules)
+            #     }
 
             if args.network_type != "bbox_detection":
                 renamed_state_dict = rename_state_dict_keys(filtered_state_dict, rename_map)

@@ -141,14 +141,15 @@ args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet'
 args.dataset_name = args.dataset_name or "grapes" #"grapes" #"roots"
 args.network_type = args.network_type or "both" # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
 args.estimate_type = args.estimate_type or DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "reg_fpn_p3_p7_min_sig")
-args.to_draw = args.to_draw or False
+args.to_draw = args.to_draw or True
 args.run_script = args.run_script or 'Inference' #'Training' #'Inference'
 args.val_set = args.val_set or "Test" #"Test" #"Val"
-args.current_results_dir = args.current_results_dir or args.network_type+ '_'+args.val_set+'_Results_249'
+args.current_results_dir = args.current_results_dir or args.network_type+ '_'+args.val_set+'_Results_85_reCheck'
 args.num_of_epochs = args.num_of_epochs or 300
 args.have_GT = args.have_gt or True
+
 args.load_weights = args.load_weights or True
-args.save_from_model_file = args.save_from_model_file or False
+args.save_from_model_file = not args.load_weights # args.save_from_model_file or True
 
 
 assert args.load_weights != args.save_from_model_file
@@ -543,7 +544,7 @@ if args.save_from_model_file:
     elif args.dataset_name == "grapes":
         if args.network_type == "both":
             if args.estimate_type == 'withKeyPoints':
-                file_path += "per_object_counting_trained\\Weights\\2026-04-16_161416"
+                file_path += "both_old" #"per_object_counting_trained\\Weights\\2026-04-16_161416"
                 args.output_name = 'CountWithKeyPoints'
             elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
                 file_path =  ""

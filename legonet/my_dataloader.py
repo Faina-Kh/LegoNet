@@ -784,30 +784,30 @@ class KCSVDataset(Dataset):
             annot = {"bbox_annot": bbox_annot}
 
         else:
-            #
+
             # if config.General.dataset_name == 'grapes': # and filter_empty...
-            #     boxes_to_remove = []
-            #     for p_annot in points_annot[0]:
-            #         if math.isnan(p_annot[1]):
-            #             boxes_to_remove.append(p_annot[2])
-            #
-            #     points_counts = points_annot[0]
-            #     points_coords = points_annot[1]
-            #     for box_id in boxes_to_remove:
-            #         # result1 = np.where(bbox_annot == box_id)
-            #         # bbox_annot=np.delete(bbox_annot,result1[0][0],0)
-            #         for idx1 in range(len(bbox_annot)):
-            #             if bbox_annot[idx1][5] == box_id:
-            #                 bbox_annot = np.delete(bbox_annot, [idx1], 0)
-            #                 break
-            #
-            #         # points_counts = np.delete(points_counts, result2[0][0],0)
-            #         for idx2 in range(len(points_counts)):
-            #             if points_counts[idx2][2] == box_id:
-            #                 points_counts = np.delete(points_counts, [idx2], 0)
-            #                 break
-            #
-            #     points_annot = (points_counts, points_coords)
+                # boxes_to_remove = []
+                # for p_annot in points_annot[0]:
+                #     if math.isnan(p_annot[1]):
+                #         boxes_to_remove.append(p_annot[2])
+
+                # points_counts = points_annot[0]
+                # points_coords = points_annot[1]
+                # for box_id in boxes_to_remove:
+                #     # result1 = np.where(bbox_annot == box_id)
+                #     # bbox_annot=np.delete(bbox_annot,result1[0][0],0)
+                #     for idx1 in range(len(bbox_annot)):
+                #         if bbox_annot[idx1][5] == box_id:
+                #             bbox_annot = np.delete(bbox_annot, [idx1], 0)
+                #             break
+                #
+                #     # points_counts = np.delete(points_counts, result2[0][0],0)
+                #     for idx2 in range(len(points_counts)):
+                #         if points_counts[idx2][2] == box_id:
+                #             points_counts = np.delete(points_counts, [idx2], 0)
+                #             break
+                #
+                # points_annot = (points_counts, points_coords)
 
             annot = {"bbox_annot":bbox_annot, "points_annot":points_annot}
 
@@ -1469,8 +1469,8 @@ def kcsv_collater(data):
 
     names = [s['img_name'] for s in data]
 
-    if config.General.NETWORK_TYPE not in [config.NetworkType.detection, config.NetworkType.detection_and_counting]:
-        lean_version = data[0]['lean_version']
+    # if config.General.NETWORK_TYPE not in [config.NetworkType.detection, config.NetworkType.detection_and_counting]:
+    #     lean_version = data[0]['lean_version']
 
     widths = [int(s.shape[0]) for s in imgs]
     heights = [int(s.shape[1]) for s in imgs]
@@ -1481,7 +1481,7 @@ def kcsv_collater(data):
         imgs[i] = torch.tensor(imgs[i]) #, dtype=torch.double, device=torch.device('cuda:0'))
         # per image annotations:
 
-        if 'points_annot' in annots[i].keys() and not config.General.filter_empty_bbox:
+        if 'points_annot' in annots[i].keys(): # and not config.General.filter_empty_bbox:
             if len(annots[i]['points_annot']) > 0:
                 points_annot = annots[i]['points_annot']
             else:

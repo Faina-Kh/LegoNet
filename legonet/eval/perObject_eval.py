@@ -422,7 +422,6 @@ def objects_recall_precision(all_annotations, all_detections):
 
     return mAP, precision, recall
 
-
 def initiate_global_dicts(state=None, image_name='', initiate=False):
     """
         Initialize or extend the evaluation state dictionary.
@@ -1959,12 +1958,14 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                         myrow = []
                         myrow.append(img)
                         myrow.append(i)
+
                         if is_roots_2:
                             myrow.append(mydata['color_gt'][i])
                             myrow.append(mydata['color_pred'][i])
                         else:
                             myrow.append(mydata['gt_count'][i])
                             myrow.append(mydata['pred'][i])
+
                         myrow.append(mydata['label'][i])
                         myrow.append(mydata['score'][i])
                         myrow.append(mydata['max_overlap'][i])

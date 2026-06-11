@@ -194,3 +194,13 @@ class BnnLoss(nn.Module):
 
         return output
 
+######################################################################
+# ToDo - Delete
+class focal_gyf(nn.Module):
+    def forward(self, y_true, pred):
+        a=1
+
+
+class mu_sig_gyf(nn.Module):
+    def forward(self, y_true, pred):
+        a=1

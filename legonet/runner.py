@@ -417,10 +417,11 @@ def run(args=None):
 
 
         if not args.network_type == "both_Back2bFind2b":
-            if args.dataset_name == "roots":
-                print("Available modules in model file:", list_checkpoint_modules(file_legonet.state_dict()))
-            elif args.dataset_name == "grapes":
-                print("Available modules in the weights file:", list_checkpoint_modules(file_legonet))
+            print("Available modules in model file:", list_checkpoint_modules(file_legonet.state_dict()))
+            # if args.dataset_name == "roots":
+            #     print("Available modules in model file:", list_checkpoint_modules(file_legonet.state_dict()))
+            # elif args.dataset_name == "grapes":
+            #     print("Available modules in the weights file:", list_checkpoint_modules(file_legonet))
 
         if args.network_type == 'bbox_detection':
             save_partial_weights(args, legonet, file_legonet, tasks=['bbox_detection'])
