@@ -917,7 +917,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                         state['predicted_color_any_crop'].append(current_color_pred)
 
                     else:
-                        current_pred = np.round(c_out.cpu().numpy()) #c_out.cpu().numpy()[0]
+                        current_pred = np.round(c_out.cpu().item()) #c_out.cpu().numpy()[0]
 
                     state['predicted_counts_any_crop'].append(current_pred)
                     current_sum += current_pred
