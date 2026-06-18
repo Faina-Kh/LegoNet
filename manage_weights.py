@@ -207,6 +207,7 @@ def load_submodule_weights(model, state_dict, submodule_names, strict=True, verb
     for submodule_name in submodule_names:
         # 1. get submodules
         submodule = dict(model.named_modules()).get(submodule_name, None)
+
         if submodule is None:
             raise ValueError(f"Submodule '{submodule_name}' not found in model")
 

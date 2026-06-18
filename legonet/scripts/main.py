@@ -24,6 +24,8 @@ startTime = time.time()
 import faulthandler
 faulthandler.enable()
 
+time_stemp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+
 ########################################################################################################################
 
 def print_to_csv(args, executionTime):
@@ -93,6 +95,7 @@ def parse_args(args):
     parser.add_argument("--save-from-model-file", "--save_from_model_file", type=parse_bool, default=None)
     parser.add_argument("--load-weights", "--load_weights", type=parse_bool, default=None)
     parser.add_argument("--evaluate-detection", "--evaluate_detection", type=parse_bool, default=None)
+    parser.add_argument("--weights-type", "--weights_type", choices=['full_model_weights', 'partial_weights'], default=None)
 
     parsed_args = parser.parse_args(args)
     # if parsed_args.run_script is None:
@@ -135,34 +138,59 @@ NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "counting_lean", "co
 ########################################################################################################################
 # user definitions
 ########################################################################################################################
-args.gpu_num = args.gpu_num or '1'
+args.gpu_num = args.gpu_num or '0'
 
 args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = args.dataset_name or "grapes" #"grapes" #"roots"
 args.network_type = args.network_type or "both" # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
-args.estimate_type = args.estimate_type or DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "reg_fpn_p3_p7_min_sig")
-args.to_draw = args.to_draw or True
-args.run_script = args.run_script or 'Training' #'Training' #'Inference'
+args.estimate_type = args.estimate_type or "reg_fpn_p3_p7_min_sig" #DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "reg_fpn_p3_p7_min_sig")
+args.to_draw = args.to_draw or False
+
+args.run_script = args.run_script or 'Inference' #'Training' #'Inference'
 args.val_set = args.val_set or "Val" #"Test" #"Val"
-
-if args.run_script == 'Training':
-    args.current_results_dir = args.network_type + '_Reg' + '_Training'
-else:
-    args.current_results_dir = args.network_type + '_' + args.val_set
-
-args.current_results_dir = args.current_results_dir or args.network_type+ '_'+args.val_set#+'_Results_85_reCheck'
-args.num_of_epochs = args.num_of_epochs or 300
 args.have_GT = args.have_gt or True
 
-args.load_weights = args.load_weights or True
-args.save_from_model_file = not args.load_weights # args.save_from_model_file or True
+args.num_of_epochs = args.num_of_epochs or 300
 
+if args.run_script == 'Training':
+    args.current_results_dir = args.network_type + '_Reg' + '_Training'+'_gt count by points'
+else:
+    args.current_results_dir = args.network_type + '_Reg_' + args.val_set + '_'+time_stemp
 
-assert args.load_weights != args.save_from_model_file
 #--------------------------------------------------------------------------------------------------------------
 
 args.evaluate_detection = args.evaluate_detection or args.network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
 args.evaluate_both = args.network_type in BOTH_NETWORKS
+
+
+#--------------------------------------------------------------------------------------------------------------
+args.load_weights = args.load_weights or True
+args.save_from_model_file = not args.load_weights # args.save_from_model_file or True
+
+args.weights_type = args.weights_type or 'full_model_weights'  #'partial_weights'
+assert args.weights_type == 'full_model_weights' or args.weights_type == 'partial_weights'
+
+if args.weights_type == 'full_model_weights':
+    args.load_full_model_weights = True
+elif args.weights_type == 'partial_weights':
+    args.load_full_model_weights = False
+
+args.load_partial_weights = not args.load_full_model_weights
+
+## To add as options for the user or not?
+args.load_bbox_det_weights = True
+args.load_per_object_counting_weights = True
+args.load_per_object_attributes_weights = True
+
+if args.load_partial_weights:
+    if args.network_type == "both":
+        args.load_per_object_counting_weights = True
+    else:
+        args.load_per_object_counting_weights = False
+
+    args.load_per_object_attributes_weights = not args.load_per_object_counting_weights
+
+
 
 ########################################################################################################################
 # GPU settings
@@ -338,7 +366,7 @@ elif args.network_type == "both" or args.network_type == "both_for_roots_2" or a
 
 if args.run_script == 'Training':
     config.General.weights_dir = os.path.join(config.General.experiment_path, "Weights")
-    time_stemp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    #time_stemp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     config.General.weights_dir += "\\"+time_stemp
     os.makedirs(config.General.weights_dir, exist_ok=True)
 
@@ -409,32 +437,8 @@ else:
 os.makedirs(config.General.files_path, exist_ok=True)
 
 ######################################################################
-# weights related
+# weights dirs
 ######################################################################
-
-args.load_full_model_weights = False
-args.load_bbox_det_weights = False
-args.load_per_object_counting_weights = False
-args.load_per_object_attributes_weights = False
-
-if args.load_weights:
-
-    if args.network_type == "counting_lean" or args.network_type == "counting_reg":
-        args.load_partial_weights = False
-    else:
-        args.load_partial_weights = True
-
-    if not args.load_partial_weights:
-        args.load_full_model_weights = True
-
-    else:
-        args.load_bbox_det_weights = True
-        if not args.network_type == "bbox_detection":
-            ################################################
-            args.load_per_object_counting_weights = False
-            args.load_per_object_attributes_weights = False
-            ##########################################################
-
 
 if args.network_type in INCLUDE_BBOX_DETECTION:
     args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection")
@@ -493,7 +497,7 @@ if args.load_full_model_weights:
     if args.network_type == "counting_lean" or args.network_type == "counting_reg":
         args.full_model_weights = get_weights_file(args.per_image_weights_dir)
     else:
-        args.full_model_weights = get_weights_file(args.bbox_detection_weights_dir)
+        args.full_model_weights = get_weights_file(args.per_object_weights_dir) #args.bbox_detection_weights_dir)
 
 if args.save_from_model_file:
     file_path = "Prev_model_files\\"

@@ -31,6 +31,7 @@ DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
     "counting_reg": "reg_fpn_p3_p7_min_sig",
     "both_Back2bFind2b": "withKeyPoints"
 }
+WEIGHTS_TYPES = ('full_model_weights', 'partial_weights')
 
 
 def find_project_root(start: Path) -> Path:
@@ -71,6 +72,7 @@ def build_command(
     to_draw: bool,
     evaluate_detection: bool,
     load_weights: bool,
+    weights_type: str,
 ) -> list[str]:
     """Build the LegoNet main.py command from GUI settings."""
     return [
@@ -102,6 +104,8 @@ def build_command(
         bool_arg(evaluate_detection),
         "--load-weights",
         bool_arg(load_weights),
+        "--weights-type",
+        str(weights_type),
     ]
 
 
@@ -190,6 +194,12 @@ with st.sidebar:
 
     load_weights = st.checkbox("Load weights", value=True)
 
+    if load_weights:
+        weights_type = st.selectbox("Weights type", WEIGHTS_TYPES, index=0)
+
+
+
+
 command = build_command(
     main_script=MAIN_SCRIPT,
     storage_path=storage_path,
@@ -205,6 +215,7 @@ command = build_command(
     to_draw=to_draw,
     evaluate_detection=evaluate_detection,
     load_weights=load_weights,
+    weights_type=weights_type,
 )
 storage_root = Path(storage_path)
 experiment_root = expected_experiment_root(storage_path, dataset_name, current_results_dir)

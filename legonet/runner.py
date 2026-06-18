@@ -358,6 +358,10 @@ def run(args=None):
                 if args.estimate_type == 'withKeyPoints':
                     load_submodule_weights(legonet, per_object_state_dict,
                                        submodule_names = ['backbone_2', 'find_2', 'estimator'], strict=False)
+                elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                    load_submodule_weights(legonet, per_object_state_dict,
+                                           submodule_names=['backbone_2', 'estimator'], strict=False)
+
 
             if args.load_per_object_attributes_weights and (args.network_type == "both_for_roots_2"\
                     or args.network_type == "both_Back2bFind2b"):
@@ -368,11 +372,17 @@ def run(args=None):
                                            submodule_names = ['backbone_2', 'find_2',
                                                               'estimator_length', 'estimator_diameter', 'estimator_color',
                                                               'find_2_b', 'backbone_2_b'], strict=False)
-                else:
+
+                elif args.network_type == "both_for_roots_2" and args.estimate_type == 'withKeyPoints':
                     load_submodule_weights(legonet, per_object_state_dict,
                                            submodule_names=['backbone_2', 'find_2',
                                                             'estimator_length', 'estimator_diameter', 'estimator_color'],
                                            strict=False)
+
+                elif args.network_type == "both_for_roots_2" and args.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                    load_submodule_weights(legonet, per_object_state_dict,
+                                           submodule_names=['backbone_2', 'estimator'], strict=False)
+
 
         elif args.load_full_model_weights:
             model_state_dict = torch.load(args.full_model_weights, map_location=config.General.device)
