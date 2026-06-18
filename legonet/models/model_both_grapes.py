@@ -166,9 +166,9 @@ class PerObjectEstimate(nn.Module):
 
                 bbox_pred_adjusted = bbox_pred.clone()
 
-                # Get gt points' annotations for training for the KeyPoints-based model
+                # Get gt points' annotations when maps are needed or crop-count GT is requested.
                 points = None
-                if config.AttributeEstimation.estimate_type == 'withKeyPoints':
+                if config.AttributeEstimation.estimate_type == 'withKeyPoints' or self.count_points_in_crop:
 
                     if annotations is not None: #self.training or (not self.training and annotations is not None)
                         point_anns = self.dataset.image_data_points_location[img_info['name']]
