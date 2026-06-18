@@ -156,9 +156,9 @@ args.have_GT = args.have_gt or True
 args.num_of_epochs = args.num_of_epochs or 300
 
 if args.run_script == 'Training':
-    args.current_results_dir = args.network_type + '_Reg' + '_Training'+'_gt count by points'
+    args.current_results_dir = args.current_results_dir or (args.network_type + '_Reg' + '_Training'+'_gt count by points')
 else:
-    args.current_results_dir = args.network_type + '_Reg_' + args.val_set + '_'+time_stemp
+    args.current_results_dir = args.current_results_dir or (args.network_type + '_Reg_' + args.val_set + '_'+time_stemp)
 
 #--------------------------------------------------------------------------------------------------------------
 
