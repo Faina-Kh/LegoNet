@@ -231,8 +231,6 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                                     Image_name, count_pred ))
                                 f.write('\n')
 
-
-
         else:
 
             for index in range(len(dataset)):

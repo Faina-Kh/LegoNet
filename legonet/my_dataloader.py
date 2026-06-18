@@ -1588,8 +1588,8 @@ def kcsv_collater_2(data):
 
         # per image annotations:
         new_annots = []
-
-        for i in range(6):
+        anns_number = len(annots[0])
+        for i in range(anns_number): #range(6):
             ann = []
             for j in range(batch_size):
                 if i==0:
@@ -1620,7 +1620,7 @@ def kcsv_collater_2(data):
 
         if "roots_annot" not in data[0].keys():
             return {'img': padded_imgs, 'points_annot': new_annots }
-        else:
+        else: # ToDo - remove roots_annot
             roots_annot = [torch.unsqueeze(s['roots_annot'], dim=0) for s in data]
             new_annots.append(torch.cat(roots_annot, dim=0))
 

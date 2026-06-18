@@ -118,7 +118,7 @@ DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
     "counting_lean": "withKeyPoints",
     "counting_reg": "reg_fpn_p3_p7_min_sig",
     "both_Back2bFind2b": "withKeyPoints",
-    "both": "withKeyPoints" # dont have currently weights for "reg_fpn_p3_p7_min_sig"
+    #"both": "withKeyPoints" # dont have currently weights for "reg_fpn_p3_p7_min_sig"
 }
 
 MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection")
@@ -135,16 +135,22 @@ NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "counting_lean", "co
 ########################################################################################################################
 # user definitions
 ########################################################################################################################
-args.gpu_num = args.gpu_num or '0'
+args.gpu_num = args.gpu_num or '1'
 
 args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = args.dataset_name or "grapes" #"grapes" #"roots"
 args.network_type = args.network_type or "both" # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
 args.estimate_type = args.estimate_type or DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "reg_fpn_p3_p7_min_sig")
 args.to_draw = args.to_draw or True
-args.run_script = args.run_script or 'Inference' #'Training' #'Inference'
-args.val_set = args.val_set or "Test" #"Test" #"Val"
-args.current_results_dir = args.current_results_dir or args.network_type+ '_'+args.val_set+'_Results_85_reCheck'
+args.run_script = args.run_script or 'Training' #'Training' #'Inference'
+args.val_set = args.val_set or "Val" #"Test" #"Val"
+
+if args.run_script == 'Training':
+    args.current_results_dir = args.network_type + '_Reg' + '_Training'
+else:
+    args.current_results_dir = args.network_type + '_' + args.val_set
+
+args.current_results_dir = args.current_results_dir or args.network_type+ '_'+args.val_set#+'_Results_85_reCheck'
 args.num_of_epochs = args.num_of_epochs or 300
 args.have_GT = args.have_gt or True
 
@@ -155,7 +161,7 @@ args.save_from_model_file = not args.load_weights # args.save_from_model_file or
 assert args.load_weights != args.save_from_model_file
 #--------------------------------------------------------------------------------------------------------------
 
-args.evaluate_detection = args.evaluate_detection or True #(args.network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS)
+args.evaluate_detection = args.evaluate_detection or args.network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
 args.evaluate_both = args.network_type in BOTH_NETWORKS
 
 ########################################################################################################################
@@ -424,8 +430,10 @@ if args.load_weights:
     else:
         args.load_bbox_det_weights = True
         if not args.network_type == "bbox_detection":
-            args.load_per_object_counting_weights = True
-            args.load_per_object_attributes_weights = True
+            ################################################
+            args.load_per_object_counting_weights = False
+            args.load_per_object_attributes_weights = False
+            ##########################################################
 
 
 if args.network_type in INCLUDE_BBOX_DETECTION:

@@ -917,7 +917,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                         state['predicted_color_any_crop'].append(current_color_pred)
 
                     else:
-                        current_pred = np.round(c_out.cpu().numpy()[0])
+                        current_pred = np.round(c_out.cpu().numpy()) #c_out.cpu().numpy()[0]
 
                     state['predicted_counts_any_crop'].append(current_pred)
                     current_sum += current_pred
@@ -1624,24 +1624,25 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
         ################################################################################################################
 
         # obj detection results
-        if args.evaluate_detection:
-            mAP, precision, recall = objects_recall_precision(state['all_annotations'], state['all_detections'])
-            print(f'Object detection evaluation: mAP = {mAP:.3f}, precision = {precision[-1]:.3f}, recall = {recall[-1]:.3f}')
-
-            # ToDo - check difference in comparison to evaluation with kcsv_2 (in runner)
-
-            # print recall and precision to csv
-            csv_columns = ['recall', 'precision']
-            csv_file = os.path.join(config.General.files_path, "obj_recall_precision.csv")
-            f = open(csv_file, 'w', newline='')
-            with f:
-                writer = csv.writer(f)
-                writer.writerow(csv_columns)
-                for w in range(len(recall)):
-                    myrow = []
-                    myrow.append(recall[w])
-                    myrow.append(precision[w])
-                    writer.writerow(myrow)
+        # WRONG----------------------------------------------------------------------------------------------------------------------
+        # if args.evaluate_detection:
+        #     mAP, precision, recall = objects_recall_precision(state['all_annotations'], state['all_detections'])
+        #     print(f'Object detection evaluation: mAP = {mAP:.3f}, precision = {precision[-1]:.3f}, recall = {recall[-1]:.3f}')
+        #
+        #     # ToDo - check difference in comparison to evaluation with kcsv_2 (in runner)
+        #
+        #     # print recall and precision to csv
+        #     csv_columns = ['recall', 'precision']
+        #     csv_file = os.path.join(config.General.files_path, "obj_recall_precision.csv")
+        #     f = open(csv_file, 'w', newline='')
+        #     with f:
+        #         writer = csv.writer(f)
+        #         writer.writerow(csv_columns)
+        #         for w in range(len(recall)):
+        #             myrow = []
+        #             myrow.append(recall[w])
+        #             myrow.append(precision[w])
+        #             writer.writerow(myrow)
 
         # print('Get results summary:')
 

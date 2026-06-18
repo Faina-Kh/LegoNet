@@ -513,7 +513,7 @@ def run(args=None):
                         }
 
                 elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                    if args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
+                    if args.network_type == "both_for_roots_2":
                         epoch_loss_per_task = {  #### change loss names!!
                             "classification": [],
                             "regression": [],
@@ -607,8 +607,8 @@ def run(args=None):
                                 if args.network_type == 'both':
                                     bbox_classification_loss, bbox_regression_loss, reg_counting_loss =  legonet( #counting_loss
                                             [data['img'].to(config.General.device).float(),
-                                             [data['bbox_annot'].to(config.General.device), data['points_annot']],
-                                             torch.tensor(sampler.groups[iter_num]), True])
+                                             [data['bbox_annot'].to(config.General.device),data['points_annot']],
+                                             torch.tensor(sampler.groups[iter_num])])
 
                                 elif args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
                                     if 'points_annot' in data.keys():
@@ -698,8 +698,10 @@ def run(args=None):
                             if args.network_type == 'both':
                                 if reg_counting_loss is not None:
                                     reg_counting_loss = reg_counting_loss.mean()
-
-                                    loss = bbox_detection_loss + reg_counting_loss
+                                    if bbox_detection_loss is not None:
+                                        loss = bbox_detection_loss + reg_counting_loss
+                                    else:
+                                        loss = reg_counting_loss
                                     reg_counting_loss_value = reg_counting_loss.item()
                                 else:
                                     loss = bbox_detection_loss
@@ -778,7 +780,7 @@ def run(args=None):
 
                         elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
 
-                            if args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
+                            if args.network_type == "both_for_roots_2":
                                 if color_loss is not None and length_loss is not None and diameter_loss is not None:
                                     epoch_loss_per_task["color"].append(color_loss_value)
                                     epoch_loss_per_task["length"].append(length_loss_value)
@@ -786,7 +788,7 @@ def run(args=None):
 
                             elif args.network_type == 'both':
                                 if reg_counting_loss is not None:
-                                    epoch_loss_per_task["reg_counting"].append(reg_counting_loss_value)
+                                    epoch_loss_per_task["counting"].append(reg_counting_loss_value)
 
                             elif args.network_type == 'counting_reg':
                                 if reg_estimation_loss is not None:
@@ -1007,7 +1009,7 @@ def run(args=None):
                             )
 
                 elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                    if args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
+                    if args.network_type == "both_for_roots_2":
                         utils.printf(
                             'Epoch %d summary: classification mean %.5f, regression mean %.5f, color_loss %.5f, length_loss %.5f, diameter_loss %.5f\n',
                             epoch_num,
@@ -1023,7 +1025,7 @@ def run(args=None):
                             epoch_num,
                             np.mean(epoch_loss_per_task["classification"]),
                             np.mean(epoch_loss_per_task["regression"]),
-                            np.mean(epoch_loss_per_task["reg_counting"]))
+                            np.mean(epoch_loss_per_task["counting"]))
 
                 print()
 
@@ -1051,8 +1053,8 @@ def run(args=None):
                     utils.printf(args.network_type + " evaluation: ")
 
                     if torch.cuda.is_available():
-                        out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=False, verbose=False,
-                                       print_to_files=True, args=args)
+                        out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=False,
+                                             print_to_files=True, args=args)
 
                         if len(out) > 0:
                             rel_error = out[0]
@@ -1075,22 +1077,22 @@ def run(args=None):
                         torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
                                                                       'legonet_epoch={}.pt'.format(epoch_num)))#cont_
 
-                if args.eval_in_train:
-                    legonet.eval()
-                    utils.printf("Start evaluation: ")
-
-                    rel_error = attribute_estimation_eval.eval(dataloader_val, dataset_val, legonet, args)
-
-                    print('Rel_error: {:.3f} | prev_best: {:.3f} \n'.format(rel_error, best_rel_error))
-
-                    if rel_error < best_rel_error:
-                        best_rel_error = rel_error
-                        print(f'Current best*: {best_rel_error:.3f}\n')
-                        remove_prevEpoch()
-                        torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
-                                                                      'legonet_epoch={}.pt'.format(epoch_num)))  # checkpoints\\
-
-                        print(f'Current best*: {best_rel_error:.3f}\n')
+                # if args.eval_in_train:
+                #     legonet.eval()
+                #     utils.printf("Start evaluation: ")
+                #
+                #     rel_error = attribute_estimation_eval.eval(dataloader_val, dataset_val, legonet, args)
+                #
+                #     print('Rel_error: {:.3f} | prev_best: {:.3f} \n'.format(rel_error, best_rel_error))
+                #
+                #     if rel_error < best_rel_error:
+                #         best_rel_error = rel_error
+                #         print(f'Current best*: {best_rel_error:.3f}\n')
+                #         remove_prevEpoch()
+                #         torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
+                #                                                       'legonet_epoch={}.pt'.format(epoch_num)))  # checkpoints\\
+                #
+                #         print(f'Current best*: {best_rel_error:.3f}\n')
 
                 elif (epoch_num+1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
                         torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
