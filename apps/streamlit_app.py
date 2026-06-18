@@ -77,6 +77,7 @@ def build_command(
     """Build the LegoNet main.py command from GUI settings."""
     return [
         sys.executable,
+        "-u",
         str(main_script),
         "--storage-path",
         storage_path,
@@ -257,27 +258,33 @@ if run_clicked:
         st.error("Storage path is required.")
         st.stop()
 
-    with st.spinner("Running LegoNet..."):
-        result = subprocess.run(
-            command,
-            cwd=str(PROJECT_ROOT),
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+    output_placeholder = st.empty()
+    status_placeholder = st.empty()
+    output_lines: list[str] = []
 
-    if result.returncode == 0:
+    status_placeholder.info("Running LegoNet...")
+    process = subprocess.Popen(
+        command,
+        cwd=str(PROJECT_ROOT),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+
+    if process.stdout is not None:
+        for line in process.stdout:
+            output_lines.append(line)
+            output_placeholder.code("".join(output_lines))
+
+    returncode = process.wait()
+
+    if returncode == 0:
+        status_placeholder.empty()
         st.success("Run completed successfully.")
     else:
-        st.error(f"Run failed with exit code {result.returncode}.")
-
-    if result.stdout:
-        st.subheader("Output")
-        st.code(result.stdout)
-
-    if result.stderr:
-        st.subheader("Errors")
-        st.code(result.stderr)
+        status_placeholder.empty()
+        st.error(f"Run failed with exit code {returncode}.")
 
 st.divider()
 st.subheader("Recent Result Files")

@@ -106,8 +106,11 @@ def parse_args(args):
 
 def get_weights_file(weights_dir):
     files = [p for p in Path(weights_dir).iterdir() if p.is_file()]
-    if len(files) > 0:
-        return str(files[0])
+    if len(files) != 1:
+        raise FileNotFoundError(
+            f"Expected exactly one weights file in {weights_dir}, found {len(files)}."
+        )
+    return str(files[0])
 
 
 # parse arguments
