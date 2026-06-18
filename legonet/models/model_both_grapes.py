@@ -33,10 +33,10 @@ class PerObjectEstimate(nn.Module):
         self.bbox_detection = BBOX_Detection(num_classes = num_classes, freeze_detection = self.freeze_detection)
         self.backbone_2 = legos.ResNetBackboneModule(name='backbone_for_attribute') #name='backbone_for_count'
 
-        self.find_2 = legos.FindModule(num_classes=num_classes, name='find_for_attribute', task='attribute_estimation',
-                                         Find_for_count = True) #name='find_for_count', task='counting'
-
         if config.AttributeEstimation.estimate_type == 'withKeyPoints': #'reg_fpn_p3_p7_min_sig'
+            self.find_2 = legos.FindModule(num_classes=num_classes, name='find_for_attribute',
+                                           task='attribute_estimation',
+                                           Find_for_count=True)  # name='find_for_count', task='counting'
             self.estimator = legos.KeypointBasedEstimator() #(num_classes, inter_losses = config.Counting.inter_losses)
 
         elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':

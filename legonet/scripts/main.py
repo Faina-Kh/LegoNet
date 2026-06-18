@@ -147,7 +147,7 @@ args.estimate_type = args.estimate_type or "reg_fpn_p3_p7_min_sig" #DEFAULT_ESTI
 args.to_draw = args.to_draw or False
 
 args.run_script = args.run_script or 'Inference' #'Training' #'Inference'
-args.val_set = args.val_set or "Val" #"Test" #"Val"
+args.val_set = args.val_set or "Test" #"Test" #"Val"
 args.have_GT = args.have_gt or True
 
 args.num_of_epochs = args.num_of_epochs or 300
@@ -215,7 +215,7 @@ myPaths = paths.get_paths(args.STORAGE_PATH, args.dataset_name)
 myDatasetsPath = myPaths["DATASETS_PATH"]
 args.myExpPath = myPaths["EXP_RESULTS_PATH"]
 
-config.General.experiment_path = os.path.join(args.myExpPath, args.current_results_dir)
+config.General.experiment_path = os.path.join(args.myExpPath, 'Results', args.current_results_dir)
 os.makedirs(config.General.experiment_path, exist_ok=True)
 
 config.General.dataset_name= args.dataset_name
@@ -440,6 +440,15 @@ os.makedirs(config.General.files_path, exist_ok=True)
 # weights dirs
 ######################################################################
 
+full_model_weights_dir = os.path.join(args.myExpPath, "Weights", 'full_model_weights')
+partial_weights_dir = os.path.join(args.myExpPath, "Weights", 'partial_weights')
+
+if args.weights_type == 'full_model_weights':
+    weights_dir = full_model_weights_dir
+elif args.weights_type == 'partial_weights':
+    weights_dir = partial_weights_dir
+
+
 if args.network_type in INCLUDE_BBOX_DETECTION:
     args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection")
     # if args.dataset_name == 'roots':
@@ -453,31 +462,30 @@ if args.network_type in INCLUDE_BBOX_DETECTION:
     if not args.network_type == "bbox_detection":
 
         if args.network_type == "both":
-            args.per_object_weights_dir = os.path.join(args.myExpPath, "Weights", "per_object_counting")
+            args.per_object_weights_dir = os.path.join(weights_dir, "per_object_counting") #args.myExpPath, "Weights"
             if args.estimate_type == 'withKeyPoints':
                 args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'counting_KP')
             elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
                 args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'counting_Reg')
 
         elif args.network_type == "both_for_roots_2":
-            args.per_object_weights_dir = os.path.join(args.myExpPath, "Weights", "per_object_attributes")
+            args.per_object_weights_dir = os.path.join(weights_dir, "per_object_attributes") #args.myExpPath, "Weights",
             if args.estimate_type == 'withKeyPoints':
                 args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'attributes_KP')
             elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
                 args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'attributes_Reg')
 
         elif args.network_type == "both_Back2bFind2b":
-            args.per_object_weights_dir = os.path.join(args.myExpPath, "Weights", "per_object_attributes",
-                                                       'both_Back2bFind2b')
+            args.per_object_weights_dir = os.path.join(weights_dir, "per_object_attributes", 'both_Back2bFind2b') #args.myExpPath, "Weights",
 
         os.makedirs(args.per_object_weights_dir, exist_ok=True)
 
 
 if args.network_type == "counting_lean" or args.network_type == "counting_reg":
     if args.network_type == "counting_lean":
-        args.per_image_weights_dir = os.path.join(args.myExpPath, "Weights", "per_image_attributes", "TRL_KP")
+        args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_KP") # args.myExpPath, "Weights",
     else:
-        args.per_image_weights_dir = os.path.join(args.myExpPath, "Weights", "per_image_attributes", "TRL_Reg") #os.path.join(args.myExpPath, 'TRL_estimator_reg\\Weights\\2026-05-21_121532') #os.path.join(args.myExpPath, "Weights", "per_image_attributes", "TRL_Reg")
+        args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_Reg") #args.myExpPath, "Weights", #os.path.join(args.myExpPath, 'TRL_estimator_reg\\Weights\\2026-05-21_121532') #os.path.join(args.myExpPath, "Weights", "per_image_attributes", "TRL_Reg")
     os.makedirs(args.per_image_weights_dir, exist_ok=True)
 
 # "D:\\from 16\\more_counting_Res\\more_counting_Res\\legonet_epoch=249.pt" #cont_legonet_epoch=14.pt"

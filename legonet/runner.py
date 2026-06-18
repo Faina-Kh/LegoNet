@@ -400,7 +400,15 @@ def run(args=None):
             elif args.network_type == "both":
                 if args.estimate_type == 'withKeyPoints':  # 'bbox_detection', "per_object_counting"
                     load_submodule_weights(legonet, model_state_dict,
-                                           submodule_names=["bbox_detection", "per_object_counting"], strict=False)
+                                           submodule_names=["bbox_detection",'backbone_2', 'find_2', 'estimator'],
+                                           strict=False) #"per_object_counting"
+
+                elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                    load_submodule_weights(legonet, model_state_dict,
+                                           submodule_names=["bbox_detection", 'backbone_2', 'estimator'], strict=False)  # "per_object_counting"
+
+
+
             elif args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
                 if args.estimate_type == 'withKeyPoints':
                     load_submodule_weights(legonet, model_state_dict,
