@@ -197,6 +197,9 @@ with st.sidebar:
 
     if load_weights:
         weights_type = st.selectbox("Weights type", WEIGHTS_TYPES, index=0)
+    else:
+        weights_type= None
+
 
 
 
