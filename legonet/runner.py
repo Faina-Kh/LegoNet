@@ -1,4 +1,5 @@
 import os
+import sys
 import collections
 import numpy as np
 import time
@@ -31,6 +32,22 @@ import gc
 from legonet.legoNet_build import model_build
 from manage_weights import list_checkpoint_modules, load_submodule_weights, save_partial_weights, print_module_names
 from legonet import utils
+
+
+class Tee:
+    """Write output to multiple file-like streams."""
+
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, data):
+        for stream in self.streams:
+            stream.write(data)
+            stream.flush()
+
+    def flush(self):
+        for stream in self.streams:
+            stream.flush()
 
 
 def remove_prevEpoch():
@@ -159,6 +176,20 @@ def print_args(args, file_path):
 def run(args=None):
 
     print_args(args, args.txt_results) #utils.print_args(args)
+
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
+    with open(args.txt_results, "a", encoding="utf-8") as txt_results:
+        sys.stdout = Tee(original_stdout, txt_results)
+        sys.stderr = Tee(original_stderr, txt_results)
+        try:
+            return _run(args)
+        finally:
+            sys.stdout = original_stdout
+            sys.stderr = original_stderr
+
+
+def _run(args=None):
 
     # set seeders
     torch.manual_seed(19860318)
