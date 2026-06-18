@@ -222,11 +222,10 @@ class PerObjectEstimate(nn.Module):
 
                         if annotations is not None: # self.training or (not self.training and annotations is not None): # training
 
-                            if points is not None and self.count_points_in_crop:
+                            if points is not None:
                                 current_points = points[b]
                                 points_to_view = []
 
-                                # for boxes that include points
                                 if len(current_points['x'])>0:
                                     current_points['x'] = current_points['x'] - (x1.cpu().numpy()) * np.ones(len(current_points['x']))
                                     current_points['y'] = current_points['y'] - (y1.cpu().numpy()) * np.ones(len(current_points['y']))
@@ -240,13 +239,11 @@ class PerObjectEstimate(nn.Module):
                                        points_to_view.append({'x':current_points['x'][i], 'y':current_points['y'][i]})
                                     #self.view_points_on_img(bbox_crop, points_to_view)
 
-                                    relevant_points_anns.append(points_to_view)
+                                relevant_points_anns.append(points_to_view)
+                                if self.count_points_in_crop:
                                     bbox_crops_list.append(bbox_crop)  # torch.tensor(bbox_crop).float().permute(2, 0, 1).unsqueeze(dim=0).to(config.General.device))
-
                                 else:
-                                    if not self.training:
-                                        bbox_crops_list.append(bbox_crop)
-                                        relevant_points_anns.append([])
+                                    bbox_crops_list.append([bbox_crop, gt_count_value[0]])
 
                             else:
                                 bbox_crops_list.append([bbox_crop, gt_count_value[0]])
@@ -262,9 +259,18 @@ class PerObjectEstimate(nn.Module):
             #num_of_boxes = bbox_pred_adjusted.shape[0]
             # ToDo - delete relevant points in crop and use the gt value of the corresponding gt bbox????
             if annotations is not None: #self.training:
-                if points and self.count_points_in_crop:
-                    # get GT points count based on the GT points in the relevant crop
-                    sample_list = self.getitem(bbox_crops=bbox_crops_list, points=relevant_points_anns) #points=relevant_points_anns)
+                if points:
+                    if self.count_points_in_crop:
+                        # get GT points count based on the GT points in the relevant crop
+                        sample_list = self.getitem(bbox_crops=bbox_crops_list, points=relevant_points_anns) #points=relevant_points_anns)
+                    else:
+                        # get GT count from the matched box, but still build keypoint maps from crop points
+                        crops_list, crops_count_anns_list = map(list, zip(*bbox_crops_list))
+                        sample_list = self.getitem(
+                            bbox_crops=crops_list,
+                            points=relevant_points_anns,
+                            anns=crops_count_anns_list,
+                        )
                 else:
                     # get GT points count based on the GT count value of the corresponding gt bbox
                     crops_list, crops_count_anns_list = map(list, zip(*bbox_crops_list))
@@ -515,9 +521,14 @@ class PerObjectEstimate(nn.Module):
 
             if points is not None:
                 current_ann = points[b]
+                if anns is None:
+                    annotations_group_num_of_points = len(current_ann)
+                elif anns[b] is None:
+                    annotations_group_num_of_points = 0
+                else:
+                    annotations_group_num_of_points = anns[b]
 
                 if len(current_ann) > 0:
-                    annotations_group_num_of_points = len(current_ann)
                     annotations_group_points_center = current_ann
                     annotation_map_1 = self.compute_keypoints_targets_multi_maps(sample['img'].shape,
                                                                                  annotations_group_points_center,
@@ -545,7 +556,6 @@ class PerObjectEstimate(nn.Module):
                                                        annotation_map_3, annotation_map_4, annotation_map_5]
 
                 elif not self.training:
-                    annotations_group_num_of_points = 0
                     annotation_map_1 = torch.empty((80,80), dtype=float)
                     annotation_map_2 = torch.empty((80, 80), dtype=float)
                     annotation_map_3 = torch.empty((80, 80), dtype=float)
