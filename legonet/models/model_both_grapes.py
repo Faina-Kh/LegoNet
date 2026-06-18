@@ -67,7 +67,7 @@ class PerObjectEstimate(nn.Module):
         for param in self.bbox_detection.where.parameters():
             param.requires_grad = False
 
-    def forward(self, inputs, count_points_crop = False):
+    def forward(self, inputs, count_points_crop = True):
 
         self.count_points_in_crop = count_points_crop
 
