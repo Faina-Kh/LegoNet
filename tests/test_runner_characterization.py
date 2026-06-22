@@ -29,6 +29,10 @@ class StopAfterModelBuild(Exception):
     """Stop ``_run`` after data setup, before model execution begins."""
 
 
+class StopAfterModelTo(Exception):
+    """Stop ``_run`` after weight setup, before training or inference."""
+
+
 def _module(name, **attributes):
     """Return a module populated with the supplied attributes."""
     module = types.ModuleType(name)
@@ -39,7 +43,7 @@ def _module(name, **attributes):
 
 def _runner_dependency_stubs():
     """Build dependency stubs sufficient to import ``legonet.runner``."""
-    torch = _module("torch", manual_seed=mock.Mock())
+    torch = _module("torch", manual_seed=mock.Mock(), load=mock.Mock())
     torch_nn = _module("torch.nn", BatchNorm2d=FakeBatchNorm2d)
     torch_optim = _module("torch.optim")
     torch_utils = _module("torch.utils")
@@ -108,9 +112,11 @@ class RunnerCharacterizationTests(unittest.TestCase):
         """Import the runner once with heavyweight dependencies replaced."""
         sys.modules.pop("legonet.runner", None)
         sys.modules.pop("legonet.data_setup", None)
+        sys.modules.pop("legonet.model_setup", None)
         with mock.patch.dict(sys.modules, _runner_dependency_stubs()):
             cls.runner = importlib.import_module("legonet.runner")
             cls.data_setup = importlib.import_module("legonet.data_setup")
+            cls.model_setup = importlib.import_module("legonet.model_setup")
 
     def setUp(self):
         """Reset dependency mocks before each characterization test."""
@@ -133,6 +139,176 @@ class RunnerCharacterizationTests(unittest.TestCase):
             dependency.side_effect = None
         self.runner.model_build.reset_mock()
         self.runner.model_build.side_effect = None
+        self.model_setup.torch.load.reset_mock()
+        self.model_setup.torch.load.side_effect = None
+        for name in (
+            "list_checkpoint_modules",
+            "load_submodule_weights",
+            "save_partial_weights",
+            "print_module_names",
+        ):
+            dependency = getattr(self.model_setup, name)
+            dependency.reset_mock()
+            dependency.side_effect = None
+
+    def _weight_args(self, **overrides):
+        """Return the common arguments needed to reach weight setup."""
+        values = {
+            "load_weights": True,
+            "load_partial_weights": False,
+            "load_full_model_weights": False,
+            "save_from_model_file": False,
+            "myExpPath": "experiment",
+            "network_type": "counting_reg",
+            "estimate_type": "reg_fpn_p3_p7_min_sig",
+            "freeze_detection": False,
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
+    def _run_through_weight_setup(self, args, model, stop_after_to=True):
+        """Run with data/model stubs until weight setup has completed."""
+        data = SimpleNamespace(
+            dataset_train=None,
+            dataset_val=object(),
+            sampler=None,
+            sampler_val=object(),
+            dataloader_train=None,
+            dataloader_val=object(),
+        )
+        self.runner.model_build.return_value = model
+        if stop_after_to:
+            model.to.side_effect = StopAfterModelTo
+
+        with mock.patch.object(self.runner, "build_data", return_value=data):
+            if stop_after_to:
+                with self.assertRaises(StopAfterModelTo):
+                    self.runner._run(args)
+            else:
+                self.runner._run(args)
+
+    def test_partial_detector_weights_keep_current_module_mapping(self):
+        """Partial detector loading targets the three current detector modules."""
+        args = self._weight_args(
+            load_partial_weights=True,
+            load_bbox_det_weights=True,
+            load_per_object_counting_weights=False,
+            load_per_object_attributes_weights=False,
+            network_type="bbox_detection",
+            bbox_detection_weights_file="detector.pt",
+        )
+        model = mock.Mock()
+        state_dict = object()
+        self.model_setup.torch.load.return_value = state_dict
+
+        self._run_through_weight_setup(args, model)
+
+        self.model_setup.torch.load.assert_called_once_with(
+            "detector.pt",
+            map_location=self.model_setup.config.General.device,
+        )
+        model.load_state_dict.assert_called_once_with(state_dict, strict=False)
+        self.model_setup.load_submodule_weights.assert_called_once_with(
+            model,
+            state_dict,
+            submodule_names=["backbone_1", "find_1", "where"],
+            strict=False,
+        )
+
+    def test_full_counting_weights_keep_current_module_mapping(self):
+        """Full counting-regression loading targets backbone and estimator."""
+        args = self._weight_args(
+            load_full_model_weights=True,
+            full_model_weights="full.pt",
+        )
+        model = mock.Mock()
+        state_dict = object()
+        self.model_setup.torch.load.return_value = state_dict
+
+        self._run_through_weight_setup(args, model)
+
+        self.model_setup.load_submodule_weights.assert_called_once_with(
+            model,
+            state_dict,
+            submodule_names=["backbone", "estimator"],
+            strict=False,
+        )
+
+    def test_partial_root_attributes_keep_current_module_mapping(self):
+        """Root keypoint attributes retain their five-module partial mapping."""
+        args = self._weight_args(
+            load_partial_weights=True,
+            load_bbox_det_weights=False,
+            load_per_object_counting_weights=False,
+            load_per_object_attributes_weights=True,
+            network_type="both_for_roots_2",
+            estimate_type="withKeyPoints",
+            per_object_weights_file="attributes.pt",
+        )
+        model = mock.Mock()
+        state_dict = object()
+        self.model_setup.torch.load.return_value = state_dict
+
+        self._run_through_weight_setup(args, model)
+
+        self.model_setup.load_submodule_weights.assert_called_once_with(
+            model,
+            state_dict,
+            submodule_names=[
+                "backbone_2",
+                "find_2",
+                "estimator_length",
+                "estimator_diameter",
+                "estimator_color",
+            ],
+            strict=False,
+        )
+
+    def test_partial_object_counting_keeps_current_module_mapping(self):
+        """Grape keypoint counting retains its three-module partial mapping."""
+        args = self._weight_args(
+            load_partial_weights=True,
+            load_bbox_det_weights=False,
+            load_per_object_counting_weights=True,
+            load_per_object_attributes_weights=False,
+            network_type="both",
+            estimate_type="withKeyPoints",
+            per_object_weights_file="counting.pt",
+        )
+        model = mock.Mock()
+        state_dict = object()
+        self.model_setup.torch.load.return_value = state_dict
+
+        self._run_through_weight_setup(args, model)
+
+        self.model_setup.load_submodule_weights.assert_called_once_with(
+            model,
+            state_dict,
+            submodule_names=["backbone_2", "find_2", "estimator"],
+            strict=False,
+        )
+
+    def test_legacy_detector_export_returns_before_model_execution(self):
+        """Legacy detector conversion saves one task and exits the runner."""
+        args = self._weight_args(
+            load_weights=False,
+            save_from_model_file=True,
+            network_type="bbox_detection",
+            model_path="legacy.pt",
+        )
+        model = mock.Mock()
+        legacy_model = mock.Mock()
+        self.model_setup.torch.load.return_value = legacy_model
+
+        self._run_through_weight_setup(args, model, stop_after_to=False)
+
+        self.model_setup.save_partial_weights.assert_called_once_with(
+            args,
+            model,
+            legacy_model,
+            tasks=["bbox_detection"],
+        )
+        model.to.assert_not_called()
 
     def test_tee_writes_and_flushes_every_stream(self):
         """The logging tee duplicates output to all configured streams."""

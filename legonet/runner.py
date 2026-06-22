@@ -17,8 +17,8 @@ import random
 import gc
 
 from legonet.legoNet_build import model_build
-from manage_weights import list_checkpoint_modules, load_submodule_weights, save_partial_weights, print_module_names
 from legonet import utils
+from legonet.model_setup import export_legacy_weights, load_requested_weights
 
 
 class Tee:
@@ -195,132 +195,11 @@ def _run(args=None):
     # build the model
     legonet = model_build(args, dataset_train, dataset_val)
 
-    # Loading weights
     if args.load_weights:
-        print('Loading weights from: ', os.path.join(args.myExpPath, "Weights \n"))
-
-        print("All available modules in legoNet: ")
-        print_module_names(legonet)
-
-        if args.load_partial_weights:
-
-            if args.load_bbox_det_weights:
-                bbox_det_state_dict = torch.load(args.bbox_detection_weights_file, map_location=config.General.device)
-                print("Available modules in bbox_detection weights file:", list_checkpoint_modules(bbox_det_state_dict))
-
-                if args.network_type == 'bbox_detection':
-                    legonet.load_state_dict(bbox_det_state_dict, strict=False) #strict=False
-                    load_submodule_weights(legonet, bbox_det_state_dict,
-                                           submodule_names=['backbone_1', 'find_1', 'where'], strict=False) #strict=False
-
-                elif (args.network_type == 'both' or args.network_type == "both_for_roots_2"
-                      or args.network_type == "both_Back2bFind2b"): #config.General.MODE == 'Training' and  (
-                    print("Available modules in 'bbox_detection' module: ")
-                    print_module_names(legonet.bbox_detection)
-                    #legonet.bbox_detection.load_state_dict(bbox_det_state_dict, strict=False)
-                    load_submodule_weights(legonet.bbox_detection, bbox_det_state_dict,
-                                           submodule_names=['backbone_1', 'find_1', 'where'], strict=False)
-
-            if args.load_per_object_counting_weights and args.network_type == "both":
-                per_object_state_dict = torch.load(args.per_object_weights_file, map_location=config.General.device)
-                if args.estimate_type == 'withKeyPoints':
-                    load_submodule_weights(legonet, per_object_state_dict,
-                                       submodule_names = ['backbone_2', 'find_2', 'estimator'], strict=False)
-                elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                    load_submodule_weights(legonet, per_object_state_dict,
-                                           submodule_names=['backbone_2', 'estimator'], strict=False)
-
-
-            if args.load_per_object_attributes_weights and (args.network_type == "both_for_roots_2"\
-                    or args.network_type == "both_Back2bFind2b"):
-                per_object_state_dict = torch.load(args.per_object_weights_file, map_location=config.General.device)
-
-                if args.network_type == "both_Back2bFind2b":
-                    load_submodule_weights(legonet, per_object_state_dict,
-                                           submodule_names = ['backbone_2', 'find_2',
-                                                              'estimator_length', 'estimator_diameter', 'estimator_color',
-                                                              'find_2_b', 'backbone_2_b'], strict=False)
-
-                elif args.network_type == "both_for_roots_2" and args.estimate_type == 'withKeyPoints':
-                    load_submodule_weights(legonet, per_object_state_dict,
-                                           submodule_names=['backbone_2', 'find_2',
-                                                            'estimator_length', 'estimator_diameter', 'estimator_color'],
-                                           strict=False)
-
-                elif args.network_type == "both_for_roots_2" and args.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                    load_submodule_weights(legonet, per_object_state_dict,
-                                           submodule_names=['backbone_2', 'estimator'], strict=False)
-
-
-        elif args.load_full_model_weights:
-            model_state_dict = torch.load(args.full_model_weights, map_location=config.General.device)
-            #legonet.load_state_dict(model_state_dict, strict=False)
-            print("Available modules in the weights file:", list_checkpoint_modules(model_state_dict))
-            print("Check keys:")
-            if args.network_type == "counting_lean":
-                load_submodule_weights(legonet, model_state_dict,
-                                       submodule_names=['backbone', 'find', 'estimator'], strict=False)
-
-            elif args.network_type == "counting_reg":
-                load_submodule_weights(legonet, model_state_dict,
-                                       submodule_names=['backbone', 'estimator'], strict=False)
-
-            elif args.network_type == "both":
-                if args.estimate_type == 'withKeyPoints':  # 'bbox_detection', "per_object_counting"
-                    load_submodule_weights(legonet, model_state_dict,
-                                           submodule_names=["bbox_detection",'backbone_2', 'find_2', 'estimator'],
-                                           strict=False) #"per_object_counting"
-
-                elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                    load_submodule_weights(legonet, model_state_dict,
-                                           submodule_names=["bbox_detection", 'backbone_2', 'estimator'], strict=False)  # "per_object_counting"
-
-
-
-            elif args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
-                if args.estimate_type == 'withKeyPoints':
-                    load_submodule_weights(legonet, model_state_dict,
-                                           submodule_names=["bbox_detection", "per_object_attributes"], strict=False)
-
-            elif args.network_type == "bbox_detection":
-                load_submodule_weights(legonet, model_state_dict,
-                                       submodule_names=['backbone_1', 'find_1', 'where'], strict=False)
+        load_requested_weights(legonet, args)
 
     elif args.save_from_model_file:
-        # for initial saving of weights from old model pt files:
-
-        if args.network_type == "both_Back2bFind2b":
-
-            file_bbox = torch.load(args.model_path["bbox_path"], map_location=config.General.device)
-            file_limit5Path = torch.load(args.model_path["limit5Path"], map_location=config.General.device)
-            file_all_3setsPath = torch.load(args.model_path["all_3setsPath"], map_location=config.General.device)
-            file_legonet = {"file_bbox": file_bbox,
-                            "file_limit5Path": file_limit5Path,
-                            "file_all_3setsPath": file_all_3setsPath
-                            }
-        else:
-            file_legonet = torch.load(args.model_path, map_location=config.General.device)
-
-
-        if not args.network_type == "both_Back2bFind2b":
-            print("Available modules in model file:", list_checkpoint_modules(file_legonet.state_dict()))
-            # if args.dataset_name == "roots":
-            #     print("Available modules in model file:", list_checkpoint_modules(file_legonet.state_dict()))
-            # elif args.dataset_name == "grapes":
-            #     print("Available modules in the weights file:", list_checkpoint_modules(file_legonet))
-
-        if args.network_type == 'bbox_detection':
-            save_partial_weights(args, legonet, file_legonet, tasks=['bbox_detection'])
-
-        elif args.network_type == "both":
-            save_partial_weights(args, legonet, file_legonet, tasks=['bbox_detection', "per_object_counting"], output_name = args.output_name)
-
-        elif args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
-            save_partial_weights(args, legonet, file_legonet, tasks=['bbox_detection', "per_object_attributes"], output_name = args.output_name)
-
-        elif args.network_type == "counting_lean" or args.network_type == "counting_reg":
-            save_partial_weights(args, legonet, file_legonet, tasks=["per_image_attributes"], output_name = args.output_name)
-
+        export_legacy_weights(legonet, args)
         return
 
     if (args.network_type == "bbox_detection" or args.network_type == "both" or args.network_type == "both_for_roots_2"
