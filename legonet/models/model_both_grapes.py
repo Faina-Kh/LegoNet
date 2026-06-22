@@ -67,9 +67,9 @@ class PerObjectEstimate(nn.Module):
         for param in self.bbox_detection.where.parameters():
             param.requires_grad = False
 
-    def forward(self, inputs, count_points_crop = True):
+    def forward(self, inputs, count_points_in_crop = True):
 
-        self.count_points_in_crop = count_points_crop
+        self.count_points_in_crop = count_points_in_crop
 
         img_batch, annotations, group_idx = inputs
 
@@ -82,13 +82,16 @@ class PerObjectEstimate(nn.Module):
         relevant_points_anns = []
         crops_orig_boxes = []
 
-        estimation_outputs = None #counting_outputs
+        estimation_outputs = None
 
         for img_idx in range(img_batch.shape[0]):
-            if not self.bbox_detection.training: #self.freeze_detection:
+            if not self.bbox_detection.training:
                 detection_outputs = self.bbox_detection([img_batch[img_idx].unsqueeze(dim=0)])
-            else: #elif self.training:
+            else:
                 classification_loss, regression_loss = self.bbox_detection(img_batch[img_idx].unsqueeze(dim=0))
+
+            if detection_anns[img_idx].numel() == 0 and not config.General.predict_empty_image:
+                continue
 
             # detection eval output:
             if (detection_outputs[0].to(config.General.device)).equal(torch.zeros(0).to(config.General.device)):
@@ -106,14 +109,6 @@ class PerObjectEstimate(nn.Module):
                 if annotations is not None:
                     # For each predicted box, find the id of the detected gt box
                     pred_to_box_idx = choose_boxes_by_IoUandPrc(bbox_pred, detection_anns, box_scores)
-
-                #if (self.training or (not self.training and annotations is not None)): # and counting_anns is not None:  # and config.detect_with_points.detect_points: #
-
-                    # for box in pred_to_box_idx:
-                    #     # box ids start with 1, not 0
-                    #     if box[:, 4] != -1:
-                    #         box[:, 4] = box[:, 4] + 1
-
                     bbox_pred = torch.cat(pred_to_box_idx, dim=0)
 
                     if self.training:
@@ -129,20 +124,12 @@ class PerObjectEstimate(nn.Module):
                             continue
 
                         true_ids = bbox_pred[:, 4].sort().values
-                        # if not self.training:
-                        #     true_ids = true_ids.cpu()
-
                         anns_box_ids = detection_anns[0][:, 5]
                         ans_detected_ids = []
                         for box_id in anns_box_ids:
                             ans_detected_ids.append(box_id in true_ids)
-                        # for i in range(anns_box_ids.shape[0]):
-                        #     #if anns_box_ids[i].item() != -1: # check if it's a box with points
-                        #         ans_detected_ids.append(anns_box_ids[i] in true_ids)
 
-                        detection_anns[img_idx] = detection_anns[img_idx][ans_detected_ids] #detection_anns[0][ans_detected_ids].unsqueeze(dim=0)
-                        #if len(ans_detected_ids)>0:
-                        #counting_anns[0][0] = counting_anns[0][0][ans_detected_ids]
+                        detection_anns[img_idx] = detection_anns[img_idx][ans_detected_ids]
                         current_anns = counting_anns[img_idx]
                         counting_anns_filtered= [
                             current_anns[0][i]
@@ -151,105 +138,99 @@ class PerObjectEstimate(nn.Module):
                         ]
                         counting_anns[img_idx][0] = torch.stack(counting_anns_filtered, dim=0)
 
-                        if len(counting_anns[0]) > 1:  #>0 # have key point annotations
+                        if len(counting_anns[0]) > 1: # have key point annotations
+
                             for i in range(len(counting_anns)):
-                                anns_box_ids_p = counting_anns[i][1][:, 3].float() #counting_anns[0][1][:, 3].float()
+                                anns_box_ids_p = counting_anns[i][1][:, 3].float()
                                 ans_detected_ids_p = []
-                                for j in range(counting_anns[i][1].shape[0]): #counting_anns[0][1].shape[0]
+                                for j in range(counting_anns[i][1].shape[0]):
                                     ans_detected_ids_p.append(anns_box_ids_p[j] in true_ids.cpu())
-                                counting_anns[i][1] = counting_anns[i][1][ans_detected_ids_p] #counting_anns[0][1] = counting_anns[0][1][ans_detected_ids_p]
+                                counting_anns[i][1] = counting_anns[i][1][ans_detected_ids_p]
 
                         annotations = [detection_anns, counting_anns]
 
                     bbox_pred = torch.cat((bbox_pred, box_scores.unsqueeze(-1)), dim=-1)  # [x1,y1,x2,y2,gt_box_id,score]
 
-
                 bbox_pred_adjusted = bbox_pred.clone()
 
                 # Get gt points' annotations when maps are needed or crop-count GT is requested.
                 points = None
-                if config.AttributeEstimation.estimate_type == 'withKeyPoints' or self.count_points_in_crop:
+                if len(counting_anns[0]) > 1 and self.count_points_in_crop: # have key point annotations
+                    point_anns = self.dataset.image_data_points_location[img_info['name']]
+                    point_anns_copy = []
+                    for d in point_anns:
+                        point_anns_copy.append(copy.deepcopy(d))
+                    points = self.find_points_in_bbox(img_batch[img_idx], point_anns_copy, bbox_pred_adjusted, img_info['scale'], self.network_type)
 
-                    if annotations is not None: #self.training or (not self.training and annotations is not None)
-                        point_anns = self.dataset.image_data_points_location[img_info['name']]
-                        point_anns_copy = []
-                        for d in point_anns:
-                            point_anns_copy.append(copy.deepcopy(d))
-                        points = self.find_points_in_bbox(img_batch[img_idx], point_anns_copy, bbox_pred_adjusted, img_info['scale'], self.network_type)
-    
-                        if config.AttributeEstimation.do_nmcs:# don't do for roots
-                            non_suppressed_indices = self.nmcs(bbox_pred_adjusted, points)
-                            points = list(compress(points, non_suppressed_indices))
-                            bbox_pred_adjusted = bbox_pred_adjusted[non_suppressed_indices, :]
+                    if config.AttributeEstimation.do_nmcs:
+                        non_suppressed_indices = self.nmcs(bbox_pred_adjusted, points)
+                        points = list(compress(points, non_suppressed_indices))
+                        bbox_pred_adjusted = bbox_pred_adjusted[non_suppressed_indices, :]
 
                 # get the predicted crops
                 #    in inference - keep all predicted boxes
-                #    in training - keep only those that include points
+                #    in training - keep only True Positive boxes
 
-                if counting_anns is not None or (not self.training and config.General.predict_empty_image):
+                for b in range(bbox_pred_adjusted.shape[0]):
 
-                    #empty_crops_gtidx = []
-                    for b in range(bbox_pred_adjusted.shape[0]):
+                    x1 = bbox_pred_adjusted[b, 0]
+                    y1 = bbox_pred_adjusted[b, 1]
+                    x2 = bbox_pred_adjusted[b, 2]
+                    y2 = bbox_pred_adjusted[b, 3]
 
-                        x1 = bbox_pred_adjusted[b, 0]
-                        y1 = bbox_pred_adjusted[b, 1]
-                        x2 = bbox_pred_adjusted[b, 2]
-                        y2 = bbox_pred_adjusted[b, 3]
+                    current_score = float(bbox_pred_adjusted[b, -1].cpu())
 
-                        current_score = float(bbox_pred_adjusted[b, -1].cpu())
+                    box_idx = bbox_pred_adjusted[b, 4].item()
 
-                        box_idx = bbox_pred_adjusted[b, 4].item()
+                    crops_orig_boxes.append([float(x1.cpu()), float(y1.cpu()), float(x2.cpu()), float(y2.cpu()), current_score])
 
-                        crops_orig_boxes.append([float(x1.cpu()), float(y1.cpu()), float(x2.cpu()), float(y2.cpu()), current_score])
+                    if detection_anns is None: #
+                        bbox_crop = self.get_crops(img_batch[img_idx],
+                                                    bbox_pred=bbox_pred_adjusted[b].unsqueeze(dim=0),
+                                                    anns=None)
+                    else:
+                        bbox_crop = self.get_crops(img_batch[img_idx],
+                                                    bbox_pred=bbox_pred_adjusted[b].unsqueeze(dim=0),
+                                                    anns=detection_anns[img_idx])
+                        # if counting_anns is not None:
+                        #     #gt_count_value = next((ann[0][0, 0].item() for ann in counting_anns if ann[0][0, 2] == box_idx) , None)
+                        #     if box_idx!=-1: # possible in inference
+                        #         gt_count_value = [
+                        #             ann[0][ann[0][:, 2] == box_idx, 0].item()
+                        #             for ann in counting_anns
+                        #             if (ann[0][:, 2] == box_idx).any()]
+                        #     else:
+                        #         gt_count_value = [0]
 
-                        if detection_anns is None:
-                            bbox_crop = self.get_crops(img_batch[img_idx],
-                                                        bbox_pred=bbox_pred_adjusted[b].unsqueeze(dim=0),
-                                                        anns=None)
-                        else:
-                            bbox_crop = self.get_crops(img_batch[img_idx],
-                                                        bbox_pred=bbox_pred_adjusted[b].unsqueeze(dim=0),
-                                                        anns=detection_anns[img_idx])
-                            if counting_anns is not None:
-                                #gt_count_value = next((ann[0][0, 0].item() for ann in counting_anns if ann[0][0, 2] == box_idx) , None)
-                                if box_idx!=-1: # possible in inference
-                                    gt_count_value = [
-                                        ann[0][ann[0][:, 2] == box_idx, 0].item()
-                                        for ann in counting_anns
-                                        if (ann[0][:, 2] == box_idx).any()]
-                                else:
-                                    gt_count_value = [0]
+                    if annotations is not None:
 
-                        if annotations is not None: # self.training or (not self.training and annotations is not None): # training
+                        if points is not None and self.count_points_in_crop:
+                            points_to_view = []
+                            current_points = points[b]
+                            if len(current_points['x'])>0:
+                                current_points['x'] = current_points['x'] - (x1.cpu().numpy()) * np.ones(len(current_points['x']))
+                                current_points['y'] = current_points['y'] - (y1.cpu().numpy()) * np.ones(len(current_points['y']))
 
-                            if points is not None:
-                                current_points = points[b]
-                                points_to_view = []
+                                scale_x = config.AttributeEstimation.crops_size[0] / (x2 - x1).cpu().numpy()
+                                scale_y = config.AttributeEstimation.crops_size[1] / (y2 - y1).cpu().numpy()
+                                current_points['x'] = current_points['x']*scale_x
+                                current_points['y'] = current_points['y']*scale_y
 
-                                if len(current_points['x'])>0:
-                                    current_points['x'] = current_points['x'] - (x1.cpu().numpy()) * np.ones(len(current_points['x']))
-                                    current_points['y'] = current_points['y'] - (y1.cpu().numpy()) * np.ones(len(current_points['y']))
+                                for i in range(len(current_points['x'])):
+                                   points_to_view.append({'x':current_points['x'][i], 'y':current_points['y'][i]})
+                                #self.view_points_on_img(bbox_crop, points_to_view)
 
-                                    scale_x = config.AttributeEstimation.crops_size[0] / (x2 - x1).cpu().numpy()
-                                    scale_y = config.AttributeEstimation.crops_size[1] / (y2 - y1).cpu().numpy()
-                                    current_points['x'] = current_points['x']*scale_x
-                                    current_points['y'] = current_points['y']*scale_y
+                            relevant_points_anns.append(points_to_view)
+                        #     if self.count_points_in_crop:
+                        #         bbox_crops_list.append(bbox_crop)  # torch.tensor(bbox_crop).float().permute(2, 0, 1).unsqueeze(dim=0).to(config.General.device))
+                        #     else:
+                        #         bbox_crops_list.append([bbox_crop, gt_count_value[0]])
+                        #
+                        # else:
+                        #     bbox_crops_list.append([bbox_crop, gt_count_value[0]])
 
-                                    for i in range(len(current_points['x'])):
-                                       points_to_view.append({'x':current_points['x'][i], 'y':current_points['y'][i]})
-                                    #self.view_points_on_img(bbox_crop, points_to_view)
-
-                                relevant_points_anns.append(points_to_view)
-                                if self.count_points_in_crop:
-                                    bbox_crops_list.append(bbox_crop)  # torch.tensor(bbox_crop).float().permute(2, 0, 1).unsqueeze(dim=0).to(config.General.device))
-                                else:
-                                    bbox_crops_list.append([bbox_crop, gt_count_value[0]])
-
-                            else:
-                                bbox_crops_list.append([bbox_crop, gt_count_value[0]])
-
-                        else:
-                            bbox_crops_list.append(bbox_crop)  # torch.tensor(bbox_crop).float().permute(2, 0, 1).unsqueeze(dim=0).to(config.General.device))
+                    #else:
+                    bbox_crops_list.append(bbox_crop)  # torch.tensor(bbox_crop).float().permute(2, 0, 1).unsqueeze(dim=0).to(config.General.device))
 
 
         including_counting = False
@@ -258,23 +239,26 @@ class PerObjectEstimate(nn.Module):
 
             #num_of_boxes = bbox_pred_adjusted.shape[0]
             # ToDo - delete relevant points in crop and use the gt value of the corresponding gt bbox????
-            if annotations is not None: #self.training:
-                if points:
-                    if self.count_points_in_crop:
-                        # get GT points count based on the GT points in the relevant crop
-                        sample_list = self.getitem(bbox_crops=bbox_crops_list, points=relevant_points_anns) #points=relevant_points_anns)
-                    else:
-                        # get GT count from the matched box, but still build keypoint maps from crop points
-                        crops_list, crops_count_anns_list = map(list, zip(*bbox_crops_list))
-                        sample_list = self.getitem(
-                            bbox_crops=crops_list,
-                            points=relevant_points_anns,
-                            anns=crops_count_anns_list,
-                        )
-                else:
-                    # get GT points count based on the GT count value of the corresponding gt bbox
-                    crops_list, crops_count_anns_list = map(list, zip(*bbox_crops_list))
-                    sample_list = self.getitem(bbox_crops=crops_list, anns = crops_count_anns_list)
+            if points is not None and self.count_points_in_crop: #self.training:
+                sample_list = self.getitem(bbox_crops=bbox_crops_list, points=relevant_points_anns)
+
+            else:
+                sample_list = self.getitem(bbox_crop=bbox_crops_list)
+                    # if self.count_points_in_crop:
+                    #     # get GT points count based on the GT points in the relevant crop
+                    #     sample_list = self.getitem(bbox_crops=bbox_crops_list, points=relevant_points_anns) #points=relevant_points_anns)
+                    # else:
+                    #     # get GT count from the matched box, but still build keypoint maps from crop points
+                    #     crops_list, crops_count_anns_list = map(list, zip(*bbox_crops_list))
+                    #     sample_list = self.getitem(
+                    #         bbox_crops=crops_list,
+                    #         #points=relevant_points_anns,
+                    #         anns=crops_count_anns_list,
+                    #     )
+                # else:
+                #     # get GT points count based on the GT count value of the corresponding gt bbox
+                #     crops_list, crops_count_anns_list = map(list, zip(*bbox_crops_list))
+                #     sample_list = self.getitem(bbox_crops=crops_list, anns = crops_count_anns_list)
             #else:
                 # if annotations is not None and points is not None:
                 #     sample_list = self.getitem(bbox_crop=bbox_crops_list, points=relevant_points_anns,
@@ -282,10 +266,9 @@ class PerObjectEstimate(nn.Module):
                 # else:
                     #sample_list = self.getitem(bbox_crop=bbox_crops_list)
 
-                sample_anns = myDataloader.kcsv_collater_2(sample_list)
+            sample_anns = myDataloader.kcsv_collater_2(sample_list)
 
-            if annotations is not None: #self.training or (not self.training and annotations is not None): # and points is not None):
-                #if config.AttributeEstimation.estimate_type == 'withKeyPoints':
+            if annotations is not None and self.count_points_in_crop: #self.training or (not self.training and annotations is not None): # and points is not None):
                     corrected_counting_anns = sample_anns['points_annot']
                     corrected_counting_anns = [a.to(config.General.device) for a in corrected_counting_anns]
 
@@ -400,8 +383,8 @@ class PerObjectEstimate(nn.Module):
 
         return [nms_scores, nms_class, transformed_anchors[0, anchors_nms_idx, :]]
 
-    def get_crops(self, img, bbox_pred=None, anns=None, view_gt = False):
-        if view_gt:
+    def get_crops(self, img, bbox_pred=None, anns=None, view_im = False):
+        if view_im and anns is not None :
             unnormalize = UnNormalizer()
 
             im = img.cpu().clone().detach()
@@ -442,7 +425,7 @@ class PerObjectEstimate(nn.Module):
         # output(Tensor[K, C, output_size[0], output_size[1]])
 
         # view the crops per image
-        if view_gt:
+        if view_im:
             bbox_img = np.asarray(bbox_crops[0].permute(1,2,0).cpu())
             bbox_img = bbox_img.astype(np.uint8)
             cv2.imshow('bbox', bbox_img)
@@ -512,7 +495,7 @@ class PerObjectEstimate(nn.Module):
 
         return annotations
 
-    def getitem(self, bbox_crops, points = None, anns = None):
+    def getitem(self, bbox_crops, points = None): #, anns = None):
         filtered_samples = []
         for b in range(len(bbox_crops)):
             current_img = bbox_crops[b][0].permute(1,2,0).cpu()
@@ -521,12 +504,13 @@ class PerObjectEstimate(nn.Module):
 
             if points is not None:
                 current_ann = points[b]
-                if anns is None:
-                    annotations_group_num_of_points = len(current_ann)
-                elif anns[b] is None:
-                    annotations_group_num_of_points = 0
-                else:
-                    annotations_group_num_of_points = anns[b]
+                annotations_group_num_of_points = len(current_ann)
+                # if anns is None:
+                #     annotations_group_num_of_points = len(current_ann)
+                # elif anns[b] is None:
+                #     annotations_group_num_of_points = 0
+                # else:
+                #     annotations_group_num_of_points = anns[b]
 
                 if len(current_ann) > 0:
                     annotations_group_points_center = current_ann
@@ -565,12 +549,12 @@ class PerObjectEstimate(nn.Module):
                     sample['annot'] = [[annotations_group_num_of_points], annotation_map_1, annotation_map_2,
                                        annotation_map_3, annotation_map_4, annotation_map_5]
 
-            elif anns is not None:
-                anns_count_value = anns[b]
-                if anns_count_value is None:
-                    sample['annot'] = [[0]]
-                else:
-                    sample['annot'] = [[anns_count_value]]
+            # elif anns is not None:
+            #     anns_count_value = anns[b]
+            #     if anns_count_value is None:
+            #         sample['annot'] = [[0]]
+            #     else:
+            #         sample['annot'] = [[anns_count_value]]
 
             filtered_samples.append(sample)
 

@@ -1191,8 +1191,8 @@ def _run(args=None):
                 print("Attribute estimation evaluation:\n")
 
                 out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=config.General.to_draw,
-                                     draw_maps = config.DrawProperties.DRAW_MAPS, verbose=True,
-                                     draw_path = config.DrawProperties.save_img_path, print_to_files=True, args = args)
+                                     verbose=True, draw_path = config.DrawProperties.save_img_path, print_to_files=True,
+                                     args = args)
 
                 if len(out)>0:
                     rel_error = out[0]

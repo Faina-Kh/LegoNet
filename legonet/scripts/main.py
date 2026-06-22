@@ -149,16 +149,16 @@ args.network_type = args.network_type or "both" # "counting_lean"  #"counting_re
 args.estimate_type = args.estimate_type or "reg_fpn_p3_p7_min_sig" #DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "reg_fpn_p3_p7_min_sig")
 args.to_draw = args.to_draw or False
 
-args.run_script = args.run_script or 'Inference' #'Training' #'Inference'
-args.val_set = args.val_set or "Test" #"Test" #"Val"
+args.run_script = args.run_script or 'Training' #'Training' #'Inference'
+args.val_set = args.val_set or "Val" #"Test" #"Val"
 args.have_GT = args.have_gt or True
 
 args.num_of_epochs = args.num_of_epochs or 300
 
 if args.run_script == 'Training':
-    args.current_results_dir = args.current_results_dir or (args.network_type + '_Reg' + '_Training'+'_gt count by points')
+    args.current_results_dir = args.current_results_dir or (args.network_type + '_Reg' + '_Training'+'_gt_bbox_error') #+'_gt count by points')
 else:
-    args.current_results_dir = args.current_results_dir or (args.network_type + '_Reg_' + args.val_set + '_by bbox_True' ) #'_'+time_stemp
+    args.current_results_dir = args.current_results_dir or (args.network_type + '_Reg_' + args.val_set + '_by points_epoch_96' ) #'_'+time_stemp
 
 #--------------------------------------------------------------------------------------------------------------
 
@@ -170,7 +170,12 @@ args.evaluate_both = args.network_type in BOTH_NETWORKS
 args.load_weights = args.load_weights or True
 args.save_from_model_file = not args.load_weights # args.save_from_model_file or True
 
-args.weights_type = args.weights_type or 'full_model_weights'  #'partial_weights'
+args.load_only_bbox_weights = True
+
+
+
+
+args.weights_type = args.weights_type or 'partial_weights' # 'full_model_weights'  #'partial_weights'
 assert args.weights_type == 'full_model_weights' or args.weights_type == 'partial_weights'
 
 if args.weights_type == 'full_model_weights':
@@ -185,7 +190,12 @@ args.load_bbox_det_weights = True
 args.load_per_object_counting_weights = True
 args.load_per_object_attributes_weights = True
 
-if args.load_partial_weights:
+
+if args.load_only_bbox_weights:
+    args.load_per_object_counting_weights = False
+    args.load_per_object_attributes_weights = False
+
+elif args.load_partial_weights:
     if args.network_type == "both":
         args.load_per_object_counting_weights = True
     else:

@@ -1620,6 +1620,7 @@ def kcsv_collater_2(data):
 
         if "roots_annot" not in data[0].keys():
             return {'img': padded_imgs, 'points_annot': new_annots }
+
         else: # ToDo - remove roots_annot
             roots_annot = [torch.unsqueeze(s['roots_annot'], dim=0) for s in data]
             new_annots.append(torch.cat(roots_annot, dim=0))

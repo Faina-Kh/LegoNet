@@ -70,7 +70,6 @@ class PerObjectEstimate(nn.Module):
             param.requires_grad = False
 
 
-
     def forward(self, inputs):
 
         img_batch, annotations, group_idx = inputs
@@ -431,8 +430,6 @@ class PerObjectEstimate(nn.Module):
             dtype=torch.float32,
             device=crop.device if torch.is_tensor(crop) else "cpu"
         )
-
-
 
 
     def get_detection_output(self, transformed_anchors, classification_vector):

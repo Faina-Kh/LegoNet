@@ -690,7 +690,7 @@ def initiate_global_dicts(state=None, image_name='', initiate=False):
 
 
 
-def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_maps = False, draw_path= "",
+def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_path= "",
          print_to_files=False, args = None, do_profile = False):
     is_roots_2 = (
                 config.Detect_and_Estimate.type == "both_for_roots_2" or config.Detect_and_Estimate.type == "both_Back2bFind2b")
@@ -813,9 +813,10 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                         # printf("image: %s\n", image_name)
                         # printf("##############################################################################################\n")
                         printf("Has gt boxes but no gt points in any gt box...\n")
+                        printf("Skipping this image...\n")
                         print()
 
-                    if not is_roots_2:
+                    #if not config.General.predict_empty_image: #is_roots_2:
                         continue
 
                 if len(box_annotations_all) == 0:
@@ -828,7 +829,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                         printf("No gt boxes ...\n")
                         print()
 
-                    if not is_roots_2:
+                    if not config.General.predict_empty_image: #is_roots_2:
                         continue
 
                 #from list to tensor:
@@ -861,7 +862,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
             #image.cuda().float().unsqueeze(dim=0))
 
             if not args.have_GT:
-                input = [image.to(config.General.device).float(), None, torch.tensor(group_idx), True]
+                input = [image.to(config.General.device).float(), None, torch.tensor(group_idx)] #, True]
                 detection_outputs, estimation_outputs, sample_anns, relevant_points_anns, crops_orig_boxes = model(input)
 
 
@@ -996,7 +997,10 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
             state['all_detections'].append(detections)
 
             if args.have_GT:
-                point_anns = dataset.image_data_points_location[image_name]  # data from kcsv file (original coords)
+                if len(dataset.image_data_points_location[image_name]) > 0:
+                    point_anns = dataset.image_data_points_location[image_name]  # data from kcsv file (original coords)
+                else:
+                    dataset.image_data_points_location[image_name] = []
                 current_anns = []
                 if len(box_annotations_all) > 0:
                     gt_boxes = data['bbox_annot'][0]
@@ -1114,8 +1118,9 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
                                 #adjusted_crops_orig_boxes.append(crops_orig_boxes[b])
                             else:
-                                state['detections_data_any_crop'][image_name]['pred'].append(np.round(estimation_outputs[0][b].cpu().item()))
-                                count_pred.append(np.round(estimation_outputs[0][b].cpu().item()))
+                                prediction = np.round(estimation_outputs[0][b].cpu().item())
+                                state['detections_data_any_crop'][image_name]['pred'].append(prediction)
+                                count_pred.append(prediction)
 
                         if len(crops_orig_boxes) > 0:
                             adjusted_crops_orig_boxes.append(crops_orig_boxes[b])
@@ -1421,7 +1426,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
 
                     maps_idx=0
                     for i in range(len(crops_count_GT)):
-                        if crops_count_GT[i] != -1: # there are true points in the crop
+                        if crops_count_GT[i] > 0: # there are true points in the crop
                             if not is_roots_2:
                                 state['crops_abs_diff'].append(abs(crops_count_GT[i] - np.round(count_pred[i]))) #count_pred[i]))
                                 state['crops_rel_error'].append(abs(crops_count_GT[i] - np.round(count_pred[i])) / crops_count_GT[i])
@@ -2111,8 +2116,8 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_m
                     writer.writerow(myrow)
 
         if not is_roots_2:
-            count_points_in_crop = getattr(model, "count_points_in_crop", False)
-            final_rel_error = crops_avg_rel_error if count_points_in_crop else orig_avg_rel_error
+            # count_points_in_crop = getattr(model, "count_points_in_crop", False)
+            final_rel_error = orig_avg_rel_error # crops_avg_rel_error if count_points_in_crop else orig_avg_rel_error
             out = [final_rel_error,
                    state['gt_objects_withGTpoints'],
                    state['found_orig_objects'],
