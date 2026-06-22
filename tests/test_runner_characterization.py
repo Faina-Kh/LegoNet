@@ -202,6 +202,50 @@ class RunnerCharacterizationTests(unittest.TestCase):
         )
         self.runner.model_build.assert_called_once_with(args, None, validation_dataset)
 
+    def test_csv_lcc_inference_builds_only_validation_loader(self):
+        """Roots CSV inference uses its validation files and LCC collater."""
+        args = SimpleNamespace(
+            dataset_type="csv_LCC",
+            run_script="Inference",
+            val_csv_leaf_number_file="validation.csv",
+            val_csv_leaf_location_file="validation_points.csv",
+            val_json_file="validation.json",
+            pre_process="torch_like",
+            base_dir="dataset",
+            have_GT=True,
+            num_workers=0,
+        )
+        validation_dataset = object()
+        validation_sampler = object()
+        self.runner.csv_LCCDataset.return_value = validation_dataset
+        self.runner.AspectRatioBasedSampler.return_value = validation_sampler
+        self.runner.model_build.side_effect = StopAfterModelBuild
+
+        with self.assertRaises(StopAfterModelBuild):
+            self.runner._run(args)
+
+        self.runner.csv_LCCDataset.assert_called_once()
+        dataset_call = self.runner.csv_LCCDataset.call_args
+        self.assertEqual(dataset_call[0][:2], ("validation.csv", "validation_points.csv"))
+        self.assertEqual(dataset_call[1]["pre_process"], "keras_like")
+        self.assertEqual(dataset_call[1]["ann_type"], "count")
+        self.assertEqual(dataset_call[1]["json_file"], "validation.json")
+        self.assertEqual(dataset_call[1]["base_dir"], "dataset")
+        self.assertTrue(dataset_call[1]["have_GT"])
+        self.runner.AspectRatioBasedSampler.assert_called_once_with(
+            validation_dataset,
+            batch_size=1,
+            drop_last=False,
+            do_shuffle=False,
+        )
+        self.runner.DataLoader.assert_called_once_with(
+            validation_dataset,
+            num_workers=0,
+            collate_fn=self.runner.LCC_collater,
+            batch_sampler=validation_sampler,
+        )
+        self.runner.model_build.assert_called_once_with(args, None, validation_dataset)
+
     def test_coco_training_builds_train_and_validation_loaders(self):
         """COCO training creates both loaders with the detection collater."""
         args = SimpleNamespace(
