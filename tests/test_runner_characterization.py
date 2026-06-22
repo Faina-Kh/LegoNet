@@ -107,8 +107,10 @@ class RunnerCharacterizationTests(unittest.TestCase):
     def setUpClass(cls):
         """Import the runner once with heavyweight dependencies replaced."""
         sys.modules.pop("legonet.runner", None)
+        sys.modules.pop("legonet.data_setup", None)
         with mock.patch.dict(sys.modules, _runner_dependency_stubs()):
             cls.runner = importlib.import_module("legonet.runner")
+            cls.data_setup = importlib.import_module("legonet.data_setup")
 
     def setUp(self):
         """Reset dependency mocks before each characterization test."""
@@ -124,12 +126,13 @@ class RunnerCharacterizationTests(unittest.TestCase):
             "LCC_collater",
             "kcsv_collater",
             "DataLoader",
-            "model_build",
         )
         for name in dependency_names:
-            dependency = getattr(self.runner, name)
+            dependency = getattr(self.data_setup, name)
             dependency.reset_mock()
             dependency.side_effect = None
+        self.runner.model_build.reset_mock()
+        self.runner.model_build.side_effect = None
 
     def test_tee_writes_and_flushes_every_stream(self):
         """The logging tee duplicates output to all configured streams."""
@@ -177,27 +180,27 @@ class RunnerCharacterizationTests(unittest.TestCase):
         )
         validation_dataset = object()
         validation_sampler = object()
-        self.runner.KCSVDataset.return_value = validation_dataset
-        self.runner.AspectRatioBasedSampler.return_value = validation_sampler
+        self.data_setup.KCSVDataset.return_value = validation_dataset
+        self.data_setup.AspectRatioBasedSampler.return_value = validation_sampler
         self.runner.model_build.side_effect = StopAfterModelBuild
 
         with self.assertRaises(StopAfterModelBuild):
             self.runner._run(args)
 
-        self.runner.KCSVDataset.assert_called_once()
-        dataset_call = self.runner.KCSVDataset.call_args
+        self.data_setup.KCSVDataset.assert_called_once()
+        dataset_call = self.data_setup.KCSVDataset.call_args
         self.assertEqual(dataset_call[1]["input_file"], "validation.txt")
         self.assertEqual(dataset_call[1]["class_list"], "classes.txt")
-        self.runner.AspectRatioBasedSampler.assert_called_once_with(
+        self.data_setup.AspectRatioBasedSampler.assert_called_once_with(
             validation_dataset,
             batch_size=1,
             drop_last=False,
             do_shuffle=False,
         )
-        self.runner.DataLoader.assert_called_once_with(
+        self.data_setup.DataLoader.assert_called_once_with(
             validation_dataset,
             num_workers=0,
-            collate_fn=self.runner.kcsv_collater,
+            collate_fn=self.data_setup.kcsv_collater,
             batch_sampler=validation_sampler,
         )
         self.runner.model_build.assert_called_once_with(args, None, validation_dataset)
@@ -217,31 +220,66 @@ class RunnerCharacterizationTests(unittest.TestCase):
         )
         validation_dataset = object()
         validation_sampler = object()
-        self.runner.csv_LCCDataset.return_value = validation_dataset
-        self.runner.AspectRatioBasedSampler.return_value = validation_sampler
+        self.data_setup.csv_LCCDataset.return_value = validation_dataset
+        self.data_setup.AspectRatioBasedSampler.return_value = validation_sampler
         self.runner.model_build.side_effect = StopAfterModelBuild
 
         with self.assertRaises(StopAfterModelBuild):
             self.runner._run(args)
 
-        self.runner.csv_LCCDataset.assert_called_once()
-        dataset_call = self.runner.csv_LCCDataset.call_args
+        self.data_setup.csv_LCCDataset.assert_called_once()
+        dataset_call = self.data_setup.csv_LCCDataset.call_args
         self.assertEqual(dataset_call[0][:2], ("validation.csv", "validation_points.csv"))
         self.assertEqual(dataset_call[1]["pre_process"], "keras_like")
         self.assertEqual(dataset_call[1]["ann_type"], "count")
         self.assertEqual(dataset_call[1]["json_file"], "validation.json")
         self.assertEqual(dataset_call[1]["base_dir"], "dataset")
         self.assertTrue(dataset_call[1]["have_GT"])
-        self.runner.AspectRatioBasedSampler.assert_called_once_with(
+        self.data_setup.AspectRatioBasedSampler.assert_called_once_with(
             validation_dataset,
             batch_size=1,
             drop_last=False,
             do_shuffle=False,
         )
-        self.runner.DataLoader.assert_called_once_with(
+        self.data_setup.DataLoader.assert_called_once_with(
             validation_dataset,
             num_workers=0,
-            collate_fn=self.runner.LCC_collater,
+            collate_fn=self.data_setup.LCC_collater,
+            batch_sampler=validation_sampler,
+        )
+        self.runner.model_build.assert_called_once_with(args, None, validation_dataset)
+
+    def test_roots_json_inference_builds_kcsv_validation_loader(self):
+        """Roots JSON inference retains the KCSV dataset implementation."""
+        args = SimpleNamespace(
+            dataset_type="roots_json",
+            network_type="bbox_detection",
+            run_script="Inference",
+            val_json_file="validation.json",
+            pre_process="torch_like",
+            base_dir="dataset",
+            have_GT=True,
+            num_workers=0,
+        )
+        validation_dataset = object()
+        validation_sampler = object()
+        self.data_setup.KCSVDataset.return_value = validation_dataset
+        self.data_setup.AspectRatioBasedSampler.return_value = validation_sampler
+        self.runner.model_build.side_effect = StopAfterModelBuild
+
+        with self.assertRaises(StopAfterModelBuild):
+            self.runner._run(args)
+
+        self.data_setup.KCSVDataset.assert_called_once()
+        dataset_call = self.data_setup.KCSVDataset.call_args
+        self.assertEqual(dataset_call[1]["input_file"], "validation.json")
+        self.assertEqual(dataset_call[1]["dataset_type"], "roots_json")
+        self.assertEqual(dataset_call[1]["base_dir"], "dataset")
+        self.assertTrue(dataset_call[1]["have_GT"])
+        self.data_setup.DataLoader.assert_called_once_with(
+            validation_dataset,
+            num_workers=0,
+            collate_fn=self.data_setup.kcsv_collater,
             batch_sampler=validation_sampler,
         )
         self.runner.model_build.assert_called_once_with(args, None, validation_dataset)
@@ -259,30 +297,30 @@ class RunnerCharacterizationTests(unittest.TestCase):
         validation_dataset = object()
         train_sampler = object()
         validation_sampler = object()
-        self.runner.CocoDataset.side_effect = [train_dataset, validation_dataset]
-        self.runner.AspectRatioBasedSampler.side_effect = [train_sampler, validation_sampler]
+        self.data_setup.CocoDataset.side_effect = [train_dataset, validation_dataset]
+        self.data_setup.AspectRatioBasedSampler.side_effect = [train_sampler, validation_sampler]
         self.runner.model_build.side_effect = StopAfterModelBuild
 
         with self.assertRaises(StopAfterModelBuild):
             self.runner._run(args)
 
-        self.assertEqual(self.runner.CocoDataset.call_count, 2)
-        self.assertEqual(self.runner.CocoDataset.call_args_list[0][1]["set_name"], "train")
-        self.assertEqual(self.runner.CocoDataset.call_args_list[1][1]["set_name"], "val")
-        self.assertIs(args.collater, self.runner.collater)
-        self.assertEqual(self.runner.DataLoader.call_count, 2)
-        self.runner.DataLoader.assert_has_calls(
+        self.assertEqual(self.data_setup.CocoDataset.call_count, 2)
+        self.assertEqual(self.data_setup.CocoDataset.call_args_list[0][1]["set_name"], "train")
+        self.assertEqual(self.data_setup.CocoDataset.call_args_list[1][1]["set_name"], "val")
+        self.assertIs(args.collater, self.data_setup.collater)
+        self.assertEqual(self.data_setup.DataLoader.call_count, 2)
+        self.data_setup.DataLoader.assert_has_calls(
             [
                 mock.call(
                     train_dataset,
                     num_workers=3,
-                    collate_fn=self.runner.collater,
+                    collate_fn=self.data_setup.collater,
                     batch_sampler=train_sampler,
                 ),
                 mock.call(
                     validation_dataset,
                     num_workers=3,
-                    collate_fn=self.runner.collater,
+                    collate_fn=self.data_setup.collater,
                     batch_sampler=validation_sampler,
                 ),
             ]

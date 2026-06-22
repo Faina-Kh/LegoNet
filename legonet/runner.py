@@ -6,24 +6,11 @@ import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision import transforms
-from torch.utils.data import DataLoader
 import config #config_new
 from legonet.eval import attribute_estimation_eval, detection_eval
 from legonet.eval import perObject_eval as both_eval
-from legonet.my_dataloader import (
-    KCSVDataset,
-    CocoDataset,
-    collater,
-    Resizer,
-    AspectRatioBasedSampler,
-    Augmenter,
-    Normalizer,
-    UnNormalizer,
-    csv_LCCDataset,
-    LCC_collater,
-    kcsv_collater,
-)
+from legonet.data_setup import build_data
+from legonet.my_dataloader import UnNormalizer
 
 from PIL import Image, ImageDraw, ImageFont
 import random
@@ -196,163 +183,13 @@ def _run(args=None):
     np.random.seed(19830614)
     random.seed(0)
 
-    # Create the data loaders
-    if args.dataset_type == 'coco':
-
-        dataset_train = CocoDataset(args.dataset_path, set_name='train',
-                                    transform=transforms.Compose([Normalizer(), Augmenter(), Resizer(ann_type='bbox')]))
-        dataset_val = CocoDataset(args.dataset_path, set_name='val',
-                                  transform=transforms.Compose([Normalizer(), Resizer(ann_type='bbox')]))
-
-        args.collater = collater
-
-    elif (args.dataset_type == 'kcsv' or
-          (args.dataset_type == "roots_json" and (args.network_type == "both_for_roots_2" or
-                                                  args.network_type == "bbox_detection" or
-                                                  args.network_type == "both_Back2bFind2b"))):
-
-        # if args.kcsv_train is None:
-        #     raise ValueError('Must provide --csv_train for training purposes')
-        #
-        # if args.kcsv_classes is None:
-        #     raise ValueError('Must provide --csv_classes for training purposes')
-
-        if args.run_script == "Training":
-            if args.dataset_type == 'kcsv':
-                dataset_train = KCSVDataset(input_file=args.kcsv_train, class_list=args.kcsv_classes,
-                                            pre_process = args.pre_process,
-                                            transform=transforms.Compose([Normalizer(pre_process = args.pre_process),
-                                                                         Resizer(min_side=800, max_side=1333)]))
-
-            elif args.dataset_type == "roots_json":
-                dataset_train = KCSVDataset(input_file= args.train_json_file,
-                                            transform=transforms.Compose([Normalizer(pre_process=args.pre_process),
-                                                                          Resizer(min_side=800, max_side=1333)]),
-                                            dataset_type = "roots_json")
-
-        else:
-            dataset_train = None
-
-
-        if args.dataset_type == 'kcsv':
-            dataset_val = KCSVDataset(input_file=args.val_file, class_list=args.kcsv_classes,
-                                      pre_process = args.pre_process,
-                                      transform = transforms.Compose([Normalizer(pre_process = args.pre_process),
-                                                                   Resizer(min_side=800, max_side=1333)]))
-
-        elif args.dataset_type == "roots_json":
-            dataset_val = KCSVDataset(input_file=args.val_json_file,
-                                      transform=transforms.Compose([Normalizer(pre_process=args.pre_process),
-                                                                    Resizer(min_side=800, max_side=1333)]),
-                                      dataset_type="roots_json",
-                                      base_dir= args.base_dir,  #args.dataset_path
-                                      have_GT = args.have_GT)
-
-
-        #current_dataset = dataset_val #dataset_val
-        # if args.dataset_name == 'grapes':
-        #     per_type = {'CDY': {'img': [], 'boxes': [], 'avg_counts': [], 'std_counts': [], 'total_parts': 0},
-        #                 'CFR': {'img': [], 'boxes': [], 'avg_counts': [], 'std_counts': [], 'total_parts': 0},
-        #                 'CSV': {'img': [], 'boxes': [], 'avg_counts': [], 'std_counts': [], 'total_parts': 0},
-        #                 'SVB': {'img': [], 'boxes': [], 'avg_counts': [], 'std_counts': [], 'total_parts': 0},
-        #                 'SYH': {'img': [], 'boxes': [], 'avg_counts': [], 'std_counts': [], 'total_parts': 0}}
-        #
-        #     total_objects = 0
-        #     total_parts = 0
-        #     for im in current_dataset.image_data_bbox:
-        #         grape_type = im.split("_")[0]
-        #         per_im_boxes = 0
-        #         per_im_counts = 0
-        #
-        #         for b in current_dataset.image_data_bbox[im]:
-        #             if 'points_count' in b.keys():
-        #                 per_im_boxes += 1
-        #                 total_objects += 1
-        #
-        #                 per_im_counts += b['points_count']
-        #                 total_parts += b['points_count']
-        #
-        #         per_type[grape_type]['total_parts'] += per_im_counts
-        #
-        #         if per_im_boxes > 0:
-        #             per_type[grape_type]['avg_counts'].append(per_im_counts / per_im_boxes)
-        #             per_type[grape_type]['std_counts'].append(np.std(per_im_counts))
-        #             per_type[grape_type]['boxes'].append(per_im_boxes)
-        #             per_type[grape_type]['img'].append(im)
-        #
-        #     for type in per_type.keys():
-        #         per_type[type]['type_avg_count'] = np.mean(per_type[type]['avg_counts'])
-        #         per_type[type]['type_std_count'] = np.std(per_type[type]['avg_counts'])
-        #
-        #     csv_columns = ['type', 'count_avg', 'count_std', 'objects',
-        #                    'parts']  # ['type','img', 'boxes_num', 'count_avg', 'std']
-        #     csv_file = os.path.join(myExpResultsPath, 'KK_Exp_Results_last', "grapes data.csv")
-        #     f = open(csv_file, 'w', newline='')
-        #     with f:
-        #         writer = csv.writer(f)
-        #         writer.writerow(csv_columns)
-        #         for type in per_type.keys():
-        #             myrow = []
-        #             myrow.append(type)
-        #             myrow.append(per_type[type]['type_avg_count'])
-        #             myrow.append(per_type[type]['type_std_count'])
-        #             myrow.append(np.sum(per_type[type]['boxes']))
-        #             myrow.append(per_type[type]['total_parts'])
-        #
-        #             writer.writerow(myrow)
-        #             # mydata = per_type[type]
-        #             # for i in range(len(per_type[type]['img'])):
-        #             #     myrow = []
-        #             #     myrow.append(type)
-        #             #     myrow.append(mydata['img'][i])
-        #             #     myrow.append(mydata['boxes'][i])
-        #             #     myrow.append(mydata['avg_counts'][i])
-        #             #     myrow.append(mydata['std_counts'][i])
-        #             #
-        #             #     writer.writerow(myrow)
-
-        args.collater = kcsv_collater
-
-    elif args.dataset_type == 'csv_LCC': # or (args.dataset_type == "roots_json" and (args.network_type == "counting_lean_multiple_out" or args.network_type == "counting_lean_multiple_out_V2")):
-
-        if args.run_script == 'Training':
-
-            dataset_train = csv_LCCDataset(
-                args.train_csv_leaf_number_file,
-                args.train_csv_leaf_location_file,
-                pre_process='keras_like',
-                ann_type='count',
-                transform=transforms.Compose([Normalizer(pre_process = args.pre_process),
-                                              Resizer(ann_type='count', min_side=800, max_side=1333)]),
-                json_file = args.train_json_file)
-
-        else:
-            dataset_train = None
-
-
-        dataset_val = csv_LCCDataset(
-            args.val_csv_leaf_number_file,
-            args.val_csv_leaf_location_file,
-            pre_process='keras_like',
-            ann_type = 'count',
-            transform=transforms.Compose([Normalizer(pre_process = args.pre_process),
-                                          Resizer(ann_type='count', min_side=800, max_side=1333)]),
-            json_file = args.val_json_file,
-            base_dir= args.base_dir, #args.dataset_path,
-            have_GT= args.have_GT)
-
-        args.collater = LCC_collater
-
-    else:
-        raise ValueError('Dataset type not understood (must be csv_LCC or coco), exiting.')
-
-    if args.run_script == 'Training':
-        sampler = AspectRatioBasedSampler(dataset_train, batch_size=args.batch_size, drop_last=False)
-        dataloader_train = DataLoader(dataset_train, num_workers=args.num_workers, collate_fn=args.collater, batch_sampler=sampler)
-
-    if dataset_val is not None:
-        sampler_val = AspectRatioBasedSampler(dataset_val, batch_size=1, drop_last=False, do_shuffle=False)
-        dataloader_val = DataLoader(dataset_val, num_workers=args.num_workers, collate_fn=args.collater, batch_sampler=sampler_val)
+    data = build_data(args)
+    dataset_train = data.dataset_train
+    dataset_val = data.dataset_val
+    sampler = data.sampler
+    sampler_val = data.sampler_val
+    dataloader_train = data.dataloader_train
+    dataloader_val = data.dataloader_val
 
 
     # build the model
