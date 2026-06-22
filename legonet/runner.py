@@ -330,13 +330,6 @@ def _run(args=None):
 
     legonet = legonet.to(config.General.device)
 
-    # if isinstance(legonet, torch.nn.DataParallel): # ToDo - check this
-    #     legonet.module.freeze_bn()
-    # else:
-    #     legonet.freeze_bn()
-
-    #freeze_bn(unwrap_model(legonet))
-
     if args.run_script=='Training':
 
         legonet.training = True
