@@ -534,10 +534,10 @@ class FindModule(nn.Module):
         self.GlobalSumPooling2D = GlobalSumPooling2D()
 
         if self.task == 'bbox_detection':
-            self.focalLoss = modular_losses.FindKeyPointsFocalLoss()
+            self.focalLoss = modular_losses.FindFocalLoss()
 
         elif self.task == 'attribute_estimation':
-            self.focalLoss = modular_losses.FindFocalLoss()
+            self.focalLoss = modular_losses.FindKeyPointsFocalLoss()
 
 
         if self.task == 'attribute_estimation':

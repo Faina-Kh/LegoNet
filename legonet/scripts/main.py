@@ -154,15 +154,16 @@ args.val_set = args.val_set or "Val" #"Test" #"Val"
 args.have_GT = args.have_gt or True
 
 args.num_of_epochs = args.num_of_epochs or 300
+type_name = '_KP_' if args.estimate_type == "withKeyPoints" else "_Reg_"
 
 if args.run_script == 'Training':
-    args.current_results_dir = args.current_results_dir or (args.network_type + '_Reg' + '_Training'+'_gt_bbox_error') #+'_gt count by points')
+    args.current_results_dir = args.current_results_dir or (args.network_type + type_name + 'Training'+'_cropsError') #+'_gt count by points')
 else:
-    args.current_results_dir = args.current_results_dir or (args.network_type + '_Reg_' + args.val_set + '_by points_epoch_96' ) #'_'+time_stemp
+    args.current_results_dir = args.current_results_dir or (args.network_type + type_name + args.val_set + '_Inf_'+ 'new_192' ) #'_'+time_stemp
 
 #--------------------------------------------------------------------------------------------------------------
 
-args.evaluate_detection = args.evaluate_detection or args.network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
+args.evaluate_detection = False #args.evaluate_detection or args.network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
 args.evaluate_both = args.network_type in BOTH_NETWORKS
 
 
@@ -171,9 +172,6 @@ args.load_weights = args.load_weights or True
 args.save_from_model_file = not args.load_weights # args.save_from_model_file or True
 
 args.load_only_bbox_weights = True
-
-
-
 
 args.weights_type = args.weights_type or 'partial_weights' # 'full_model_weights'  #'partial_weights'
 assert args.weights_type == 'full_model_weights' or args.weights_type == 'partial_weights'
@@ -187,8 +185,8 @@ args.load_partial_weights = not args.load_full_model_weights
 
 ## To add as options for the user or not?
 args.load_bbox_det_weights = True
-args.load_per_object_counting_weights = True
-args.load_per_object_attributes_weights = True
+# args.load_per_object_counting_weights = True
+# args.load_per_object_attributes_weights = True
 
 
 if args.load_only_bbox_weights:

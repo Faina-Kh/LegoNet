@@ -2116,8 +2116,8 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     writer.writerow(myrow)
 
         if not is_roots_2:
-            # count_points_in_crop = getattr(model, "count_points_in_crop", False)
-            final_rel_error = orig_avg_rel_error # crops_avg_rel_error if count_points_in_crop else orig_avg_rel_error
+            count_points_in_crop = getattr(model, "count_points_in_crop", False)
+            final_rel_error = crops_avg_rel_error if count_points_in_crop else orig_avg_rel_error #orig_avg_rel_error #
             out = [final_rel_error,
                    state['gt_objects_withGTpoints'],
                    state['found_orig_objects'],

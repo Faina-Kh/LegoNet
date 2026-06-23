@@ -1089,21 +1089,26 @@ def _run(args=None):
                         print()
                         print("Object detection evaluation: ")
 
-                        mAP, precision, recall = detection_eval.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val, legonet,
-                                                             score_threshold=config.Detection.min_score, iou_threshold=config.Detection.iou_threshold)
-                        #utils.printf("mAP = %.3f ", mAP)
-                        if len(precision)==0:
-                            print('mAP: {:.3f} | precision: None | recall: None | prev_best_mAP: {:.3f} \n'.format(mAP, best_mAP))
-                        else:
-                            #print('mAP: {:.3f} | precision: {:.3f} | recall : {:.3f} | prev_best_mAP: {:.3f} \n'.format(mAP, precision[0], recall[0], best_mAP))
-                            print('mAP: {:.3f} | precision: {:.3f} | recall : {:.3f} | prev_best_mAP: {:.3f} \n'.format(
-                                mAP, precision[-1], recall[-1], best_mAP))
+                        mAP, precision, recall = detection_eval.evaluateMAP_simple(dataset_val, dataloader_val,
+                                                                                   sampler_val, legonet,
+                                                                                   score_threshold=config.Detection.min_score,
+                                                                                   iou_threshold=config.Detection.iou_threshold)
+
+                        print(f'mAP = {mAP:.3f}, precision = {precision:.3f}, recall = {recall:.3f}')
+
 
                     utils.printf(args.network_type + " evaluation: ")
 
                     if torch.cuda.is_available():
-                        out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=False,
-                                             print_to_files=True, args=args)
+
+                        training_dataset = legonet.dataset
+                        legonet.dataset = dataset_val
+                        try:
+                            out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=False,
+                                                 print_to_files=True, args=args)
+                        finally:
+                            legonet.dataset = training_dataset
+
 
                         if len(out) > 0:
                             rel_error = out[0]
@@ -1179,6 +1184,7 @@ def _run(args=None):
                                                                                 legonet, score_threshold=config.Detection.min_score,
                                                                                 iou_threshold=config.Detection.iou_threshold,
                                                                                 generate_PR_curve=True)
+
                         print(f'mAP = {mAP:.3f}, precision = {precision:.3f}, recall = {recall:.3f}')
 
                         with open(args.txt_results, 'a') as f:
