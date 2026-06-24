@@ -1502,7 +1502,7 @@ def kcsv_collater(data):
 
         if points_annot is not None:
             points_annot[0] = torch.tensor(points_annot[0])
-            if not config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting:
+            if config.General.NETWORK_TYPE not in (config.NetworkType.detection_and_counting, config.NetworkType.detection):
                 points_annot[1] = torch.tensor(points_annot[1])
                 points_annot[2] = torch.tensor(points_annot[2])
                 points_annot[3] = torch.tensor(points_annot[3])

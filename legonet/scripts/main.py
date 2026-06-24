@@ -161,7 +161,7 @@ args.choose_epoch_by_IoUavg = True
 if args.run_script == 'Training':
     args.current_results_dir = args.current_results_dir or (args.network_type + type_name + 'Training'+'_epoch_by_IoUavg') #+'_gt count by points')
 else:
-    args.current_results_dir = args.current_results_dir or (args.network_type + type_name + args.val_set + 'epoch_by_IoUavg'+ 'new_' ) #'_'+time_stemp
+    args.current_results_dir = args.current_results_dir or (args.network_type + type_name + args.val_set) # + 'epoch_by_IoUavg'+ '_new_' ) #'_'+time_stemp
 
 #--------------------------------------------------------------------------------------------------------------
 
