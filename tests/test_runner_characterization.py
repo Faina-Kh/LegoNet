@@ -326,6 +326,45 @@ class RunnerCharacterizationTests(unittest.TestCase):
         self.assertEqual(first.flush.call_count, 2)
         self.assertEqual(second.flush.call_count, 2)
 
+    def test_training_dispatch_receives_the_complete_data_bundle(self):
+        """The runner delegates training with every constructed data object."""
+        data = SimpleNamespace(
+            dataset_train=object(),
+            dataset_val=object(),
+            sampler=object(),
+            sampler_val=object(),
+            dataloader_train=object(),
+            dataloader_val=object(),
+        )
+        args = SimpleNamespace(
+            load_weights=False,
+            save_from_model_file=False,
+            network_type="counting_reg",
+            freeze_detection=False,
+            run_script="Training",
+        )
+        built_model = mock.Mock()
+        prepared_model = mock.Mock()
+        built_model.to.return_value = prepared_model
+
+        with mock.patch.object(
+            self.runner, "build_data", return_value=data
+        ), mock.patch.object(
+            self.runner, "model_build", return_value=built_model
+        ), mock.patch.object(self.runner, "train_model") as train_model:
+            self.runner._run(args)
+
+        train_model.assert_called_once_with(
+            args,
+            prepared_model,
+            data.dataset_train,
+            data.dataset_val,
+            data.sampler,
+            data.sampler_val,
+            data.dataloader_train,
+            data.dataloader_val,
+        )
+
     def test_unwrap_model_returns_module_when_present(self):
         """Wrapped models expose their underlying model through ``module``."""
         inner_model = object()

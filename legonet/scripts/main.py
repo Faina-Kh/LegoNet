@@ -143,13 +143,13 @@ NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "counting_lean", "co
 ########################################################################################################################
 args.gpu_num = args.gpu_num or '0'
 
-args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
+args.STORAGE_PATH = args.storage_path or 'C:\\Users\\borde\\Desktop\\Faina\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = args.dataset_name or "grapes" #"grapes" #"roots"
-args.network_type = args.network_type or "both" # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
+args.network_type = args.network_type or "bbox_detection" # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
 args.estimate_type = args.estimate_type or "reg_fpn_p3_p7_min_sig" #DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "reg_fpn_p3_p7_min_sig")
 args.to_draw = args.to_draw or False
 
-args.run_script = args.run_script or 'Training' #'Training' #'Inference'
+args.run_script = args.run_script or 'Inference' #'Training' #'Inference'
 args.val_set = args.val_set or "Val" #"Test" #"Val"
 args.have_GT = args.have_gt or True
 
@@ -165,7 +165,7 @@ else:
 
 #--------------------------------------------------------------------------------------------------------------
 
-args.evaluate_detection = False #args.evaluate_detection or args.network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
+args.evaluate_detection = True #args.evaluate_detection or args.network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
 
 args.load_only_bbox_weights = True
 
