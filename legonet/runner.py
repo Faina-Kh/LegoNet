@@ -2,20 +2,16 @@ import os
 import sys
 import collections
 import numpy as np
-import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import config #config_new
+import config
 from legonet.eval import attribute_estimation_eval, detection_eval
-from legonet.eval import perObject_eval as both_eval
 from legonet.data_setup import build_data
-from legonet.my_dataloader import UnNormalizer
-
-from PIL import Image, ImageDraw, ImageFont
 import random
 import gc
 
+from legonet.inference import run_inference
 from legonet.legoNet_build import model_build
 from legonet import utils
 from legonet.model_setup import export_legacy_weights, load_requested_weights
@@ -58,89 +54,6 @@ def freeze_bn(model):
     for layer in model.modules():
         if isinstance(layer, nn.BatchNorm2d):
             layer.eval()
-
-
-def vis_bbox(dataloader_val,sampler_val,dataset_val, model, unnormalize):
-    font = ImageFont.truetype('arial.ttf', 14)
-    print()
-    #print('Per image inference time with visualization:')
-    for idx, data in enumerate(dataloader_val):
-
-        group_idx = sampler_val.groups[idx]
-        img_id = dataset_val.image_ids[group_idx[0]]
-
-        image_name = dataset_val.img_info[img_id]['name']
-
-        with torch.no_grad():
-            st = time.time()
-            if config.General.NETWORK_TYPE == config.NetworkType.detection:
-                detection_outputs = model([data['img'].to(config.General.device).float(), [data['bbox_annot'], None],
-                                             None]) #, False
-            elif config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting:
-                if 'points_annot' in data.keys():
-                    anns = [data['bbox_annot'], data['points_annot']]
-                else:
-                    anns = [data['bbox_annot'], None]
-
-                detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
-                    model([data['img'].to(config.General.device).float(), anns,
-                           torch.tensor(group_idx)])
-
-            scores, classification, transformed_anchors = detection_outputs
-
-            #print('Elapsed time: {:.3f} seconds'.format(time.time()-st))
-
-            idxs = np.where(scores.cpu() > config.Detection.min_score)
-            img_array = np.array(255 * unnormalize(data['img'][0, :, :, :])).copy()
-
-            img_array[img_array < 0] = 0
-            img_array[img_array > 255] = 255
-
-            img_array = np.transpose(img_array, (1, 2, 0))
-            # img_array = np.transpose(img_array, (2, 1, 0))
-
-            img = Image.fromarray(np.uint8(img_array))
-
-            draw = ImageDraw.Draw(img)
-
-            # draw predictions
-            for j in range(idxs[0].shape[0]):
-                ann = transformed_anchors[idxs[0][j], :]
-                x1 = int(ann[0])
-                y1 = int(ann[1])
-                x2 = int(ann[2])
-                y2 = int(ann[3])
-                label_name = dataset_val.labels[int(classification[idxs[0][j]])]
-                score = scores[idxs[0][j]]
-
-                draw.rectangle(((x1, y1), (x2, y2)), outline="red", width=config.DrawProperties.LINE_WIDTH)
-                # draw.text((x1, y2-20), "score = {:.3f}".format(score.item()), font=font)
-
-            # draw GT
-            annots = data["bbox_annot"].numpy()[0]
-            for ann in annots:
-                if ann[0]!= -1:
-                    x1 = int(ann[0])
-                    y1 = int(ann[1])
-                    x2 = int(ann[2])
-                    y2 = int(ann[3])
-                    label_name = dataset_val.labels[int(ann[4])]
-
-                    draw.rectangle(((x1, y1), (x2, y2)), outline="blue", width=config.DrawProperties.LINE_WIDTH)
-                    # draw.text((x1, y1+15), label_name, font=font)
-
-            # create image with size (100,100) and black background
-            button_img = Image.new('RGBA', (200, 20), "black")
-
-            # put text on image
-            button_draw = ImageDraw.Draw(button_img)
-            button_draw.text((0, 0), image_name, font=font)
-
-            # put button on source image in position (0, 0)
-            img.paste(button_img, (0, 0))
-
-            #img.show()
-            img.save(os.path.join(config.DrawProperties.save_img_path, image_name.split('.jpg')[0] + "_annot.jpg"))
 
 
 def print_args(args, file_path):
@@ -881,67 +794,13 @@ def _run(args=None):
 
         legonet.eval()
 
-    else: # Inference
-
-        legonet.training = False
-        legonet.eval()
-
-        if config.General.NETWORK_TYPE == config.NetworkType.detection or \
-                config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting:
-            # includes objects without points...
-            if config.General.NETWORK_TYPE == config.NetworkType.detection or args.evaluate_detection:
-                if args.evaluate_detection and args.have_GT:
-                    print()
-                    print("Object detection evaluation:\n")
-                    if args.eval_detection_params:
-                        average_precisions_all= detection_eval.evaluate_detection_params(dataset_val, dataloader_val, sampler_val, legonet,
-                                                                                              iou_threshold=config.Detection.iou_threshold_list,
-                                                                                              score_threshold=config.Detection.min_score_list,
-                                                                                              save_path= args.test_dir, show_PR_curve=True)
-
-                        print("iou, score, class_mAP")
-                        for i in range(len(average_precisions_all)):
-                            print(average_precisions_all[i])
-
-                    else:
-                        print(f"Results for min score: {config.Detection.min_score}, iou_threshold: {config.Detection.iou_threshold}")
-                        mAP, precision, recall = detection_eval.evaluateMAP_simple(dataset_val, dataloader_val, sampler_val,
-                                                                                legonet, score_threshold=config.Detection.min_score,
-                                                                                iou_threshold=config.Detection.iou_threshold,
-                                                                                generate_PR_curve=True)
-
-                        print(f'mAP = {mAP:.3f}, precision = {precision:.3f}, recall = {recall:.3f}')
-
-                        with open(args.txt_results, 'a') as f:
-                            f.write(f'mAP = {mAP:.3f}, precision = {precision:.3f}, recall = {recall:.3f}\n')
-                        if config.General.to_draw:
-                            vis_bbox(dataloader_val, sampler_val, dataset_val, legonet, unnormalize = UnNormalizer())
-                print()
-
-            if args.evaluate_both:
-                print("Attribute estimation evaluation:\n")
-
-                out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=config.General.to_draw,
-                                     verbose=True, draw_path = config.DrawProperties.save_img_path, print_to_files=True,
-                                     args = args)
-
-                if len(out)>0:
-                    rel_error = out[0]
-                else:
-                    rel_error = -1
-
-                utils.printf("rel error: %.3f \n", rel_error)
-
-        else:
-            utils.printf("Attribute estimation evaluation:\n")
-
-            if (config.General.NETWORK_TYPE == config.NetworkType.counting_reg or
-                    config.General.NETWORK_TYPE == config.NetworkType.counting_lean):
-
-                rel_error = attribute_estimation_eval.eval(dataloader_val, dataset_val, legonet, args) #counting_eval.eval
-
-                print("Final avg rel error:", rel_error)
-
-            print('done')
+    else:
+        run_inference(
+            args,
+            dataset_val,
+            dataloader_val,
+            sampler_val,
+            legonet,
+        )
 
 
