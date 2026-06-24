@@ -13,6 +13,8 @@ import unittest
 from types import SimpleNamespace
 from unittest import mock
 
+import numpy  # Keep NumPy loaded outside the temporary dependency-stub context.
+
 
 class FakeBatchNorm2d:
     """Minimal BatchNorm stand-in used to characterize ``freeze_bn``."""
