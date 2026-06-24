@@ -222,6 +222,7 @@ def _run(args=None):
 
         best_rel_error = 100.0
         best_mAP = 0.0
+        best_avg_rel_error = 100.0
         for epoch_num in range(args.epochs):
 
             legonet.train()
@@ -789,11 +790,6 @@ def _run(args=None):
 
                 if args.eval_in_train:
 
-                    #assert args.evaluate_detection or args.do_counting
-                    legonet.eval()
-
-                    print()
-
                     if args.evaluate_detection:
                         print()
                         print("Object detection evaluation: ")
@@ -805,61 +801,79 @@ def _run(args=None):
 
                         print(f'mAP = {mAP:.3f}, precision = {precision:.3f}, recall = {recall:.3f}')
 
-
-                    utils.printf(args.network_type + " evaluation: ")
-
+                    #assert args.evaluate_detection or args.do_counting
+                    legonet.eval()
+                    print()
                     if torch.cuda.is_available():
 
-                        training_dataset = legonet.dataset
-                        legonet.dataset = dataset_val
-                        try:
-                            out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=False,
-                                                 print_to_files=True, args=args)
-                        finally:
-                            legonet.dataset = training_dataset
+                        if args.choose_epoch_by_IoUavg:
+                            rel_error_list = []
+                            training_dataset = legonet.dataset
+                            legonet.dataset = dataset_val
+                            try:
+                                print(f'{args.network_type} evaluation with min_score = {config.Detection.min_score}: \n')
+                                for IoU in config.Detection.iou_threshold_list:
+                                    config.Detection.iou_threshold = IoU
+                                    print(f'iou_threshold = {IoU}: \n')
+
+                                    out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet,
+                                                             verbose = False, to_draw=False,
+                                                             print_to_files=True, args=args)
+                                    if len(out) > 0:
+                                        rel_error = out[0]
+                                    else:
+                                        rel_error = -1
+
+                                    utils.printf("rel error: %.3f\n", rel_error)
+                                    print()
+                                    if rel_error != -1:
+                                        rel_error_list.append(rel_error)
+
+                            finally:
+                                legonet.dataset = training_dataset
+
+                            avg_rel_error = np.mean(rel_error_list)
+                            if avg_rel_error < best_avg_rel_error:
+                                best_avg_rel_error = avg_rel_error
+                                print(f'Current best avg error*: {best_avg_rel_error:.3f}\n')
+                                remove_prevEpoch()
+                                torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
+                                                                              'legonet_epoch={}.pt'.format(epoch_num)))
 
 
-                        if len(out) > 0:
-                            rel_error = out[0]
                         else:
-                            rel_error = -1
+                            print(f'{args.network_type} evaluation, iou_threshold = {config.Detection.iou_threshold}, '
+                                  f'min_score = {config.Detection.min_score}: ')
 
-                        utils.printf("rel error: %.3f\n", rel_error)
+                            training_dataset = legonet.dataset
+                            legonet.dataset = dataset_val
+                            try:
+                                out = both_eval.eval(dataset_val, dataloader_val, sampler_val, legonet, to_draw=False,
+                                                     print_to_files=True, args=args)
+                            finally:
+                                legonet.dataset = training_dataset
+
+                            if len(out) > 0:
+                                rel_error = out[0]
+                            else:
+                                rel_error = -1
+
+                            utils.printf("rel error: %.3f\n", rel_error)
+                            print()
+
+                            if rel_error < best_rel_error:
+                                best_rel_error = rel_error
+                                print(f'Current best*: {best_rel_error:.3f}\n')
+                                remove_prevEpoch()
+                                torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
+                                                                              'legonet_epoch={}.pt'.format(epoch_num)))
 
                     else:
                         print("Iteration: " + iter_num + " | CUDA not available")
 
-                    if rel_error < best_rel_error:
-                        best_rel_error = rel_error
-                        print(f'Current best*: {best_rel_error:.3f}\n')
-                        remove_prevEpoch()
+                elif (epoch_num+1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
                         torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
                                                                       'legonet_epoch={}.pt'.format(epoch_num)))
-
-                elif (epoch_num+1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
-                        torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
-                                                                      'legonet_epoch={}.pt'.format(epoch_num)))#cont_
-
-                # if args.eval_in_train:
-                #     legonet.eval()
-                #     utils.printf("Start evaluation: ")
-                #
-                #     rel_error = attribute_estimation_eval.eval(dataloader_val, dataset_val, legonet, args)
-                #
-                #     print('Rel_error: {:.3f} | prev_best: {:.3f} \n'.format(rel_error, best_rel_error))
-                #
-                #     if rel_error < best_rel_error:
-                #         best_rel_error = rel_error
-                #         print(f'Current best*: {best_rel_error:.3f}\n')
-                #         remove_prevEpoch()
-                #         torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
-                #                                                       'legonet_epoch={}.pt'.format(epoch_num)))  # checkpoints\\
-                #
-                #         print(f'Current best*: {best_rel_error:.3f}\n')
-
-                elif (epoch_num+1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
-                        torch.save(legonet.state_dict(), os.path.join(config.General.weights_dir,
-                                                                      'legonet_epoch={}.pt'.format(epoch_num)))#cont_
 
             scheduler.step(np.mean(epoch_loss))
 

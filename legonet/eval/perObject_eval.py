@@ -784,11 +784,11 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             gt_counts=[]
 
             state = initiate_global_dicts(state, image_name)
-
-            printf(
-                "##############################################################################################\n")
-            printf("image: %s\n", image_name)
-            printf("##############################################################################################\n")
+            if verbose:
+                printf(
+                    "##############################################################################################\n")
+                printf("image: %s\n", image_name)
+                printf("##############################################################################################\n")
 
             if args.have_GT:
 
@@ -808,10 +808,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                 if len(box_annotations_withPoints)==0 and len(box_annotations_all) > 0:
                     if verbose:
-                        # printf(
-                        #     "##############################################################################################\n")
-                        # printf("image: %s\n", image_name)
-                        # printf("##############################################################################################\n")
                         printf("Has gt boxes but no gt points in any gt box...\n")
                         printf("Skipping this image...\n")
                         print()
@@ -821,11 +817,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                 if len(box_annotations_all) == 0:
                     if verbose:
-                        # printf(
-                        #     "##############################################################################################\n")
-                        # printf("image: %s\n", image_name)
-                        # printf(
-                        #     "##############################################################################################\n")
                         printf("No gt boxes ...\n")
                         print()
 
@@ -1170,11 +1161,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
             if np.sum(crops_count_GT)==0 and len(bbox_pred)>0: #sample_anns is None
                 if verbose and args.have_GT:
-                    # printf(
-                    #     "##############################################################################################\n")
-                    # printf("image: %s\n", image_name)
-                    # printf(
-                    #     "##############################################################################################\n")
                     printf("No gt points in any predicted crop...\n")
                     print()
 
@@ -1415,14 +1401,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                         state['all_predicted_color'].append(np.round(color_pred))
                         state['all_orig_GT_color'].append(orig_color_GT)
-
-
-
-                    # if verbose:
-                    #     if len(crops_count_GT)>0 or (not args.have_GT and len(estimation_outputs) >0) :
-                    #         printf("#######################################################################################\n")
-                    #         printf("image: %s\n", image_name)
-                    #         printf("#######################################################################################\n")
 
                     maps_idx=0
                     for i in range(len(crops_count_GT)):
@@ -2116,8 +2094,8 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     writer.writerow(myrow)
 
         if not is_roots_2:
-            count_points_in_crop = getattr(model, "count_points_in_crop", False)
-            final_rel_error = crops_avg_rel_error if count_points_in_crop else orig_avg_rel_error #orig_avg_rel_error #
+            #count_points_in_crop = getattr(model, "count_points_in_crop", False)
+            final_rel_error = orig_avg_rel_error # crops_avg_rel_error if count_points_in_crop else orig_avg_rel_error #orig_avg_rel_error #
             out = [final_rel_error,
                    state['gt_objects_withGTpoints'],
                    state['found_orig_objects'],
