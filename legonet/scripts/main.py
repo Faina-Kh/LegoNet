@@ -145,8 +145,8 @@ args.gpu_num = args.gpu_num or '0'
 
 args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = args.dataset_name or "grapes" #"grapes" #"roots"
-args.network_type = args.network_type or "both" # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
-args.estimate_type = args.estimate_type or "reg_fpn_p3_p7_min_sig" #DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "reg_fpn_p3_p7_min_sig")
+args.network_type = args.network_type or "bbox_detection" # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
+args.estimate_type = args.estimate_type or  DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "reg_fpn_p3_p7_min_sig")
 args.to_draw = args.to_draw or False
 
 args.run_script = args.run_script or 'Inference' #'Training' #'Inference'
@@ -165,22 +165,31 @@ if args.run_script == 'Training':
     args.current_results_dir = args.current_results_dir or (args.network_type + type_name + 'Training'+
                                                             '_IoUavg_score_b') #'_epoch_by_IoUavg') #+'_gt count by points')
 else:
-    args.current_results_dir = args.current_results_dir or (args.network_type +'_'+ type_name + args.val_set +
-                                                            '_by_IoUavg_'+ 'new_84' ) #'_'+time_stemp
+    args.current_results_dir = args.current_results_dir or (args.network_type + args.val_set) # + type_name # +'_by_IoUavg_'+ 'new_84' ) #'_'+time_stemp
 
 args.evaluate_detection = True #args.evaluate_detection or args.network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
 
 args.load_only_bbox_weights = False
 
+#---------------------------------------------------------------------------------------------------------------
+args.weights_type = args.weights_type or 'partial_weights' # 'full_model_weights'  #'partial_weights'
+assert args.weights_type == 'full_model_weights' or args.weights_type == 'partial_weights'
+
 #--------------------------------------------------------------------------------------------------------------
+# ToDo - add as constrains to streamlit:
+if args.network_type == "bbox_detection":
+    args.load_only_bbox_weights = True
+
+if args.network_type == "counting_lean" or args.network_type == "counting_reg":
+    args.weights_type = 'full_model_weights'
+
+#--------------------------------------------------------------------------------------------------------------
+
 args.evaluate_both = args.network_type in BOTH_NETWORKS
 
 args.load_weights = args.load_weights or True
 
 args.save_from_model_file = not args.load_weights # args.save_from_model_file or True
-
-args.weights_type = args.weights_type or 'partial_weights' # 'full_model_weights'  #'partial_weights'
-assert args.weights_type == 'full_model_weights' or args.weights_type == 'partial_weights'
 
 if args.weights_type == 'full_model_weights':
     args.load_full_model_weights = True
@@ -191,7 +200,7 @@ args.load_partial_weights = not args.load_full_model_weights
 
 args.load_bbox_det_weights = True
 
-if args.load_only_bbox_weights:
+if args.load_only_bbox_weights or args.network_type in ("counting_lean", "counting_reg"):
     args.load_per_object_counting_weights = False
     args.load_per_object_attributes_weights = False
 
@@ -503,7 +512,7 @@ if args.network_type == "counting_lean" or args.network_type == "counting_reg":
 
 # "D:\\from 16\\more_counting_Res\\more_counting_Res\\legonet_epoch=249.pt" #cont_legonet_epoch=14.pt"
 
-if args.load_bbox_det_weights:
+if args.load_bbox_det_weights and args.network_type in INCLUDE_BBOX_DETECTION:
     args.bbox_detection_weights_file = get_weights_file(args.bbox_detection_weights_dir)
     # args.partial_weights_dir = os.path.join(args.myExpPath, "Weights",
     #                                         "Prev_model_files\\Three_datasets_detection\\2023-05-20_230659",
