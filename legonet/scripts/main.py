@@ -141,7 +141,7 @@ NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "counting_lean", "co
 ########################################################################################################################
 # user definitions
 ########################################################################################################################
-args.gpu_num = args.gpu_num or '0'
+args.gpu_num = args.gpu_num or '1'
 
 args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = args.dataset_name or "grapes" #"grapes" #"roots"
@@ -156,18 +156,18 @@ args.have_GT = args.have_gt or True
 args.num_of_epochs = args.num_of_epochs or 300
 type_name = '_KP_' if args.estimate_type == "withKeyPoints" else "_Reg_"
 
-args.choose_epoch_by_IoUavg = True
-
 if args.run_script == 'Training':
-    args.current_results_dir = args.current_results_dir or (args.network_type + type_name + 'Training'+'_epoch_by_IoUavg') #+'_gt count by points')
+    args.current_results_dir = args.current_results_dir or (args.network_type + type_name + 'Training'+ '_check_IoUavg_score_0.05') #'_epoch_by_IoUavg') #+'_gt count by points')
 else:
-    args.current_results_dir = args.current_results_dir or (args.network_type + type_name + args.val_set + 'epoch_by_IoUavg'+ 'new_' ) #'_'+time_stemp
+    args.current_results_dir = args.current_results_dir or (args.network_type + type_name + args.val_set + 'epoch_by_IoUavg_'+ 'new_84' ) #'_'+time_stemp
 
 #--------------------------------------------------------------------------------------------------------------
+args.choose_epoch_by_IoUavg = True
+config.Detection.min_score = 0.05 # not 0.7
 
 args.evaluate_detection = False #args.evaluate_detection or args.network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
 
-args.load_only_bbox_weights = True
+args.load_only_bbox_weights = False
 
 #--------------------------------------------------------------------------------------------------------------
 args.evaluate_both = args.network_type in BOTH_NETWORKS

@@ -36,7 +36,7 @@ class Detection:
     iou_threshold = 0.5
     min_score = 0.7 #0.05 #0.7
     iou_threshold_list = [0.3, 0.5, 0.7]
-    min_score_list = [0.7]
+    min_score_list = []
     change_anchors = False
     ratios=None
 
