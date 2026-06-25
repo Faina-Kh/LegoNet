@@ -405,6 +405,8 @@ def evaluateMAP_simple(generator,
                                          score_threshold = score,
                                          max_detections = max_detections)
     average_precisions = {}
+    class_precisions = []
+    class_recalls = []
 
     for label in range(generator.num_classes()):
         false_positives = np.zeros((0,))
@@ -462,6 +464,12 @@ def evaluateMAP_simple(generator,
         false_positives = false_positives[indices]
         true_positives = true_positives[indices]
 
+        if scores.shape[0] == 0:
+            average_precisions[label] = 0, num_annotations
+            class_precisions.append(0.0)
+            class_recalls.append(0.0)
+            continue
+
         # compute false positives and true positives
         true_positives = np.cumsum(true_positives)
         false_positives = np.cumsum(false_positives)
@@ -469,6 +477,8 @@ def evaluateMAP_simple(generator,
         # compute recall and precision
         recall = true_positives / num_annotations
         precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
+        class_precisions.append(float(precision[-1]))
+        class_recalls.append(float(recall[-1]))
 
         # compute average precision
         average_precision = _compute_ap(recall, precision)
@@ -501,5 +511,8 @@ def evaluateMAP_simple(generator,
     #     print('th={}, pr={}, rc={}'.format(th, pr, rc))
 
 
-    return np.mean(mAP), precision[-1], recall[-1] #np.mean(precision), np.mean(recall) #np.mean(mAP), precision, recall #  None, None precision, recall
+    final_precision = float(np.mean(class_precisions)) if class_precisions else 0.0
+    final_recall = float(np.mean(class_recalls)) if class_recalls else 0.0
+
+    return np.mean(mAP), final_precision, final_recall #np.mean(precision), np.mean(recall) #np.mean(mAP), precision, recall #  None, None precision, recall
 

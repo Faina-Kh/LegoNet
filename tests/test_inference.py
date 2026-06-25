@@ -39,15 +39,21 @@ class InferenceTests(unittest.TestCase):
             UnNormalizer=mock.Mock(),
         )
         utils_module = _module("legonet.utils", printf=mock.Mock())
+        import legonet
+
         sys.modules.pop("legonet.inference", None)
-        with mock.patch.dict(
-            sys.modules,
-            {
-                "torch": torch,
-                "legonet.eval": evaluation_package,
-                "legonet.my_dataloader": dataloader_module,
-                "legonet.utils": utils_module,
-            },
+        with (
+            mock.patch.dict(
+                sys.modules,
+                {
+                    "torch": torch,
+                    "legonet.eval": evaluation_package,
+                    "legonet.my_dataloader": dataloader_module,
+                    "legonet.utils": utils_module,
+                },
+            ),
+            mock.patch.object(legonet, "eval", evaluation_package, create=True),
+            mock.patch.object(legonet, "utils", utils_module, create=True),
         ):
             cls.inference = importlib.import_module("legonet.inference")
 
