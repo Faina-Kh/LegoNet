@@ -202,6 +202,32 @@ def _evaluate_combined_epoch(
             args,
             config.Detection.iou_threshold_list,
         )
+        for measurement in sweep.measurements:
+            relative_error = (
+                f"{measurement.relative_error:.6f}"
+                if measurement.relative_error is not None
+                else "n/a"
+            )
+            recall = (
+                f"{measurement.recall:.6f}"
+                if measurement.recall is not None
+                else "n/a"
+            )
+            precision = (
+                f"{measurement.precision:.6f}"
+                if measurement.precision is not None
+                else "n/a"
+            )
+            matched_objects = (
+                str(measurement.matched_objects)
+                if measurement.matched_objects is not None
+                else "n/a"
+            )
+            print(
+                f"IoU {measurement.iou_threshold:.2f}: relative_error={relative_error}, "
+                f"matched_objects={matched_objects}, recall={recall}, "
+                f"precision={precision}"
+            )
         average_error = sweep.average_relative_error
         if average_error is not None and average_error < best.average_relative_error:
             best.average_relative_error = average_error
