@@ -22,10 +22,13 @@ class DetectionMetrics:
 
 @dataclass(frozen=True)
 class IoURelativeError:
-    """Relative error measured at one IoU threshold."""
+    """Attribute error and detection diagnostics at one IoU threshold."""
 
     iou_threshold: float
     relative_error: Optional[float]
+    matched_objects: Optional[int] = None
+    recall: Optional[float] = None
+    precision: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -63,6 +66,21 @@ def _relative_error(output: Sequence[Any]) -> Optional[float]:
     if len(output) == 0 or output[0] == -1:
         return None
     return output[0]
+
+
+def _iou_measurement(
+    iou_threshold: float,
+    output: Sequence[Any],
+) -> IoURelativeError:
+    """Map evaluator output to one threshold's error and detection diagnostics."""
+    has_detection_diagnostics = len(output) >= 5
+    return IoURelativeError(
+        iou_threshold=iou_threshold,
+        relative_error=_relative_error(output),
+        matched_objects=int(output[2]) if has_detection_diagnostics else None,
+        recall=float(output[3]) if has_detection_diagnostics else None,
+        precision=float(output[4]) if has_detection_diagnostics else None,
+    )
 
 
 def evaluate_detection(
@@ -132,12 +150,7 @@ def evaluate_combined_iou_sweep(
                     print_to_files=True,
                     args=args,
                 )
-                measurements.append(
-                    IoURelativeError(
-                        iou_threshold=iou_threshold,
-                        relative_error=_relative_error(output),
-                    )
-                )
+                measurements.append(_iou_measurement(iou_threshold, output))
     finally:
         config.Detection.iou_threshold = original_iou_threshold
 

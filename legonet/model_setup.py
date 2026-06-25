@@ -27,7 +27,6 @@ def _load_partial_weights(model: Any, args: Any) -> None:
         )
 
         if args.network_type == "bbox_detection":
-            model.load_state_dict(bbox_state, strict=False)
             load_submodule_weights(
                 model,
                 bbox_state,

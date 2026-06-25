@@ -51,7 +51,11 @@ class TrainingEvaluationTests(unittest.TestCase):
         training_dataset = object()
         validation_dataset = object()
         model = mock.Mock(dataset=training_dataset)
-        self.evaluation.both_eval.eval.side_effect = [(0.2,), [], (0.4,)]
+        self.evaluation.both_eval.eval.side_effect = [
+            (0.2, 10, 7, 0.7, 0.8),
+            [],
+            (0.4, 10, 5, 0.5, 0.75),
+        ]
 
         result = self.evaluation.evaluate_combined_iou_sweep(
             validation_dataset,
@@ -63,6 +67,10 @@ class TrainingEvaluationTests(unittest.TestCase):
         )
 
         self.assertAlmostEqual(result.average_relative_error, 0.3)
+        self.assertEqual(result.measurements[0].matched_objects, 7)
+        self.assertEqual(result.measurements[0].recall, 0.7)
+        self.assertEqual(result.measurements[0].precision, 0.8)
+        self.assertIsNone(result.measurements[1].matched_objects)
         self.assertIs(model.dataset, training_dataset)
         self.assertEqual(config.Detection.iou_threshold, 0.5)
 

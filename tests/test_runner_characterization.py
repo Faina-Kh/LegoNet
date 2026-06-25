@@ -209,7 +209,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
             "detector.pt",
             map_location=self.model_setup.config.General.device,
         )
-        model.load_state_dict.assert_called_once_with(state_dict, strict=False)
+        model.load_state_dict.assert_not_called()
         self.model_setup.load_submodule_weights.assert_called_once_with(
             model,
             state_dict,
