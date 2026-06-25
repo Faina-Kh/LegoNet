@@ -266,6 +266,37 @@ def choose_boxes_by_IoUandPrc(detections, annotations, d_scores):
             #print('No relevant detections...\n')
             return []
 
+
+def _assign_detection_to_gt(detection, annotations, detected_annotations, iou_threshold):
+    """Match one predicted box to an unmatched GT box by IoU threshold.
+
+    Args:
+        detection: Predicted box with at least ``x1, y1, x2, y2`` coordinates.
+        annotations: GT boxes with at least ``x1, y1, x2, y2`` coordinates.
+        detected_annotations: GT annotation indices already matched by higher-score boxes.
+        iou_threshold: Minimum IoU required for a true detection.
+
+    Returns:
+        tuple: ``(assigned_annotation, max_overlap, is_new_match)`` where
+        ``assigned_annotation`` is ``None`` when no annotations are available.
+    """
+    if len(annotations) == 0:
+        return None, -1.0, False
+
+    overlaps = compute_overlap(
+        np.expand_dims(np.asarray(detection), axis=0),
+        np.asarray(annotations),
+    )
+    assigned_annotation = int(np.argmax(overlaps, axis=1)[0])
+    max_overlap = float(overlaps[0, assigned_annotation])
+    is_new_match = (
+        max_overlap >= iou_threshold
+        and assigned_annotation not in detected_annotations
+    )
+
+    return assigned_annotation, max_overlap, is_new_match
+
+
 def view_points_on_img(img, point_anns):
 
     for p in point_anns:
@@ -1221,21 +1252,24 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     max_overlap_array = []
 
                     for d in adjusted_crops_orig_boxes:
-                        overlaps = compute_overlap(np.expand_dims(d, axis=0), np.array(box_annotations_withPoints))
-                        assigned_annotation = np.argmax(overlaps, axis=1)
-                        max_overlap = overlaps[0, assigned_annotation]
+                        assigned_annotation, max_overlap, is_new_match = _assign_detection_to_gt(
+                            d,
+                            box_annotations_withPoints,
+                            detected_annotations,
+                            config.Detection.iou_threshold,
+                        )
 
                         state['detections_data_any_crop'][image_name]['score'].append(float(d[4]))
-                        state['detections_data_any_crop'][image_name]['max_overlap'].append(max_overlap[0])
+                        state['detections_data_any_crop'][image_name]['max_overlap'].append(max_overlap)
 
-                        if max_overlap >= config.Detection.iou_threshold and assigned_annotation not in detected_annotations:
+                        if is_new_match:
                             detected_annotations.append(assigned_annotation)
                             max_overlap_array.append(max_overlap)
                             state['found_orig_objects'] += 1
 
                             state['detections_data_any_crop'][image_name]['label'].append(1)
 
-                            gt_box_id = box_annotations_withPoints[assigned_annotation[0]][5]
+                            gt_box_id = box_annotations_withPoints[assigned_annotation][5]
 
                             state['detections_data_any_crop'][image_name]['gt_box_id'].append(gt_box_id)
 
