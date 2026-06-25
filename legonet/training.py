@@ -229,6 +229,7 @@ def _evaluate_combined_epoch(
                 f"precision={precision}"
             )
         average_error = sweep.average_relative_error
+        print(f"average_error={average_error:.3f}\n")
         if average_error is not None and average_error < best.average_relative_error:
             best.average_relative_error = average_error
             save_epoch_checkpoint(model, epoch, replace_existing=True)

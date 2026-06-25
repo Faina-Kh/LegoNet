@@ -1837,12 +1837,12 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                     print()
 
-                    print("====================================================================================================\n")
-                    printf("General Stats\n")
-                    printf("gt_objects_withGTpoints = %d\n", state['gt_objects_withGTpoints'])
-                    printf("found_orig_objects_withPoints = %d (%.2f%% of gt objects [recall])\n", state['found_orig_objects'],
-                           100 * state['found_orig_objects'] / state['gt_objects_withGTpoints'])
-                    printf("precision = %.3f\n\n", precision_det)
+            print("====================================================================================================\n")
+            printf("General Stats\n")
+            printf("gt_objects_withGTpoints = %d\n", state['gt_objects_withGTpoints'])
+            printf("found_orig_objects_withPoints = %d (%.2f%% of gt objects [recall])\n", state['found_orig_objects'],
+                   100 * state['found_orig_objects'] / state['gt_objects_withGTpoints'])
+            printf("precision = %.3f\n\n", precision_det)
 
             if not is_roots_2:
                 printf("====================================================================================================\n")

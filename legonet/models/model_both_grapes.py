@@ -67,9 +67,9 @@ class PerObjectEstimate(nn.Module):
         for param in self.bbox_detection.where.parameters():
             param.requires_grad = False
 
-    def forward(self, inputs, count_points_in_crop = True):
+    def forward(self, inputs): #, count_points_in_crop = True):
 
-        self.count_points_in_crop = count_points_in_crop
+        #self.count_points_in_crop = count_points_in_crop
 
         img_batch, annotations, group_idx = inputs
 
@@ -155,7 +155,7 @@ class PerObjectEstimate(nn.Module):
 
                 # Get gt points' annotations when maps are needed or crop-count GT is requested.
                 points = None
-                if len(counting_anns[0]) > 1 and self.count_points_in_crop: # have key point annotations
+                if len(counting_anns[0]) > 1: # and self.count_points_in_crop: # have key point annotations
                     point_anns = self.dataset.image_data_points_location[img_info['name']]
                     point_anns_copy = []
                     for d in point_anns:
@@ -204,7 +204,7 @@ class PerObjectEstimate(nn.Module):
 
                     if annotations is not None:
 
-                        if points is not None and self.count_points_in_crop:
+                        if points is not None: # and self.count_points_in_crop:
                             points_to_view = []
                             current_points = points[b]
                             if len(current_points['x'])>0:
@@ -239,7 +239,7 @@ class PerObjectEstimate(nn.Module):
 
             #num_of_boxes = bbox_pred_adjusted.shape[0]
             # ToDo - delete relevant points in crop and use the gt value of the corresponding gt bbox????
-            if points is not None and self.count_points_in_crop: #self.training:
+            if points is not None: # and self.count_points_in_crop: #self.training:
                 sample_list = self.getitem(bbox_crops=bbox_crops_list, points=relevant_points_anns)
 
             else:
@@ -268,7 +268,7 @@ class PerObjectEstimate(nn.Module):
 
             sample_anns = myDataloader.kcsv_collater_2(sample_list)
 
-            if annotations is not None and self.count_points_in_crop: #self.training or (not self.training and annotations is not None): # and points is not None):
+            if annotations is not None: # and self.count_points_in_crop: #self.training or (not self.training and annotations is not None): # and points is not None):
                     corrected_counting_anns = sample_anns['points_annot']
                     corrected_counting_anns = [a.to(config.General.device) for a in corrected_counting_anns]
 

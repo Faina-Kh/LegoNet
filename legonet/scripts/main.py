@@ -141,7 +141,7 @@ NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "counting_lean", "co
 ########################################################################################################################
 # user definitions
 ########################################################################################################################
-args.gpu_num = args.gpu_num or '1'
+args.gpu_num = args.gpu_num or '0'
 
 args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = args.dataset_name or "grapes" #"grapes" #"roots"
@@ -149,23 +149,26 @@ args.network_type = args.network_type or "both" # "counting_lean"  #"counting_re
 args.estimate_type = args.estimate_type or "reg_fpn_p3_p7_min_sig" #DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "reg_fpn_p3_p7_min_sig")
 args.to_draw = args.to_draw or False
 
-args.run_script = args.run_script or 'Training' #'Training' #'Inference'
-args.val_set = args.val_set or "Val" #"Test" #"Val"
+args.run_script = args.run_script or 'Inference' #'Training' #'Inference'
+args.val_set = args.val_set or "Test" #"Test" #"Val"
 args.have_GT = args.have_gt or True
 
 args.num_of_epochs = args.num_of_epochs or 300
 type_name = '_KP_' if args.estimate_type == "withKeyPoints" else "_Reg_"
 
-if args.run_script == 'Training':
-    args.current_results_dir = args.current_results_dir or (args.network_type + type_name + 'Training'+ '_check_IoUavg_score_0.05') #'_epoch_by_IoUavg') #+'_gt count by points')
-else:
-    args.current_results_dir = args.current_results_dir or (args.network_type + type_name + args.val_set + 'epoch_by_IoUavg_'+ 'new_84' ) #'_'+time_stemp
-
-#--------------------------------------------------------------------------------------------------------------
+#################################################
 args.choose_epoch_by_IoUavg = True
-config.Detection.min_score = 0.05 # not 0.7
+#config.Detection.min_score = 0.05 # not 0.7
+#################################################
 
-args.evaluate_detection = False #args.evaluate_detection or args.network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
+if args.run_script == 'Training':
+    args.current_results_dir = args.current_results_dir or (args.network_type + type_name + 'Training'+
+                                                            '_IoUavg_score_b') #'_epoch_by_IoUavg') #+'_gt count by points')
+else:
+    args.current_results_dir = args.current_results_dir or (args.network_type +'_'+ type_name + args.val_set +
+                                                            '_by_IoUavg_'+ 'new_84' ) #'_'+time_stemp
+
+args.evaluate_detection = True #args.evaluate_detection or args.network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
 
 args.load_only_bbox_weights = False
 
@@ -186,11 +189,7 @@ elif args.weights_type == 'partial_weights':
 
 args.load_partial_weights = not args.load_full_model_weights
 
-## To add as options for the user or not?
 args.load_bbox_det_weights = True
-# args.load_per_object_counting_weights = True
-# args.load_per_object_attributes_weights = True
-
 
 if args.load_only_bbox_weights:
     args.load_per_object_counting_weights = False

@@ -539,7 +539,6 @@ class FindModule(nn.Module):
         elif self.task == 'attribute_estimation':
             self.focalLoss = modular_losses.FindKeyPointsFocalLoss()
 
-
         if self.task == 'attribute_estimation':
             if not self.Find_for_count: #if config.General.binary_model: #if config.General.with_new_layers:
                 self.sigmoid_for_binary = torch.nn.Sigmoid()

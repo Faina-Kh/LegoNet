@@ -151,6 +151,7 @@ def evaluate_combined_iou_sweep(
                     args=args,
                 )
                 measurements.append(_iou_measurement(iou_threshold, output))
+            print()
     finally:
         config.Detection.iou_threshold = original_iou_threshold
 
