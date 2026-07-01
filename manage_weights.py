@@ -190,7 +190,7 @@ def save_partial_weights(args, model, file_model, tasks = [], output_name=""):
         torch.save(clean_state_dict, save_path)
 
 
-def load_submodule_weights(model, state_dict, submodule_names, strict=True, verbose=False):
+def load_submodule_weights(model, state_dict, submodule_names, strict=True, verbose=True):
     """
     Load weights of a specific submodule from a full state_dict.
 
