@@ -125,9 +125,9 @@ def _load_full_weights(model: Any, args: Any) -> None:
     print("Check keys:")
 
     module_names = None
-    if args.network_type == "counting_lean":
+    if args.network_type == "per_image_estimation_keypoints":
         module_names = ["backbone", "find", "estimator"]
-    elif args.network_type == "counting_reg":
+    elif args.network_type == "per_image_estimation_regression":
         module_names = ["backbone", "estimator"]
     elif args.network_type == "both":
         if args.estimate_type == "withKeyPoints":
@@ -216,7 +216,7 @@ def export_legacy_weights(model: Any, args: Any) -> None:
             tasks=["bbox_detection", "per_object_attributes"],
             output_name=args.output_name,
         )
-    elif args.network_type in ("counting_lean", "counting_reg"):
+    elif args.network_type in ("per_image_estimation_keypoints", "per_image_estimation_regression"):
         save_partial_weights(
             args,
             model,

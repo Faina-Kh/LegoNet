@@ -10,13 +10,13 @@ import streamlit as st
 DATASET_OPTIONS = ("roots", "grapes")
 NETWORK_OPTIONS = (
     "bbox_detection",
-    "counting_lean",
-    "counting_reg",
+    "per_image_estimation_keypoints",
+    "per_image_estimation_regression",
     "both",
     "both_for_roots_2",
     "both_Back2bFind2b",
 )
-NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "counting_lean", "counting_reg", "both_for_roots_2",
+NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_estimation_keypoints", "per_image_estimation_regression", "both_for_roots_2",
                                           "both_Back2bFind2b"),
                                 'grapes': ("bbox_detection", "both")
                                 }
@@ -27,8 +27,8 @@ OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS = ("both", "both_for_roots_2", "both_Bac
 MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection")
 ESTIMATE_SELECT_NETWORK_OPTIONS = ("both", "both_for_roots_2")
 DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
-    "counting_lean": "withKeyPoints",
-    "counting_reg": "reg_fpn_p3_p7_min_sig",
+    "per_image_estimation_keypoints": "withKeyPoints",
+    "per_image_estimation_regression": "reg_fpn_p3_p7_min_sig",
     "both_Back2bFind2b": "withKeyPoints"
 }
 WEIGHTS_TYPES = ('full_model_weights', 'partial_weights')

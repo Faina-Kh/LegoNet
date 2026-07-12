@@ -10,10 +10,14 @@ class DrawProperties:
 
 class NetworkType(enum.Enum):
     detection = 1
-    counting_lean = 2
+    per_image_estimation_keypoints = 2
     detection_and_counting = 3
-    counting_reg = 4
-    counting_lean_multiple_out = 5
+    per_image_estimation_regression = 4
+
+
+    # Deprecated aliases retained for compatibility with existing callers.
+    counting_lean = per_image_estimation_keypoints
+    counting_reg = per_image_estimation_regression
 
 
 class General:

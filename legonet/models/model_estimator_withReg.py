@@ -9,7 +9,8 @@ class ImageEstimatorWithReg(nn.Module): # CountingReg
 
     The model composes a shared ResNet-FPN backbone from ``legos`` with the
     regression-based attribute estimator. It preserves the legacy
-    ``counting_reg`` training and inference outputs expected by ``runner.py``.
+    ``per_image_estimation_regression`` training and inference outputs expected
+    by ``runner.py``.
     """
 
     def __init__(

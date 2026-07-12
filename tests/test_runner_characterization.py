@@ -161,7 +161,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
             "load_full_model_weights": False,
             "save_from_model_file": False,
             "myExpPath": "experiment",
-            "network_type": "counting_reg",
+            "network_type": "per_image_estimation_regression",
             "estimate_type": "reg_fpn_p3_p7_min_sig",
             "freeze_detection": False,
         }
@@ -339,7 +339,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
         args = SimpleNamespace(
             load_weights=False,
             save_from_model_file=False,
-            network_type="counting_reg",
+            network_type="per_image_estimation_regression",
             freeze_detection=False,
             run_script="Training",
         )

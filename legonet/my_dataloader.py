@@ -595,12 +595,8 @@ class csv_LCCDataset(Dataset):
                 annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_4_R)
                 annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_5_R)
 
-                if config.General.NETWORK_TYPE == config.NetworkType.counting_lean_multiple_out:
-                    sample['annot'] = [sample['annot'][0][0:4][0],  #roots_num, TRL, roots_dia_mean, roots_dia_std,
-                                       annotation_map_1, annotation_map_2, annotation_map_3, annotation_map_4,
-                                       annotation_map_5]
-                else:
-                    sample['annot'] = [annotations_group_num_of_leaves[0], annotation_map_1, annotation_map_2, annotation_map_3, annotation_map_4, annotation_map_5]
+
+                sample['annot'] = [annotations_group_num_of_leaves[0], annotation_map_1, annotation_map_2, annotation_map_3, annotation_map_4, annotation_map_5]
             # plt.imsave(draw_path + '/' + 'ann_map_'+str(1)+ '_anno.png', annotation_map_1)
 
 
@@ -1393,11 +1389,7 @@ def LCC_collater(data):
 
     if have_GT:
         for i in range(len(annots)):
-            if config.General.NETWORK_TYPE != config.NetworkType.counting_lean_multiple_out:
-                #keep only the leaf count, without the class indicator
-                annots[i][0] = np.asarray([annots[i][0][0]])
-            else:
-                annots[i][0] = np.asarray([annots[i][0][0:4]], dtype=np.float64)
+            annots[i][0] = np.asarray([annots[i][0][0:4]], dtype=np.float64)
 
 
     for i in range(len(imgs)):
@@ -1421,27 +1413,26 @@ def LCC_collater(data):
     if have_GT:
 
         if len(annots) > 1:
-            if lean_version != 'version_3':
-                max_num_annots = max(len(annot) for annot in annots)
+            max_num_annots = max(len(annot) for annot in annots)
 
-                if max_num_annots > 0:
-                    map_widths = [int(annot[1].shape[0]) for annot in annots]
-                    map_heights = [int(annot[1].shape[1]) for annot in annots]
-                    max_map_width = np.array(map_widths).max()
-                    max_map_height = np.array(map_heights).max()
+            if max_num_annots > 0:
+                map_widths = [int(annot[1].shape[0]) for annot in annots]
+                map_heights = [int(annot[1].shape[1]) for annot in annots]
+                max_map_width = np.array(map_widths).max()
+                max_map_height = np.array(map_heights).max()
 
-                    annot_padded = torch.ones((len(annots), max_num_annots, max_map_width, max_map_height)) * -1
+                annot_padded = torch.ones((len(annots), max_num_annots, max_map_width, max_map_height)) * -1
 
-                if max_num_annots > 0:
-                        for idx, annot in enumerate(annots):
-                            if len(annot) > 0:
-                                annot[0] = torch.ones((int(annot[1].shape[0]), int(annot[1].shape[1])), dtype=torch.double) * annot[0].data
-                                annot_padded[idx, 0, :annot[0].shape[0], :annot[0].shape[1]] = annot[0]
-                                for j in range(1, len(annot)):
-                                    annot_padded[idx, j, :annot[j].shape[0], :annot[j].shape[1]] = annot[j]
+            if max_num_annots > 0:
+                    for idx, annot in enumerate(annots):
+                        if len(annot) > 0:
+                            annot[0] = torch.ones((int(annot[1].shape[0]), int(annot[1].shape[1])), dtype=torch.double) * annot[0].data
+                            annot_padded[idx, 0, :annot[0].shape[0], :annot[0].shape[1]] = annot[0]
+                            for j in range(1, len(annot)):
+                                annot_padded[idx, j, :annot[j].shape[0], :annot[j].shape[1]] = annot[j]
 
 
-                return {'img': padded_imgs, 'annot': annot_padded, 'scale': scales}
+            return {'img': padded_imgs, 'annot': annot_padded, 'scale': scales}
         else:
             new_annots = []
 

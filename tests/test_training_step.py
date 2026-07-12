@@ -68,14 +68,14 @@ class TrainingStepTests(unittest.TestCase):
     def test_counting_keypoint_loss(self):
         result = self.step.combine_losses(
             {"l1_estimation": FakeTensor(2), "maps": FakeTensor(1)},
-            self.args("counting_lean"),
+            self.args("per_image_estimation_keypoints"),
         )
         self.assertEqual(result.total.item(), 5)
 
     def test_counting_regression_loss(self):
         result = self.step.combine_losses(
             {"reg_estimation": FakeTensor(3)},
-            self.args("counting_reg"),
+            self.args("per_image_estimation_regression"),
         )
         self.assertEqual(result.total.item(), 6)
 

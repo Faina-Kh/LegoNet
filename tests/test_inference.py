@@ -139,7 +139,7 @@ class InferenceTests(unittest.TestCase):
 
     def test_counting_inference_dispatches_image_evaluation(self):
         """Counting inference uses the per-image attribute evaluator."""
-        config.General.NETWORK_TYPE = config.NetworkType.counting_reg
+        config.General.NETWORK_TYPE = config.NetworkType.per_image_estimation_regression
         args = SimpleNamespace()
         model = mock.Mock()
         self.inference.attribute_estimation_eval.eval.return_value = 0.4
