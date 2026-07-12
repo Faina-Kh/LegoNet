@@ -10,6 +10,68 @@ from legonet.eval import perObject_eval
 class PerObjectEvaluationTests(unittest.TestCase):
     """Characterize bbox-to-GT matching used before attribute evaluation."""
 
+    def test_prepare_gt_boxes_keeps_all_boxes_and_matches_annotated_boxes(self):
+        """GT preparation keeps all boxes while selecting boxes with annotations."""
+        boxes = np.array(
+            [
+                [0.0, 0.0, 10.0, 10.0, 0.0, 101.0],
+                [20.0, 20.0, 30.0, 30.0, 0.0, 202.0],
+            ]
+        )
+        counts = np.array(
+            [
+                [4.0, 0.0, 101.0],
+                [7.0, 0.0, 202.0],
+            ]
+        )
+
+        all_boxes, boxes_with_annotations, matched_counts = (
+            perObject_eval._prepare_gt_boxes_for_attribute_eval(boxes, counts)
+        )
+
+        self.assertEqual(len(all_boxes), 2)
+        self.assertEqual(len(boxes_with_annotations), 2)
+        self.assertEqual(len(matched_counts), 2)
+        self.assertEqual(matched_counts[0][2], 101.0)
+        self.assertEqual(matched_counts[1][2], 202.0)
+
+    def test_prepare_gt_boxes_excludes_unannotated_boxes_from_attribute_targets(self):
+        """A GT box without point/count annotations stays in all boxes only."""
+        boxes = np.array(
+            [
+                [0.0, 0.0, 10.0, 10.0, 0.0, 101.0],
+                [20.0, 20.0, 30.0, 30.0, 0.0, 202.0],
+            ]
+        )
+        counts = np.array([[4.0, 0.0, 101.0]])
+
+        all_boxes, boxes_with_annotations, matched_counts = (
+            perObject_eval._prepare_gt_boxes_for_attribute_eval(boxes, counts)
+        )
+
+        self.assertEqual(len(all_boxes), 2)
+        self.assertEqual(len(boxes_with_annotations), 1)
+        self.assertEqual(len(matched_counts), 1)
+        self.assertEqual(float(boxes_with_annotations[0][0, 5]), 101.0)
+
+    def test_prepare_gt_boxes_handles_no_attribute_annotations(self):
+        """When no GT boxes have annotations, only the all-box list is populated."""
+        boxes = np.array(
+            [
+                [0.0, 0.0, 10.0, 10.0, 0.0, 101.0],
+                [20.0, 20.0, 30.0, 30.0, 0.0, 202.0],
+            ]
+        )
+        counts = []
+
+        all_boxes, boxes_with_annotations, matched_counts = (
+            perObject_eval._prepare_gt_boxes_for_attribute_eval(boxes, counts)
+        )
+
+        self.assertEqual(len(all_boxes), 2)
+        self.assertEqual(boxes_with_annotations, [])
+        self.assertEqual(matched_counts, [])
+
     def test_assign_detection_matches_unclaimed_gt_above_threshold(self):
         """A high-IoU detection is matched when its GT box is still unclaimed."""
         detection = np.array([0.0, 0.0, 10.0, 10.0, 0.9])

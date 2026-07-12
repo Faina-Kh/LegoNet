@@ -45,7 +45,7 @@ def combine_losses(raw_losses: Dict[str, Any], args: Any) -> LossResult:
         total = _detection_losses(raw_losses, values)
         return LossResult(total, values)
 
-    if network_type == "counting_lean":
+    if network_type == "per_image_estimation_keypoints":
         l1_loss = raw_losses.get("l1_estimation")
         maps_loss = raw_losses.get("maps")
         if l1_loss is None or maps_loss is None:
@@ -55,7 +55,7 @@ def combine_losses(raw_losses: Dict[str, Any], args: Any) -> LossResult:
         values.update(l1_estimation=l1_loss.item(), maps=maps_loss.item())
         return LossResult(l1_loss + maps_loss, values)
 
-    if network_type == "counting_reg":
+    if network_type == "per_image_estimation_regression":
         regression = _mean_value(args.loss_weight * raw_losses["reg_estimation"])
         values["reg_estimation"] = regression.item()
         return LossResult(regression, values)
@@ -126,10 +126,10 @@ def forward_losses(
             [image, data["bbox_annot"].to(config.General.device)]
         )
         return {"classification": classification, "regression": regression}
-    if args.network_type == "counting_lean":
+    if args.network_type == "per_image_estimation_keypoints":
         l1_loss, maps = model([image, data["annot"]])
         return {"l1_estimation": l1_loss, "maps": maps}
-    if args.network_type == "counting_reg":
+    if args.network_type == "per_image_estimation_regression":
         return {"reg_estimation": model([image, data["annot"]])}
     if not torch.cuda.is_available():
         raise RuntimeError(f"Network type {args.network_type} requires CUDA for training.")

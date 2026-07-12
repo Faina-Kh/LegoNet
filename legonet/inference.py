@@ -220,8 +220,8 @@ def run_inference(
 
     utils.printf("Attribute estimation evaluation:\n")
     if config.General.NETWORK_TYPE in (
-        config.NetworkType.counting_reg,
-        config.NetworkType.counting_lean,
+        config.NetworkType.per_image_estimation_regression,
+        config.NetworkType.per_image_estimation_keypoints,
     ):
         relative_error = attribute_estimation_eval.eval(
             dataloader_val,

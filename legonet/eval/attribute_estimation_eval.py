@@ -70,7 +70,7 @@ def eval(dataloader, dataset, model, args, do_profile = False):
 
                 #Image_name = full_rgbImage_name.split(".jpg")[0]  # ("_rgb")[0]
 
-                if args.network_type == "counting_reg":
+                if args.network_type == "per_image_estimation_regression":
                     if args.have_GT:
                         if data['annot'][0].numpy().shape==(1,1):
                             count_GT = data['annot'][0].numpy()[0, 0]
@@ -85,7 +85,7 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                     if count_pred<0:
                         count_pred=0
 
-                elif args.network_type == "counting_lean":
+                elif args.network_type == "per_image_estimation_keypoints":
                     if args.have_GT:
                         if args.val_csv_leaf_location_file == "":
                             count_GT = data['annot'][0].numpy()[0, 0, 0]
@@ -98,7 +98,7 @@ def eval(dataloader, dataset, model, args, do_profile = False):
 
                         ###########################################################################################################
                         if iter_num == 0 and do_profile:
-                            print("Get FLOPS for counting_lean:")
+                            print("Get FLOPS for per_image_estimation_keypoints:")
                             # Use thop to profile the model
                             input = [data['img'].to(config.General.device).float(), data['annot']]
                             flops, params = profile(model, inputs=(input,))
@@ -134,7 +134,7 @@ def eval(dataloader, dataset, model, args, do_profile = False):
 
                     # ---------------------------------------
 
-                if args.network_type == 'counting_lean' and config.General.to_draw:
+                if args.network_type == 'per_image_estimation_keypoints' and config.General.to_draw:
                     img = Image.open(os.path.join(dataset.base_dir, full_rgbImage_name))
                     if args.have_GT and args.val_csv_leaf_location_file != "":
                         gt_maps = data['annot'][1:6]

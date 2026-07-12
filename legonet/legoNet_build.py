@@ -8,6 +8,11 @@ shared lego blocks from ``legos.py``.
 
 from importlib import import_module
 import config
+from legonet.network_types import (
+    PER_IMAGE_ESTIMATION_KEYPOINTS,
+    PER_IMAGE_ESTIMATION_REGRESSION,
+    canonicalize_network_type,
+)
 
 def _build_bbox_detection(module, args, dataset):
     return module.BBOX_Detection(num_classes=dataset.num_classes())
@@ -43,11 +48,11 @@ MODEL_REGISTRY = {
         "module_path": "legonet.models.model_bbox_detection",
         "builder": _build_bbox_detection,
     },
-    "counting_lean": {
+    PER_IMAGE_ESTIMATION_KEYPOINTS: {
         "module_path": "legonet.models.model_estimator_withKP",
         "builder": _build_KP_estimator,
     },
-    "counting_reg": {
+    PER_IMAGE_ESTIMATION_REGRESSION: {
         "module_path": "legonet.models.model_estimator_withReg",
         "builder": _build_reg_estimator,
     },
@@ -67,6 +72,7 @@ MODEL_REGISTRY = {
 
 def model_build(args, dataset_train, dataset_val):
     """Instantiate the active model variant for the current run arguments."""
+    args.network_type = canonicalize_network_type(args.network_type)
     dataset = dataset_train if args.run_script == "Training" else dataset_val
 
     if args.network_type not in MODEL_REGISTRY:

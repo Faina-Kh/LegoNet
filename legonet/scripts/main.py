@@ -11,6 +11,7 @@ if str(REPO_ROOT) not in sys.path:
 
 import config
 import paths
+from legonet.network_types import canonicalize_network_type
 import numpy as np
 import csv
 from datetime import datetime
@@ -72,6 +73,8 @@ def parse_args(args):
         "--network_type",
         choices=[
             "bbox_detection",
+            "per_image_estimation_keypoints",
+            "per_image_estimation_regression",
             "counting_lean",
             "counting_reg",
             "both",
@@ -98,6 +101,8 @@ def parse_args(args):
     parser.add_argument("--weights-type", "--weights_type", choices=['full_model_weights', 'partial_weights'], default=None)
 
     parsed_args = parser.parse_args(args)
+    if parsed_args.network_type:
+        parsed_args.network_type = canonicalize_network_type(parsed_args.network_type)
     # if parsed_args.run_script is None:
     #     parsed_args.run_script = parsed_args.run_script_positional
 
@@ -121,8 +126,8 @@ if args is None:
     args = parse_args(args)
 
 DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
-    "counting_lean": "withKeyPoints",
-    "counting_reg": "reg_fpn_p3_p7_min_sig",
+    "per_image_estimation_keypoints": "withKeyPoints",
+    "per_image_estimation_regression": "reg_fpn_p3_p7_min_sig",
     "both_Back2bFind2b": "withKeyPoints",
     #"both": "withKeyPoints" # dont have currently weights for "reg_fpn_p3_p7_min_sig"
 }
@@ -134,7 +139,7 @@ BOTH_NETWORKS = ("both", "both_for_roots_2", "both_Back2bFind2b")
 INCLUDE_BBOX_DETECTION = ("bbox_detection", "both", "both_for_roots_2", "both_Back2bFind2b")
 
 
-NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "counting_lean", "counting_reg", "both_for_roots_2",
+NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_estimation_keypoints", "per_image_estimation_regression", "both_for_roots_2",
                                           "both_Back2bFind2b"),
                                 'grapes': ("bbox_detection", "both")
                                 }
@@ -180,7 +185,7 @@ assert args.weights_type == 'full_model_weights' or args.weights_type == 'partia
 if args.network_type == "bbox_detection":
     args.load_only_bbox_weights = True
 
-if args.network_type == "counting_lean" or args.network_type == "counting_reg":
+if args.network_type == "per_image_estimation_keypoints" or args.network_type == "per_image_estimation_regression":
     args.weights_type = 'full_model_weights'
 
 #--------------------------------------------------------------------------------------------------------------
@@ -200,7 +205,7 @@ args.load_partial_weights = not args.load_full_model_weights
 
 args.load_bbox_det_weights = True
 
-if args.load_only_bbox_weights or args.network_type in ("counting_lean", "counting_reg"):
+if args.load_only_bbox_weights or args.network_type in ("per_image_estimation_keypoints", "per_image_estimation_regression"):
     args.load_per_object_counting_weights = False
     args.load_per_object_attributes_weights = False
 
@@ -325,8 +330,8 @@ args.loss_weight = 1  # 1  #1000 #10 #100 # roots_both ablations
 # Checks
 ######################################################################
 assert args.dataset_name == "grapes" or args.dataset_name == "roots"
-assert (args.network_type == "bbox_detection" or args.network_type == "counting_lean" or
-        args.network_type == "counting_reg" or args.network_type == "both" or args.network_type == "both_for_roots_2"
+assert (args.network_type == "bbox_detection" or args.network_type == "per_image_estimation_keypoints" or
+        args.network_type == "per_image_estimation_regression" or args.network_type == "both" or args.network_type == "both_for_roots_2"
         or args.network_type == "both_Back2bFind2b" )
 
 
@@ -368,17 +373,17 @@ if args.dataset_name == "grapes":
     args.dataset_type = "kcsv"
 
 elif args.dataset_name == "roots":
-    if args.network_type == "counting_lean" or args.network_type == "counting_reg":
+    if args.network_type == "per_image_estimation_keypoints" or args.network_type == "per_image_estimation_regression":
         args.dataset_type = 'csv_LCC'
     else:
         args.dataset_type = "roots_json"
 
 if args.network_type == "bbox_detection":
     config.General.NETWORK_TYPE = config.NetworkType.detection
-elif args.network_type == "counting_lean":
-    config.General.NETWORK_TYPE = config.NetworkType.counting_lean
-elif args.network_type == "counting_reg":
-    config.General.NETWORK_TYPE = config.NetworkType.counting_reg
+elif args.network_type == "per_image_estimation_keypoints":
+    config.General.NETWORK_TYPE = config.NetworkType.per_image_estimation_keypoints
+elif args.network_type == "per_image_estimation_regression":
+    config.General.NETWORK_TYPE = config.NetworkType.per_image_estimation_regression
 elif args.network_type == "both" or args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
     config.General.NETWORK_TYPE = config.NetworkType.detection_and_counting
 
@@ -503,8 +508,8 @@ if args.network_type in INCLUDE_BBOX_DETECTION:
         os.makedirs(args.per_object_weights_dir, exist_ok=True)
 
 
-if args.network_type == "counting_lean" or args.network_type == "counting_reg":
-    if args.network_type == "counting_lean":
+if args.network_type == "per_image_estimation_keypoints" or args.network_type == "per_image_estimation_regression":
+    if args.network_type == "per_image_estimation_keypoints":
         args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_KP") # args.myExpPath, "Weights",
     else:
         args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_Reg") #args.myExpPath, "Weights", #os.path.join(args.myExpPath, 'TRL_estimator_reg\\Weights\\2026-05-21_121532') #os.path.join(args.myExpPath, "Weights", "per_image_attributes", "TRL_Reg")
@@ -524,7 +529,7 @@ if args.load_per_object_counting_weights or args.load_per_object_attributes_weig
 # if args.load_per_image_weights:
 #     args.per_image_weights_file = get_weights_file(args.per_image_weights_dir)
 if args.load_full_model_weights:
-    if args.network_type == "counting_lean" or args.network_type == "counting_reg":
+    if args.network_type == "per_image_estimation_keypoints" or args.network_type == "per_image_estimation_regression":
         args.full_model_weights = get_weights_file(args.per_image_weights_dir)
     else:
         args.full_model_weights = get_weights_file(args.per_object_weights_dir) #args.bbox_detection_weights_dir)
@@ -532,11 +537,11 @@ if args.load_full_model_weights:
 if args.save_from_model_file:
     file_path = "Prev_model_files\\"
     if args.dataset_name == "roots":
-        if args.network_type == "counting_lean":
+        if args.network_type == "per_image_estimation_keypoints":
             file_path += "keyPoints_based_models\\TRL_only\\2023-01-23_132447"
             args.output_name = 'TRLwithKeyPoints'
 
-        elif args.network_type == "counting_reg":
+        elif args.network_type == "per_image_estimation_regression":
             file_path += "Reg_based_models", "reg_TRL_only\\2023-06-04_175138"
             args.output_name = 'TRLwithReg'
 

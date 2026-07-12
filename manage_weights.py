@@ -56,14 +56,14 @@ def save_partial_weights(args, model, file_model, tasks = [], output_name=""):
             #                                              'legonet_per_object_count_epoch=249.pt'))
 
         if task == "per_image_attributes":
-            if args.network_type == "counting_lean":
+            if args.network_type == "per_image_estimation_keypoints":
                 submodules = ['backbone_1', 'find_2', 'LeanCountingModule']
 
                 rename_map = {'backbone_1': 'backbone',
                               'find_2': 'find',
                               'LeanCountingModule': 'estimator'}
 
-            elif args.network_type == "counting_reg":
+            elif args.network_type == "per_image_estimation_regression":
                 submodules = ['backbone_1', 'CountWithRegModule', 'CountRegSubmodel']
 
                 rename_map = {'backbone_1': 'backbone',

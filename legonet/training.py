@@ -44,9 +44,9 @@ def _epoch_loss_keys(args: Any) -> List[str]:
     estimate_type = config.AttributeEstimation.estimate_type
     if network_type == "bbox_detection":
         return ["classification", "regression"]
-    if network_type == "counting_lean":
+    if network_type == "per_image_estimation_keypoints":
         return ["l1_estimation", "maps"]
-    if network_type == "counting_reg":
+    if network_type == "per_image_estimation_regression":
         return ["reg_estimation"]
     if network_type == "both":
         suffix = ["l1_counting", "maps"] if estimate_type == "withKeyPoints" else ["counting"]
@@ -73,13 +73,13 @@ def _print_step(epoch: int, iteration: int, args: Any, result: LossResult, runni
             f"{values['classification']:1.5f} | Regression loss: {values['regression']:1.5f} | "
             f"Running loss: {running:1.5f}"
         )
-    elif args.network_type == "counting_lean":
+    elif args.network_type == "per_image_estimation_keypoints":
         print(
             f"Epoch: {epoch} | Iteration: {iteration} | l1 loss: "
             f"{values['l1_estimation']:1.5f} | maps loss: {values['maps']:1.5f} | "
             f"Running loss: {running:1.5f}"
         )
-    elif args.network_type == "counting_reg":
+    elif args.network_type == "per_image_estimation_regression":
         print(
             f"Epoch: {epoch} | Iteration: {iteration} | estimation loss: "
             f"{values['reg_estimation']:1.5f} | Running loss: {running:1.5f}"
@@ -299,7 +299,7 @@ def train_model(
             _evaluate_detection_epoch(
                 args, epoch, model, dataset_val, dataloader_val, sampler_val, best
             )
-        elif args.network_type in ("counting_lean", "counting_reg"):
+        elif args.network_type in ("per_image_estimation_keypoints", "per_image_estimation_regression"):
             _evaluate_counting_epoch(
                 args, epoch, model, dataset_val, dataloader_val, best
             )

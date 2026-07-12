@@ -71,6 +71,38 @@ def _get_count_and_box_annotations(generator):
     return all_box_annotations,all_count_annotations
 
 
+def _prepare_gt_boxes_for_attribute_eval(box_annotations, count_annotations):
+    """Split GT boxes into all boxes and boxes with attribute/count annotations.
+
+    Args:
+        box_annotations: Iterable of GT boxes. Each row is expected to include
+            ``x1, y1, x2, y2, class_id, box_id``.
+        count_annotations: Iterable of count/attribute annotation rows. Column
+            2 is expected to contain the corresponding GT ``box_id``.
+
+    Returns:
+        tuple: ``(all_boxes, boxes_with_annotations, matched_counts)`` where
+        the two box lists contain tensors shaped ``(1, box_columns)`` to
+        preserve the historical downstream concatenation behavior.
+    """
+    all_boxes = []
+    boxes_with_annotations = []
+    matched_counts = []
+
+    for box in box_annotations:
+        box_id = box[5]
+        box_tensor = torch.tensor(box).unsqueeze(dim=0)
+        all_boxes.append(box_tensor)
+
+        for count_annotation in count_annotations:
+            if count_annotation[2] == box_id:
+                matched_counts.append(count_annotation)
+                boxes_with_annotations.append(box_tensor)
+                break
+
+    return all_boxes, boxes_with_annotations, matched_counts
+
+
 def find_points_in_bbox(img, point_anns, bbox_pred, scale):
 
     points=[]
@@ -823,19 +855,15 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
             if args.have_GT:
 
-                for i in range(len(box_annotations_temp)): # box_annotations_temp - all gt boxes
-                    b=box_annotations_temp[i]
-                    id=box_annotations_temp[i][5]
-
-                    box_annotations_all.append(torch.tensor(b).unsqueeze(dim=0))
-                    state['num_of_gt_boxes']+=1
-
-                    #filtering the annotations - prevents having gt boxes without gt points:
-                    for g in gt_counts_temp: # gt_counts_temp -all gt points
-                        if g[2] == id:
-                            gt_counts.append(g)
-                            box_annotations_withPoints.append(torch.tensor(b).unsqueeze(dim=0))
-                            break
+                (
+                    box_annotations_all,
+                    box_annotations_withPoints,
+                    gt_counts,
+                ) = _prepare_gt_boxes_for_attribute_eval(
+                    box_annotations_temp,
+                    gt_counts_temp,
+                )
+                state['num_of_gt_boxes'] += len(box_annotations_all)
 
                 if len(box_annotations_withPoints)==0 and len(box_annotations_all) > 0:
                     if verbose:
