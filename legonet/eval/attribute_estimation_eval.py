@@ -8,6 +8,7 @@ from thop import profile, clever_format
 
 from legonet.eval.KP_detection_eval import points_detection_t_p, calc_points_recall_precision_ap, visualize_KeyPointsHeatmaps
 from legonet.eval.detection_eval import plot_PR_curve
+from legonet.eval.scalars import first_scalar
 
 
 
@@ -72,10 +73,7 @@ def eval(dataloader, dataset, model, args, do_profile = False):
 
                 if args.network_type == "per_image_estimation_regression":
                     if args.have_GT:
-                        if data['annot'][0].numpy().shape==(1,1):
-                            count_GT = data['annot'][0].numpy()[0, 0]
-                        else:
-                            count_GT = data['annot'][0].numpy()[0,0,0]
+                        count_GT = first_scalar(data['annot'][0])
 
                         count_pred = float(model([data['img'].to(config.General.device).float(), data['annot']])[0].squeeze().item())
 
@@ -87,10 +85,7 @@ def eval(dataloader, dataset, model, args, do_profile = False):
 
                 elif args.network_type == "per_image_estimation_keypoints":
                     if args.have_GT:
-                        if args.val_csv_leaf_location_file == "":
-                            count_GT = data['annot'][0].numpy()[0, 0, 0]
-                        else:
-                            count_GT = data['annot'][0].numpy()[0][0]
+                        count_GT = first_scalar(data['annot'][0])
 
                         #print(Image_name,": ", count_GT)
 
