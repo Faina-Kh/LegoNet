@@ -710,7 +710,7 @@ class WhereModule(nn.Module):
 
         if self.training: # and not freeze_detection:
             regression_loss = modular_losses.WhereLoss()(regression, anchors, annotations )
-            if self.network_type == "both" or self.network_type == "both_for_roots_2":
+            if self.network_type == "per_object_counting" or self.network_type == "per_object_attributes":
                 return regression, regression_loss
             else:
                 return regression_loss
@@ -1001,7 +1001,7 @@ class EstimateRegSubmodel(nn.Module):
         #torch.nn.init.xavier_uniform_(self.regression_output)  # Glorot init, the default in keras Dense
         self.regression_output.bias.data.zero_()
 
-        if self.binary_model or config.Detect_and_Estimate.type == "both_for_roots_2":
+        if self.binary_model or config.Detect_and_Estimate.type == "per_object_attributes":
             self.act_Dense1_sig = nn.Sigmoid()
             self.act_Dense2_sig = nn.Sigmoid()
             self.act_Dense3 = nn.Sigmoid()
@@ -1078,7 +1078,7 @@ class RegressionBasedEstimator(nn.Module):
 
 
         if self.training:
-            if config.Detect_and_Estimate.type == "both_for_roots_2":
+            if config.Detect_and_Estimate.type == "per_object_attributes":
                 return (self.estimationLoss(annotations.squeeze(dim=1), best_out))
             return (self.estimationLoss(annotations.squeeze(dim=1), best_out.float()))
 

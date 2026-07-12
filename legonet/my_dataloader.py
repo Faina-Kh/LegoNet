@@ -636,7 +636,7 @@ class KCSVDataset(Dataset):
 
         self.have_GT = have_GT
 
-        self.is_roots_2 = config.Detect_and_Estimate.type == "both_for_roots_2" or config.Detect_and_Estimate.type =="both_Back2bFind2b"
+        self.is_roots_2 = config.Detect_and_Estimate.type == "per_object_attributes" or config.Detect_and_Estimate.type =="per_object_attributes_multibranch"
 
         # Take base_dir from annotations file if not explicitly specified.
         if self.base_dir is None:
@@ -821,7 +821,7 @@ class KCSVDataset(Dataset):
 
         img = sample['img']
 
-        if config.General.NETWORK_TYPE not in [config.NetworkType.detection, config.NetworkType.detection_and_counting]:
+        if config.General.NETWORK_TYPE not in [config.NetworkType.detection, config.NetworkType.detection_and_estimation]:
             # compute keypoints after the transformation are done
             #if self.lean_version != "version_3":
             annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
@@ -901,7 +901,7 @@ class KCSVDataset(Dataset):
             for idx, annot in enumerate(annots):
                 if len(annot['points'])>0:
                     class_name = annot['points_class']
-                    if not self.is_roots_2: #config.Detect_and_Estimate.type != 'both_for_roots_2':
+                    if not self.is_roots_2:
                         counts[idx, 0] = float(annot['points_count'])
                     else:
                         counts[idx, 0] = float(annot['Root_Color'])
@@ -939,7 +939,7 @@ class KCSVDataset(Dataset):
         # get ground truth annotations
         image_name = self.img_info[self.image_ids[image_index]]['name']
         #print(image_name)
-        if config.General.NETWORK_TYPE == config.NetworkType.detection or config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting:
+        if config.General.NETWORK_TYPE == config.NetworkType.detection or config.General.NETWORK_TYPE == config.NetworkType.detection_and_estimation:
             annotation_list = self.image_data_bbox[image_name]
 
             ###################################################################################
@@ -1096,7 +1096,7 @@ class KCSVDataset(Dataset):
                         # result_bbox
 
                         # find box coordinates
-                        if not self.is_roots_2: #config.Detect_and_Estimate.type != 'both_for_roots_2':
+                        if not self.is_roots_2:
                             result_bbox[img_file].append({'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2,
                                                           'bbox_class': points_class, 'bbox_id': bbox_id, 'points': points_in_box,
                                                           'points_count': points_num,
@@ -1196,7 +1196,7 @@ class KCSVDataset(Dataset):
                 else:
                     result_points[img_file].append({'x': x1, 'y': y1, 'points_class': class_name})
 
-            if (config.General.NETWORK_TYPE == config.NetworkType.detection_and_counting or config.General.filter_empty_bbox):
+            if (config.General.NETWORK_TYPE == config.NetworkType.detection_and_estimation or config.General.filter_empty_bbox):
                 result_bbox, result_points = self.points_to_bbox(result_bbox, result_points)
 
         return result_bbox, result_points
@@ -1493,7 +1493,7 @@ def kcsv_collater(data):
 
         if points_annot is not None:
             points_annot[0] = torch.tensor(points_annot[0])
-            if config.General.NETWORK_TYPE not in (config.NetworkType.detection_and_counting, config.NetworkType.detection):
+            if config.General.NETWORK_TYPE not in (config.NetworkType.detection_and_estimation, config.NetworkType.detection):
                 points_annot[1] = torch.tensor(points_annot[1])
                 points_annot[2] = torch.tensor(points_annot[2])
                 points_annot[3] = torch.tensor(points_annot[3])
@@ -1827,7 +1827,7 @@ class Normalizer(object):
                 return {'img': ((image.astype(np.float32) - self.mean) / self.std)}
 
 
-        # for counting or 'both'
+        # for counting or per-object estimation
         if self.pre_process == "torch_like":
             image = image.astype(np.float32) / 255.0
             if len(sample.keys()) > 1:
@@ -1976,7 +1976,7 @@ class Normalizer_2(object):
         if self.pre_process is None:
             return {'img': ((image - self.mean) / self.std), 'annot': annots}
 
-        # for counting or 'both'
+        # for counting or per-object estimation
         if self.pre_process == "torch_like":
 
             image = image / 255.0

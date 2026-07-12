@@ -11,7 +11,7 @@ class DrawProperties:
 class NetworkType(enum.Enum):
     detection = 1
     per_image_estimation_keypoints = 2
-    detection_and_counting = 3
+    detection_and_estimation = 3
     per_image_estimation_regression = 4
 
 

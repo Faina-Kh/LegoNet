@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw, ImageFont
 import config
 from legonet import utils
 from legonet.eval import attribute_estimation_eval, detection_eval
-from legonet.eval import perObject_eval as both_eval
+from legonet.eval import perObject_eval
 from legonet.my_dataloader import UnNormalizer
 
 
@@ -40,7 +40,7 @@ def visualize_bboxes(
                 )
             elif (
                 config.General.NETWORK_TYPE
-                == config.NetworkType.detection_and_counting
+                == config.NetworkType.detection_and_estimation
             ):
                 if "points_annot" in data:
                     annotations = [data["bbox_annot"], data["points_annot"]]
@@ -163,11 +163,11 @@ def _evaluate_combined(
     model: Any,
 ) -> None:
     """Run combined detection and attribute-estimation inference."""
-    if not args.evaluate_both:
+    if not args.evaluate_per_object:
         return
 
     print("Attribute estimation evaluation:\n")
-    output = both_eval.eval(
+    output = perObject_eval.eval(
         dataset_val,
         dataloader_val,
         sampler_val,
@@ -195,7 +195,7 @@ def run_inference(
 
     if config.General.NETWORK_TYPE in (
         config.NetworkType.detection,
-        config.NetworkType.detection_and_counting,
+        config.NetworkType.detection_and_estimation,
     ):
         if (
             config.General.NETWORK_TYPE == config.NetworkType.detection

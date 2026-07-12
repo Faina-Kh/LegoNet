@@ -72,14 +72,14 @@ def save_partial_weights(args, model, file_model, tasks = [], output_name=""):
 
             save_path = os.path.join(args.per_image_weights_dir, 'legonet_'+output_name+'.pt')
 
-        if task == "per_object_attributes":# and args.network_type == "both_for_roots_2":
+        if task == "per_object_attributes":
             if args.estimate_type =='withKeyPoints':
 
                 rename_map = {'LeanCountingModule_length': 'estimator_length',
                               'LeanCountingModule_diameter': 'estimator_diameter',
                               'LeanCountingModule_color': 'estimator_color'}
 
-                if args.network_type == "both_Back2bFind2b":
+                if args.network_type == "per_object_attributes_multibranch":
 
                     submodules_limit5Path = {"backbone_2", "find_2",
                                              "LeanCountingModule_color", "LeanCountingModule_diameter"}
@@ -105,7 +105,7 @@ def save_partial_weights(args, model, file_model, tasks = [], output_name=""):
             # torch.save(filtered_state_dict, os.path.join(args.per_object_weights_dir,
             #                                              'legonet_per_object_attr_epoch=90.pt'))
 
-        if args.network_type == "both_Back2bFind2b":
+        if args.network_type == "per_object_attributes_multibranch":
             if task == "bbox_detection":
                 file_bbox = file_model["file_bbox"]
                 print("Available modules in bbox file:", list_checkpoint_modules(file_bbox.state_dict()))

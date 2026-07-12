@@ -136,7 +136,7 @@ def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05,
                     #[image.cuda().float(), [data['bbox_annot'], None], torch.tensor(group_idx), False])  # image.cuda().float().unsqueeze(dim=0))
             else:
 
-                if config.Detect_and_Estimate.type == "both_for_roots_2" or config.Detect_and_Estimate.type == "both_Back2bFind2b":
+                if config.Detect_and_Estimate.type == "per_object_attributes" or config.Detect_and_Estimate.type == "per_object_attributes_multibranch":
                     if 'points_annot' in data.keys():
                         detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
                             model([image.to(config.General.device).float(),

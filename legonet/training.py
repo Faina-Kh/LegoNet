@@ -23,9 +23,9 @@ from legonet.training_step import LossResult, run_training_step
 
 DETECTION_NETWORKS = {
     "bbox_detection",
-    "both",
-    "both_for_roots_2",
-    "both_Back2bFind2b",
+    "per_object_counting",
+    "per_object_attributes",
+    "per_object_attributes_multibranch",
 }
 
 
@@ -48,7 +48,7 @@ def _epoch_loss_keys(args: Any) -> List[str]:
         return ["l1_estimation", "maps"]
     if network_type == "per_image_estimation_regression":
         return ["reg_estimation"]
-    if network_type == "both":
+    if network_type == "per_object_counting":
         suffix = ["l1_counting", "maps"] if estimate_type == "withKeyPoints" else ["counting"]
         return ["classification", "regression"] + suffix
     suffix = ["color", "length", "diameter"]
@@ -84,7 +84,7 @@ def _print_step(epoch: int, iteration: int, args: Any, result: LossResult, runni
             f"Epoch: {epoch} | Iteration: {iteration} | estimation loss: "
             f"{values['reg_estimation']:1.5f} | Running loss: {running:1.5f}"
         )
-    elif args.network_type == "both":
+    elif args.network_type == "per_object_counting":
         attribute_name = "l1_counting" if "l1_counting" in values else "counting"
         print(
             f"Epoch: {epoch} | Iteration: {iteration} | BBOX_detection loss: "

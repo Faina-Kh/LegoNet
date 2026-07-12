@@ -8,7 +8,7 @@ import numpy as np
 
 import config
 from legonet.eval import detection_eval
-from legonet.eval import perObject_eval as both_eval
+from legonet.eval import perObject_eval
 
 
 @dataclass(frozen=True)
@@ -112,7 +112,7 @@ def evaluate_combined_once(
     """Evaluate combined tasks once while preserving the training dataset."""
     model.eval()
     with _validation_dataset(model, dataset_val):
-        output = both_eval.eval(
+        output = perObject_eval.eval(
             dataset_val,
             dataloader_val,
             sampler_val,
@@ -140,7 +140,7 @@ def evaluate_combined_iou_sweep(
         with _validation_dataset(model, dataset_val):
             for iou_threshold in iou_thresholds:
                 config.Detection.iou_threshold = iou_threshold
-                output = both_eval.eval(
+                output = perObject_eval.eval(
                     dataset_val,
                     dataloader_val,
                     sampler_val,

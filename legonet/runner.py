@@ -18,9 +18,9 @@ from legonet.training import train_model
 
 DETECTION_NETWORKS = {
     "bbox_detection",
-    "both",
-    "both_for_roots_2",
-    "both_Back2bFind2b",
+    "per_object_counting",
+    "per_object_attributes",
+    "per_object_attributes_multibranch",
 }
 
 

@@ -88,7 +88,7 @@ class TrainingStepTests(unittest.TestCase):
                 "l1_counting": FakeTensor(4),
                 "maps": FakeTensor(1),
             },
-            self.args("both"),
+            self.args("per_object_counting"),
         )
         self.assertEqual(result.total.item(), 10)
 
@@ -100,7 +100,7 @@ class TrainingStepTests(unittest.TestCase):
                 "regression": FakeTensor(3),
                 "counting": FakeTensor(4),
             },
-            self.args("both"),
+            self.args("per_object_counting"),
         )
         self.assertEqual(result.total.item(), 9)
 
@@ -115,7 +115,7 @@ class TrainingStepTests(unittest.TestCase):
                 "length": FakeTensor(4),
                 "diameter": FakeTensor(5),
             },
-            self.args("both_for_roots_2"),
+            self.args("per_object_attributes"),
         )
         self.assertEqual(result.total.item(), 262)
 
@@ -129,7 +129,7 @@ class TrainingStepTests(unittest.TestCase):
                 "length": FakeTensor(4),
                 "diameter": FakeTensor(5),
             },
-            self.args("both_for_roots_2"),
+            self.args("per_object_attributes"),
         )
         self.assertEqual(result.total.item(), 259)
 

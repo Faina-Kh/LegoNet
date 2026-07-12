@@ -63,7 +63,7 @@ def combine_losses(raw_losses: Dict[str, Any], args: Any) -> LossResult:
     detection = _detection_losses(raw_losses, values)
     estimate_type = config.AttributeEstimation.estimate_type
 
-    if network_type == "both":
+    if network_type == "per_object_counting":
         if estimate_type == "withKeyPoints":
             counting = raw_losses.get("l1_counting")
             maps = raw_losses.get("maps")
@@ -137,7 +137,7 @@ def forward_losses(
     points = data.get("points_annot")
     annotations = [data["bbox_annot"].to(config.General.device), points]
     group_tensor = torch.tensor(sampler_group)
-    if args.network_type == "both":
+    if args.network_type == "per_object_counting":
         if config.AttributeEstimation.estimate_type == "withKeyPoints":
             classification, regression, counting, maps = model(
                 [image, annotations, group_tensor]

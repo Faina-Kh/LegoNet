@@ -243,7 +243,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
             load_bbox_det_weights=False,
             load_per_object_counting_weights=False,
             load_per_object_attributes_weights=True,
-            network_type="both_for_roots_2",
+            network_type="per_object_attributes",
             estimate_type="withKeyPoints",
             per_object_weights_file="attributes.pt",
         )
@@ -273,7 +273,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
             load_bbox_det_weights=False,
             load_per_object_counting_weights=True,
             load_per_object_attributes_weights=False,
-            network_type="both",
+            network_type="per_object_counting",
             estimate_type="withKeyPoints",
             per_object_weights_file="counting.pt",
         )
@@ -388,7 +388,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
         """KCSV inference uses its validation file and KCSV collater."""
         args = SimpleNamespace(
             dataset_type="kcsv",
-            network_type="both",
+            network_type="per_object_counting",
             run_script="Inference",
             val_file="validation.txt",
             kcsv_classes="classes.txt",

@@ -154,7 +154,7 @@ def build_data(args: Any) -> DataBundle:
     elif args.dataset_type == "kcsv" or (
         args.dataset_type == "roots_json"
         and args.network_type
-        in ("both_for_roots_2", "bbox_detection", "both_Back2bFind2b")
+        in ("per_object_attributes", "bbox_detection", "per_object_attributes_multibranch")
     ):
         dataset_train, dataset_val = _build_kcsv_datasets(args)
     elif args.dataset_type == "csv_LCC":
@@ -203,4 +203,3 @@ def build_data(args: Any) -> DataBundle:
         dataloader_train=dataloader_train,
         dataloader_val=dataloader_val,
     )
-

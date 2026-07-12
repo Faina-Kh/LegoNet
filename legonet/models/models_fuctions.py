@@ -144,7 +144,7 @@ def compute_keypoints_targets_multi_maps(self, image_shape, annotations_points_c
 def getitem(self, bbox_crops, points = None, anns = None):
     filtered_samples = []
     for b in range(len(bbox_crops)):
-        if self.network_type == "both_for_roots" or self.network_type == "both_for_roots_2":
+        if self.network_type == "both_for_roots" or self.network_type == "per_object_attributes":
             if self.training or (not self.training and anns is not None):
                 current_img = bbox_crops[b][0][0].permute(1, 2, 0).cpu()
             else:
@@ -186,7 +186,7 @@ def getitem(self, bbox_crops, points = None, anns = None):
                 sample['annot'] = [[annotations_group_num_of_points], annotation_map_1, annotation_map_2,
                                    annotation_map_3, annotation_map_4, annotation_map_5]
 
-            elif self.network_type == "both_for_roots_2":
+            elif self.network_type == "per_object_attributes":
                 annotations_group_num_of_points = 0
                 annotation_map_1 = torch.empty((80 ,80), dtype=float)
                 annotation_map_2 = torch.empty((80, 80), dtype=float)
@@ -198,7 +198,7 @@ def getitem(self, bbox_crops, points = None, anns = None):
                                    annotation_map_3, annotation_map_4, annotation_map_5]
 
 
-            if self.network_type =="both_for_roots_2":
+            if self.network_type =="per_object_attributes":
 
                 anns_idx = bbox_crops[b][1].item()
 
@@ -254,7 +254,7 @@ def find_points_in_bbox(self, img, point_anns, bbox_pred, scale, network_type):
         cv2.rectangle(im, (int(box_x1), int(box_y1)), (int(box_x2), int(box_y2)), color=(0, 0, 255), thickness=2)
 
         for p in point_anns:
-            if network_type == "both_for_roots" or network_type == "both_for_roots_2":
+            if network_type == "per_object_attributes":
                 if p['bbox_id'] != box_id:
                     continue
             if p['x'] <= box_x2 and p['x'] >= box_x1 and p['y'] <= box_y2 and p['y'] >= box_y1:

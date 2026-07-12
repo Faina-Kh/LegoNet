@@ -51,16 +51,16 @@ MODEL_REGISTRY = {
         "module_path": "legonet.models.model_estimator_withReg",
         "builder": _build_reg_estimator,
     },
-    "both": {
-        "module_path": "legonet.models.model_both_grapes",
+    "per_object_counting": {
+        "module_path": "legonet.models.model_per_object_counting",
         "builder": _build_per_object_estimate,
     },
-    "both_for_roots_2": {
-        "module_path": "legonet.models.model_both_for_roots_2",
+    "per_object_attributes": {
+        "module_path": "legonet.models.model_per_object_attributes",
         "builder": _build_per_object_estimate,
     },
-    "both_Back2bFind2b":{
-        "module_path": "legonet.models.model_both_Back2bFind2b",
+    "per_object_attributes_multibranch":{
+        "module_path": "legonet.models.model_per_object_attributes_multibranch",
     "builder": _build_per_object_estimate,}
 }
 
@@ -72,7 +72,7 @@ def model_build(args, dataset_train, dataset_val):
     if args.network_type not in MODEL_REGISTRY:
         raise ValueError(f"Unsupported model variant: {args.network_type}")
 
-    if args.network_type == "both_Back2bFind2b":
+    if args.network_type == "per_object_attributes_multibranch":
         assert config.AttributeEstimation.estimate_type == 'withKeyPoints'
 
     model_config = MODEL_REGISTRY[args.network_type]

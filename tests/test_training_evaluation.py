@@ -25,9 +25,9 @@ class TrainingEvaluationTests(unittest.TestCase):
     def setUp(self):
         """Reset evaluator mocks and the shared IoU threshold."""
         self.evaluation.detection_eval.reset_mock()
-        self.evaluation.both_eval.reset_mock()
+        self.evaluation.perObject_eval.reset_mock()
         self.evaluation.detection_eval.evaluateMAP_simple.side_effect = None
-        self.evaluation.both_eval.eval.side_effect = None
+        self.evaluation.perObject_eval.eval.side_effect = None
         config.Detection.iou_threshold = 0.5
 
     def test_detection_switches_model_to_evaluation_mode_first(self):
@@ -51,7 +51,7 @@ class TrainingEvaluationTests(unittest.TestCase):
         training_dataset = object()
         validation_dataset = object()
         model = mock.Mock(dataset=training_dataset)
-        self.evaluation.both_eval.eval.side_effect = [
+        self.evaluation.perObject_eval.eval.side_effect = [
             (0.2, 10, 7, 0.7, 0.8),
             [],
             (0.4, 10, 5, 0.5, 0.75),
@@ -77,7 +77,7 @@ class TrainingEvaluationTests(unittest.TestCase):
     def test_empty_iou_sweep_has_no_average(self):
         """A sweep with no valid evaluator output cannot select a checkpoint."""
         model = mock.Mock(dataset=object())
-        self.evaluation.both_eval.eval.side_effect = [[], (-1,)]
+        self.evaluation.perObject_eval.eval.side_effect = [[], (-1,)]
 
         result = self.evaluation.evaluate_combined_iou_sweep(
             object(),
@@ -94,7 +94,7 @@ class TrainingEvaluationTests(unittest.TestCase):
         """Single-IoU evaluation also restores the model's training dataset."""
         training_dataset = object()
         model = mock.Mock(dataset=training_dataset)
-        self.evaluation.both_eval.eval.return_value = []
+        self.evaluation.perObject_eval.eval.return_value = []
 
         relative_error = self.evaluation.evaluate_combined_once(
             object(),
@@ -111,7 +111,7 @@ class TrainingEvaluationTests(unittest.TestCase):
         """Evaluator exceptions cannot leak validation state into training."""
         training_dataset = object()
         model = mock.Mock(dataset=training_dataset)
-        self.evaluation.both_eval.eval.side_effect = RuntimeError("evaluation failed")
+        self.evaluation.perObject_eval.eval.side_effect = RuntimeError("evaluation failed")
 
         with self.assertRaises(RuntimeError):
             self.evaluation.evaluate_combined_iou_sweep(

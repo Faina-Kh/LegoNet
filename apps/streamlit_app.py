@@ -12,24 +12,24 @@ NETWORK_OPTIONS = (
     "bbox_detection",
     "per_image_estimation_keypoints",
     "per_image_estimation_regression",
-    "both",
-    "both_for_roots_2",
-    "both_Back2bFind2b",
+    "per_object_counting",
+    "per_object_attributes",
+    "per_object_attributes_multibranch",
 )
-NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_estimation_keypoints", "per_image_estimation_regression", "both_for_roots_2",
-                                          "both_Back2bFind2b"),
-                                'grapes': ("bbox_detection", "both")
+NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_estimation_keypoints", "per_image_estimation_regression", "per_object_attributes",
+                                          "per_object_attributes_multibranch"),
+                                'grapes': ("bbox_detection", "per_object_counting")
                                 }
 RUN_MODES = ("Inference", "Training")
 VAL_SETS = ("Test", "Val")
 ESTIMATE_TYPES = ("withKeyPoints", "reg_fpn_p3_p7_min_sig")
-OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS = ("both", "both_for_roots_2", "both_Back2bFind2b")
+OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS = ("per_object_counting", "per_object_attributes", "per_object_attributes_multibranch")
 MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection")
-ESTIMATE_SELECT_NETWORK_OPTIONS = ("both", "both_for_roots_2")
+ESTIMATE_SELECT_NETWORK_OPTIONS = ("per_object_counting", "per_object_attributes")
 DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
     "per_image_estimation_keypoints": "withKeyPoints",
     "per_image_estimation_regression": "reg_fpn_p3_p7_min_sig",
-    "both_Back2bFind2b": "withKeyPoints"
+    "per_object_attributes_multibranch": "withKeyPoints"
 }
 WEIGHTS_TYPES = ('full_model_weights', 'partial_weights')
 

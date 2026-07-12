@@ -61,13 +61,13 @@ class InferenceTests(unittest.TestCase):
         """Reset evaluator mocks and drawing configuration."""
         for evaluator in (
             self.inference.detection_eval,
-            self.inference.both_eval,
+            self.inference.perObject_eval,
             self.inference.attribute_estimation_eval,
         ):
             evaluator.reset_mock()
         self.inference.detection_eval.evaluateMAP_simple.side_effect = None
         self.inference.detection_eval.evaluate_detection_params.side_effect = None
-        self.inference.both_eval.eval.side_effect = None
+        self.inference.perObject_eval.eval.side_effect = None
         self.inference.attribute_estimation_eval.eval.side_effect = None
         self.inference.utils.printf.reset_mock()
         config.General.to_draw = False
@@ -79,7 +79,7 @@ class InferenceTests(unittest.TestCase):
             evaluate_detection=True,
             have_GT=True,
             eval_detection_params=False,
-            evaluate_both=False,
+            evaluate_per_object=False,
             txt_results="results.txt",
         )
         model = mock.Mock()
@@ -106,7 +106,7 @@ class InferenceTests(unittest.TestCase):
             evaluate_detection=True,
             have_GT=True,
             eval_detection_params=True,
-            evaluate_both=False,
+            evaluate_per_object=False,
             test_dir="results",
         )
         model = mock.Mock()
@@ -121,17 +121,17 @@ class InferenceTests(unittest.TestCase):
 
     def test_combined_inference_dispatches_attribute_evaluation(self):
         """Combined inference invokes per-object evaluation when requested."""
-        config.General.NETWORK_TYPE = config.NetworkType.detection_and_counting
+        config.General.NETWORK_TYPE = config.NetworkType.detection_and_estimation
         args = SimpleNamespace(
             evaluate_detection=False,
-            evaluate_both=True,
+            evaluate_per_object=True,
         )
         model = mock.Mock()
-        self.inference.both_eval.eval.return_value = (0.25,)
+        self.inference.perObject_eval.eval.return_value = (0.25,)
 
         self.inference.run_inference(args, "dataset", "loader", "sampler", model)
 
-        self.inference.both_eval.eval.assert_called_once()
+        self.inference.perObject_eval.eval.assert_called_once()
         self.inference.utils.printf.assert_called_once_with(
             "rel error: %.3f \n",
             0.25,

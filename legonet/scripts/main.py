@@ -74,9 +74,9 @@ def parse_args(args):
             "bbox_detection",
             "per_image_estimation_keypoints",
             "per_image_estimation_regression",
-            "both",
-            "both_for_roots_2",
-            "both_Back2bFind2b",
+            "per_object_counting",
+            "per_object_attributes",
+            "per_object_attributes_multibranch",
         ],
         default=None,
     )
@@ -123,20 +123,20 @@ if args is None:
 DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
     "per_image_estimation_keypoints": "withKeyPoints",
     "per_image_estimation_regression": "reg_fpn_p3_p7_min_sig",
-    "both_Back2bFind2b": "withKeyPoints",
-    #"both": "withKeyPoints" # dont have currently weights for "reg_fpn_p3_p7_min_sig"
+    "per_object_attributes_multibranch": "withKeyPoints",
+    #"per_object_counting": "withKeyPoints" # dont have currently weights for "reg_fpn_p3_p7_min_sig"
 }
 
 MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection")
 
-BOTH_NETWORKS = ("both", "both_for_roots_2", "both_Back2bFind2b")
+PER_OBJECT_NETWORKS = ("per_object_counting", "per_object_attributes", "per_object_attributes_multibranch")
 
-INCLUDE_BBOX_DETECTION = ("bbox_detection", "both", "both_for_roots_2", "both_Back2bFind2b")
+INCLUDE_BBOX_DETECTION = ("bbox_detection", "per_object_counting", "per_object_attributes", "per_object_attributes_multibranch")
 
 
-NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_estimation_keypoints", "per_image_estimation_regression", "both_for_roots_2",
-                                          "both_Back2bFind2b"),
-                                'grapes': ("bbox_detection", "both")
+NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_estimation_keypoints", "per_image_estimation_regression", "per_object_attributes",
+                                          "per_object_attributes_multibranch"),
+                                'grapes': ("bbox_detection", "per_object_counting")
                                 }
 ########################################################################################################################
 # user definitions
@@ -145,7 +145,7 @@ args.gpu_num = args.gpu_num or '1'
 
 args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = args.dataset_name or "roots" #"grapes" #"roots"
-args.network_type = args.network_type or "both_Back2bFind2b"
+args.network_type = args.network_type or "per_object_attributes_multibranch"
 args.estimate_type = args.estimate_type or  DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "withKeyPoints") #"reg_fpn_p3_p7_min_sig")
 args.to_draw = args.to_draw or False
 
@@ -185,7 +185,7 @@ if args.network_type == "per_image_estimation_keypoints" or args.network_type ==
 
 #--------------------------------------------------------------------------------------------------------------
 
-args.evaluate_both = args.network_type in BOTH_NETWORKS
+args.evaluate_per_object = args.network_type in PER_OBJECT_NETWORKS
 
 args.load_weights = args.load_weights or True
 
@@ -205,7 +205,7 @@ if args.load_only_bbox_weights or args.network_type in ("per_image_estimation_ke
     args.load_per_object_attributes_weights = False
 
 elif args.load_partial_weights:
-    if args.network_type == "both":
+    if args.network_type == "per_object_counting":
         args.load_per_object_counting_weights = True
     else:
         args.load_per_object_counting_weights = False
@@ -287,7 +287,7 @@ if args.dataset_name == 'grapes':
 
 elif args.dataset_name == 'roots':
 
-    if args.network_type in INCLUDE_BBOX_DETECTION: #args.network_type == "bbox_detection" or args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
+    if args.network_type in INCLUDE_BBOX_DETECTION:
         config.Detection.change_anchors = True
         config.Detection.ratios = np.array([0.5, 1, 3])  # np.array([0.5, 1, 3]) #np.array([0.5, 1, 4]) #np.array([0.5, 1, 2])
         print("Detection.ratios:", config.Detection.ratios)
@@ -326,11 +326,10 @@ args.loss_weight = 1  # 1  #1000 #10 #100 # roots_both ablations
 ######################################################################
 assert args.dataset_name == "grapes" or args.dataset_name == "roots"
 assert (args.network_type == "bbox_detection" or args.network_type == "per_image_estimation_keypoints" or
-        args.network_type == "per_image_estimation_regression" or args.network_type == "both" or args.network_type == "both_for_roots_2"
-        or args.network_type == "both_Back2bFind2b" )
+        args.network_type == "per_image_estimation_regression" or args.network_type == "per_object_counting" or args.network_type == "per_object_attributes"
+        or args.network_type == "per_object_attributes_multibranch" )
 
 
-# ToDo- replace args.network_type = "both" or args.network_type = "both_for_roots_2" with 'perObjectEstimate
 # estimate_type = 'counting' , 'TRL',
 # config.Estimate.estimate_type
 
@@ -379,8 +378,8 @@ elif args.network_type == "per_image_estimation_keypoints":
     config.General.NETWORK_TYPE = config.NetworkType.per_image_estimation_keypoints
 elif args.network_type == "per_image_estimation_regression":
     config.General.NETWORK_TYPE = config.NetworkType.per_image_estimation_regression
-elif args.network_type == "both" or args.network_type == "both_for_roots_2" or args.network_type == "both_Back2bFind2b":
-    config.General.NETWORK_TYPE = config.NetworkType.detection_and_counting
+elif args.network_type == "per_object_counting" or args.network_type == "per_object_attributes" or args.network_type == "per_object_attributes_multibranch":
+    config.General.NETWORK_TYPE = config.NetworkType.detection_and_estimation
 
 ########################################################################################################################
 # Define the paths
@@ -483,21 +482,21 @@ if args.network_type in INCLUDE_BBOX_DETECTION:
 
     if not args.network_type == "bbox_detection":
 
-        if args.network_type == "both":
+        if args.network_type == "per_object_counting":
             args.per_object_weights_dir = os.path.join(weights_dir, "per_object_counting") #args.myExpPath, "Weights"
             if args.estimate_type == 'withKeyPoints':
                 args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'counting_KP')
             elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
                 args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'counting_Reg')
 
-        elif args.network_type == "both_for_roots_2":
+        elif args.network_type == "per_object_attributes":
             args.per_object_weights_dir = os.path.join(weights_dir, "per_object_attributes") #args.myExpPath, "Weights",
             if args.estimate_type == 'withKeyPoints':
                 args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'attributes_KP')
             elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
                 args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'attributes_Reg')
 
-        elif args.network_type == "both_Back2bFind2b":
+        elif args.network_type == "per_object_attributes_multibranch":
             args.per_object_weights_dir = os.path.join(weights_dir, "per_object_attributes", 'both_Back2bFind2b') #args.myExpPath, "Weights",
 
         os.makedirs(args.per_object_weights_dir, exist_ok=True)
@@ -540,7 +539,7 @@ if args.save_from_model_file:
             file_path += "Reg_based_models", "reg_TRL_only\\2023-06-04_175138"
             args.output_name = 'TRLwithReg'
 
-        elif args.network_type == "both_for_roots_2":
+        elif args.network_type == "per_object_attributes":
             if args.estimate_type == 'withKeyPoints':
                 file_path += "keyPoints_based_models\\both_2_detect_3Sets\\2023-05-23_162315"
                 args.output_name = 'AttrWithKeyPoints'
@@ -548,7 +547,7 @@ if args.save_from_model_file:
                 file_path += "Reg_based_models\\both_2_detect_3Sets\\2023-05-28_194055"
                 args.output_name = 'AttrWithReg'
 
-        elif args.network_type == "both_Back2bFind2b":
+        elif args.network_type == "per_object_attributes_multibranch":
             args.output_name = 'AttrWith2B2F'
             #args.load_more_partial = True
 
@@ -584,14 +583,14 @@ if args.save_from_model_file:
 
 
     elif args.dataset_name == "grapes":
-        if args.network_type == "both":
+        if args.network_type == "per_object_counting":
             if args.estimate_type == 'withKeyPoints':
                 file_path += "both_old" #"per_object_counting_trained\\Weights\\2026-04-16_161416"
                 args.output_name = 'CountWithKeyPoints'
             elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
                 file_path =  ""
 
-    if not args.network_type == "both_Back2bFind2b":
+    if not args.network_type == "per_object_attributes_multibranch":
         args.weights_dir = os.path.join(args.myExpPath, "Weights", file_path)
         args.model_path = get_weights_file(args.weights_dir)  # for initial load of old weights file
 

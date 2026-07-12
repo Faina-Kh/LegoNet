@@ -405,13 +405,13 @@ class PerObjectEstimate(nn.Module):
 
             # else:
             #     if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-            #         if self.network_type == "both":
+            #         if self.network_type == "per_object_counting":
             #             return classification_loss, regression_loss, None, None
-            #         elif self.network_type == "both_for_roots_2":
+            #         elif self.network_type == "per_object_attributes":
             #             return classification_loss, regression_loss, None, None, None, None
             #
             #     elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
-            #         if self.network_type == "both_for_roots_2":
+            #         if self.network_type == "per_object_attributes":
             #             return classification_loss, regression_loss, None, None, None
             #         else:
             #             return classification_loss, regression_loss, None
