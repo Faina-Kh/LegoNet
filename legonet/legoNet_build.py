@@ -8,10 +8,6 @@ shared lego blocks from ``legos.py``.
 
 from importlib import import_module
 import config
-from legonet.network_types import (
-    PER_IMAGE_ESTIMATION_KEYPOINTS,
-    PER_IMAGE_ESTIMATION_REGRESSION,
-)
 
 def _build_bbox_detection(module, args, dataset):
     return module.BBOX_Detection(num_classes=dataset.num_classes())
@@ -47,11 +43,11 @@ MODEL_REGISTRY = {
         "module_path": "legonet.models.model_bbox_detection",
         "builder": _build_bbox_detection,
     },
-    PER_IMAGE_ESTIMATION_KEYPOINTS: {
+    "per_image_estimation_keypoints": {
         "module_path": "legonet.models.model_estimator_withKP",
         "builder": _build_KP_estimator,
     },
-    PER_IMAGE_ESTIMATION_REGRESSION: {
+    "per_image_estimation_regression": {
         "module_path": "legonet.models.model_estimator_withReg",
         "builder": _build_reg_estimator,
     },
