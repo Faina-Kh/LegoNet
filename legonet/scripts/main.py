@@ -145,8 +145,8 @@ args.gpu_num = args.gpu_num or '1'
 
 args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = args.dataset_name or "roots" #"grapes" #"roots"
-args.network_type = args.network_type or "both_for_roots_2" # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
-args.estimate_type = args.estimate_type or  DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "reg_fpn_p3_p7_min_sig")
+args.network_type = args.network_type or "both_Back2bFind2b" # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
+args.estimate_type = args.estimate_type or  DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "withKeyPoints") #"reg_fpn_p3_p7_min_sig")
 args.to_draw = args.to_draw or False
 
 args.run_script = args.run_script or 'Inference' #'Training' #'Inference'
@@ -165,7 +165,7 @@ if args.run_script == 'Training':
     args.current_results_dir = args.current_results_dir or (args.network_type + type_name + 'Training'+
                                                             '_IoUavg_score_b') #'_epoch_by_IoUavg') #+'_gt count by points')
 else:
-    args.current_results_dir = args.current_results_dir or (args.network_type +"_"+ args.val_set + type_name) # + type_name # +'_by_IoUavg_'+ 'new_84' ) #'_'+time_stemp
+    args.current_results_dir = args.current_results_dir or (args.network_type +"_"+ args.val_set ) #+ "_Check" ) #+ type_name) # + type_name # +'_by_IoUavg_'+ 'new_84' ) #'_'+time_stemp
 
 args.evaluate_detection = True #args.evaluate_detection or args.network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
 
