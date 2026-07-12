@@ -15,11 +15,6 @@ class NetworkType(enum.Enum):
     per_image_estimation_regression = 4
 
 
-    # Deprecated aliases retained for compatibility with existing callers.
-    counting_lean = per_image_estimation_keypoints
-    counting_reg = per_image_estimation_regression
-
-
 class General:
     MODE = "train"
     NETWORK_TYPE = ""

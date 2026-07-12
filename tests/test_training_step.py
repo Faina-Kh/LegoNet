@@ -72,7 +72,7 @@ class TrainingStepTests(unittest.TestCase):
         )
         self.assertEqual(result.total.item(), 5)
 
-    def test_counting_regression_loss(self):
+    def test_per_image_regression_loss(self):
         result = self.step.combine_losses(
             {"reg_estimation": FakeTensor(3)},
             self.args("per_image_estimation_regression"),

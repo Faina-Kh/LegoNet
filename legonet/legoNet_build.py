@@ -11,7 +11,6 @@ import config
 from legonet.network_types import (
     PER_IMAGE_ESTIMATION_KEYPOINTS,
     PER_IMAGE_ESTIMATION_REGRESSION,
-    canonicalize_network_type,
 )
 
 def _build_bbox_detection(module, args, dataset):
@@ -72,7 +71,6 @@ MODEL_REGISTRY = {
 
 def model_build(args, dataset_train, dataset_val):
     """Instantiate the active model variant for the current run arguments."""
-    args.network_type = canonicalize_network_type(args.network_type)
     dataset = dataset_train if args.run_script == "Training" else dataset_val
 
     if args.network_type not in MODEL_REGISTRY:

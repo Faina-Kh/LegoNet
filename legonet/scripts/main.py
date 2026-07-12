@@ -11,7 +11,6 @@ if str(REPO_ROOT) not in sys.path:
 
 import config
 import paths
-from legonet.network_types import canonicalize_network_type
 import numpy as np
 import csv
 from datetime import datetime
@@ -75,8 +74,6 @@ def parse_args(args):
             "bbox_detection",
             "per_image_estimation_keypoints",
             "per_image_estimation_regression",
-            "counting_lean",
-            "counting_reg",
             "both",
             "both_for_roots_2",
             "both_Back2bFind2b",
@@ -101,8 +98,6 @@ def parse_args(args):
     parser.add_argument("--weights-type", "--weights_type", choices=['full_model_weights', 'partial_weights'], default=None)
 
     parsed_args = parser.parse_args(args)
-    if parsed_args.network_type:
-        parsed_args.network_type = canonicalize_network_type(parsed_args.network_type)
     # if parsed_args.run_script is None:
     #     parsed_args.run_script = parsed_args.run_script_positional
 
@@ -150,7 +145,7 @@ args.gpu_num = args.gpu_num or '1'
 
 args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
 args.dataset_name = args.dataset_name or "roots" #"grapes" #"roots"
-args.network_type = args.network_type or "both_Back2bFind2b" # "counting_lean"  #"counting_reg" #"both_Back2bFind2b" #"both_for_roots_2" # "both" #"bbox_detection"
+args.network_type = args.network_type or "both_Back2bFind2b"
 args.estimate_type = args.estimate_type or  DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "withKeyPoints") #"reg_fpn_p3_p7_min_sig")
 args.to_draw = args.to_draw or False
 
