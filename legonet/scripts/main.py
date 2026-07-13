@@ -173,6 +173,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     # ToDo - add as constrains to streamlit:
     if args.network_type == "bbox_detection":
         args.load_only_bbox_weights = True
+        args.weights_type = 'partial_weights'
 
     if args.network_type == "per_image_estimation_keypoints" or args.network_type == "per_image_estimation_regression":
         args.weights_type = 'full_model_weights'
