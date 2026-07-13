@@ -133,6 +133,28 @@ def resolve_storage_path(
     return str(storage_path)
 
 
+def resolve_boolean_options(args: argparse.Namespace) -> argparse.Namespace:
+    """Apply boolean defaults while preserving explicit CLI values."""
+    args.have_GT = True if args.have_gt is None else args.have_gt
+    args.to_draw = False if args.to_draw is None else args.to_draw
+    args.evaluate_detection = (
+        True if args.evaluate_detection is None else args.evaluate_detection
+    )
+    args.load_weights = True if args.load_weights is None else args.load_weights
+    args.save_from_model_file = (
+        False
+        if args.save_from_model_file is None
+        else args.save_from_model_file
+    )
+
+    if args.load_weights and args.save_from_model_file:
+        raise ValueError(
+            "--load-weights and --save-from-model-file cannot both be true."
+        )
+
+    return args
+
+
 DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
     "per_image_estimation_keypoints": "withKeyPoints",
     "per_image_estimation_regression": "reg_fpn_p3_p7_min_sig",
@@ -165,11 +187,10 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     args.dataset_name = args.dataset_name or "roots" #"grapes" #"roots"
     args.network_type = args.network_type or "per_object_attributes_multibranch"
     args.estimate_type = args.estimate_type or  DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "withKeyPoints") #"reg_fpn_p3_p7_min_sig")
-    args.to_draw = args.to_draw or False
+    resolve_boolean_options(args)
 
     args.run_script = args.run_script or 'Inference' #'Training' #'Inference'
     args.val_set = args.val_set or "Test" #"Test" #"Val"
-    args.have_GT = args.have_gt or True
 
     args.num_of_epochs = args.num_of_epochs or 300
     type_name = '_KP_' if args.estimate_type == "withKeyPoints" else "_Reg_"
@@ -184,8 +205,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
                                                                 '_IoUavg_score_b') #'_epoch_by_IoUavg') #+'_gt count by points')
     else:
         args.current_results_dir = args.current_results_dir or (args.network_type +"_"+ args.val_set + "_Check_bb") #+ "_Check" ) #+ type_name) # + type_name # +'_by_IoUavg_'+ 'new_84' ) #'_'+time_stemp
-
-    args.evaluate_detection = True #args.evaluate_detection or args.network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
 
     args.load_only_bbox_weights = False
 
@@ -206,20 +225,19 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
 
     args.evaluate_per_object = args.network_type in PER_OBJECT_NETWORKS
 
-    args.load_weights = args.load_weights or True
+    args.load_full_model_weights = (
+        args.load_weights and args.weights_type == 'full_model_weights'
+    )
+    args.load_partial_weights = (
+        args.load_weights and args.weights_type == 'partial_weights'
+    )
 
-    args.save_from_model_file = not args.load_weights # args.save_from_model_file or True
+    args.load_bbox_det_weights = args.load_weights
 
-    if args.weights_type == 'full_model_weights':
-        args.load_full_model_weights = True
-    elif args.weights_type == 'partial_weights':
-        args.load_full_model_weights = False
-
-    args.load_partial_weights = not args.load_full_model_weights
-
-    args.load_bbox_det_weights = True
-
-    if args.load_only_bbox_weights or args.network_type in ("per_image_estimation_keypoints", "per_image_estimation_regression"):
+    if not args.load_weights:
+        args.load_per_object_counting_weights = False
+        args.load_per_object_attributes_weights = False
+    elif args.load_only_bbox_weights or args.network_type in ("per_image_estimation_keypoints", "per_image_estimation_regression"):
         args.load_per_object_counting_weights = False
         args.load_per_object_attributes_weights = False
 
