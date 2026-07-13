@@ -204,7 +204,7 @@ if args.load_only_bbox_weights or args.network_type in ("per_image_estimation_ke
     args.load_per_object_counting_weights = False
     args.load_per_object_attributes_weights = False
 
-elif args.load_partial_weights:
+else: #elif args.load_partial_weights:
     if args.network_type == "per_object_counting":
         args.load_per_object_counting_weights = True
     else:
