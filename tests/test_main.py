@@ -5,6 +5,8 @@ import sys
 import types
 import unittest
 from contextlib import ExitStack
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import mock
 
@@ -72,6 +74,65 @@ class MainEntryPointTests(unittest.TestCase):
         configure_runtime.assert_called_once_with(parsed_args)
         self.runner_stub.run.assert_called_once_with(configured_args)
         print_to_csv.assert_called_once()
+
+    def test_cli_storage_path_takes_precedence(self) -> None:
+        """An explicit CLI path overrides the environment setting."""
+        with TemporaryDirectory() as cli_dir, TemporaryDirectory() as env_dir:
+            result = self.main_module.resolve_storage_path(
+                cli_dir,
+                {"LEGONET_STORAGE_PATH": env_dir},
+            )
+
+        self.assertEqual(result, str(Path(cli_dir)))
+
+    def test_storage_path_can_come_from_environment(self) -> None:
+        """The environment variable supplies the root when CLI input is absent."""
+        with TemporaryDirectory(prefix="legonet storage ") as storage_dir:
+            result = self.main_module.resolve_storage_path(
+                None,
+                {"LEGONET_STORAGE_PATH": storage_dir},
+            )
+
+        self.assertEqual(result, str(Path(storage_dir)))
+
+    def test_missing_storage_path_is_rejected(self) -> None:
+        """Missing CLI and environment values produce an actionable error."""
+        with self.assertRaisesRegex(ValueError, "--storage-path"):
+            self.main_module.resolve_storage_path(None, {})
+
+    def test_nonexistent_storage_path_is_rejected(self) -> None:
+        """The configured root must already exist as a directory."""
+        with TemporaryDirectory() as parent:
+            missing_path = Path(parent) / "missing"
+            with self.assertRaisesRegex(ValueError, "does not exist"):
+                self.main_module.resolve_storage_path(str(missing_path), {})
+
+    def test_main_reports_configuration_error_without_running(self) -> None:
+        """Invalid public input fails cleanly before runner dispatch."""
+        with ExitStack() as stack:
+            stack.enter_context(
+                mock.patch.object(self.main_module, "parse_args", return_value=object())
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    self.main_module,
+                    "configure_runtime",
+                    side_effect=ValueError("missing storage"),
+                )
+            )
+            print_mock = stack.enter_context(
+                mock.patch.object(self.main_module, "print", create=True)
+            )
+            result = self.main_module.main([])
+
+        self.assertEqual(result, 2)
+        self.runner_stub.run.assert_not_called()
+        self.assertTrue(
+            any(
+                call[0] and "Configuration error" in call[0][0]
+                for call in print_mock.call_args_list
+            )
+        )
 
 
 if __name__ == "__main__":

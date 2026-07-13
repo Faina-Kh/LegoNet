@@ -4,7 +4,7 @@ import os
 import sys
 import argparse
 import time
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 import torch
 
@@ -109,6 +109,30 @@ def get_weights_file(weights_dir):
     return str(files[0])
 
 
+def resolve_storage_path(
+    cli_value: str | None,
+    environment: Mapping[str, str] | None = None,
+) -> str:
+    """Resolve and validate the storage root from CLI or environment input."""
+    environment = os.environ if environment is None else environment
+    raw_path = cli_value or environment.get("LEGONET_STORAGE_PATH")
+
+    if not raw_path:
+        raise ValueError(
+            "LegoNet storage path is required. Pass --storage-path PATH "
+            "or set the LEGONET_STORAGE_PATH environment variable."
+        )
+
+    storage_path = Path(raw_path).expanduser()
+    if not storage_path.is_dir():
+        raise ValueError(
+            "LegoNet storage path does not exist or is not a directory: "
+            f"{storage_path}"
+        )
+
+    return str(storage_path)
+
+
 DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
     "per_image_estimation_keypoints": "withKeyPoints",
     "per_image_estimation_regression": "reg_fpn_p3_p7_min_sig",
@@ -137,7 +161,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     ########################################################################################################################
     args.gpu_num = args.gpu_num or '1'
 
-    args.STORAGE_PATH = args.storage_path or 'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\Faina_code\\LegoNet' #'C:\\Users\\bordezki\\Desktop\\LegoNet' #'C:\\Users\\borde\\Desktop\\פאינה\\LegoNet' #r"C:\Users\bordezki\Desktop\LegoNet"
+    args.STORAGE_PATH = resolve_storage_path(args.storage_path)
     args.dataset_name = args.dataset_name or "roots" #"grapes" #"roots"
     args.network_type = args.network_type or "per_object_attributes_multibranch"
     args.estimate_type = args.estimate_type or  DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "withKeyPoints") #"reg_fpn_p3_p7_min_sig")
@@ -571,7 +595,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     faulthandler.enable()
     start_time = time.time()
 
-    args = configure_runtime(parse_args(argv))
+    try:
+        args = configure_runtime(parse_args(argv))
+    except ValueError as error:
+        print(f"Configuration error: {error}", file=sys.stderr)
+        return 2
 
     from legonet import runner
 

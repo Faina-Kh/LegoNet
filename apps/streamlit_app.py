@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -55,6 +56,52 @@ def has_cuda_gpu() -> bool:
         return False
 
     return torch.cuda.is_available()
+
+
+def choose_local_directory(initial_path: str = "") -> str:
+    """Open a native directory picker on the machine running Streamlit."""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except ImportError as error:
+        raise RuntimeError("The native folder picker requires Tkinter.") from error
+
+    root = None
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        try:
+            root.attributes("-topmost", True)
+        except tk.TclError:
+            pass
+
+        initial_directory = Path(initial_path).expanduser()
+        dialog_options = {"title": "Choose the LegoNet storage directory"}
+        if initial_directory.is_dir():
+            dialog_options["initialdir"] = str(initial_directory)
+        return filedialog.askdirectory(**dialog_options)
+    except Exception as error:
+        raise RuntimeError(
+            "The native folder picker is unavailable. Enter the path manually."
+        ) from error
+    finally:
+        if root is not None:
+            root.destroy()
+
+
+def browse_for_storage_path() -> None:
+    """Update Streamlit state from the optional local folder picker."""
+    try:
+        selected_path = choose_local_directory(
+            st.session_state.get("storage_path", "")
+        )
+    except RuntimeError as error:
+        st.session_state.storage_path_dialog_error = str(error)
+        return
+
+    if selected_path:
+        st.session_state.storage_path = selected_path
+    st.session_state.storage_path_dialog_error = ""
 
 
 def build_command(
@@ -152,10 +199,29 @@ st.title("LegoNet Runner")
 
 with st.sidebar:
     st.header("Run Settings")
+    if "storage_path" not in st.session_state:
+        st.session_state.storage_path = os.environ.get(
+            "LEGONET_STORAGE_PATH",
+            "",
+        )
+
     storage_path = st.text_input(
         "Storage path",
-        value=r"C:\Users\bordezki\Desktop\LegoNet",
+        key="storage_path",
+        help=(
+            "Uses LEGONET_STORAGE_PATH as its initial value. The local folder "
+            "picker is only available when Streamlit runs on this computer."
+        ),
     )
+    st.button(
+        "Browse local machine…",
+        on_click=browse_for_storage_path,
+        use_container_width=True,
+    )
+    folder_dialog_error = st.session_state.get("storage_path_dialog_error", "")
+    if folder_dialog_error:
+        st.warning(folder_dialog_error)
+
     dataset_name = st.selectbox("Dataset", DATASET_OPTIONS, index=0)
 
     network_type = st.selectbox("Network type", NETWORKS_OPTIONS_BY_DATASETS[dataset_name], index=0)
