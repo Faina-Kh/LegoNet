@@ -159,7 +159,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         args.current_results_dir = args.current_results_dir or (args.network_type + type_name + 'Training'+
                                                                 '_IoUavg_score_b') #'_epoch_by_IoUavg') #+'_gt count by points')
     else:
-        args.current_results_dir = args.current_results_dir or (args.network_type +"_"+ args.val_set ) #+ "_Check" ) #+ type_name) # + type_name # +'_by_IoUavg_'+ 'new_84' ) #'_'+time_stemp
+        args.current_results_dir = args.current_results_dir or (args.network_type +"_"+ args.val_set + "_Check_bb") #+ "_Check" ) #+ type_name) # + type_name # +'_by_IoUavg_'+ 'new_84' ) #'_'+time_stemp
 
     args.evaluate_detection = True #args.evaluate_detection or args.network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
 
