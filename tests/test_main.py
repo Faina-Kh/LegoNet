@@ -201,6 +201,89 @@ class MainEntryPointTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "cannot both be true"):
             self.main_module.resolve_boolean_options(args)
 
+    def test_supported_configuration_is_accepted(self) -> None:
+        """A documented roots attribute-training configuration is valid."""
+        args = SimpleNamespace(
+            dataset_name="roots",
+            network_type="per_object_attributes",
+            estimate_type="reg_fpn_p3_p7_min_sig",
+            run_script="Training",
+            val_set="Val",
+            have_GT=True,
+        )
+
+        self.assertIs(self.main_module.validate_configuration(args), args)
+
+    def test_dataset_rejects_an_incompatible_network(self) -> None:
+        """Dataset-specific model choices fail with the supported alternatives."""
+        args = SimpleNamespace(
+            dataset_name="grapes",
+            network_type="per_object_attributes",
+            estimate_type="withKeyPoints",
+            run_script="Inference",
+            val_set="Test",
+            have_GT=True,
+        )
+
+        with self.assertRaisesRegex(ValueError, "not supported for dataset"):
+            self.main_module.validate_configuration(args)
+
+    def test_network_rejects_an_incompatible_estimator(self) -> None:
+        """Fixed-estimator networks report their supported estimate type."""
+        args = SimpleNamespace(
+            dataset_name="roots",
+            network_type="per_image_estimation_keypoints",
+            estimate_type="reg_fpn_p3_p7_min_sig",
+            run_script="Inference",
+            val_set="Test",
+            have_GT=True,
+        )
+
+        with self.assertRaisesRegex(ValueError, "not supported for network"):
+            self.main_module.validate_configuration(args)
+
+    def test_multibranch_network_requires_keypoints(self) -> None:
+        """The multibranch architecture remains keypoint-only."""
+        args = SimpleNamespace(
+            dataset_name="roots",
+            network_type="per_object_attributes_multibranch",
+            estimate_type="reg_fpn_p3_p7_min_sig",
+            run_script="Inference",
+            val_set="Test",
+            have_GT=True,
+        )
+
+        with self.assertRaisesRegex(ValueError, "withKeyPoints"):
+            self.main_module.validate_configuration(args)
+
+    def test_training_requires_ground_truth(self) -> None:
+        """Training without GT is rejected before data construction."""
+        args = SimpleNamespace(
+            dataset_name="grapes",
+            network_type="per_object_counting",
+            estimate_type="withKeyPoints",
+            run_script="Training",
+            val_set="Val",
+            have_GT=False,
+        )
+
+        with self.assertRaisesRegex(ValueError, "requires --have-gt true"):
+            self.main_module.validate_configuration(args)
+
+    def test_training_requires_validation_split(self) -> None:
+        """Training cannot accidentally use the held-out test split."""
+        args = SimpleNamespace(
+            dataset_name="roots",
+            network_type="per_object_attributes",
+            estimate_type="withKeyPoints",
+            run_script="Training",
+            val_set="Test",
+            have_GT=True,
+        )
+
+        with self.assertRaisesRegex(ValueError, "requires --val-set Val"):
+            self.main_module.validate_configuration(args)
+
 
 if __name__ == "__main__":
     unittest.main()
