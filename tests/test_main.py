@@ -134,6 +134,73 @@ class MainEntryPointTests(unittest.TestCase):
             )
         )
 
+    def test_explicit_false_boolean_values_are_preserved(self) -> None:
+        """False values from CLI and Streamlit survive default resolution."""
+        args = self.main_module.parse_args(
+            [
+                "--have-gt",
+                "false",
+                "--to-draw",
+                "false",
+                "--evaluate-detection",
+                "false",
+                "--load-weights",
+                "false",
+                "--save-from-model-file",
+                "false",
+            ]
+        )
+
+        result = self.main_module.resolve_boolean_options(args)
+
+        self.assertFalse(result.have_GT)
+        self.assertFalse(result.to_draw)
+        self.assertFalse(result.evaluate_detection)
+        self.assertFalse(result.load_weights)
+        self.assertFalse(result.save_from_model_file)
+
+    def test_boolean_defaults_preserve_legacy_run_mode(self) -> None:
+        """Omitted options still default to GT evaluation and weight loading."""
+        result = self.main_module.resolve_boolean_options(
+            self.main_module.parse_args([])
+        )
+
+        self.assertTrue(result.have_GT)
+        self.assertFalse(result.to_draw)
+        self.assertTrue(result.evaluate_detection)
+        self.assertTrue(result.load_weights)
+        self.assertFalse(result.save_from_model_file)
+
+    def test_legacy_export_can_be_selected_explicitly(self) -> None:
+        """Disabling loading permits explicit legacy weight export."""
+        args = self.main_module.parse_args(
+            [
+                "--load-weights",
+                "false",
+                "--save-from-model-file",
+                "true",
+            ]
+        )
+
+        result = self.main_module.resolve_boolean_options(args)
+
+        self.assertFalse(result.load_weights)
+        self.assertTrue(result.save_from_model_file)
+
+    def test_loading_and_legacy_export_are_mutually_exclusive(self) -> None:
+        """Contradictory weight modes fail before filesystem setup."""
+        args = self.main_module.parse_args(
+            [
+                "--load-weights",
+                "true",
+                "--save-from-model-file",
+                "true",
+            ]
+        )
+
+        with self.assertRaisesRegex(ValueError, "cannot both be true"):
+            self.main_module.resolve_boolean_options(args)
+
 
 if __name__ == "__main__":
     unittest.main()
