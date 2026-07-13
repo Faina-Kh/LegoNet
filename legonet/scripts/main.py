@@ -174,6 +174,50 @@ NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_estimatio
                                 'grapes': ("bbox_detection", "per_object_counting")
                                 }
 
+SUPPORTED_ESTIMATE_TYPES_BY_NETWORK = {
+    "bbox_detection": ("withKeyPoints", "reg_fpn_p3_p7_min_sig"),
+    "per_image_estimation_keypoints": ("withKeyPoints",),
+    "per_image_estimation_regression": ("reg_fpn_p3_p7_min_sig",),
+    "per_object_counting": ("withKeyPoints", "reg_fpn_p3_p7_min_sig"),
+    "per_object_attributes": ("withKeyPoints", "reg_fpn_p3_p7_min_sig"),
+    "per_object_attributes_multibranch": ("withKeyPoints",),
+}
+
+
+def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
+    """Validate supported public experiment-option combinations."""
+    supported_networks = NETWORKS_OPTIONS_BY_DATASETS.get(args.dataset_name)
+    if supported_networks is None:
+        raise ValueError(f"Unsupported dataset: {args.dataset_name!r}.")
+
+    if args.network_type not in supported_networks:
+        choices = ", ".join(supported_networks)
+        raise ValueError(
+            f"Network type {args.network_type!r} is not supported for dataset "
+            f"{args.dataset_name!r}. Choose one of: {choices}."
+        )
+
+    supported_estimates = SUPPORTED_ESTIMATE_TYPES_BY_NETWORK[args.network_type]
+    if args.estimate_type not in supported_estimates:
+        choices = ", ".join(supported_estimates)
+        raise ValueError(
+            f"Estimate type {args.estimate_type!r} is not supported for network "
+            f"{args.network_type!r}. Choose one of: {choices}."
+        )
+
+    if args.run_script not in ("Training", "Inference"):
+        raise ValueError(f"Unsupported run mode: {args.run_script!r}.")
+    if args.val_set not in ("Val", "Test"):
+        raise ValueError(f"Unsupported validation set: {args.val_set!r}.")
+
+    if args.run_script == "Training":
+        if not args.have_GT:
+            raise ValueError("Training requires --have-gt true.")
+        if args.val_set != "Val":
+            raise ValueError("Training requires --val-set Val.")
+
+    return args
+
 
 def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     """Apply the legacy runtime configuration without starting a run."""
@@ -193,6 +237,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     args.val_set = args.val_set or "Test" #"Test" #"Val"
 
     args.num_of_epochs = args.num_of_epochs or 300
+    validate_configuration(args)
     type_name = '_KP_' if args.estimate_type == "withKeyPoints" else "_Reg_"
 
     #################################################
@@ -210,7 +255,8 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
 
     #---------------------------------------------------------------------------------------------------------------
     args.weights_type = args.weights_type or 'partial_weights' # 'full_model_weights'  #'partial_weights'
-    assert args.weights_type == 'full_model_weights' or args.weights_type == 'partial_weights'
+    if args.weights_type not in ('full_model_weights', 'partial_weights'):
+        raise ValueError(f"Unsupported weights type: {args.weights_type!r}.")
 
     #--------------------------------------------------------------------------------------------------------------
     # ToDo - add as constrains to streamlit:
@@ -337,24 +383,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
 
     args.loss_weight = 1  # 1  #1000 #10 #100 # roots_both ablations
 
-    ######################################################################
-    # Checks
-    ######################################################################
-    assert args.dataset_name == "grapes" or args.dataset_name == "roots"
-    assert (args.network_type == "bbox_detection" or args.network_type == "per_image_estimation_keypoints" or
-            args.network_type == "per_image_estimation_regression" or args.network_type == "per_object_counting" or args.network_type == "per_object_attributes"
-            or args.network_type == "per_object_attributes_multibranch" )
-
-    assert args.val_set == 'Val' or args.val_set == 'Test'
-
-    assert (config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig' or
-            config.AttributeEstimation.estimate_type == 'withKeyPoints')
-
-    assert args.run_script =='Training' or args.run_script =='Inference'
-
     if args.run_script == 'Training':
-        assert args.have_GT == True
-        assert args.val_set == "Val"
         args.epochs = args.num_of_epochs
         config.General.to_draw = False
         config.DrawProperties.DRAW_MAPS = False
