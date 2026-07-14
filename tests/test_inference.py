@@ -10,7 +10,7 @@ from unittest import mock
 
 import numpy  # Keep NumPy loaded outside the temporary dependency-stub context.
 
-import config
+from legonet import config
 
 
 def _module(name, **attributes):

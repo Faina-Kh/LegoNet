@@ -6,7 +6,7 @@ import types
 import unittest
 from unittest import mock
 
-import config
+from legonet import config
 
 
 class TrainingEvaluationTests(unittest.TestCase):

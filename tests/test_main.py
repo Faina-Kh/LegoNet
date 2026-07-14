@@ -21,12 +21,12 @@ class MainEntryPointTests(unittest.TestCase):
         cls.runner_stub = types.ModuleType("legonet.runner")
         cls.runner_stub.run = mock.Mock()
 
-        sys.modules.pop("legonet.scripts.main", None)
+        sys.modules.pop("legonet.cli", None)
         with mock.patch.dict(
             sys.modules,
             {"torch": torch_stub, "legonet.runner": cls.runner_stub},
         ):
-            cls.main_module = importlib.import_module("legonet.scripts.main")
+            cls.main_module = importlib.import_module("legonet.cli")
 
     def setUp(self) -> None:
         """Reset the runner mock between tests."""

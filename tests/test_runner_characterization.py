@@ -82,7 +82,7 @@ def _runner_dependency_stubs():
     )
     build_module = _module("legonet.legoNet_build", model_build=mock.Mock())
     weights_module = _module(
-        "manage_weights",
+        "legonet.manage_weights",
         list_checkpoint_modules=mock.Mock(),
         load_submodule_weights=mock.Mock(),
         save_partial_weights=mock.Mock(),
@@ -102,7 +102,7 @@ def _runner_dependency_stubs():
         "legonet.my_dataloader": dataloader_module,
         "legonet.legoNet_build": build_module,
         "legonet.utils": utils_module,
-        "manage_weights": weights_module,
+        "legonet.manage_weights": weights_module,
     }
 
 

@@ -7,7 +7,7 @@ import unittest
 from types import SimpleNamespace
 from unittest import mock
 
-import config
+from legonet import config
 
 
 class FakeTensor:
