@@ -11,7 +11,7 @@ SOURCE_ROOT = PROJECT_ROOT / "src"
 if str(SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(SOURCE_ROOT))
 
-from src.legonet.cli import main
+from legonet.cli import main
 
 
 if __name__ == "__main__":

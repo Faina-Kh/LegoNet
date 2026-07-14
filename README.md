@@ -40,6 +40,7 @@ src/
         models/             Model variants
         eval/               Evaluation code
 scripts/
+    debug_legonet.py        Editable same-process IDE debug entry point
     run_legonet.py          Thin public command-line entry point
 notebooks/                  Demonstrations and experiments
 tests/                      Unit, characterization, and smoke tests
@@ -184,6 +185,18 @@ Checkpoint loading and legacy checkpoint export are mutually exclusive:
 ```
 
 cannot be used together.
+
+## PyCharm debugging
+
+For same-process debugging with normal PyCharm breakpoints, edit the
+`DEBUG_SETTINGS` mapping in `scripts/debug_legonet.py`, then run or debug that
+file with the `newTorchEnv` interpreter. The settings correspond to the public
+CLI options and the notebook settings. Set `LEGONET_STORAGE_PATH`, or replace
+the empty `storage_path` value locally, before starting an experiment.
+
+The debug entry point calls `legonet.cli.main()` directly rather than starting
+a subprocess, so breakpoints inside the package remain active. Machine-specific
+paths should not be committed.
 
 ## Streamlit GUI
 
