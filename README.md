@@ -329,12 +329,23 @@ runtime supports full-model and modular checkpoint loading, but commands using
 `--load-weights true` require the expected local checkpoint files under the
 experiment storage hierarchy.
 
+Available candidate checkpoints do not cover every reported scenario, and
+some cannot reproduce paper results exactly because historical fold splits or
+original training checkpoints are unavailable. See
+[`docs/pretrained_weights.md`](docs/pretrained_weights.md) for the per-model
+status, limitations, and planned verification process.
+
 ## Known limitations
 
 - Some runtime configuration remains research-specific inside
   `src/legonet/cli.py`.
 - Pretrained checkpoint locations have not yet been converted into a public
   download manifest.
+- Exact reproduction of the roots paper's five-fold results is not currently
+  possible because the historical fold definitions and complete fold-specific
+  checkpoint set are unavailable.
+- The grape architecture-ablation code and checkpoints are not included in the
+  current release.
 - Not every historical no-ground-truth or checkpoint-conversion path has been
   validated across every model variant.
 
