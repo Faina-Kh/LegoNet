@@ -39,6 +39,20 @@ class BestMetrics:
     average_relative_error: float = 100.0
 
 
+def _print_best_error_checkpoint_notice(
+    epoch: int,
+    previous_error: float,
+    current_error: float,
+    metric_name: str = "relative error",
+) -> None:
+    """Report replacement of the saved best checkpoint by a lower error."""
+    print(
+        f"New best validation {metric_name}: {current_error:.6f} "
+        f"(previous: {previous_error:.6f}) at epoch {epoch}. "
+        "Replacing the previously saved best-epoch weights file."
+    )
+
+
 def _epoch_loss_keys(args: Any) -> List[str]:
     """Return the scalar loss components recorded for one configuration."""
     network_type = args.network_type
@@ -167,6 +181,9 @@ def _evaluate_counting_epoch(
     relative_error = attribute_estimation_eval.eval(dataloader_val, dataset_val, model, args)
     print(f"Rel_error: {relative_error:.3f} | prev_best: {best.relative_error:.3f}\n")
     if relative_error < best.relative_error:
+        _print_best_error_checkpoint_notice(
+            epoch, best.relative_error, relative_error
+        )
         best.relative_error = relative_error
         save_epoch_checkpoint(model, epoch, replace_existing=True)
 
@@ -226,6 +243,12 @@ def _evaluate_combined_epoch(
         average_error = sweep.average_relative_error
         print(f"average_error={average_error:.3f}\n")
         if average_error is not None and average_error < best.average_relative_error:
+            _print_best_error_checkpoint_notice(
+                epoch,
+                best.average_relative_error,
+                average_error,
+                metric_name="IoU-averaged relative error",
+            )
             best.average_relative_error = average_error
             save_epoch_checkpoint(model, epoch, replace_existing=True)
         return
@@ -246,6 +269,9 @@ def _evaluate_combined_epoch(
         f"orig_1-FVU: {one_minus_fvu_text}"
     )
     if relative_error is not None and relative_error < best.relative_error:
+        _print_best_error_checkpoint_notice(
+            epoch, best.relative_error, relative_error
+        )
         best.relative_error = relative_error
         save_epoch_checkpoint(model, epoch, replace_existing=True)
 
