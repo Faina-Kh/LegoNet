@@ -1963,8 +1963,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     crop_count_metrics["mean_relative_error"],
                 )
 
-                printf("====================================================================================================\n")
-
             else:
                 if args.have_GT:
 

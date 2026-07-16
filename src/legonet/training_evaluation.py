@@ -50,6 +50,14 @@ class IoUSweepResult:
         return float(np.mean(valid_errors))
 
 
+@dataclass(frozen=True)
+class CountingSummary:
+    """Publication counting metrics used during checkpoint selection."""
+
+    relative_error: Optional[float]
+    one_minus_fvu: Optional[float]
+
+
 @contextmanager
 def _validation_dataset(model: Any, dataset_val: Any) -> Iterator[None]:
     """Temporarily point a model at validation data and always restore it."""
@@ -117,11 +125,36 @@ def evaluate_combined_once(
             dataloader_val,
             sampler_val,
             model,
+            verbose=False,
             to_draw=False,
             print_to_files=True,
             args=args,
         )
     return _relative_error(output)
+
+
+def evaluate_combined_counting_summary(
+    dataset_val: Any,
+    dataloader_val: Any,
+    sampler_val: Any,
+    model: Any,
+    args: Any,
+) -> CountingSummary:
+    """Evaluate one IoU silently and return the two counting summary metrics."""
+    model.eval()
+    with _validation_dataset(model, dataset_val):
+        output = perObject_eval.eval(
+            dataset_val,
+            dataloader_val,
+            sampler_val,
+            model,
+            verbose=False,
+            to_draw=False,
+            print_to_files=True,
+            args=args,
+        )
+    one_minus_fvu = float(output[8]) if len(output) > 8 else None
+    return CountingSummary(_relative_error(output), one_minus_fvu)
 
 
 def evaluate_combined_iou_sweep(
