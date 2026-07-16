@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "legonet"
+version = "0.1.0"
+description = "Research code for object detection and attribute estimation in plant phenotyping."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Faina Khoroshevsky" },
+]
+dependencies = [
+    "matplotlib==3.10.8",
+    "numpy==2.4.3",
+    "opencv-python==4.13.0.92",
+    "pillow==12.1.1",
+    "pycocotools==2.0.11",
+    "scikit-image==0.26.0",
+    "six==1.17.0",
+    "thop==0.1.1.post2209072238",
+    "torch==2.5.1",
+    "torchvision==0.20.1",
+]
+
+[project.optional-dependencies]
+gui = [
+    "streamlit>=1.40,<2",
+]
+
+[project.scripts]
+legonet = "legonet.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["legonet*"]
+namespaces = false

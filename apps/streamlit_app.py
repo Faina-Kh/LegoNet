@@ -38,9 +38,9 @@ WEIGHTS_TYPES = ('full_model_weights', 'partial_weights')
 def find_project_root(start: Path) -> Path:
     """Find the repository root from this Streamlit app file."""
     for path in (start, *start.parents):
-        if (path / "legonet" / "scripts" / "main.py").exists():
+        if (path / "scripts" / "run_legonet.py").exists():
             return path
-    raise FileNotFoundError("Could not find legonet/scripts/main.py above the app directory.")
+    raise FileNotFoundError("Could not find scripts/run_legonet.py above the app directory.")
 
 
 def bool_arg(value: bool) -> str:
@@ -190,7 +190,7 @@ def read_preview(path: Path, max_chars: int = 4000) -> str:
 
 
 PROJECT_ROOT = find_project_root(Path(__file__).resolve())
-MAIN_SCRIPT = PROJECT_ROOT / "legonet" / "scripts" / "main.py"
+MAIN_SCRIPT = PROJECT_ROOT / "scripts" / "run_legonet.py"
 GPU_AVAILABLE = has_cuda_gpu()
 
 st.set_page_config(page_title="LegoNet Runner", page_icon="L", layout="wide")

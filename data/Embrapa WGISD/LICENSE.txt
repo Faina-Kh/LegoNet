@@ -1,0 +1,47 @@
+LegoNet grape annotation files
+================================
+
+Unless otherwise stated, the annotation files in this directory are made
+available under the Creative Commons Attribution-NonCommercial 4.0
+International license (CC BY-NC 4.0):
+
+https://creativecommons.org/licenses/by-nc/4.0/
+
+You may share and adapt these files for noncommercial purposes provided that
+you give appropriate credit, link to the license, and indicate that changes
+were made. No additional legal or technological restrictions may be applied
+that prevent recipients from exercising the rights granted by the license.
+
+Source and modifications
+------------------------
+
+These files are derived from the Embrapa Wine Grape Instance Segmentation
+Dataset (WGISD):
+
+https://github.com/thsant/wgisd
+https://doi.org/10.5281/zenodo.3361736
+
+They combine WGISD grape-cluster bounding boxes with berry-point annotations
+contributed by Faina Khoroshevsky and Stanislav Khoroshevsky. The annotations
+were converted to the comma-separated train/validation/test inputs expected by
+LegoNet and combined by image. The distributed files retain all 300 WGISD image
+records; LegoNet performs the berry-subset and empty-box filtering at runtime.
+
+The files should be attributed to the WGISD creators and to Faina Khoroshevsky
+and Stanislav Khoroshevsky for the berry-point annotations. Cite the associated
+paper:
+
+F. Khoroshevsky, S. Khoroshevsky, and A. Bar-Hillel, "Parts-per-Object Count
+in Agricultural Images: Solving Phenotyping Problems via a Single Deep Neural
+Network," Remote Sensing, 13(13), 2496, 2021.
+https://doi.org/10.3390/rs13132496
+
+Scope
+-----
+
+This notice applies only to the annotation data in this directory. It does not
+replace the BSD-3-Clause license covering LegoNet source code, and it does not
+grant or modify rights in WGISD images. Images must be obtained from WGISD and
+remain governed by its terms. Commercial use requires separate permission from
+the relevant rights holders; WGISD directs commercial-use inquiries to Embrapa
+Agricultural Informatics.
