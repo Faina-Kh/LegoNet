@@ -265,8 +265,9 @@ def _evaluate_combined_epoch(
         else "n/a"
     )
     print(
+        "Validation results: \n"
         f"orig_avg_relative_error: {relative_error_text} | "
-        f"orig_1-FVU: {one_minus_fvu_text}"
+        f"orig_1-FVU: {one_minus_fvu_text} \n"
     )
     if relative_error is not None and relative_error < best.relative_error:
         _print_best_error_checkpoint_notice(
