@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+message: >-
+  If you use LegoNet, please cite the software and the associated paper below.
+title: LegoNet
+type: software
+version: 0.1.0
+authors:
+  - family-names: Khoroshevsky
+    given-names: Faina
+    orcid: "https://orcid.org/0000-0003-2571-001X"
+license: BSD-3-Clause
+keywords:
+  - deep learning
+  - plant phenotyping
+  - object detection
+  - attribute estimation
+  - minirhizotron
+preferred-citation:
+  type: article
+  title: >-
+    A CNN-based framework for estimation of root length, diameter, and color
+    from in situ minirhizotron images
+  authors:
+    - family-names: Khoroshevsky
+      given-names: Faina
+    - family-names: Zhou
+      given-names: Kaining
+    - family-names: Bar-Hillel
+      given-names: Aharon
+    - family-names: Hadar
+      given-names: Ofer
+    - family-names: Rachmilevitch
+      given-names: Shimon
+    - family-names: Ephrath
+      given-names: Jhonathan E.
+    - family-names: Lazarovitch
+      given-names: Naftali
+    - family-names: Edan
+      given-names: Yael
+  journal: Computers and Electronics in Agriculture
+  volume: 227
+  year: 2024
+  month: 12
+  doi: 10.1016/j.compag.2024.109457
