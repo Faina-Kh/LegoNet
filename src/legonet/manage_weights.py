@@ -211,7 +211,7 @@ def load_submodule_weights(
     state_dict: Mapping[str, Any],
     submodule_names: Sequence[str],
     strict: bool = True,
-    verbose: bool = True,
+    verbose: bool = False,
 ) -> None:
     """Load matching checkpoint entries into selected model submodules."""
     """

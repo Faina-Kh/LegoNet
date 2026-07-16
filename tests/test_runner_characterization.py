@@ -215,6 +215,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
             state_dict,
             submodule_names=["backbone_1", "find_1", "where"],
             strict=False,
+            verbose=False,
         )
 
     def test_detector_only_mode_enters_weight_loading(self):
@@ -249,6 +250,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
             state_dict,
             submodule_names=["backbone", "estimator"],
             strict=False,
+            verbose=False,
         )
 
     def test_partial_root_attributes_keep_current_module_mapping(self):
@@ -279,6 +281,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
                 "estimator_color",
             ],
             strict=False,
+            verbose=False,
         )
 
     def test_partial_object_counting_keeps_current_module_mapping(self):
@@ -303,6 +306,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
             state_dict,
             submodule_names=["backbone_2", "find_2", "estimator"],
             strict=False,
+            verbose=False,
         )
 
     def test_legacy_detector_export_returns_before_model_execution(self):
