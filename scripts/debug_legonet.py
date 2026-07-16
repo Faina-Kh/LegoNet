@@ -22,14 +22,14 @@ DebugValue = str | int | bool | None
 # path in LEGONET_STORAGE_PATH avoids committing a machine-specific path.
 DEBUG_SETTINGS: dict[str, DebugValue] = {
     "storage_path": os.environ.get("LEGONET_STORAGE_PATH", ""),
-    "dataset_name": "roots",  # "roots" or "grapes"
-    "network_type": "per_object_attributes",
+    "dataset_name": "grapes",  # "roots" or "grapes"
+    "network_type": "per_object_counting", #"bbox_detection", "per_object_counting", "per_object_attributes", "per_object_attributes_multibranch"
     "run_script": "Inference",  # "Inference" or "Training"
-    "val_set": "Test",  # "Test" or "Val"
+    "val_set": "Val",  # "Test" or "Val"
     "gpu_num": "0",
-    "current_results_dir": "debug_run",
-    "estimate_type": "withKeyPoints",
-    "num_of_epochs": 2,
+    "current_results_dir": "debug_run_"+"grapes_per_object_counting",
+    "estimate_type": "reg_fpn_p3_p7_min_sig", #"reg_fpn_p3_p7_min_sig", "withKeyPoints"
+    "num_of_epochs": 300,
     "have_gt": True,
     "to_draw": False,
     "load_weights": True,

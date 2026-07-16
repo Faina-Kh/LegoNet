@@ -32,7 +32,6 @@ def _get_detections(detection_outputs, scale):
 
     return scores.cpu().numpy(), boxes
 
-
 def _get_count_and_box_annotations(generator):
     """ Get the ground truth annotations from the generator.
     The result is a list of lists such that the size is:
@@ -70,7 +69,6 @@ def _get_count_and_box_annotations(generator):
 
     return all_box_annotations,all_count_annotations
 
-
 def _prepare_gt_boxes_for_attribute_eval(box_annotations, count_annotations):
     """Split GT boxes into all boxes and boxes with attribute/count annotations.
 
@@ -101,7 +99,6 @@ def _prepare_gt_boxes_for_attribute_eval(box_annotations, count_annotations):
                 break
 
     return all_boxes, boxes_with_annotations, matched_counts
-
 
 def find_points_in_bbox(img, point_anns, bbox_pred, scale):
 
@@ -298,7 +295,6 @@ def choose_boxes_by_IoUandPrc(detections, annotations, d_scores):
             #print('No relevant detections...\n')
             return []
 
-
 def _assign_detection_to_gt(detection, annotations, detected_annotations, iou_threshold):
     """Match one predicted box to an unmatched GT box by IoU threshold.
 
@@ -327,7 +323,6 @@ def _assign_detection_to_gt(detection, annotations, detected_annotations, iou_th
     )
 
     return assigned_annotation, max_overlap, is_new_match
-
 
 def view_points_on_img(img, point_anns):
 
@@ -1904,7 +1899,8 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             printf("gt_objects_withGTpoints = %d\n", state['gt_objects_withGTpoints'])
             printf("found_orig_objects_withPoints = %d (%.2f%% of gt objects [recall])\n", state['found_orig_objects'],
                    100 * state['found_orig_objects'] / state['gt_objects_withGTpoints'])
-            printf("precision = %.3f\n\n", precision_det)
+            printf("FP = %d - precision = %.2f%% (%d / (%d + %d)) \n\n",
+                   state['FP'], 100*precision_det, state['found_orig_objects'], state['found_orig_objects'], state['FP'])
 
             if not is_roots_2:
                 printf("====================================================================================================\n")

@@ -218,7 +218,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     ########################################################################################################################
     # user definitions
     ########################################################################################################################
-    args.gpu_num = args.gpu_num or '1'
+    args.gpu_num = args.gpu_num or '0'
 
     args.STORAGE_PATH = resolve_storage_path(args.storage_path)
     args.dataset_name = args.dataset_name or "roots" #"grapes" #"roots"
@@ -339,9 +339,10 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         args.filter_empty_bbox = True
         config.General.filter_empty_bbox = args.filter_empty_bbox
 
-        config.General.predict_empty_image = False
+        args.predict_empty_image = False
 
-        config.AttributeEstimation.do_nmcs = True
+        args.do_nmcs = True
+
 
     elif args.dataset_name == 'roots':
 
@@ -350,9 +351,10 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
             config.Detection.ratios = np.array([0.5, 1, 3])  # np.array([0.5, 1, 3]) #np.array([0.5, 1, 4]) #np.array([0.5, 1, 2])
             print("Detection.ratios:", config.Detection.ratios)
 
-            #config.General.predict_empty_image = False
+            args.predict_empty_image = True
 
-            config.AttributeEstimation.do_nmcs = False
+            args.do_nmcs = False
+
             args.dia_loss_weight = 10  # 10 #1000 #10 #100
             args.color_loss_weight = 100  # 100
             args.maps_loss_weight = 1 #10
@@ -363,6 +365,8 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
             # "C:\\Users\\Aragorn\\Google Drive\\StoragePath\\ExpResults\\KK_Exp_Results\\grapes_twoBack_keypoints_sameRadi_fluid_new\\saved_weights_cont_14"
             # #os.path.join(results_dir, 'wheat_MS5_s0.7_640\\saved_weights_211\\detector_weights')
 
+    config.General.predict_empty_image = args.predict_empty_image
+    config.AttributeEstimation.do_nmcs = args.do_nmcs
     config.AttributeEstimation.estimate_type = args.estimate_type
 
 
