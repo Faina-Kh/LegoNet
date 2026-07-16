@@ -107,6 +107,23 @@ class TrainingEvaluationTests(unittest.TestCase):
         self.assertIsNone(relative_error)
         self.assertIs(model.dataset, training_dataset)
 
+    def test_counting_summary_extracts_relative_error_and_one_minus_fvu(self):
+        """Silent training evaluation returns only publication counting metrics."""
+        training_dataset = object()
+        model = mock.Mock(dataset=training_dataset)
+        self.evaluation.perObject_eval.eval.return_value = (
+            0.2, 10, 7, 0.7, 0.8, 1.0, 0.1, 2.0, 0.65
+        )
+
+        summary = self.evaluation.evaluate_combined_counting_summary(
+            object(), "loader", "sampler", model, args=object()
+        )
+
+        self.assertEqual(summary.relative_error, 0.2)
+        self.assertEqual(summary.one_minus_fvu, 0.65)
+        self.assertFalse(self.evaluation.perObject_eval.eval.call_args.kwargs["verbose"])
+        self.assertIs(model.dataset, training_dataset)
+
     def test_iou_sweep_restores_state_when_evaluation_fails(self):
         """Evaluator exceptions cannot leak validation state into training."""
         training_dataset = object()

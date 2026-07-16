@@ -32,6 +32,7 @@ def _load_partial_weights(model: Any, args: Any) -> None:
                 bbox_state,
                 submodule_names=["backbone_1", "find_1", "where"],
                 strict=False,
+                verbose=args.save_from_model_file,
             )
         elif args.network_type in (
             "per_object_counting",
@@ -45,6 +46,7 @@ def _load_partial_weights(model: Any, args: Any) -> None:
                 bbox_state,
                 submodule_names=["backbone_1", "find_1", "where"],
                 strict=False,
+                verbose=args.save_from_model_file,
             )
 
     if args.load_per_object_counting_weights and args.network_type == "per_object_counting":
@@ -65,6 +67,7 @@ def _load_partial_weights(model: Any, args: Any) -> None:
                 per_object_state,
                 submodule_names=module_names,
                 strict=False,
+                verbose=args.save_from_model_file,
             )
 
     if args.load_per_object_attributes_weights and args.network_type in (
@@ -109,6 +112,7 @@ def _load_partial_weights(model: Any, args: Any) -> None:
                 per_object_state,
                 submodule_names=module_names,
                 strict=False,
+                verbose=args.save_from_model_file,
             )
 
 
@@ -151,6 +155,7 @@ def _load_full_weights(model: Any, args: Any) -> None:
             model_state,
             submodule_names=module_names,
             strict=False,
+            verbose=args.save_from_model_file,
         )
 
 

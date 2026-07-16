@@ -14,6 +14,7 @@ from legonet import utils
 from legonet.checkpointing import save_epoch_checkpoint
 from legonet.eval import attribute_estimation_eval, detection_eval
 from legonet.training_evaluation import (
+    evaluate_combined_counting_summary,
     evaluate_combined_iou_sweep,
     evaluate_combined_once,
     evaluate_detection,
@@ -228,8 +229,21 @@ def _evaluate_combined_epoch(
             best.average_relative_error = average_error
             save_epoch_checkpoint(model, epoch, replace_existing=True)
         return
-    relative_error = evaluate_combined_once(
+    summary = evaluate_combined_counting_summary(
         dataset_val, dataloader_val, sampler_val, model, args
+    )
+    relative_error = summary.relative_error
+    relative_error_text = (
+        f"{relative_error:.6f}" if relative_error is not None else "n/a"
+    )
+    one_minus_fvu_text = (
+        f"{summary.one_minus_fvu:.6f}"
+        if summary.one_minus_fvu is not None
+        else "n/a"
+    )
+    print(
+        f"orig_avg_relative_error: {relative_error_text} | "
+        f"orig_1-FVU: {one_minus_fvu_text}"
     )
     if relative_error is not None and relative_error < best.relative_error:
         best.relative_error = relative_error
