@@ -26,8 +26,8 @@ DEBUG_SETTINGS: dict[str, DebugValue] = {
     "network_type": "per_object_counting", #"bbox_detection", "per_object_counting", "per_object_attributes", "per_object_attributes_multibranch"
     "run_script": "Training",  # "Inference" or "Training"
     "val_set": "Val",  # "Test" or "Val"
-    "gpu_num": "0",
-    "current_results_dir": "debug_run_"+"grapes_per_object_counting",
+    "gpu_num": "1",
+    "current_results_dir": "debug_run_"+"grapes_per_object_counting_b",
     "estimate_type": "reg_fpn_p3_p7_min_sig", #"reg_fpn_p3_p7_min_sig", "withKeyPoints"
     "num_of_epochs": 300,
     "have_gt": True,
