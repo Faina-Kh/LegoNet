@@ -48,8 +48,8 @@ def _print_best_error_checkpoint_notice(
     """Report replacement of the saved best checkpoint by a lower error."""
     print(
         f"New best validation {metric_name}: {current_error:.6f} "
-        f"(previous: {previous_error:.6f}) at epoch {epoch}. "
-        "Replacing the previously saved best-epoch weights file."
+        f"(previous: {previous_error:.6f}) at epoch {epoch}. \n"
+        "Replacing the previously saved best-epoch weights file. \n"
     )
 
 
