@@ -242,7 +242,7 @@ def _evaluate_combined_epoch(
         else "n/a"
     )
     print(
-        "Validation results"
+        "Validation results: \n"
         f"orig_avg_relative_error: {relative_error_text} | "
         f"orig_1-FVU: {one_minus_fvu_text} \n"
     )
