@@ -139,6 +139,38 @@ class PerObjectEvaluationTests(unittest.TestCase):
         self.assertEqual(len(matches), len(detections))
         self.assertEqual([match[3] for match in matches], [True, False, False])
 
+    def test_crop_count_metrics_exclude_empty_crops(self):
+        """Crop accuracy uses positive GT crops and reports empty ones separately."""
+        metrics = perObject_eval._compute_positive_crop_count_metrics(
+            ground_truth_counts=[0, 2, 4],
+            predicted_counts=[7, 1, 6],
+        )
+
+        self.assertEqual(metrics["num_total"], 3)
+        self.assertEqual(metrics["num_positive"], 2)
+        self.assertEqual(metrics["num_empty"], 1)
+        self.assertAlmostEqual(metrics["mae"], 1.5)
+        self.assertAlmostEqual(metrics["mse"], 2.5)
+        self.assertAlmostEqual(metrics["mean_relative_error"], 0.5)
+        self.assertAlmostEqual(metrics["exact_agreement"], 0.0)
+
+    def test_crop_count_metrics_handle_no_positive_crops(self):
+        """All-empty crop sets produce explicit unavailable metric values."""
+        metrics = perObject_eval._compute_positive_crop_count_metrics(
+            ground_truth_counts=[0, 0],
+            predicted_counts=[2, 3],
+        )
+
+        self.assertEqual(metrics["num_positive"], 0)
+        self.assertEqual(metrics["num_empty"], 2)
+        self.assertEqual(metrics["mae"], -1.0)
+        self.assertEqual(metrics["mean_relative_error"], -1.0)
+
+    def test_crop_count_metrics_reject_misaligned_inputs(self):
+        """Crop diagnostics fail clearly when predictions and GT do not align."""
+        with self.assertRaises(ValueError):
+            perObject_eval._compute_positive_crop_count_metrics([1, 2], [1])
+
 
 if __name__ == "__main__":
     unittest.main()

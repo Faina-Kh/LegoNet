@@ -380,6 +380,57 @@ def _match_detections_to_gt(
 
     return matches
 
+
+def _compute_positive_crop_count_metrics(
+    ground_truth_counts: Iterable[float],
+    predicted_counts: Iterable[float],
+) -> dict[str, float | int]:
+    """Compute diagnostic counting metrics for non-empty predicted crops.
+
+    Crop-level accuracy is meaningful only when a crop contains at least one
+    annotated point. Empty crops are reported separately and remain part of
+    the detection evaluation, but they do not enter these counting metrics.
+
+    Raises:
+        ValueError: If the ground-truth and prediction arrays are misaligned.
+    """
+    ground_truth = np.asarray(list(ground_truth_counts), dtype=float)
+    predictions = np.asarray(list(predicted_counts), dtype=float)
+    if ground_truth.shape != predictions.shape:
+        raise ValueError("Crop ground-truth and prediction counts must align")
+
+    positive_mask = ground_truth > 0
+    positive_ground_truth = ground_truth[positive_mask]
+    positive_predictions = predictions[positive_mask]
+    num_positive = int(np.count_nonzero(positive_mask))
+
+    metrics: dict[str, float | int] = {
+        "num_total": int(ground_truth.size),
+        "num_positive": num_positive,
+        "num_empty": int(np.count_nonzero(ground_truth == 0)),
+        "mae": -1.0,
+        "mse": -1.0,
+        "mean_relative_error": -1.0,
+        "exact_agreement": -1.0,
+    }
+    if num_positive == 0:
+        return metrics
+
+    absolute_errors = np.abs(positive_ground_truth - positive_predictions)
+    metrics.update(
+        {
+            "mae": float(np.mean(absolute_errors)),
+            "mse": float(np.mean(absolute_errors**2)),
+            "mean_relative_error": float(
+                np.mean(absolute_errors / positive_ground_truth)
+            ),
+            "exact_agreement": float(
+                np.mean(positive_ground_truth == positive_predictions)
+            ),
+        }
+    )
+    return metrics
+
 def view_points_on_img(img, point_anns):
 
     for p in point_anns:
@@ -563,8 +614,6 @@ def initiate_global_dicts(state=None, image_name='', initiate=False):
             'T': [],
             'P': [],
             'all_crops_GT_counts': [],
-            'crops_abs_diff': [],
-            'crops_rel_error': [],
 
             'all_orig_GT_counts': [],
             'orig_abs_diff': [],
@@ -1511,34 +1560,21 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                     maps_idx=0
                     for i in range(len(crops_count_GT)):
-                        if crops_count_GT[i] > 0: # there are true points in the crop
-                            if not is_roots_2:
-                                state['crops_abs_diff'].append(abs(crops_count_GT[i] - np.round(count_pred[i]))) #count_pred[i]))
-                                state['crops_rel_error'].append(abs(crops_count_GT[i] - np.round(count_pred[i])) / crops_count_GT[i])
+                        if not is_roots_2:
+                            if len(orig_count_GT) > 0:
+                                if orig_count_GT[i] != -1:
+                                    state['orig_abs_diff'].append(abs(orig_count_GT[i] - np.round(count_pred[i]))) #count_pred[i]))
+                                    state['orig_rel_error'].append(abs(orig_count_GT[i] - np.round(count_pred[i])) / orig_count_GT[i])
 
-                                # if config.detect_and_count.type == "both_for_roots":
-                                #     crops_abs_diff_TRL.append(abs(crops_TRL_GT[i] - TRL_pred[i])) # count_pred[i]))
-                                #     crops_rel_error_TRL.append(abs(crops_TRL_GT[i] - TRL_pred[i]) / crops_count_GT[i])
-                                #
-                                #     crops_abs_diff_dia.append(abs(crops_dia_GT[i] - dia_pred[i]))  # count_pred[i]))
-                                #     crops_rel_error_dia.append(abs(crops_dia_GT[i] - dia_pred[i]) / crops_dia_GT[i])
+                        elif crops_count_GT[i] > 0:
+                            if orig_color_GT[i] != -1:
+                                state['orig_abs_diff_TRL'].append(abs(orig_TRL_GT[i] - TRL_pred[i])) # count_pred[i]))
+                                state['orig_rel_error_TRL'].append(abs(orig_TRL_GT[i] - TRL_pred[i]) / orig_TRL_GT[i])
 
+                                state['orig_abs_diff_dia'].append(abs(orig_dia_GT[i] - dia_pred[i]))  # count_pred[i]))
+                                state['orig_rel_error_dia'].append(abs(orig_dia_GT[i] - dia_pred[i]) / orig_dia_GT[i])
 
-                            #if config.Detect_and_Estimate.type != "per_object_attributes":
-                                if len(orig_count_GT) > 0:
-                                    if orig_count_GT[i] != -1:
-                                        state['orig_abs_diff'].append(abs(orig_count_GT[i] - np.round(count_pred[i]))) #count_pred[i]))
-                                        state['orig_rel_error'].append(abs(orig_count_GT[i] - np.round(count_pred[i])) / orig_count_GT[i])
-
-                            else:
-                                if orig_color_GT[i] != -1:
-                                    state['orig_abs_diff_TRL'].append(abs(orig_TRL_GT[i] - TRL_pred[i])) # count_pred[i]))
-                                    state['orig_rel_error_TRL'].append(abs(orig_TRL_GT[i] - TRL_pred[i]) / orig_TRL_GT[i])
-
-                                    state['orig_abs_diff_dia'].append(abs(orig_dia_GT[i] - dia_pred[i]))  # count_pred[i]))
-                                    state['orig_rel_error_dia'].append(abs(orig_dia_GT[i] - dia_pred[i]) / orig_dia_GT[i])
-
-                                    state['orig_abs_diff_color'].append(abs(orig_color_GT[i] - color_pred[i]))  # count_pred[i]))
+                                state['orig_abs_diff_color'].append(abs(orig_color_GT[i] - color_pred[i]))  # count_pred[i]))
 
                         if verbose:
 
@@ -1809,17 +1845,10 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                             total_predicted_for_orig_boxes.append(state['all_predicted_counts'][n][j])
 
         if not is_roots_2:
-            if len(total_crops_GT_counts)>0:
-                total_crop_boxes = len(total_crops_GT_counts)
-
-                crops_avg_abs_count_diff = SumOfAbsDifferences(total_crops_GT_counts, total_predicted_counts) / total_crop_boxes
-                crops_avg_rel_error = np.mean(state['crops_rel_error'])
-                crops_MSE = np.mean((np.array(total_crops_GT_counts) - np.array(total_predicted_counts)) ** 2)
-            else:
-                total_crop_boxes = -1
-                crops_avg_abs_count_diff = -1
-                crops_avg_rel_error = -1
-                crops_MSE = -1
+            crop_count_metrics = _compute_positive_crop_count_metrics(
+                total_crops_GT_counts,
+                total_predicted_counts,
+            )
 
             if total_orig_box_for_count>0:
                 orig_avg_abs_count_diff = SumOfAbsDifferences(total_orig_GT_counts, total_predicted_for_orig_boxes) / total_orig_box_for_count
@@ -1834,16 +1863,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                 #return []
 
-            if total_crop_boxes >0:
-                crops_count_agr = 0
-                for i in range(total_crop_boxes):
-                    if total_crops_GT_counts[i] == total_predicted_counts[i]:
-                        crops_count_agr += 1
-                crops_count_agr = crops_count_agr / total_crop_boxes
-
-            else:
-                crops_count_agr = -1
-
             if total_orig_box_for_count >0:
                 orig_count_agr = 0
                 for i in range(total_orig_box_for_count):
@@ -1855,25 +1874,26 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                 orig_count_agr=-1
 
 
-            if len(total_crops_GT_counts)> 0:
-                crops_var_GT_counts = np.var(total_crops_GT_counts)
-                crops_FVU = crops_MSE/crops_var_GT_counts
-
+            if total_orig_box_for_count > 0:
                 orig_var_GT_counts = np.var(total_orig_GT_counts)
-                orig_FVU = orig_MSE / orig_var_GT_counts
+                orig_FVU = (
+                    orig_MSE / orig_var_GT_counts
+                    if orig_var_GT_counts > 0
+                    else float("nan")
+                )
                 orig_mean_GT_counts = np.mean(total_orig_GT_counts)
 
-                precision_det = state['found_orig_objects'] / (state['found_orig_objects'] + state['FP'])
-
             else:
-                crops_var_GT_counts=-1
-                crops_FVU=-1
-
                 orig_var_GT_counts = -1
                 orig_FVU = -1
                 orig_mean_GT_counts = -1
 
-                precision_det = -1
+            detection_count = state['found_orig_objects'] + state['FP']
+            precision_det = (
+                state['found_orig_objects'] / detection_count
+                if detection_count > 0
+                else -1
+            )
 
         else:
             if total_orig_box_for_TRL > 0:
@@ -1916,17 +1936,27 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             if not is_roots_2:
 
                 printf("====================================================================================================\n")
-                printf("Summary - for crops count \n")
-                printf("crops_avg_abs_count_diff: %.3f | crops_count_agreement: %.3f | crops_MSE: %.3f | crops_avg_relative_error: %.3f | crops_1-FVU: %3f\n",
-                    crops_avg_abs_count_diff, crops_count_agr, crops_MSE, crops_avg_rel_error, 1-crops_FVU)
-                print()
-
-                printf("====================================================================================================\n")
-
-                printf("Summary - for gt boxes count \n")
+                printf("Summary - counting for IoU-matched GT boxes\n")
                 printf(
                     "orig_avg_abs_count_diff: %.3f | orig_count_agreement: %.3f | orig_MSE: %.3f | orig_avg_relative_error: %.3f | orig_1-FVU: %3f\n",
                     orig_avg_abs_count_diff, orig_count_agr, orig_MSE, orig_avg_rel_error, 1 - orig_FVU)
+                print()
+
+                printf("====================================================================================================\n")
+                printf("Diagnostic - counting within positive predicted crops\n")
+                printf(
+                    "positive_crops: %d | empty_crops: %d | total_evaluated_crops: %d\n",
+                    crop_count_metrics["num_positive"],
+                    crop_count_metrics["num_empty"],
+                    crop_count_metrics["num_total"],
+                )
+                printf(
+                    "crop_MAE: %.3f | crop_count_agreement: %.3f | crop_MSE: %.3f | crop_avg_relative_error: %.3f\n",
+                    crop_count_metrics["mae"],
+                    crop_count_metrics["exact_agreement"],
+                    crop_count_metrics["mse"],
+                    crop_count_metrics["mean_relative_error"],
+                )
 
                 printf("====================================================================================================\n")
 
