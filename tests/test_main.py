@@ -214,6 +214,44 @@ class MainEntryPointTests(unittest.TestCase):
 
         self.assertIs(self.main_module.validate_configuration(args), args)
 
+    def test_load_only_bbox_weights_option_is_parsed(self) -> None:
+        """Per-object heads can be initialized while loading only the detector."""
+        args = self.main_module.parse_args(
+            ["--load-only-bbox-weights", "true"]
+        )
+
+        self.assertTrue(args.load_only_bbox_weights)
+
+    def test_load_only_bbox_weights_is_rejected_for_inference(self) -> None:
+        """Detector-only initialization is a per-object training operation."""
+        args = SimpleNamespace(
+            dataset_name="grapes",
+            network_type="per_object_counting",
+            estimate_type="reg_fpn_p3_p7_min_sig",
+            run_script="Inference",
+            val_set="Test",
+            have_GT=True,
+            load_only_bbox_weights=True,
+        )
+
+        with self.assertRaisesRegex(ValueError, "only when training"):
+            self.main_module.validate_configuration(args)
+
+    def test_load_only_bbox_weights_is_rejected_for_detector_training(self) -> None:
+        """Detection-only training does not initialize a per-object head."""
+        args = SimpleNamespace(
+            dataset_name="grapes",
+            network_type="bbox_detection",
+            estimate_type="withKeyPoints",
+            run_script="Training",
+            val_set="Val",
+            have_GT=True,
+            load_only_bbox_weights=True,
+        )
+
+        with self.assertRaisesRegex(ValueError, "per-object network"):
+            self.main_module.validate_configuration(args)
+
     def test_dataset_rejects_an_incompatible_network(self) -> None:
         """Dataset-specific model choices fail with the supported alternatives."""
         args = SimpleNamespace(

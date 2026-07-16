@@ -83,6 +83,13 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--to-draw", "--to_draw", type=parse_bool, default=None)
     parser.add_argument("--save-from-model-file", "--save_from_model_file", type=parse_bool, default=None)
     parser.add_argument("--load-weights", "--load_weights", type=parse_bool, default=None)
+    parser.add_argument(
+        "--load-only-bbox-weights",
+        "--load_only_bbox_weights",
+        type=parse_bool,
+        default=None,
+        help="Load the pretrained detector while initializing per-object heads from scratch.",
+    )
     parser.add_argument("--evaluate-detection", "--evaluate_detection", type=parse_bool, default=None)
     parser.add_argument("--weights-type", "--weights_type", choices=['full_model_weights', 'partial_weights'], default=None)
 
@@ -209,6 +216,14 @@ def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
         if args.val_set != "Val":
             raise ValueError("Training requires --val-set Val.")
 
+    if getattr(args, "load_only_bbox_weights", False) and not (
+        args.run_script == "Training" and args.network_type in PER_OBJECT_NETWORKS
+    ):
+        raise ValueError(
+            "--load-only-bbox-weights is available only when training a "
+            "per-object network."
+        )
+
     return args
 
 
@@ -234,7 +249,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     type_name = '_KP_' if args.estimate_type == "withKeyPoints" else "_Reg_"
 
     #################################################
-    args.choose_epoch_by_IoUavg = True
+    args.choose_epoch_by_IoUavg = False
     #config.Detection.min_score = 0.05 # not 0.7
     #################################################
 
@@ -244,17 +259,21 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     else:
         args.current_results_dir = args.current_results_dir or (args.network_type +"_"+ args.val_set ) #+ "_Check" ) #+ type_name) # + type_name # +'_by_IoUavg_'+ 'new_84' ) #'_'+time_stemp
 
-    args.load_only_bbox_weights = False
+    if args.load_only_bbox_weights is None:
+        args.load_only_bbox_weights = (
+            args.run_script == "Training" and args.network_type in PER_OBJECT_NETWORKS
+        )
 
     #---------------------------------------------------------------------------------------------------------------
     args.weights_type = args.weights_type or 'partial_weights' # 'full_model_weights'  #'partial_weights'
     if args.weights_type not in ('full_model_weights', 'partial_weights'):
         raise ValueError(f"Unsupported weights type: {args.weights_type!r}.")
+    if args.load_only_bbox_weights:
+        args.weights_type = "partial_weights"
 
     #--------------------------------------------------------------------------------------------------------------
     # ToDo - add as constrains to streamlit:
     if args.network_type == "bbox_detection":
-        args.load_only_bbox_weights = True
         args.weights_type = 'partial_weights'
 
     if args.network_type == "per_image_estimation_keypoints" or args.network_type == "per_image_estimation_regression":
@@ -264,16 +283,29 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
 
     args.evaluate_per_object = args.network_type in PER_OBJECT_NETWORKS
 
+    if (
+        args.run_script == "Training"
+        and args.network_type in PER_OBJECT_NETWORKS
+        and not (args.load_weights or args.load_only_bbox_weights)
+    ):
+        raise ValueError(
+            "Per-object training requires pretrained detector weights. "
+            "Use --load-only-bbox-weights true to train a new estimation head."
+        )
+
     args.load_full_model_weights = (
-        args.load_weights and args.weights_type == 'full_model_weights'
+        args.load_weights
+        and not args.load_only_bbox_weights
+        and args.weights_type == 'full_model_weights'
     )
     args.load_partial_weights = (
-        args.load_weights and args.weights_type == 'partial_weights'
+        (args.load_weights or args.load_only_bbox_weights)
+        and args.weights_type == 'partial_weights'
     )
 
-    args.load_bbox_det_weights = args.load_weights
+    args.load_bbox_det_weights = args.load_weights or args.load_only_bbox_weights
 
-    if not args.load_weights:
+    if args.load_only_bbox_weights or not args.load_weights:
         args.load_per_object_counting_weights = False
         args.load_per_object_attributes_weights = False
     elif args.load_only_bbox_weights or args.network_type in ("per_image_estimation_keypoints", "per_image_estimation_regression"):

@@ -25,6 +25,7 @@ RUN_MODES = ("Inference", "Training")
 VAL_SETS = ("Test", "Val")
 ESTIMATE_TYPES = ("withKeyPoints", "reg_fpn_p3_p7_min_sig")
 OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS = ("per_object_counting", "per_object_attributes", "per_object_attributes_multibranch")
+PER_OBJECT_NETWORKS = OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS
 MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection")
 ESTIMATE_SELECT_NETWORK_OPTIONS = ("per_object_counting", "per_object_attributes")
 DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
@@ -119,10 +120,11 @@ def build_command(
     to_draw: bool,
     evaluate_detection: bool,
     load_weights: bool,
-    weights_type: str,
+    load_only_bbox_weights: bool,
+    weights_type: str | None,
 ) -> list[str]:
     """Build the LegoNet main.py command from GUI settings."""
-    return [
+    command = [
         sys.executable,
         "-u",
         str(main_script),
@@ -152,9 +154,14 @@ def build_command(
         bool_arg(evaluate_detection),
         "--load-weights",
         bool_arg(load_weights),
-        "--weights-type",
-        str(weights_type),
     ]
+    if weights_type is not None:
+        command.extend(["--weights-type", weights_type])
+    if run_script == "Training" and network_type in PER_OBJECT_NETWORKS:
+        command.extend(
+            ["--load-only-bbox-weights", bool_arg(load_only_bbox_weights)]
+        )
+    return command
 
 
 def format_command(command: list[str]) -> str:
@@ -259,11 +266,31 @@ with st.sidebar:
     else:
         evaluate_detection = network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
 
-    load_weights = st.checkbox("Load weights", value=True)
+    can_load_only_bbox = (
+        run_script == "Training" and network_type in PER_OBJECT_NETWORKS
+    )
+    if can_load_only_bbox:
+        load_only_bbox_weights = st.checkbox(
+            "Load only pretrained bounding-box detector weights",
+            value=True,
+            help=(
+                "Freeze the pretrained detector and initialize the selected "
+                "counting or attribute-estimation head from scratch."
+            ),
+        )
+    else:
+        load_only_bbox_weights = False
+
+    if load_only_bbox_weights:
+        load_weights = False
+        weights_type = "partial_weights"
+        st.caption("The per-object estimation head will be initialized from scratch.")
+    else:
+        load_weights = st.checkbox("Load weights", value=True)
 
     if load_weights:
         weights_type = st.selectbox("Weights type", WEIGHTS_TYPES, index=0)
-    else:
+    elif not load_only_bbox_weights:
         weights_type= None
 
 
@@ -285,6 +312,7 @@ command = build_command(
     to_draw=to_draw,
     evaluate_detection=evaluate_detection,
     load_weights=load_weights,
+    load_only_bbox_weights=load_only_bbox_weights,
     weights_type=weights_type,
 )
 storage_root = Path(storage_path)

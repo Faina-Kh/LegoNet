@@ -161,18 +161,19 @@ python scripts/run_legonet.py \
   --load-weights true
 ```
 
-Example grapes training configuration without loading an initial checkpoint:
+Example grapes training configuration with a pretrained detector and a newly
+initialized counting head:
 
 ```bash
 python scripts/run_legonet.py \
   --storage-path /path/to/legonet-storage \
   --dataset-name grapes \
   --network-type per_object_counting \
-  --estimate-type withKeyPoints \
+  --estimate-type reg_fpn_p3_p7_min_sig \
   --run-script Training \
   --val-set Val \
   --have-gt true \
-  --load-weights false \
+  --load-only-bbox-weights true \
   --num-of-epochs 300
 ```
 

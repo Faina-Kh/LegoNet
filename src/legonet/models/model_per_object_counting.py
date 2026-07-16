@@ -17,6 +17,16 @@ from legonet.eval.perObject_eval import choose_boxes_by_IoUandPrc
 from legonet.models.model_bbox_detection import BBOX_Detection
 
 
+def _full_count_for_box(count_annotations, box_id):
+    """Return the full annotated count associated with a matched GT box."""
+    matches = count_annotations[count_annotations[:, 2] == box_id]
+    if matches.shape[0] != 1:
+        raise ValueError(
+            f"Expected one count annotation for GT box {box_id}, found {matches.shape[0]}"
+        )
+    return matches[0, 0]
+
+
 
 
 
@@ -81,6 +91,7 @@ class PerObjectEstimate(nn.Module):
         bbox_crops_list = []
         relevant_points_anns = []
         crops_orig_boxes = []
+        matched_gt_counts = []
 
         estimation_outputs = None
 
@@ -181,6 +192,13 @@ class PerObjectEstimate(nn.Module):
                     current_score = float(bbox_pred_adjusted[b, -1].cpu())
 
                     box_idx = bbox_pred_adjusted[b, 4].item()
+
+                    if self.training:
+                        matched_gt_counts.append(
+                            _full_count_for_box(
+                                counting_anns[img_idx][0], box_idx
+                            ).to(config.General.device)
+                        )
 
                     crops_orig_boxes.append([float(x1.cpu()), float(y1.cpu()), float(x2.cpu()), float(y2.cpu()), current_score])
 
@@ -302,7 +320,11 @@ class PerObjectEstimate(nn.Module):
                         SFMS_lists, cls_output, current_maps_loss = self.find_2(current_count_train_inputs)
                         maps_loss += current_maps_loss
                         # ToDo check if corrected_counting_anns[0] or corrected_counting_anns[i]
-                        count_input = SFMS_lists, cls_output, corrected_counting_anns[0]  # annotations[1][0][0] #corrected_counting_anns
+                        count_input = (
+                            SFMS_lists,
+                            cls_output,
+                            matched_gt_counts[i].unsqueeze(dim=0),
+                        )
                         current_l1 = self.estimator(count_input)[0]
                         l1 += current_l1
 
@@ -311,7 +333,7 @@ class PerObjectEstimate(nn.Module):
                     for i in range(num_of_crops): #(num_of_boxes)
                             counting_loss += self.estimator([
                                 bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels],
-                                corrected_counting_anns[0][i].unsqueeze(dim=0)])
+                                matched_gt_counts[i].unsqueeze(dim=0)])
 
                 including_counting = True
 

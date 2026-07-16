@@ -1564,7 +1564,8 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                             if len(orig_count_GT) > 0:
                                 if orig_count_GT[i] != -1:
                                     state['orig_abs_diff'].append(abs(orig_count_GT[i] - np.round(count_pred[i]))) #count_pred[i]))
-                                    state['orig_rel_error'].append(abs(orig_count_GT[i] - np.round(count_pred[i])) / orig_count_GT[i])
+                                    if orig_count_GT[i] > 0:
+                                        state['orig_rel_error'].append(abs(orig_count_GT[i] - np.round(count_pred[i])) / orig_count_GT[i])
 
                         elif crops_count_GT[i] > 0:
                             if orig_color_GT[i] != -1:
@@ -1852,7 +1853,11 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
             if total_orig_box_for_count>0:
                 orig_avg_abs_count_diff = SumOfAbsDifferences(total_orig_GT_counts, total_predicted_for_orig_boxes) / total_orig_box_for_count
-                orig_avg_rel_error = np.mean(state['orig_rel_error'])
+                orig_avg_rel_error = (
+                    np.mean(state['orig_rel_error'])
+                    if state['orig_rel_error']
+                    else -1
+                )
                 orig_MSE = np.mean((np.array(total_orig_GT_counts) - np.array(total_predicted_for_orig_boxes)) ** 2)
 
             else:
@@ -1986,9 +1991,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
             if not is_roots_2:
                 if args.have_GT:
-                    print(
-                        "=====================================================================================================\n")
-                    print('Per image stats\n')
+                    print('Per image stats based on IoU-matched GT boxes\n')
                     print('Per image gt, predicted avg count')
                     abs_error = []
                     for im in state['per_im_pred_dict'].keys():
@@ -2002,8 +2005,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
             else:
                 if args.have_GT:
-                    print("=====================================================================================================\n")
-                    print('Per image stats\n')
+                    print('Per image stats based on IoU-matched GT boxes\n')
                     print('Per image gt TRL (sum of RL), predicted sum TRL')
                     abs_error_TRL = []
                     for im in state['TRL_per_im_pred_dict'].keys():
