@@ -1982,41 +1982,13 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             printf("FP = %d - precision = %.2f%% (%d / (%d + %d)) \n\n",
                    state['FP'], 100*precision_det, state['found_orig_objects'], state['found_orig_objects'], state['FP'])
 
-            if not is_roots_2:
-                printf("====================================================================================================\n")
-                printf("GT data summary\n")
-                printf("all_orig_avg_GT_counts: %.3f\n",   np.mean(state['all_data_gt_count']))
-                printf("all_orig_var_GT_counts: %.3f\n",   np.var(state['all_data_gt_count']))
-                printf("all_orig_std_GT_counts: %.3f\n\n", np.sqrt(np.var(state['all_data_gt_count'])))
-
-                printf("====================================================================================================\n")
-                printf("Found GT data summary\n")
-                printf("orig_avg_GT_counts: %.3f\n",   orig_mean_GT_counts)
-                printf("orig_var_GT_counts: %.3f\n",   orig_var_GT_counts)
-                printf("orig_std_GT_counts: %.3f\n\n", np.sqrt(orig_var_GT_counts))
-
             print("=====================================================================================================\n")
-            print('Crops stats\n')
-            print('num of crops = ', len(state['predicted_counts_any_crop']))
-            print('FP = ', state['FP'])
-            print('found_orig_objects = ', state['found_orig_objects'])
-            #print('matched_without_gt_points = ', state['matched_without_gt_points'])
-            print('crops_without_gt_points = ', state['crops_without_gt_points'])
 
             if not is_roots_2:
-                print('summaries to num of crops ?')
-                print('avg pred count per crop = {:.2f}'.format(np.mean(state['predicted_counts_any_crop'])))
-                print('var of pred count per crop = {:.2f}'.format(np.var(state['predicted_counts_any_crop'])))
-                print('avg of per img predictions  = {:.2f}'.format(np.mean(state['per_im_pred_avg'])))
-                print("=====================================================================================================\n")
-
-                print('Per image gt stats\n')
-                print('avg of image averages = {:.2f}'.format(np.mean(state['per_im_gt_avg'])))
-                print('Std of image averages = {:.2f}'.format(np.std(state['per_im_gt_avg'])))
-                print("per image avg: {}".format(np.round(state['per_im_gt_avg'], 2)))
-                print("=====================================================================================================\n")
-
                 if args.have_GT:
+                    print(
+                        "=====================================================================================================\n")
+                    print('Per image stats\n')
                     print('Per image gt, predicted avg count')
                     abs_error = []
                     for im in state['per_im_pred_dict'].keys():
@@ -2031,7 +2003,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             else:
                 if args.have_GT:
                     print("=====================================================================================================\n")
-                    print('Per image gt stats\n')
+                    print('Per image stats\n')
                     print('Per image gt TRL (sum of RL), predicted sum TRL')
                     abs_error_TRL = []
                     for im in state['TRL_per_im_pred_dict'].keys():
