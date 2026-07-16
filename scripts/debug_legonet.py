@@ -32,9 +32,10 @@ DEBUG_SETTINGS: dict[str, DebugValue] = {
     "num_of_epochs": 300,
     "have_gt": True,
     "to_draw": False,
-    "load_only_bbox_weights": True,
-    "load_weights": True,
     "evaluate_detection": True,
+    "load_weights": False,
+    "load_only_bbox_weights": True,
+    "weights_type": "partial_weights",
 }
 
 

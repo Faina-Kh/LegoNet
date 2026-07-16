@@ -184,12 +184,6 @@ def _evaluate_combined_epoch(
         if (epoch + 1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
             save_epoch_checkpoint(model, epoch)
         return
-    if args.evaluate_detection:
-        metrics = evaluate_detection(dataset_val, dataloader_val, sampler_val, model)
-        print(
-            f"mAP = {metrics.mean_average_precision:.3f}, precision = {metrics.precision:.3f}, "
-            f"recall = {metrics.recall:.3f}"
-        )
     if not torch.cuda.is_available():
         print("CUDA not available for combined evaluation")
         return
@@ -242,6 +236,29 @@ def _evaluate_combined_epoch(
         save_epoch_checkpoint(model, epoch, replace_existing=True)
 
 
+def _evaluate_frozen_detector_before_training(
+    args: Any,
+    model: Any,
+    dataset_val: Any,
+    dataloader_val: Any,
+    sampler_val: Any,
+) -> None:
+    """Evaluate a frozen per-object detector once before head training."""
+    if args.network_type not in (
+        "per_object_counting",
+        "per_object_attributes",
+        "per_object_attributes_multibranch",
+    ) or not args.evaluate_detection:
+        return
+
+    metrics = evaluate_detection(dataset_val, dataloader_val, sampler_val, model)
+    print(
+        "Frozen detector validation before head training: "
+        f"mAP = {metrics.mean_average_precision:.3f}, "
+        f"precision = {metrics.precision:.3f}, recall = {metrics.recall:.3f}\n"
+    )
+
+
 def train_model(
     args: Any,
     model: Any,
@@ -261,6 +278,13 @@ def train_model(
     running_losses = collections.deque(maxlen=500)
     best = BestMetrics()
     print(f"Num training images: {len(dataset_train)}")
+    _evaluate_frozen_detector_before_training(
+        args,
+        model,
+        dataset_val,
+        dataloader_val,
+        sampler_val,
+    )
 
     for epoch in range(args.epochs):
         model.train()

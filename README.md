@@ -197,6 +197,15 @@ file with the `newTorchEnv` interpreter. The settings correspond to the public
 CLI options and the notebook settings. Set `LEGONET_STORAGE_PATH`, or replace
 the empty `storage_path` value locally, before starting an experiment.
 
+When launching the script from PyCharm, configure `LEGONET_STORAGE_PATH` in
+**Run → Edit Configurations → Environment variables**. A variable set in a
+separate PowerShell session is not automatically available to PyCharm. As a
+local alternative, put the path directly in `DEBUG_SETTINGS`:
+
+```python
+"storage_path": r"D:\LegoNet",
+```
+
 The debug entry point calls `legonet.cli.main()` directly rather than starting
 a subprocess, so breakpoints inside the package remain active. Machine-specific
 paths should not be committed.

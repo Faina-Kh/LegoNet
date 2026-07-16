@@ -27,6 +27,11 @@ def _full_count_for_box(count_annotations, box_id):
     return matches[0, 0]
 
 
+def _count_target_batch(count):
+    """Format one scalar count as the ``(batch, target)`` shape estimators expect."""
+    return count.reshape(1, 1)
+
+
 
 
 
@@ -323,7 +328,7 @@ class PerObjectEstimate(nn.Module):
                         count_input = (
                             SFMS_lists,
                             cls_output,
-                            matched_gt_counts[i].unsqueeze(dim=0),
+                            _count_target_batch(matched_gt_counts[i]),
                         )
                         current_l1 = self.estimator(count_input)[0]
                         l1 += current_l1
@@ -333,7 +338,7 @@ class PerObjectEstimate(nn.Module):
                     for i in range(num_of_crops): #(num_of_boxes)
                             counting_loss += self.estimator([
                                 bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels],
-                                matched_gt_counts[i].unsqueeze(dim=0)])
+                                _count_target_batch(matched_gt_counts[i])])
 
                 including_counting = True
 
