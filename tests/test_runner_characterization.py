@@ -217,6 +217,21 @@ class RunnerCharacterizationTests(unittest.TestCase):
             strict=False,
         )
 
+    def test_detector_only_mode_enters_weight_loading(self):
+        """Detector-only initialization is not skipped when load_weights is false."""
+        args = self._weight_args(
+            load_weights=False,
+            load_only_bbox_weights=True,
+        )
+        model = mock.Mock()
+
+        with mock.patch.object(
+            self.runner, "load_requested_weights"
+        ) as load_requested_weights:
+            self._run_through_weight_setup(args, model)
+
+        load_requested_weights.assert_called_once_with(model, args)
+
     def test_full_counting_weights_keep_current_module_mapping(self):
         """Full counting-regression loading targets backbone and estimator."""
         args = self._weight_args(

@@ -95,7 +95,7 @@ def _run(args: Any = None) -> Any:
     data = build_data(args)
     model = model_build(args, data.dataset_train, data.dataset_val)
 
-    if args.load_weights:
+    if args.load_weights or getattr(args, "load_only_bbox_weights", False):
         load_requested_weights(model, args)
     elif args.save_from_model_file:
         export_legacy_weights(model, args)

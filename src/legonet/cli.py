@@ -223,6 +223,13 @@ def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
             "--load-only-bbox-weights is available only when training a "
             "per-object network."
         )
+    if (
+        getattr(args, "load_only_bbox_weights", False)
+        and getattr(args, "save_from_model_file", False)
+    ):
+        raise ValueError(
+            "--load-only-bbox-weights and --save-from-model-file cannot both be true."
+        )
 
     return args
 
