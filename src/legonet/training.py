@@ -277,7 +277,6 @@ def train_model(
     )
     running_losses = collections.deque(maxlen=500)
     best = BestMetrics()
-    print(f"Num training images: {len(dataset_train)}")
     _evaluate_frozen_detector_before_training(
         args,
         model,
@@ -285,6 +284,7 @@ def train_model(
         dataloader_val,
         sampler_val,
     )
+    print(f"Num training images: {len(dataset_train)}")
 
     for epoch in range(args.epochs):
         model.train()
