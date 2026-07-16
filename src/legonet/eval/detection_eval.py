@@ -216,7 +216,6 @@ def  _get_annotations(generator):
     return all_annotations
 
 
-
 def evaluate_detection_params(generator,
                               dataloader_val,
                               sampler_val,

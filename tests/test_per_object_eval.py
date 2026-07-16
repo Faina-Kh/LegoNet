@@ -119,6 +119,26 @@ class PerObjectEvaluationTests(unittest.TestCase):
         self.assertAlmostEqual(overlap, 0.0)
         self.assertFalse(is_match)
 
+    def test_match_detections_classifies_every_prediction_once(self):
+        """Matching returns one classification for every predicted box."""
+        detections = np.array(
+            [
+                [0.0, 0.0, 10.0, 10.0, 0.9],
+                [0.0, 0.0, 10.0, 10.0, 0.8],
+                [20.0, 20.0, 30.0, 30.0, 0.7],
+            ]
+        )
+        annotations = np.array([[0.0, 0.0, 10.0, 10.0, 0.0, 42.0]])
+
+        matches = perObject_eval._match_detections_to_gt(
+            detections,
+            annotations,
+            iou_threshold=0.5,
+        )
+
+        self.assertEqual(len(matches), len(detections))
+        self.assertEqual([match[3] for match in matches], [True, False, False])
+
 
 if __name__ == "__main__":
     unittest.main()

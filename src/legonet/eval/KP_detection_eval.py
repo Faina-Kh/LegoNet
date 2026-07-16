@@ -22,6 +22,7 @@ def extract_plant_BB(image_name, activation_map):
 
     return (x_max - x_min),(y_max - y_min)
 
+
 def points_detection_t_p(detections_map_1, GT_centers, alpha=0.1): #local_soft_max_activations, image_name, model, image, GT_centers, alpha=0.1):
     # local_soft_max_activations = get_activations(model, model_inputs=image[0], print_shape_only=False,
     #                                              layer_name='smooth_step_function2')
@@ -87,6 +88,7 @@ def measure_ap_forKP(rec, prec):
     ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
     return ap
 
+
 def calc_points_recall_precision_ap(T, P):
     P = np.array(P)
     T = np.array(T)
@@ -120,7 +122,6 @@ def calc_points_recall_precision_ap(T, P):
     ap = measure_ap_forKP(recall, precision)
 
     return recall, precision, ap
-
 
 
 def visualize_KeyPointsHeatmaps(predicted_map, gt_map, image_name, map_name, imgToVis, draw_path, count_pred = None,

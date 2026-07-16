@@ -1,22 +1,36 @@
-import torch
-import numpy as np
-import cv2
+"""Per-object detection and attribute-estimation evaluation utilities.
+
+The public :func:`eval` entry point is retained for compatibility with the
+training and inference pipelines.  Small private helpers keep matching rules
+independently testable while the legacy evaluation routine is decomposed.
+"""
+
+import csv
 import os
+from typing import Any, Iterable
+
+import cv2
 import matplotlib
+import numpy as np
+import PIL
+import torch
+
 import matplotlib.pyplot as plt
 matplotlib.use("TkAgg")
-import PIL
 from PIL import Image
-from torchvision import transforms
-from legonet import config
-import csv
 from thop import profile, clever_format
+from torchvision import transforms
 
-from legonet.utils import printf
+from legonet import config
 from legonet.eval.attribute_estimation_eval import SumOfAbsDifferences
-from legonet.eval.detection_eval import compute_overlap, _compute_ap, plot_PR_curve
-from legonet.eval.KP_detection_eval import points_detection_t_p, calc_points_recall_precision_ap, visualize_KeyPointsHeatmaps
+from legonet.eval.detection_eval import _compute_ap, compute_overlap, plot_PR_curve
+from legonet.eval.KP_detection_eval import (
+    calc_points_recall_precision_ap,
+    points_detection_t_p,
+    visualize_KeyPointsHeatmaps,
+)
 from legonet.my_dataloader import UnNormalizer
+from legonet.utils import printf
 
 
 
@@ -295,7 +309,12 @@ def choose_boxes_by_IoUandPrc(detections, annotations, d_scores):
             #print('No relevant detections...\n')
             return []
 
-def _assign_detection_to_gt(detection, annotations, detected_annotations, iou_threshold):
+def _assign_detection_to_gt(
+    detection: Any,
+    annotations: Any,
+    detected_annotations: Iterable[int],
+    iou_threshold: float,
+) -> tuple[int, float, bool]:
     """Match one predicted box to an unmatched GT box by IoU threshold.
 
     Args:
@@ -323,6 +342,43 @@ def _assign_detection_to_gt(detection, annotations, detected_annotations, iou_th
     )
 
     return assigned_annotation, max_overlap, is_new_match
+
+
+def _match_detections_to_gt(
+    detections: Iterable[Any],
+    annotations: Any,
+    iou_threshold: float,
+) -> list[tuple[Any, int, float, bool]]:
+    """Match score-ordered detections to GT boxes at most once.
+
+    Args:
+        detections: Predicted boxes ordered by descending confidence. Each row
+            must begin with ``x1, y1, x2, y2``.
+        annotations: Ground-truth boxes accepted by :func:`compute_overlap`.
+        iou_threshold: Minimum IoU required for a match.
+
+    Returns:
+        list: Tuples containing ``(detection, assigned_gt_index, max_iou,
+        is_new_match)``. A detection with ``is_new_match=False`` is a false
+        positive, including duplicate matches to an already claimed GT box.
+    """
+    detected_annotations = []
+    matches = []
+
+    for detection in detections:
+        assigned_annotation, max_overlap, is_new_match = _assign_detection_to_gt(
+            detection,
+            annotations,
+            detected_annotations,
+            iou_threshold,
+        )
+        if is_new_match:
+            detected_annotations.append(assigned_annotation)
+        matches.append(
+            (detection, assigned_annotation, max_overlap, is_new_match)
+        )
+
+    return matches
 
 def view_points_on_img(img, point_anns):
 
@@ -1218,9 +1274,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     printf("No gt points in any predicted crop...\n")
                     print()
 
-                if not is_roots_2:
-                    continue
-
 
 
             ############################################################################################################
@@ -1260,7 +1313,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                 if len(box_annotations_withPoints)>0:
 
-                    detected_annotations = []
                     scores_temp = np.zeros((0,))
 
                     for i in range(len(adjusted_crops_orig_boxes)):
@@ -1274,19 +1326,17 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                     max_overlap_array = []
 
-                    for d in adjusted_crops_orig_boxes:
-                        assigned_annotation, max_overlap, is_new_match = _assign_detection_to_gt(
-                            d,
-                            box_annotations_withPoints,
-                            detected_annotations,
-                            config.Detection.iou_threshold,
-                        )
+                    matches = _match_detections_to_gt(
+                        adjusted_crops_orig_boxes,
+                        box_annotations_withPoints,
+                        config.Detection.iou_threshold,
+                    )
+                    for d, assigned_annotation, max_overlap, is_new_match in matches:
 
                         state['detections_data_any_crop'][image_name]['score'].append(float(d[4]))
                         state['detections_data_any_crop'][image_name]['max_overlap'].append(max_overlap)
 
                         if is_new_match:
-                            detected_annotations.append(assigned_annotation)
                             max_overlap_array.append(max_overlap)
                             state['found_orig_objects'] += 1
 
