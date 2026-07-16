@@ -24,15 +24,18 @@ DEBUG_SETTINGS: dict[str, DebugValue] = {
     "storage_path": os.environ.get("LEGONET_STORAGE_PATH", ""),
     "dataset_name": "grapes",  # "roots" or "grapes"
     "network_type": "per_object_counting", #"bbox_detection", "per_object_counting", "per_object_attributes", "per_object_attributes_multibranch"
-    "run_script": "Inference",  # "Inference" or "Training"
-    "val_set": "Val",  # "Test" or "Val"
+    "run_script": "Training",  # "Inference" or "Training"
+    "val_set": "Val",  # Training requires "Val"
     "gpu_num": "0",
     "current_results_dir": "debug_run_"+"grapes_per_object_counting",
     "estimate_type": "reg_fpn_p3_p7_min_sig", #"reg_fpn_p3_p7_min_sig", "withKeyPoints"
     "num_of_epochs": 300,
     "have_gt": True,
     "to_draw": False,
-    "load_weights": True,
+    "evaluate_detection": True,
+    "load_weights": False,
+    "load_only_bbox_weights": True,
+    "weights_type": "partial_weights",
 }
 
 
