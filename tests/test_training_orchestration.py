@@ -1,0 +1,86 @@
+"""Tests for epoch-level training evaluation orchestration."""
+
+import unittest
+from types import SimpleNamespace
+from unittest import mock
+
+from legonet import training
+
+
+class TrainingOrchestrationTests(unittest.TestCase):
+    """Verify frozen detector evaluation timing and scope."""
+
+    def test_per_object_detector_is_evaluated_once_before_training(self):
+        args = SimpleNamespace(
+            network_type="per_object_counting",
+            evaluate_detection=True,
+        )
+        metrics = SimpleNamespace(
+            mean_average_precision=0.6,
+            precision=0.7,
+            recall=0.8,
+        )
+
+        with mock.patch.object(
+            training, "evaluate_detection", return_value=metrics
+        ) as evaluate_detection:
+            training._evaluate_frozen_detector_before_training(
+                args, "model", "dataset", "loader", "sampler"
+            )
+
+        evaluate_detection.assert_called_once_with(
+            "dataset", "loader", "sampler", "model"
+        )
+
+    def test_detector_evaluation_is_skipped_when_disabled(self):
+        args = SimpleNamespace(
+            network_type="per_object_attributes",
+            evaluate_detection=False,
+        )
+
+        with mock.patch.object(training, "evaluate_detection") as evaluate_detection:
+            training._evaluate_frozen_detector_before_training(
+                args, "model", "dataset", "loader", "sampler"
+            )
+
+        evaluate_detection.assert_not_called()
+
+    def test_best_checkpoint_notice_describes_replacement(self):
+        """A lower validation error clearly announces checkpoint replacement."""
+        with mock.patch("builtins.print") as print_mock:
+            training._print_best_error_checkpoint_notice(12, 0.4, 0.3)
+
+        message = print_mock.call_args.args[0]
+        self.assertIn("0.300000", message)
+        self.assertIn("previous: 0.400000", message)
+        self.assertIn("epoch 12", message)
+        self.assertIn("Replacing", message)
+
+    def test_best_training_error_reports_selected_epoch(self):
+        """Training completion reports the best error and its epoch."""
+        args = SimpleNamespace(choose_epoch_by_IoUavg=False)
+        best = training.BestMetrics(
+            relative_error=0.25,
+            relative_error_epoch=17,
+        )
+
+        with mock.patch("builtins.print") as print_mock:
+            training._print_best_training_error(args, best)
+
+        self.assertEqual(
+            print_mock.call_args.args[0],
+            "Best validation relative error: 0.250000, achieved at epoch 17.",
+        )
+
+    def test_best_training_error_reports_missing_validation(self):
+        """Training completion is explicit when no valid error was produced."""
+        args = SimpleNamespace(choose_epoch_by_IoUavg=False)
+
+        with mock.patch("builtins.print") as print_mock:
+            training._print_best_training_error(args, training.BestMetrics())
+
+        self.assertIn("without a valid", print_mock.call_args.args[0])
+
+
+if __name__ == "__main__":
+    unittest.main()

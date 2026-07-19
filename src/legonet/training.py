@@ -3,7 +3,7 @@
 import collections
 import gc
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch
@@ -35,8 +35,10 @@ class BestMetrics:
     """Best validation metrics observed during a training run."""
 
     relative_error: float = 100.0
+    relative_error_epoch: Optional[int] = None
     mean_average_precision: float = 0.0
     average_relative_error: float = 100.0
+    average_relative_error_epoch: Optional[int] = None
 
 
 def _print_best_error_checkpoint_notice(
@@ -50,6 +52,26 @@ def _print_best_error_checkpoint_notice(
         f"New best validation {metric_name}: {current_error:.6f} "
         f"(previous: {previous_error:.6f}) at epoch {epoch}. \n"
         "Replacing the previously saved best-epoch weights file. \n"
+    )
+
+
+def _print_best_training_error(args: Any, best: BestMetrics) -> None:
+    """Print the best validation error and epoch selected during training."""
+    if args.choose_epoch_by_IoUavg:
+        error = best.average_relative_error
+        epoch = best.average_relative_error_epoch
+        metric_name = "IoU-averaged relative error"
+    else:
+        error = best.relative_error
+        epoch = best.relative_error_epoch
+        metric_name = "relative error"
+
+    if epoch is None:
+        print("Training completed without a valid validation relative error.")
+        return
+
+    print(
+        f"Best validation {metric_name}: {error:.6f}, achieved at epoch {epoch}."
     )
 
 
@@ -185,6 +207,7 @@ def _evaluate_counting_epoch(
             epoch, best.relative_error, relative_error
         )
         best.relative_error = relative_error
+        best.relative_error_epoch = epoch
         save_epoch_checkpoint(model, epoch, replace_existing=True)
 
 
@@ -250,6 +273,7 @@ def _evaluate_combined_epoch(
                 metric_name="IoU-averaged relative error",
             )
             best.average_relative_error = average_error
+            best.average_relative_error_epoch = epoch
             save_epoch_checkpoint(model, epoch, replace_existing=True)
         return
     summary = evaluate_combined_counting_summary(
@@ -274,6 +298,7 @@ def _evaluate_combined_epoch(
             epoch, best.relative_error, relative_error
         )
         best.relative_error = relative_error
+        best.relative_error_epoch = epoch
         save_epoch_checkpoint(model, epoch, replace_existing=True)
 
 
@@ -373,5 +398,8 @@ def train_model(
                 args, epoch, model, dataset_val, dataloader_val, sampler_val, best
             )
         scheduler.step(np.mean(epoch_losses))
+
+    if args.network_type != "bbox_detection":
+        _print_best_training_error(args, best)
 
     model.eval()
