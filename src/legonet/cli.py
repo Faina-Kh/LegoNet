@@ -92,6 +92,16 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--evaluate-detection", "--evaluate_detection", type=parse_bool, default=None)
     parser.add_argument("--weights-type", "--weights_type", choices=['full_model_weights', 'partial_weights'], default=None)
+    parser.add_argument(
+        "--weights-mode",
+        "--weights_mode",
+        choices=["none", "full", "partial", "detector_only"],
+        default=None,
+        help="Select which explicitly supplied checkpoint files to load.",
+    )
+    parser.add_argument("--full-weights-file", "--full_weights_file", default=None)
+    parser.add_argument("--bbox-weights-file", "--bbox_weights_file", default=None)
+    parser.add_argument("--per-object-weights-file", "--per_object_weights_file", default=None)
 
     parsed_args = parser.parse_args(args)
     # if parsed_args.run_script is None:
@@ -107,6 +117,44 @@ def get_weights_file(weights_dir):
             f"Expected exactly one weights file in {weights_dir}, found {len(files)}."
         )
     return str(files[0])
+
+
+def require_weights_file(value: str | None, option_name: str) -> str:
+    """Resolve one explicitly supplied checkpoint path or fail clearly."""
+    if not value:
+        raise ValueError(f"{option_name} is required for the selected weights mode.")
+    path = Path(value).expanduser()
+    if not path.is_file():
+        raise ValueError(f"Weights file does not exist: {path}")
+    return str(path.resolve())
+
+
+def configure_weights_mode(args: argparse.Namespace) -> argparse.Namespace:
+    """Normalize legacy loading flags into one explicit weights mode."""
+    mode = args.weights_mode
+    if mode is None:
+        if args.load_only_bbox_weights is True:
+            mode = "detector_only"
+        elif (
+            args.load_only_bbox_weights is None
+            and args.run_script == "Training"
+            and args.network_type in PER_OBJECT_NETWORKS
+        ):
+            mode = "detector_only"
+        elif not args.load_weights:
+            mode = "none"
+        elif args.weights_type == "full_model_weights":
+            mode = "full"
+        else:
+            mode = "partial"
+
+    args.weights_mode = mode
+    args.load_only_bbox_weights = mode == "detector_only"
+    args.load_weights = mode in ("full", "partial")
+    args.weights_type = (
+        "full_model_weights" if mode == "full" else "partial_weights"
+    )
+    return args
 
 
 def resolve_storage_path(
@@ -230,6 +278,14 @@ def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
         raise ValueError(
             "--load-only-bbox-weights and --save-from-model-file cannot both be true."
         )
+    if (
+        getattr(args, "weights_mode", None) == "partial"
+        and args.network_type
+        in ("per_image_estimation_keypoints", "per_image_estimation_regression")
+    ):
+        raise ValueError(
+            "Per-image estimation networks require --weights-mode full or none."
+        )
 
     return args
 
@@ -252,6 +308,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     args.val_set = args.val_set or "Test" #"Test" #"Val"
 
     args.num_of_epochs = args.num_of_epochs or 300
+    configure_weights_mode(args)
     validate_configuration(args)
     type_name = '_KP_' if args.estimate_type == "withKeyPoints" else "_Reg_"
 
@@ -266,28 +323,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     else:
         args.current_results_dir = args.current_results_dir or (args.network_type +"_"+ args.val_set ) #+ "_Check" ) #+ type_name) # + type_name # +'_by_IoUavg_'+ 'new_84' ) #'_'+time_stemp
 
-    if args.load_only_bbox_weights is None:
-        args.load_only_bbox_weights = (
-            args.run_script == "Training" and args.network_type in PER_OBJECT_NETWORKS
-        )
-
-    #---------------------------------------------------------------------------------------------------------------
-    args.weights_type = args.weights_type or 'partial_weights' # 'full_model_weights'  #'partial_weights'
-    if args.weights_type not in ('full_model_weights', 'partial_weights'):
-        raise ValueError(f"Unsupported weights type: {args.weights_type!r}.")
-    if args.load_only_bbox_weights:
-        args.weights_type = "partial_weights"
-
-    #--------------------------------------------------------------------------------------------------------------
-    # ToDo - add as constrains to streamlit:
-    if args.network_type == "bbox_detection":
-        args.weights_type = 'partial_weights'
-
-    if args.network_type == "per_image_estimation_keypoints" or args.network_type == "per_image_estimation_regression":
-        args.weights_type = 'full_model_weights'
-
-    #--------------------------------------------------------------------------------------------------------------
-
     args.evaluate_per_object = args.network_type in PER_OBJECT_NETWORKS
 
     if (
@@ -300,32 +335,23 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
             "Use --load-only-bbox-weights true to train a new estimation head."
         )
 
-    args.load_full_model_weights = (
-        args.load_weights
-        and not args.load_only_bbox_weights
-        and args.weights_type == 'full_model_weights'
-    )
-    args.load_partial_weights = (
-        (args.load_weights or args.load_only_bbox_weights)
-        and args.weights_type == 'partial_weights'
+    args.load_full_model_weights = args.weights_mode == "full"
+    args.load_partial_weights = args.weights_mode in ("partial", "detector_only")
+
+    args.load_bbox_det_weights = (
+        args.weights_mode in ("partial", "detector_only")
+        and args.network_type in INCLUDE_BBOX_DETECTION
     )
 
-    args.load_bbox_det_weights = args.load_weights or args.load_only_bbox_weights
-
-    if args.load_only_bbox_weights or not args.load_weights:
-        args.load_per_object_counting_weights = False
-        args.load_per_object_attributes_weights = False
-    elif args.load_only_bbox_weights or args.network_type in ("per_image_estimation_keypoints", "per_image_estimation_regression"):
-        args.load_per_object_counting_weights = False
-        args.load_per_object_attributes_weights = False
-
-    else: #elif args.load_partial_weights:
-        if args.network_type == "per_object_counting":
-            args.load_per_object_counting_weights = True
-        else:
-            args.load_per_object_counting_weights = False
-
-        args.load_per_object_attributes_weights = not args.load_per_object_counting_weights
+    args.load_per_object_counting_weights = (
+        args.weights_mode == "partial"
+        and args.network_type == "per_object_counting"
+    )
+    args.load_per_object_attributes_weights = (
+        args.weights_mode == "partial"
+        and args.network_type
+        in ("per_object_attributes", "per_object_attributes_multibranch")
+    )
 
 
 
@@ -586,20 +612,23 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
 
     # "D:\\from 16\\more_counting_Res\\more_counting_Res\\legonet_epoch=249.pt" #cont_legonet_epoch=14.pt"
 
-    if args.load_bbox_det_weights and args.network_type in INCLUDE_BBOX_DETECTION:
-        args.bbox_detection_weights_file = get_weights_file(args.bbox_detection_weights_dir)
-        # args.partial_weights_dir = os.path.join(args.myExpPath, "Weights",
-        #                                         "Prev_model_files\\Three_datasets_detection\\2023-05-20_230659",
-        #                                         "saved_weights_epoch_69")
+    if args.load_bbox_det_weights:
+        args.bbox_detection_weights_file = require_weights_file(
+            args.bbox_weights_file,
+            "--bbox-weights-file",
+        )
 
     if args.load_per_object_counting_weights or args.load_per_object_attributes_weights:
-        args.per_object_weights_file = get_weights_file(args.per_object_weights_dir)
+        args.per_object_weights_file = require_weights_file(
+            args.per_object_weights_file,
+            "--per-object-weights-file",
+        )
 
     if args.load_full_model_weights:
-        if args.network_type == "per_image_estimation_keypoints" or args.network_type == "per_image_estimation_regression":
-            args.full_model_weights = get_weights_file(args.per_image_weights_dir)
-        else:
-            args.full_model_weights = get_weights_file(args.per_object_weights_dir) #args.bbox_detection_weights_dir)
+        args.full_model_weights = require_weights_file(
+            args.full_weights_file,
+            "--full-weights-file",
+        )
 
     if args.save_from_model_file:
         file_path = "Prev_model_files\\"

@@ -158,7 +158,8 @@ python scripts/run_legonet.py \
   --run-script Inference \
   --val-set Test \
   --have-gt true \
-  --load-weights true
+  --weights-mode full \
+  --full-weights-file /path/to/per_object_attributes.pt
 ```
 
 Example grapes training configuration with a pretrained detector and a newly
@@ -173,9 +174,26 @@ python scripts/run_legonet.py \
   --run-script Training \
   --val-set Val \
   --have-gt true \
-  --load-only-bbox-weights true \
+  --weights-mode detector_only \
+  --bbox-weights-file /path/to/legonet_bbox_grapes.pt \
   --num-of-epochs 300
 ```
+
+### Weight selection
+
+Checkpoint paths are supplied explicitly instead of inferred from a predefined
+directory. Select one loading mode:
+
+| Mode | Required path options | Intended use |
+|---|---|---|
+| `none` | None | Initialize the complete selected model without weights. |
+| `full` | `--full-weights-file` | Resume or run a complete model checkpoint. |
+| `partial` | `--bbox-weights-file` and, for per-object networks, `--per-object-weights-file` | Assemble a model from task-specific checkpoints. |
+| `detector_only` | `--bbox-weights-file` | Train a new per-object head using a pretrained frozen detector. Available only for per-object training. |
+
+The legacy `--load-weights`, `--load-only-bbox-weights`, and `--weights-type`
+options remain accepted for compatibility, but new commands should use
+`--weights-mode` and explicit file paths.
 
 Boolean values accept `true`, `false`, `yes`, `no`, `1`, or `0`. Explicit
 false values are preserved.
@@ -223,6 +241,19 @@ variable is set. It remains editable and includes a **Browse local machine…**
 button. The native folder picker is a local convenience: it opens on the
 machine running Streamlit and may be unavailable for remote or headless
 deployments. Manual path entry remains available in those environments.
+
+Weight loading is selected by mode, and the GUI displays only the checkpoint
+paths required by that mode. Each path supports manual entry and a native
+file-picker button.
+
+Native pickers run on the machine hosting the Streamlit process. When Streamlit
+and the browser run on the same computer, this is the user's local filesystem.
+For a remote deployment, however, pressing **Browse** would open a dialog on the
+remote server, and a headless server may have no desktop at all. It therefore
+cannot select a file from the browser user's computer. Supporting that case
+requires a Streamlit file uploader, which transfers the selected file from the
+browser to the server and stores it server-side before the run starts. Manual
+path entry remains useful when the checkpoint already exists on the server.
 
 The GUI previews the exact CLI command before launching it and writes output
 to the experiment directory under `ExpResults`.

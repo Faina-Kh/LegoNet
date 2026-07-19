@@ -34,6 +34,12 @@ DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
     "per_object_attributes_multibranch": "withKeyPoints"
 }
 WEIGHTS_TYPES = ('full_model_weights', 'partial_weights')
+WEIGHTS_MODE_LABELS = {
+    "none": "Do not load weights",
+    "full": "Full model checkpoint",
+    "partial": "Partial task checkpoints",
+    "detector_only": "Pretrained detector only",
+}
 
 
 def find_project_root(start: Path) -> Path:
@@ -90,6 +96,35 @@ def choose_local_directory(initial_path: str = "") -> str:
             root.destroy()
 
 
+def choose_local_file(initial_path: str = "") -> str:
+    """Open a native checkpoint-file picker on the Streamlit host machine."""
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except ImportError as error:
+        raise RuntimeError("The native file picker requires Tkinter.") from error
+
+    root = None
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        initial_file = Path(initial_path).expanduser()
+        options = {
+            "title": "Choose a LegoNet weights file",
+            "filetypes": [("PyTorch checkpoints", "*.pt *.pth"), ("All files", "*.*")],
+        }
+        if initial_file.parent.is_dir():
+            options["initialdir"] = str(initial_file.parent)
+        return filedialog.askopenfilename(**options)
+    except Exception as error:
+        raise RuntimeError(
+            "The native file picker is unavailable. Enter the path manually."
+        ) from error
+    finally:
+        if root is not None:
+            root.destroy()
+
+
 def browse_for_storage_path() -> None:
     """Update Streamlit state from the optional local folder picker."""
     try:
@@ -103,6 +138,18 @@ def browse_for_storage_path() -> None:
     if selected_path:
         st.session_state.storage_path = selected_path
     st.session_state.storage_path_dialog_error = ""
+
+
+def browse_for_weights_file(state_key: str) -> None:
+    """Update one weights-path field from the local native file picker."""
+    try:
+        selected_path = choose_local_file(st.session_state.get(state_key, ""))
+    except RuntimeError as error:
+        st.session_state.weights_file_dialog_error = str(error)
+        return
+    if selected_path:
+        st.session_state[state_key] = selected_path
+    st.session_state.weights_file_dialog_error = ""
 
 
 def build_command(
@@ -119,9 +166,10 @@ def build_command(
     have_gt: bool,
     to_draw: bool,
     evaluate_detection: bool,
-    load_weights: bool,
-    load_only_bbox_weights: bool,
-    weights_type: str | None,
+    weights_mode: str,
+    full_weights_file: str = "",
+    bbox_weights_file: str = "",
+    per_object_weights_file: str = "",
 ) -> list[str]:
     """Build the LegoNet main.py command from GUI settings."""
     command = [
@@ -152,15 +200,15 @@ def build_command(
         bool_arg(to_draw),
         "--evaluate-detection",
         bool_arg(evaluate_detection),
-        "--load-weights",
-        bool_arg(load_weights),
+        "--weights-mode",
+        weights_mode,
     ]
-    if weights_type is not None:
-        command.extend(["--weights-type", weights_type])
-    if run_script == "Training" and network_type in PER_OBJECT_NETWORKS:
-        command.extend(
-            ["--load-only-bbox-weights", bool_arg(load_only_bbox_weights)]
-        )
+    if full_weights_file:
+        command.extend(["--full-weights-file", full_weights_file])
+    if bbox_weights_file:
+        command.extend(["--bbox-weights-file", bbox_weights_file])
+    if per_object_weights_file:
+        command.extend(["--per-object-weights-file", per_object_weights_file])
     return command
 
 
@@ -270,28 +318,74 @@ with st.sidebar:
         run_script == "Training" and network_type in PER_OBJECT_NETWORKS
     )
     if can_load_only_bbox:
-        load_only_bbox_weights = st.checkbox(
-            "Load only pretrained bounding-box detector weights",
-            value=True,
-            help=(
-                "Freeze the pretrained detector and initialize the selected "
-                "counting or attribute-estimation head from scratch."
-            ),
+        available_weights_modes = ("detector_only", "full", "partial", "none")
+    elif network_type in (
+        "per_image_estimation_keypoints",
+        "per_image_estimation_regression",
+    ):
+        available_weights_modes = ("full", "none")
+    else:
+        available_weights_modes = ("partial", "full", "none")
+
+    weights_mode = st.selectbox(
+        "Weights loading",
+        available_weights_modes,
+        format_func=lambda mode: WEIGHTS_MODE_LABELS[mode],
+    )
+    if weights_mode == "detector_only":
+        st.caption(
+            "The pretrained detector is frozen and the per-object estimation "
+            "head is initialized from scratch."
         )
-    else:
-        load_only_bbox_weights = False
 
-    if load_only_bbox_weights:
-        load_weights = False
-        weights_type = "partial_weights"
-        st.caption("The per-object estimation head will be initialized from scratch.")
-    else:
-        load_weights = st.checkbox("Load weights", value=True)
+    full_weights_file = ""
+    bbox_weights_file = ""
+    per_object_weights_file = ""
+    requested_weight_fields = []
+    if weights_mode == "full":
+        requested_weight_fields.append(
+            ("Full model weights file", "full_weights_file")
+        )
+    elif weights_mode == "detector_only":
+        requested_weight_fields.append(
+            ("Bounding-box detector weights file", "bbox_weights_file")
+        )
+    elif weights_mode == "partial":
+        if network_type in (
+            "bbox_detection",
+            "per_object_counting",
+            "per_object_attributes",
+            "per_object_attributes_multibranch",
+        ):
+            requested_weight_fields.append(
+                ("Bounding-box detector weights file", "bbox_weights_file")
+            )
+        if network_type in PER_OBJECT_NETWORKS:
+            requested_weight_fields.append(
+                ("Per-object head weights file", "per_object_weights_file")
+            )
 
-    if load_weights:
-        weights_type = st.selectbox("Weights type", WEIGHTS_TYPES, index=0)
-    elif not load_only_bbox_weights:
-        weights_type= None
+    selected_weight_paths = {}
+    for label, state_key in requested_weight_fields:
+        selected_weight_paths[state_key] = st.text_input(label, key=state_key)
+        st.button(
+            f"Browse for {label.lower()}…",
+            key=f"browse_{state_key}",
+            on_click=browse_for_weights_file,
+            args=(state_key,),
+            use_container_width=True,
+        )
+    weights_file_dialog_error = st.session_state.get(
+        "weights_file_dialog_error", ""
+    )
+    if weights_file_dialog_error:
+        st.warning(weights_file_dialog_error)
+
+    full_weights_file = selected_weight_paths.get("full_weights_file", "")
+    bbox_weights_file = selected_weight_paths.get("bbox_weights_file", "")
+    per_object_weights_file = selected_weight_paths.get(
+        "per_object_weights_file", ""
+    )
 
 
 
@@ -311,9 +405,10 @@ command = build_command(
     have_gt=have_gt,
     to_draw=to_draw,
     evaluate_detection=evaluate_detection,
-    load_weights=load_weights,
-    load_only_bbox_weights=load_only_bbox_weights,
-    weights_type=weights_type,
+    weights_mode=weights_mode,
+    full_weights_file=full_weights_file,
+    bbox_weights_file=bbox_weights_file,
+    per_object_weights_file=per_object_weights_file,
 )
 storage_root = Path(storage_path)
 experiment_root = expected_experiment_root(storage_path, dataset_name, current_results_dir)

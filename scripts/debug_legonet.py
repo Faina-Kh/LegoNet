@@ -33,9 +33,10 @@ DEBUG_SETTINGS: dict[str, DebugValue] = {
     "have_gt": True,
     "to_draw": False,
     "evaluate_detection": True,
-    "load_weights": False,
-    "load_only_bbox_weights": True,
-    "weights_type": "partial_weights",
+    "weights_mode": "detector_only",  # "none", "full", "partial", "detector_only"
+    "bbox_weights_file": os.environ.get("LEGONET_BBOX_WEIGHTS_FILE", ""),
+    "full_weights_file": None,
+    "per_object_weights_file": None,
 }
 
 

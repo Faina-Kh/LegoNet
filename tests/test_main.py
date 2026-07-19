@@ -222,6 +222,41 @@ class MainEntryPointTests(unittest.TestCase):
 
         self.assertTrue(args.load_only_bbox_weights)
 
+    def test_explicit_detector_only_mode_overrides_legacy_loading_flags(self) -> None:
+        """The explicit mode is the source of truth for checkpoint loading."""
+        args = self.main_module.parse_args(
+            ["--weights-mode", "detector_only"]
+        )
+        args.run_script = "Training"
+        args.network_type = "per_object_counting"
+        self.main_module.resolve_boolean_options(args)
+
+        result = self.main_module.configure_weights_mode(args)
+
+        self.assertEqual(result.weights_mode, "detector_only")
+        self.assertTrue(result.load_only_bbox_weights)
+        self.assertFalse(result.load_weights)
+        self.assertEqual(result.weights_type, "partial_weights")
+
+    def test_explicit_weights_file_is_resolved(self) -> None:
+        """User-supplied checkpoint paths are validated as files."""
+        with TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / "model.pt"
+            checkpoint.touch()
+
+            result = self.main_module.require_weights_file(
+                str(checkpoint), "--full-weights-file"
+            )
+
+        self.assertEqual(result, str(checkpoint.resolve()))
+
+    def test_missing_explicit_weights_file_is_rejected(self) -> None:
+        """A selected loading mode cannot silently fall back to another file."""
+        with self.assertRaisesRegex(ValueError, "does not exist"):
+            self.main_module.require_weights_file(
+                "missing-model.pt", "--full-weights-file"
+            )
+
     def test_load_only_bbox_weights_is_rejected_for_inference(self) -> None:
         """Detector-only initialization is a per-object training operation."""
         args = SimpleNamespace(
