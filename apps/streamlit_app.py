@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tempfile
+import uuid
 from pathlib import Path
 
 import streamlit as st
@@ -96,35 +98,6 @@ def choose_local_directory(initial_path: str = "") -> str:
             root.destroy()
 
 
-def choose_local_file(initial_path: str = "") -> str:
-    """Open a native checkpoint-file picker on the Streamlit host machine."""
-    try:
-        import tkinter as tk
-        from tkinter import filedialog
-    except ImportError as error:
-        raise RuntimeError("The native file picker requires Tkinter.") from error
-
-    root = None
-    try:
-        root = tk.Tk()
-        root.withdraw()
-        initial_file = Path(initial_path).expanduser()
-        options = {
-            "title": "Choose a LegoNet weights file",
-            "filetypes": [("PyTorch checkpoints", "*.pt *.pth"), ("All files", "*.*")],
-        }
-        if initial_file.parent.is_dir():
-            options["initialdir"] = str(initial_file.parent)
-        return filedialog.askopenfilename(**options)
-    except Exception as error:
-        raise RuntimeError(
-            "The native file picker is unavailable. Enter the path manually."
-        ) from error
-    finally:
-        if root is not None:
-            root.destroy()
-
-
 def browse_for_storage_path() -> None:
     """Update Streamlit state from the optional local folder picker."""
     try:
@@ -140,16 +113,27 @@ def browse_for_storage_path() -> None:
     st.session_state.storage_path_dialog_error = ""
 
 
-def browse_for_weights_file(state_key: str) -> None:
-    """Update one weights-path field from the local native file picker."""
-    try:
-        selected_path = choose_local_file(st.session_state.get(state_key, ""))
-    except RuntimeError as error:
-        st.session_state.weights_file_dialog_error = str(error)
-        return
-    if selected_path:
-        st.session_state[state_key] = selected_path
-    st.session_state.weights_file_dialog_error = ""
+def persist_uploaded_weights(uploaded_file, state_key: str) -> str:
+    """Persist a browser-uploaded checkpoint for the training subprocess."""
+    signature = (uploaded_file.name, uploaded_file.size)
+    signature_key = f"{state_key}_upload_signature"
+    path_key = f"{state_key}_uploaded_path"
+    existing_path = st.session_state.get(path_key)
+    if (
+        st.session_state.get(signature_key) == signature
+        and existing_path
+        and Path(existing_path).is_file()
+    ):
+        return existing_path
+
+    upload_directory = Path(tempfile.gettempdir()) / "legonet_streamlit_weights"
+    upload_directory.mkdir(parents=True, exist_ok=True)
+    safe_name = Path(uploaded_file.name).name
+    destination = upload_directory / f"{uuid.uuid4().hex}_{safe_name}"
+    destination.write_bytes(uploaded_file.getbuffer())
+    st.session_state[signature_key] = signature
+    st.session_state[path_key] = str(destination)
+    return str(destination)
 
 
 def build_command(
@@ -367,19 +351,22 @@ with st.sidebar:
 
     selected_weight_paths = {}
     for label, state_key in requested_weight_fields:
-        selected_weight_paths[state_key] = st.text_input(label, key=state_key)
-        st.button(
-            f"Browse for {label.lower()}…",
-            key=f"browse_{state_key}",
-            on_click=browse_for_weights_file,
-            args=(state_key,),
-            use_container_width=True,
+        manual_path = st.text_input(
+            f"{label} path",
+            key=state_key,
+            help="Enter a path that already exists on the machine running Streamlit.",
         )
-    weights_file_dialog_error = st.session_state.get(
-        "weights_file_dialog_error", ""
-    )
-    if weights_file_dialog_error:
-        st.warning(weights_file_dialog_error)
+        uploaded_file = st.file_uploader(
+            f"Browse local machine for {label.lower()}",
+            type=["pt", "pth"],
+            key=f"upload_{state_key}",
+        )
+        if uploaded_file is not None:
+            selected_path = persist_uploaded_weights(uploaded_file, state_key)
+            st.caption(f"Uploaded checkpoint: {uploaded_file.name}")
+        else:
+            selected_path = manual_path
+        selected_weight_paths[state_key] = selected_path
 
     full_weights_file = selected_weight_paths.get("full_weights_file", "")
     bbox_weights_file = selected_weight_paths.get("bbox_weights_file", "")

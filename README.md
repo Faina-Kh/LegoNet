@@ -243,17 +243,12 @@ machine running Streamlit and may be unavailable for remote or headless
 deployments. Manual path entry remains available in those environments.
 
 Weight loading is selected by mode, and the GUI displays only the checkpoint
-paths required by that mode. Each path supports manual entry and a native
-file-picker button.
-
-Native pickers run on the machine hosting the Streamlit process. When Streamlit
-and the browser run on the same computer, this is the user's local filesystem.
-For a remote deployment, however, pressing **Browse** would open a dialog on the
-remote server, and a headless server may have no desktop at all. It therefore
-cannot select a file from the browser user's computer. Supporting that case
-requires a Streamlit file uploader, which transfers the selected file from the
-browser to the server and stores it server-side before the run starts. Manual
-path entry remains useful when the checkpoint already exists on the server.
+paths required by that mode. Each checkpoint supports manual server-path entry
+or a browser-based file upload. Uploaded checkpoints are copied to a temporary
+server-side directory before the LegoNet subprocess starts. This works both
+locally and when the browser connects to a remote Streamlit server. Manual path
+entry remains useful when the checkpoint already exists on the machine running
+Streamlit.
 
 The GUI previews the exact CLI command before launching it and writes output
 to the experiment directory under `ExpResults`.
