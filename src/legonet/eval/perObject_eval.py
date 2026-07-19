@@ -2041,8 +2041,8 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             if is_roots_2:
                 csv_columns = ['img','crop' , 'gt_color', 'pred_color', 'label', 'score', 'max_overlap',  'gt_TRL', 'pred_TRL', 'gt_dia','pred_dia']
             else:
-                csv_columns = ['img', 'gt_count', 'pred_count', 'label', 'score','max_overlap']
-            csv_file = os.path.join(config.General.files_path, "detections_data_any_crop_withEmptyIm.csv") #
+                csv_columns = ['img', 'crop', 'gt_count', 'pred_count', 'label', 'score','max_overlap']
+            csv_file = os.path.join(config.General.files_path, "detections_data_any_crop.csv") #
             f = open(csv_file, 'w', newline='')
             with f:
                 writer = csv.writer(f)
