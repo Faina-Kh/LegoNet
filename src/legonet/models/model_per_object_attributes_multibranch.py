@@ -41,7 +41,7 @@ class PerObjectEstimate(nn.Module):
         self.find_2_b = legos.FindModule(num_classes=num_classes, name='find_for_attribute',
                                                task='attribute_estimation') #name='find_for_count', task='counting')
 
-        self.backbone_2_b = legos.ResNetBackboneModule(name='backbone_for_attribute') #name='backbone_for_count'
+        self.backbone_2_b = legos.ResNetBackboneModule(name='backbone_for_attribute', pretrained=True) #name='backbone_for_count'
 
         self.estimator_length = legos.KeypointBasedEstimator(attribute_name = 'length')
         self.estimator_diameter = legos.KeypointBasedEstimator(attribute_name = 'diameter')
