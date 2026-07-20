@@ -35,7 +35,7 @@ DEBUG_SETTINGS: dict[str, DebugValue] = {
     "to_draw": False,
     "evaluate_detection": True,
     "weights_mode": "detector_only",  # "none", "full", "partial", "detector_only"
-    "bbox_weights_file": os.environ.get("LEGONET_BBOX_WEIGHTS_FILE", ""),
+    "bbox_weights_file": 'C:\\Users\\bordezki\\Desktop\\LegoNet\\ExpResults\\grapes\\Weights\\bbox_detection\\legonet_bbox_grapes.pt', #os.environ.get("LEGONET_BBOX_WEIGHTS_FILE", ""),
     "full_weights_file": None,
     "per_object_weights_file": None,
 }
