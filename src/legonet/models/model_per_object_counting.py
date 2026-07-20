@@ -46,7 +46,8 @@ class PerObjectEstimate(nn.Module):
         self.freeze_detection = freeze_detection
 
         self.bbox_detection = BBOX_Detection(num_classes = num_classes, freeze_detection = self.freeze_detection)
-        self.backbone_2 = legos.ResNetBackboneModule(name='backbone_for_attribute') #name='backbone_for_count'
+        self.backbone_2 = legos.ResNetBackboneModule(name='backbone_for_attribute',
+                                                     pretrained=True) #name='backbone_for_count'
 
         if config.AttributeEstimation.estimate_type == 'withKeyPoints': #'reg_fpn_p3_p7_min_sig'
             self.find_2 = legos.FindModule(num_classes=num_classes, name='find_for_attribute',
