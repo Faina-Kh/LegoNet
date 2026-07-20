@@ -76,6 +76,17 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
         choices=["withKeyPoints", "reg_fpn_p3_p7_min_sig"],
         default=None,
     )
+    parser.add_argument(
+        "--per-object-count-target",
+        "--per_object_count_target",
+        choices=["matched_gt", "crop_points"],
+        default="matched_gt",
+        help=(
+            "Training supervision for grapes per-object counting. "
+            "'matched_gt' uses the full matched GT-box count; 'crop_points' "
+            "reproduces the legacy number of annotated points inside the predicted crop."
+        ),
+    )
     parser.add_argument("--run-script", "--run_script", choices=["Training", "Inference"], default=None)
     parser.add_argument("--val-set", "--val_set", choices=["Val", "Test"], default=None)
     parser.add_argument("--num-of-epochs", "--num_of_epochs", type=int, default=None)
@@ -264,6 +275,19 @@ def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
         if args.val_set != "Val":
             raise ValueError("Training requires --val-set Val.")
 
+    if (
+        getattr(args, "per_object_count_target", "matched_gt") == "crop_points"
+        and not (
+            args.dataset_name == "grapes"
+            and args.network_type == "per_object_counting"
+            and args.run_script == "Training"
+        )
+    ):
+        raise ValueError(
+            "--per-object-count-target crop_points is available only when "
+            "training grapes per_object_counting."
+        )
+
     if getattr(args, "load_only_bbox_weights", False) and not (
         args.run_script == "Training" and args.network_type in PER_OBJECT_NETWORKS
     ):
@@ -433,6 +457,9 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     config.General.predict_empty_image = args.predict_empty_image
     config.AttributeEstimation.do_nmcs = args.do_nmcs
     config.AttributeEstimation.estimate_type = args.estimate_type
+    config.AttributeEstimation.per_object_count_target = (
+        args.per_object_count_target
+    )
 
 
     ######################################################################

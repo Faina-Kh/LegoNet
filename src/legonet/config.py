@@ -64,6 +64,7 @@ class AttributeEstimation:
     calc_det_performance = False
     do_nmcs = False
     estimate_type = "" #'reg_fpn_p3_p7_min_sig' #('reg_fpn_p3' #) #'withKeyPoints'
+    per_object_count_target = "matched_gt"
     inter_losses = True
     num_of_pyr_levels = 5
 
