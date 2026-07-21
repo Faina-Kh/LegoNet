@@ -23,22 +23,20 @@ DebugValue = str | int | bool | None
 DEBUG_SETTINGS: dict[str, DebugValue] = {
     "storage_path": "C:\\Users\\bordezki\\Desktop\\LegoNet", # os.environ.get("LEGONET_STORAGE_PATH", ""),
     "dataset_name": "grapes",  # "roots" or "grapes"
-    "network_type": "bbox_detection", #"bbox_detection", "per_object_counting", "per_object_attributes", "per_object_attributes_multibranch"
-    "run_script": "Inference",  # "Inference" or "Training"
-    "val_set": "Test",  # "Test" or "Val"
-    "gpu_num": "1",
-    "current_results_dir": "bbox_detection_check", #"per_object_counting_Reg\\Train_crop_points",
+    "network_type": "per_object_counting", #"bbox_detection", "per_object_counting", "per_object_attributes", "per_object_attributes_multibranch"
+    "run_script": "Training",  # "Inference" or "Training"
+    "val_set": "Val",  # "Test" or "Val"
+    "gpu_num": "0",
+    "current_results_dir": "Train_"+"per_object_counting_Back2_Initialization",
     "estimate_type": "reg_fpn_p3_p7_min_sig", #"reg_fpn_p3_p7_min_sig", "withKeyPoints"
-    "per_object_count_target": None, # "crop_points",  # "matched_gt" or legacy "crop_points"
     "num_of_epochs": 300,
     "have_gt": True,
     "to_draw": False,
     "evaluate_detection": True,
-    "weights_mode": "partial",  # "none", "full", "partial", "detector_only"
+    "weights_mode": "detector_only",  # "none", "full", "partial", "detector_only"
     "bbox_weights_file": 'C:\\Users\\bordezki\\Desktop\\LegoNet\\ExpResults\\grapes\\Weights\\bbox_detection\\legonet_bbox_grapes.pt', #os.environ.get("LEGONET_BBOX_WEIGHTS_FILE", ""),
     "full_weights_file": None,
     "per_object_weights_file": None,
-
 }
 
 
