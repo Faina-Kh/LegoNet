@@ -29,7 +29,6 @@ DEBUG_SETTINGS: dict[str, DebugValue] = {
     "gpu_num": "0",
     "current_results_dir": "Train_"+"per_object_counting_Back2_Initialization",
     "estimate_type": "reg_fpn_p3_p7_min_sig", #"reg_fpn_p3_p7_min_sig", "withKeyPoints"
-    "per_object_count_target": "matched_gt",  # "matched_gt" or legacy "crop_points"
     "num_of_epochs": 300,
     "have_gt": True,
     "to_draw": False,

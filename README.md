@@ -171,7 +171,6 @@ python scripts/run_legonet.py \
   --dataset-name grapes \
   --network-type per_object_counting \
   --estimate-type reg_fpn_p3_p7_min_sig \
-  --per-object-count-target matched_gt \
   --run-script Training \
   --val-set Val \
   --have-gt true \
@@ -180,13 +179,9 @@ python scripts/run_legonet.py \
   --num-of-epochs 300
 ```
 
-For grapes per-object counting, `--per-object-count-target matched_gt` trains
-each IoU-matched predicted crop against the full count stored for its matched
-GT box. This is the recommended default. The legacy reproduction option
-`--per-object-count-target crop_points` instead uses the number of annotated
-points geometrically inside the predicted crop, matching the historical
-training implementation. Validation, checkpoint selection, and test evaluation
-continue to use the full original matched-GT count in both modes.
+For grapes per-object counting, each IoU-matched predicted crop is trained
+against the full count stored for its matched GT box. Validation, checkpoint
+selection, and test evaluation use the same original matched-GT count.
 
 ### Weight selection
 

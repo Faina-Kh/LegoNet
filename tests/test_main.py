@@ -222,32 +222,6 @@ class MainEntryPointTests(unittest.TestCase):
 
         self.assertTrue(args.load_only_bbox_weights)
 
-    def test_per_object_count_target_defaults_to_matched_gt(self) -> None:
-        args = self.main_module.parse_args([])
-
-        self.assertEqual(args.per_object_count_target, "matched_gt")
-
-    def test_legacy_crop_target_is_parsed(self) -> None:
-        args = self.main_module.parse_args(
-            ["--per-object-count-target", "crop_points"]
-        )
-
-        self.assertEqual(args.per_object_count_target, "crop_points")
-
-    def test_legacy_crop_target_is_limited_to_grapes_training(self) -> None:
-        args = SimpleNamespace(
-            dataset_name="grapes",
-            network_type="per_object_counting",
-            estimate_type="reg_fpn_p3_p7_min_sig",
-            per_object_count_target="crop_points",
-            run_script="Inference",
-            val_set="Test",
-            have_GT=True,
-        )
-
-        with self.assertRaisesRegex(ValueError, "only when training grapes"):
-            self.main_module.validate_configuration(args)
-
     def test_explicit_detector_only_mode_overrides_legacy_loading_flags(self) -> None:
         """The explicit mode is the source of truth for checkpoint loading."""
         args = self.main_module.parse_args(

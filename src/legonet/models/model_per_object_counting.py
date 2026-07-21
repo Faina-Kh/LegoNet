@@ -32,18 +32,6 @@ def _count_target_batch(count):
     return count.reshape(1, 1)
 
 
-def _training_count_target(matched_gt_count, crop_point_count, target_mode):
-    """Select full-box or legacy crop-point supervision for one predicted crop."""
-    if target_mode == "matched_gt":
-        return matched_gt_count
-    if target_mode == "crop_points":
-        return crop_point_count
-    raise ValueError(f"Unsupported per-object count target: {target_mode!r}")
-
-
-
-
-
 class PerObjectEstimate(nn.Module):
 
     def __init__(self, dataset, network_type, num_classes, freeze_detection = True):
@@ -340,13 +328,7 @@ class PerObjectEstimate(nn.Module):
                         count_input = (
                             SFMS_lists,
                             cls_output,
-                            _count_target_batch(
-                                _training_count_target(
-                                    matched_gt_counts[i],
-                                    corrected_counting_anns[0][i, 0],
-                                    config.AttributeEstimation.per_object_count_target,
-                                )
-                            ),
+                            _count_target_batch(matched_gt_counts[i]),
                         )
                         current_l1 = self.estimator(count_input)[0]
                         l1 += current_l1
@@ -356,13 +338,7 @@ class PerObjectEstimate(nn.Module):
                     for i in range(num_of_crops): #(num_of_boxes)
                             counting_loss += self.estimator([
                                 bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels],
-                                _count_target_batch(
-                                    _training_count_target(
-                                        matched_gt_counts[i],
-                                        corrected_counting_anns[0][i, 0],
-                                        config.AttributeEstimation.per_object_count_target,
-                                    )
-                                )])
+                                _count_target_batch(matched_gt_counts[i])])
 
                 including_counting = True
 

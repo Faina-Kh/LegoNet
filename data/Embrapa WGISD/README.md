@@ -14,8 +14,13 @@ Dataset (WGISD)](https://github.com/thsant/wgisd). They combine:
 
 The combined `train.txt`, `val.txt`, and `test.txt` files were created in a
 separate historical preprocessing step. They retain all 300 WGISD image names
-across the three splits and contain berry points for the 111 images with the
-relevant contributed annotations.
+across the three splits and contain berry point annotations for the 111 images
+with the relevant contributed annotations. Within the 111-image berry-annotated
+subset, center dots were added only for berries belonging to countable grape
+clusters. A cluster was considered countable when a human annotator could
+visually count its berries; partially occluded or blurred clusters were
+excluded.
+
 ## Files and format
 
 The expected files are:
@@ -49,30 +54,49 @@ the runtime storage directory:
 
 ```text
 <storage-path>/
-└── Datasets/
-    └── Embrapa WGISD/
-        ├── train.txt
-        ├── val.txt
-        ├── test.txt
-        ├── classes.txt
-        └── <WGISD resized JPEG images>
+`-- Datasets/
+    `-- Embrapa WGISD/
+        |-- train.txt
+        |-- val.txt
+        |-- test.txt
+        |-- classes.txt
+        `-- <WGISD resized JPEG images>
 ```
 
 Copy the four files from this directory into that runtime directory after
 downloading the images. The uploaded annotation files have the following
 coverage:
 
-| Split | Images | Images with berry points | Bounding-box rows | Berry-point rows |
-|---|---:|---:|---:|---:|
-| Train | 218 | 62 | 3,214 | 3,956 |
-| Validation | 24 | 24 | 367 | 1,466 |
-| Test | 58 | 25 | 850 | 1,927 |
-| Total | 300 | 111 | 4,431 | 7,349 |
+| Split | Images | Images with berry points | Raw bounding-box rows | Grape clusters with berry points | Berry-point rows |
+|---|---:|---:|---:|---:|---:|
+| Train | 218 | 62 | 3,214 | 90 | 3,956 |
+| Validation | 24 | 24 | 367 | 31 | 1,466 |
+| Test | 58 | 25 | 850 | 44 | 1,927 |
+| Total | 300 | 111 | 4,431 | 165 | 7,349 |
 
-For the active grape configuration, LegoNet associates each berry point with a
-bounding box, removes images without contributed berry points, and removes
-bounding boxes containing no contributed berry points. This runtime filtering
-produces the berry-annotated subset used by the model.
+The raw bounding-box counts include every WGISD grape-cluster box in the
+annotation files. For the active grape configuration, LegoNet associates each
+berry point with a bounding box, removes images without berry points, and
+removes boxes containing no berry points. The point-annotated cluster counts
+show the resulting subset used by the model.
+
+## Detection reproducibility note
+
+The grape bounding-box detector is evaluated with a minimum confidence score
+of `0.7`, an IoU threshold of `0.5`, and an NMS threshold of `0.3`. In the
+current PyTorch/Torchvision environment, evaluation of the available detector
+checkpoint on the test set produced 27 matched GT boxes among 57 detections:
+47.4% precision. The recall agreed with the value reported in the paper, while
+the paper's reported precision was approximately 49%.
+
+Two current false-positive detections have confidence scores immediately above
+the `0.7` boundary. A threshold-sensitivity check at `0.713` removed those two
+detections without removing any true positives, giving 27 matches among 55
+detections, or 49.1% precision, while leaving recall unchanged. This indicates
+that the precision difference is caused by detections close to the confidence
+threshold, plausibly due to numerical or NMS differences between the historical
+and current package versions. The documented evaluation threshold remains
+`0.7`; the `0.713` result is reported only as a reproducibility diagnostic.
 
 ## License and citation
 

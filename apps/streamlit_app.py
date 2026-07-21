@@ -26,7 +26,6 @@ NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_estimatio
 RUN_MODES = ("Inference", "Training")
 VAL_SETS = ("Test", "Val")
 ESTIMATE_TYPES = ("withKeyPoints", "reg_fpn_p3_p7_min_sig")
-PER_OBJECT_COUNT_TARGETS = ("matched_gt", "crop_points")
 OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS = ("per_object_counting", "per_object_attributes", "per_object_attributes_multibranch")
 PER_OBJECT_NETWORKS = OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS
 MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection")
@@ -147,7 +146,6 @@ def build_command(
     gpu_num: str,
     current_results_dir: str,
     estimate_type: str,
-    per_object_count_target: str,
     num_of_epochs: int,
     have_gt: bool,
     to_draw: bool,
@@ -178,8 +176,6 @@ def build_command(
         current_results_dir,
         "--estimate-type",
         estimate_type,
-        "--per-object-count-target",
-        per_object_count_target,
         "--num-of-epochs",
         str(num_of_epochs),
         "--have-gt",
@@ -293,23 +289,6 @@ with st.sidebar:
     else:
         num_of_epochs = 0
 
-    if run_script == "Training" and network_type == "per_object_counting":
-        per_object_count_target = st.selectbox(
-            "Counting training target",
-            PER_OBJECT_COUNT_TARGETS,
-            format_func=lambda value: (
-                "Full matched GT-box count"
-                if value == "matched_gt"
-                else "Points inside predicted crop (legacy reproduction)"
-            ),
-            help=(
-                "Validation and test always compare predictions with the full "
-                "count of the IoU-matched original GT box."
-            ),
-        )
-    else:
-        per_object_count_target = "matched_gt"
-
     current_results_dir = st.text_input("Current results dir", value=network_type+'_'+val_set+"_Results")
 
     have_gt = st.checkbox("Have ground truth", value=True)
@@ -409,7 +388,6 @@ command = build_command(
     gpu_num=gpu_num,
     current_results_dir=current_results_dir,
     estimate_type=estimate_type,
-    per_object_count_target=per_object_count_target,
     num_of_epochs=int(num_of_epochs),
     have_gt=have_gt,
     to_draw=to_draw,
