@@ -11,6 +11,7 @@ from legonet.manage_weights import (
     load_submodule_weights,
     print_module_names,
     save_partial_weights,
+    validate_checkpoint_modules,
 )
 
 
@@ -25,12 +26,18 @@ def _load_partial_weights(model: Any, args: Any) -> None:
             "Available modules in bbox_detection weights file:",
             list_checkpoint_modules(bbox_state),
         )
+        detector_modules = ["backbone_1", "find_1", "where"]
+        validate_checkpoint_modules(
+            bbox_state,
+            detector_modules,
+            "Bounding-box checkpoint",
+        )
 
         if args.network_type == "bbox_detection":
             load_submodule_weights(
                 model,
                 bbox_state,
-                submodule_names=["backbone_1", "find_1", "where"],
+                submodule_names=detector_modules,
                 strict=False,
                 verbose=args.save_from_model_file,
             )
@@ -44,7 +51,7 @@ def _load_partial_weights(model: Any, args: Any) -> None:
             load_submodule_weights(
                 model.bbox_detection,
                 bbox_state,
-                submodule_names=["backbone_1", "find_1", "where"],
+                submodule_names=detector_modules,
                 strict=False,
                 verbose=args.save_from_model_file,
             )
@@ -54,6 +61,10 @@ def _load_partial_weights(model: Any, args: Any) -> None:
             args.per_object_weights_file,
             map_location=config.General.device,
         )
+        print(
+            "Available modules in per-object counting weights file:",
+            list_checkpoint_modules(per_object_state),
+        )
         if args.estimate_type == "withKeyPoints":
             module_names = ["backbone_2", "find_2", "estimator"]
         elif args.estimate_type == "reg_fpn_p3_p7_min_sig":
@@ -62,6 +73,11 @@ def _load_partial_weights(model: Any, args: Any) -> None:
             module_names = None
 
         if module_names is not None:
+            validate_checkpoint_modules(
+                per_object_state,
+                module_names,
+                "Per-object counting checkpoint",
+            )
             load_submodule_weights(
                 model,
                 per_object_state,
@@ -77,6 +93,10 @@ def _load_partial_weights(model: Any, args: Any) -> None:
         per_object_state = torch.load(
             args.per_object_weights_file,
             map_location=config.General.device,
+        )
+        print(
+            "Available modules in per-object attributes weights file:",
+            list_checkpoint_modules(per_object_state),
         )
 
         if args.network_type == "per_object_attributes_multibranch":
@@ -107,6 +127,11 @@ def _load_partial_weights(model: Any, args: Any) -> None:
             module_names = None
 
         if module_names is not None:
+            validate_checkpoint_modules(
+                per_object_state,
+                module_names,
+                "Per-object attributes checkpoint",
+            )
             load_submodule_weights(
                 model,
                 per_object_state,
@@ -127,6 +152,12 @@ def _load_full_weights(model: Any, args: Any) -> None:
         list_checkpoint_modules(model_state),
     )
     print("Check keys:")
+
+    validate_checkpoint_modules(
+        model_state,
+        list_checkpoint_modules(model.state_dict()),
+        "Full-model checkpoint",
+    )
 
     module_names = None
     if args.network_type == "per_image_estimation_keypoints":

@@ -18,8 +18,10 @@ class CheckpointingTests(unittest.TestCase):
         torch_module = types.ModuleType("torch")
         torch_module.save = mock.Mock()
         sys.modules.pop("legonet.checkpointing", None)
+        sys.modules.pop("legonet.manage_weights", None)
         with mock.patch.dict(sys.modules, {"torch": torch_module}):
             cls.checkpointing = importlib.import_module("legonet.checkpointing")
+            cls.manage_weights = importlib.import_module("legonet.manage_weights")
 
     def setUp(self):
         """Reset the mocked Torch save operation."""
@@ -74,6 +76,37 @@ class CheckpointingTests(unittest.TestCase):
                 )
 
             self.assertTrue(old_checkpoint.exists())
+
+    def test_checkpoint_with_different_head_modules_is_rejected(self):
+        """A keypoint head cannot be loaded into a regression architecture."""
+        state_dict = {
+            "backbone_2.layer.weight": object(),
+            "find_2.classifier.weight": object(),
+            "estimator.regressor.weight": object(),
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"unexpected modules: \['find_2'\]",
+        ):
+            self.manage_weights.validate_checkpoint_modules(
+                state_dict,
+                ["backbone_2", "estimator"],
+                "Per-object counting checkpoint",
+            )
+
+    def test_checkpoint_with_matching_modules_is_accepted(self):
+        """Matching module sets pass architecture validation."""
+        state_dict = {
+            "backbone_2.layer.weight": object(),
+            "estimator.regressor.weight": object(),
+        }
+
+        self.manage_weights.validate_checkpoint_modules(
+            state_dict,
+            ["backbone_2", "estimator"],
+            "Per-object counting checkpoint",
+        )
 
 
 if __name__ == "__main__":
