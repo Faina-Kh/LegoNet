@@ -87,6 +87,7 @@ def _runner_dependency_stubs():
         load_submodule_weights=mock.Mock(),
         save_partial_weights=mock.Mock(),
         print_module_names=mock.Mock(),
+        validate_checkpoint_modules=mock.Mock(),
     )
     utils_module = _module("legonet.utils", printf=mock.Mock())
 

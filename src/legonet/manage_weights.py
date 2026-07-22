@@ -42,6 +42,31 @@ def list_checkpoint_modules(state_dict: Mapping[str, Any]) -> list[str]:
     """Return the sorted top-level module names stored in a state dict."""
     return sorted(set(k.split('.')[0] for k in state_dict.keys()))
 
+
+def validate_checkpoint_modules(
+    state_dict: Mapping[str, Any],
+    expected_modules: Sequence[str],
+    checkpoint_description: str,
+) -> None:
+    """Raise when checkpoint modules do not match the requested architecture."""
+    actual = set(list_checkpoint_modules(state_dict))
+    expected = set(expected_modules)
+    if actual == expected:
+        return
+
+    missing = sorted(expected - actual)
+    unexpected = sorted(actual - expected)
+    details = []
+    if missing:
+        details.append(f"missing modules: {missing}")
+    if unexpected:
+        details.append(f"unexpected modules: {unexpected}")
+    raise ValueError(
+        f"{checkpoint_description} architecture does not match the built model "
+        f"({'; '.join(details)}). Select weights created for the same network "
+        "type and estimate type."
+    )
+
 def save_partial_weights(
     args: Any,
     model: Any,
