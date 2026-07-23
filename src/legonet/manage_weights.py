@@ -6,12 +6,6 @@ import os
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-import torch
-
-
-
-
-
 def rename_state_dict_keys(
     state_dict: Mapping[str, Any],
     rename_map: Mapping[str, str],
@@ -75,6 +69,8 @@ def save_partial_weights(
     output_name: str = "",
 ) -> None:
     """Extract and save task-specific weights using the legacy module mapping."""
+    import torch
+
     for task in tasks:
         if task == "bbox_detection":
             submodules = ['backbone_1', 'find_1', 'where']

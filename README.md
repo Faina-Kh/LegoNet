@@ -199,6 +199,45 @@ The legacy `--load-weights`, `--load-only-bbox-weights`, and `--weights-type`
 options remain accepted for compatibility, but new commands should use
 `--weights-mode` and explicit file paths.
 
+### Split a full checkpoint into partial weights
+
+Use the standalone converter for checkpoints saved by the current code. It
+validates the selected architecture before creating a detector checkpoint and,
+for per-object networks, a separate head checkpoint:
+
+```powershell
+python scripts/split_full_checkpoint.py `
+  --full-weights-file "C:\weights\legonet_epoch=120.pt" `
+  --network-type per_object_counting `
+  --estimate-type reg_fpn_p3_p7_min_sig `
+  --detector-output-file "C:\weights\legonet_bbox_grapes.pt" `
+  --per-object-output-file "C:\weights\legonet_counting_reg.pt"
+```
+
+For an attributes head, pass its attribute names. Each name maps to an
+`estimator_<name>` module:
+
+```powershell
+python scripts/split_full_checkpoint.py `
+  --full-weights-file "C:\weights\legonet_epoch=90.pt" `
+  --network-type per_object_attributes `
+  --estimate-type withKeyPoints `
+  --attribute-names length diameter color `
+  --detector-output-file "C:\weights\legonet_bbox_roots.pt" `
+  --per-object-output-file "C:\weights\legonet_attributes_kp.pt"
+```
+
+Leave `--attribute-names` out when the head uses the single module name
+`estimator`. Existing files are preserved unless `--overwrite` is supplied.
+The converter refuses architecture mismatches and never overwrites its source
+checkpoint.
+
+The same operation is available in a separate Streamlit page:
+
+```powershell
+streamlit run apps/checkpoint_converter.py
+```
+
 Boolean values accept `true`, `false`, `yes`, `no`, `1`, or `0`. Explicit
 false values are preserved.
 
