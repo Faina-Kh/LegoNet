@@ -53,7 +53,10 @@ def per_object_module_names(
         raise ValueError(f"Unsupported estimate type: {estimate_type!r}.")
 
     modules = ["backbone_2"]
-    if estimate_type == "withKeyPoints":
+    if (
+        estimate_type == "withKeyPoints"
+        or network_type == "per_object_attributes"
+    ):
         modules.append("find_2")
     modules.extend(estimator_module_names(attribute_names))
 
@@ -64,6 +67,19 @@ def per_object_module_names(
             )
         modules.extend(["backbone_2_b", "find_2_b"])
     return modules
+
+
+def full_per_object_module_names(
+    network_type: str,
+    estimate_type: str,
+    attribute_names: Sequence[str],
+) -> list[str]:
+    """Return modules present in the selected full per-object architecture."""
+    return per_object_module_names(
+        network_type,
+        estimate_type,
+        attribute_names,
+    )
 
 
 def _filter_modules(
@@ -104,14 +120,11 @@ def split_full_state_dict(
         estimate_type,
         attribute_names,
     )
-    full_head_modules = list(head_modules)
-    if (
-        network_type == "per_object_attributes"
-        and estimate_type == "reg_fpn_p3_p7_min_sig"
-    ):
-        # The current attributes model constructs find_2 even though its
-        # regression path neither trains nor loads that module.
-        full_head_modules.append("find_2")
+    full_head_modules = full_per_object_module_names(
+        network_type,
+        estimate_type,
+        attribute_names,
+    )
     validate_checkpoint_modules(
         state_dict,
         ["bbox_detection", *full_head_modules],
@@ -123,7 +136,7 @@ def split_full_state_dict(
         DETECTOR_MODULES,
         prefix_to_strip="bbox_detection.",
     )
-    head_state = _filter_modules(state_dict, head_modules)
+    head_state = _filter_modules(state_dict, full_head_modules)
     validate_checkpoint_modules(
         detector_state,
         DETECTOR_MODULES,
@@ -131,10 +144,52 @@ def split_full_state_dict(
     )
     validate_checkpoint_modules(
         head_state,
-        head_modules,
+        full_head_modules,
         "Extracted per-object checkpoint",
     )
     return detector_state, head_state
+
+
+def combine_partial_state_dicts(
+    detector_state: Mapping[str, Any],
+    per_object_state: Mapping[str, Any],
+    network_type: str,
+    estimate_type: str,
+    attribute_names: Sequence[str] = (),
+) -> dict[str, Any]:
+    """Validate and combine detector and per-object partial state dictionaries."""
+    head_modules = full_per_object_module_names(
+        network_type,
+        estimate_type,
+        attribute_names,
+    )
+
+    validate_checkpoint_modules(
+        detector_state,
+        DETECTOR_MODULES,
+        "Detector checkpoint",
+    )
+    validate_checkpoint_modules(
+        per_object_state,
+        head_modules,
+        "Per-object checkpoint",
+    )
+
+    combined = {
+        f"bbox_detection.{key}": value
+        for key, value in detector_state.items()
+    }
+    for key, value in per_object_state.items():
+        if key in combined:
+            raise ValueError(f"Duplicate checkpoint key while combining: {key}")
+        combined[key] = value
+
+    validate_checkpoint_modules(
+        combined,
+        ["bbox_detection", *head_modules],
+        "Combined full-model checkpoint",
+    )
+    return combined
 
 
 def _save_state_dicts_atomically(
@@ -256,3 +311,63 @@ def convert_full_checkpoint(
 
     _save_state_dicts_atomically(outputs, overwrite)
     return detector_output, head_output
+
+
+def combine_partial_checkpoints(
+    detector_weights_file: str | Path,
+    per_object_weights_file: str | Path,
+    full_output_file: str | Path,
+    network_type: str,
+    estimate_type: str,
+    attribute_names: Sequence[str] = (),
+    overwrite: bool = False,
+) -> Path:
+    """Load, validate, combine, and save partial checkpoints as one full file."""
+    import torch
+
+    detector_source = Path(detector_weights_file)
+    head_source = Path(per_object_weights_file)
+    for description, source in (
+        ("Detector weights file", detector_source),
+        ("Per-object weights file", head_source),
+    ):
+        if not source.is_file():
+            raise FileNotFoundError(f"{description} does not exist: {source}")
+
+    detector_state = torch.load(
+        detector_source,
+        map_location="cpu",
+        weights_only=True,
+    )
+    head_state = torch.load(
+        head_source,
+        map_location="cpu",
+        weights_only=True,
+    )
+    if not isinstance(detector_state, Mapping):
+        raise TypeError("Detector checkpoint must contain a state dictionary.")
+    if not isinstance(head_state, Mapping):
+        raise TypeError("Per-object checkpoint must contain a state dictionary.")
+
+    combined = combine_partial_state_dicts(
+        detector_state,
+        head_state,
+        network_type,
+        estimate_type,
+        attribute_names,
+    )
+    output = _output_file_path(
+        full_output_file,
+        "Full-model output file",
+        required=True,
+    )
+    assert output is not None
+    resolved_output = output.resolve()
+    if resolved_output in (detector_source.resolve(), head_source.resolve()):
+        raise ValueError("The full output cannot overwrite either source checkpoint.")
+
+    print("Detector input modules:", list_checkpoint_modules(detector_state))
+    print("Per-object input modules:", list_checkpoint_modules(head_state))
+    print("Full output modules:", list_checkpoint_modules(combined))
+    _save_state_dicts_atomically([(output, combined)], overwrite)
+    return output

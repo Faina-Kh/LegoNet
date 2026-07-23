@@ -119,6 +119,7 @@ def _load_partial_weights(model: Any, args: Any) -> None:
             ]
         elif args.estimate_type == "reg_fpn_p3_p7_min_sig":
             module_names = ["backbone_2",
+                            "find_2",
                             "estimator_length",
                             "estimator_diameter",
                             "estimator_color",

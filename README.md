@@ -243,6 +243,31 @@ The converter page accepts an output directory separately from the detector
 and per-object `.pt` filenames. When Streamlit runs locally, the output
 directory can also be selected with the native folder browser.
 
+To perform the reverse operation, combine compatible detector and per-object
+partial checkpoints into one full checkpoint:
+
+```powershell
+python scripts/combine_partial_checkpoints.py `
+  --detector-weights-file "C:\weights\legonet_bbox_grapes.pt" `
+  --per-object-weights-file "C:\weights\legonet_counting_reg.pt" `
+  --network-type per_object_counting `
+  --estimate-type reg_fpn_p3_p7_min_sig `
+  --full-output-file "C:\weights\legonet_counting_reg_full.pt"
+```
+
+The combiner validates both module sets, adds the `bbox_detection.` prefix to
+detector keys, verifies the saved checkpoint, and refuses to overwrite either
+source file. Named attributes use the same `--attribute-names` option as the
+split operation. Combination is rejected whenever either partial checkpoint's
+modules do not exactly match the modules defined by the selected network type,
+estimate type, and attribute names.
+
+The reverse operation also has a local Streamlit page:
+
+```powershell
+streamlit run apps/checkpoint_combiner.py
+```
+
 Boolean values accept `true`, `false`, `yes`, `no`, `1`, or `0`. Explicit
 false values are preserved.
 

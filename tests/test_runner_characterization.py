@@ -285,6 +285,37 @@ class RunnerCharacterizationTests(unittest.TestCase):
             verbose=False,
         )
 
+    def test_partial_regression_attributes_include_defined_find_module(self):
+        """Regression attributes load every weighted module in the built model."""
+        args = self._weight_args(
+            load_partial_weights=True,
+            load_bbox_det_weights=False,
+            load_per_object_counting_weights=False,
+            load_per_object_attributes_weights=True,
+            network_type="per_object_attributes",
+            estimate_type="reg_fpn_p3_p7_min_sig",
+            per_object_weights_file="attributes_reg.pt",
+        )
+        model = mock.Mock()
+        state_dict = object()
+        self.model_setup.torch.load.return_value = state_dict
+
+        self._run_through_weight_setup(args, model)
+
+        self.model_setup.load_submodule_weights.assert_called_once_with(
+            model,
+            state_dict,
+            submodule_names=[
+                "backbone_2",
+                "find_2",
+                "estimator_length",
+                "estimator_diameter",
+                "estimator_color",
+            ],
+            strict=False,
+            verbose=False,
+        )
+
     def test_partial_object_counting_keeps_current_module_mapping(self):
         """Grape keypoint counting retains its three-module partial mapping."""
         args = self._weight_args(
