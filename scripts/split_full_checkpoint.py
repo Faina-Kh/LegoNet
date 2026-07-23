@@ -24,14 +24,14 @@ def parse_args(arguments: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Split a current LegoNet full-model state dictionary into detector "
-            "and, when relevant, per-object partial checkpoints."
+            "and per-object partial checkpoints."
         )
     )
     parser.add_argument("--full-weights-file", required=True)
     parser.add_argument(
         "--network-type",
         required=True,
-        choices=["bbox_detection", *PER_OBJECT_NETWORKS],
+        choices=PER_OBJECT_NETWORKS,
     )
     parser.add_argument("--estimate-type", choices=ESTIMATE_TYPES)
     parser.add_argument(
@@ -44,7 +44,10 @@ def parse_args(arguments: list[str] | None = None) -> argparse.Namespace:
             "single estimator module."
         ),
     )
-    parser.add_argument("--detector-output-file", required=True)
+    parser.add_argument(
+        "--detector-output-file",
+        help="Optional. Omit to save only the per-object head weights.",
+    )
     parser.add_argument("--per-object-output-file")
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args(arguments)
@@ -53,16 +56,11 @@ def parse_args(arguments: list[str] | None = None) -> argparse.Namespace:
 def main(arguments: list[str] | None = None) -> int:
     """Run checkpoint conversion."""
     args = parse_args(arguments)
-    if args.network_type in PER_OBJECT_NETWORKS:
-        if args.estimate_type is None:
-            raise SystemExit("--estimate-type is required for a per-object network.")
-        if not args.per_object_output_file:
-            raise SystemExit(
-                "--per-object-output-file is required for a per-object network."
-            )
-    elif args.estimate_type is not None or args.attribute_names:
+    if args.estimate_type is None:
+        raise SystemExit("--estimate-type is required.")
+    if not args.per_object_output_file:
         raise SystemExit(
-            "--estimate-type and --attribute-names apply only to per-object networks."
+            "--per-object-output-file is required."
         )
     convert_full_checkpoint(
         full_weights_file=args.full_weights_file,

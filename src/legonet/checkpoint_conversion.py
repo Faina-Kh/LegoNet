@@ -94,22 +94,6 @@ def split_full_state_dict(
     attribute_names: Sequence[str] = (),
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
     """Validate and split a current full-model state dictionary."""
-    if network_type == "bbox_detection":
-        if attribute_names:
-            raise ValueError("Attribute names are not valid for bbox_detection.")
-        validate_checkpoint_modules(
-            state_dict,
-            DETECTOR_MODULES,
-            "Full bbox_detection checkpoint",
-        )
-        detector_state = _filter_modules(state_dict, DETECTOR_MODULES)
-        validate_checkpoint_modules(
-            detector_state,
-            DETECTOR_MODULES,
-            "Extracted detector checkpoint",
-        )
-        return detector_state, None
-
     if network_type not in PER_OBJECT_NETWORKS:
         raise ValueError(f"Unsupported network type: {network_type!r}.")
     if estimate_type is None:
@@ -190,13 +174,13 @@ def _save_state_dicts_atomically(
 
 def convert_full_checkpoint(
     full_weights_file: str | Path,
-    detector_output_file: str | Path,
+    detector_output_file: str | Path | None,
     network_type: str,
     estimate_type: str | None = None,
     attribute_names: Sequence[str] = (),
     per_object_output_file: str | Path | None = None,
     overwrite: bool = False,
-) -> tuple[Path, Path | None]:
+) -> tuple[Path | None, Path]:
     """Load, validate, split, and save a current full-model checkpoint."""
     import torch
 
@@ -216,16 +200,20 @@ def convert_full_checkpoint(
         estimate_type,
         attribute_names,
     )
-    detector_output = Path(detector_output_file)
+    detector_output = (
+        Path(detector_output_file) if detector_output_file else None
+    )
     head_output = Path(per_object_output_file) if per_object_output_file else None
-    if head_state is not None and head_output is None:
+    if head_state is None:
+        raise RuntimeError("Per-object conversion did not produce head weights.")
+    if head_output is None:
         raise ValueError(
             "A per-object output file is required for a per-object network."
         )
     resolved_source = source.resolve()
-    output_paths = [detector_output]
-    if head_output is not None:
-        output_paths.append(head_output)
+    output_paths = [head_output]
+    if detector_output is not None:
+        output_paths.append(detector_output)
     resolved_outputs = [path.resolve() for path in output_paths]
     if resolved_source in resolved_outputs:
         raise ValueError("An output file cannot replace the full source checkpoint.")
@@ -233,13 +221,12 @@ def convert_full_checkpoint(
         raise ValueError("Detector and per-object outputs must use different files.")
 
     print("Full checkpoint modules:", list_checkpoint_modules(state_dict))
-    print("Detector output modules:", list_checkpoint_modules(detector_state))
-    outputs: list[tuple[Path, Mapping[str, Any]]] = [
-        (detector_output, detector_state)
-    ]
-    if head_state is not None and head_output is not None:
-        print("Per-object output modules:", list_checkpoint_modules(head_state))
-        outputs.append((head_output, head_state))
+    outputs: list[tuple[Path, Mapping[str, Any]]] = []
+    if detector_output is not None:
+        print("Detector output modules:", list_checkpoint_modules(detector_state))
+        outputs.append((detector_output, detector_state))
+    print("Per-object output modules:", list_checkpoint_modules(head_state))
+    outputs.append((head_output, head_state))
 
     _save_state_dicts_atomically(outputs, overwrite)
     return detector_output, head_output

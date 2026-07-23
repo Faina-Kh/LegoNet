@@ -201,9 +201,9 @@ options remain accepted for compatibility, but new commands should use
 
 ### Split a full checkpoint into partial weights
 
-Use the standalone converter for checkpoints saved by the current code. It
-validates the selected architecture before creating a detector checkpoint and,
-for per-object networks, a separate head checkpoint:
+Use the standalone converter for per-object checkpoints saved by the current
+code. It validates the selected architecture before creating separate detector
+and per-object head checkpoints:
 
 ```powershell
 python scripts/split_full_checkpoint.py `
@@ -230,7 +230,8 @@ python scripts/split_full_checkpoint.py `
 Leave `--attribute-names` out when the head uses the single module name
 `estimator`. Existing files are preserved unless `--overwrite` is supplied.
 The converter refuses architecture mismatches and never overwrites its source
-checkpoint.
+checkpoint. `--detector-output-file` is optional; omit it when the detector
+weights have already been saved and only a new per-object head file is needed.
 
 The same operation is available in a separate Streamlit page:
 
@@ -432,3 +433,9 @@ status, limitations, and planned verification process.
 
 - Publish and document curated checkpoints.
 - Verify a clean environment setup on a second machine.
+- Decide how partial checkpoint export should group and save shared and
+  branch-specific module weights for the multibranch network.
+- Generalize dataset and model configuration so the existing network
+  architectures can be trained on other datasets, including support for a
+  configurable number and list of attribute estimators rather than the three
+  root-specific estimators for length, diameter, and color.
