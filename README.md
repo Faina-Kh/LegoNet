@@ -239,6 +239,10 @@ The same operation is available in a separate Streamlit page:
 streamlit run apps/checkpoint_converter.py
 ```
 
+The converter page accepts an output directory separately from the detector
+and per-object `.pt` filenames. When Streamlit runs locally, the output
+directory can also be selected with the native folder browser.
+
 Boolean values accept `true`, `false`, `yes`, `no`, `1`, or `0`. Explicit
 false values are preserved.
 
