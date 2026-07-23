@@ -439,3 +439,6 @@ status, limitations, and planned verification process.
   architectures can be trained on other datasets, including support for a
   configurable number and list of attribute estimators rather than the three
   root-specific estimators for length, diameter, and color.
+- Complete and validate the existing partial COCO-style dataloader support,
+  and demonstrate it using the grape dataset's repository-provided JSON
+  annotations.

@@ -172,6 +172,39 @@ class CheckpointConversionTests(unittest.TestCase):
         self.assertEqual([path for path, _ in outputs], [head_output])
         self.assertFalse(overwrite)
 
+    def test_empty_path_object_does_not_select_detector_output(self):
+        state_dict = {
+            **_module_state("backbone_2", "estimator"),
+            **{
+                "bbox_detection.backbone_1.weight": object(),
+                "bbox_detection.find_1.weight": object(),
+                "bbox_detection.where.weight": object(),
+            },
+        }
+        fake_torch = types.ModuleType("torch")
+        fake_torch.load = mock.Mock(return_value=state_dict)
+
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "full.pt"
+            source.touch()
+            head_output = Path(directory) / "head.pt"
+            with mock.patch.dict(sys.modules, {"torch": fake_torch}), mock.patch(
+                "legonet.checkpoint_conversion._save_state_dicts_atomically"
+            ) as save:
+                detector_path, _ = convert_full_checkpoint(
+                    full_weights_file=source,
+                    detector_output_file=Path(),
+                    per_object_output_file=head_output,
+                    network_type="per_object_counting",
+                    estimate_type="reg_fpn_p3_p7_min_sig",
+                )
+
+        self.assertIsNone(detector_path)
+        self.assertEqual(
+            [path for path, _ in save.call_args[0][0]],
+            [head_output],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

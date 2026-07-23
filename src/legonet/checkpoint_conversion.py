@@ -172,6 +172,29 @@ def _save_state_dicts_atomically(
                 temporary.unlink()
 
 
+def _output_file_path(
+    value: str | Path | None,
+    description: str,
+    required: bool,
+) -> Path | None:
+    """Normalize an output filename without treating an empty path as ``.``."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        if required:
+            raise ValueError(f"{description} is required.")
+        return None
+
+    path = Path(value)
+    if path == Path("."):
+        if required:
+            raise ValueError(f"{description} must include a filename.")
+        return None
+    if path.exists() and path.is_dir():
+        raise ValueError(
+            f"{description} must be a file path, not a directory: {path}"
+        )
+    return path
+
+
 def convert_full_checkpoint(
     full_weights_file: str | Path,
     detector_output_file: str | Path | None,
@@ -200,16 +223,19 @@ def convert_full_checkpoint(
         estimate_type,
         attribute_names,
     )
-    detector_output = (
-        Path(detector_output_file) if detector_output_file else None
+    detector_output = _output_file_path(
+        detector_output_file,
+        "Detector output file",
+        required=False,
     )
-    head_output = Path(per_object_output_file) if per_object_output_file else None
+    head_output = _output_file_path(
+        per_object_output_file,
+        "Per-object output file",
+        required=True,
+    )
     if head_state is None:
         raise RuntimeError("Per-object conversion did not produce head weights.")
-    if head_output is None:
-        raise ValueError(
-            "A per-object output file is required for a per-object network."
-        )
+    assert head_output is not None
     resolved_source = source.resolve()
     output_paths = [head_output]
     if detector_output is not None:
