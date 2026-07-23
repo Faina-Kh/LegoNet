@@ -285,10 +285,11 @@ def load_submodule_weights(
 
 
 def print_module_names(model: Any) -> None:
-    """Print the names of a model's immediate child modules."""
+    """Print immediate child modules and mark those without checkpoint state."""
     names = []
     for name, module in model.named_children():
-        names.append(name)
+        has_weights = bool(module.state_dict())
+        names.append(name if has_weights else f"{name} (no weights)")
     print(names, '\n')
 
 if __name__ == '__main__':

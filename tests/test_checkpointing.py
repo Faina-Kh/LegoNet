@@ -1,10 +1,12 @@
 """Tests for safe checkpoint replacement."""
 
 import importlib
+import io
 import sys
 import tempfile
 import types
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -107,6 +109,25 @@ class CheckpointingTests(unittest.TestCase):
             ["backbone_2", "estimator"],
             "Per-object counting checkpoint",
         )
+
+    def test_module_listing_marks_modules_without_weights(self):
+        """Structural detector helpers are identified as weightless modules."""
+        weighted = mock.Mock()
+        weighted.state_dict.return_value = {"weight": object()}
+        weightless = mock.Mock()
+        weightless.state_dict.return_value = {}
+        model = mock.Mock()
+        model.named_children.return_value = [
+            ("backbone_1", weighted),
+            ("anchors", weightless),
+        ]
+        output = io.StringIO()
+
+        with redirect_stdout(output):
+            self.manage_weights.print_module_names(model)
+
+        self.assertIn("backbone_1", output.getvalue())
+        self.assertIn("anchors (no weights)", output.getvalue())
 
 
 if __name__ == "__main__":
