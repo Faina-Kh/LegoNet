@@ -1,8 +1,14 @@
 """Tests for splitting current full-model checkpoints."""
 
+import sys
+import tempfile
+import types
 import unittest
+from pathlib import Path
+from unittest import mock
 
 from legonet.checkpoint_conversion import (
+    convert_full_checkpoint,
     estimator_module_names,
     split_full_state_dict,
 )
@@ -17,6 +23,13 @@ class CheckpointConversionTests(unittest.TestCase):
 
     def test_empty_attribute_names_use_single_estimator(self):
         self.assertEqual(estimator_module_names([]), ["estimator"])
+
+    def test_bbox_detection_is_not_a_conversion_network(self):
+        with self.assertRaisesRegex(ValueError, "Unsupported network type"):
+            split_full_state_dict(
+                _module_state("backbone_1", "find_1", "where"),
+                network_type="bbox_detection",
+            )
 
     def test_attribute_names_create_named_estimators(self):
         self.assertEqual(
@@ -123,6 +136,41 @@ class CheckpointConversionTests(unittest.TestCase):
         )
 
         self.assertNotIn("find_2", {name.split(".")[0] for name in head})
+
+    def test_detector_output_can_be_omitted(self):
+        state_dict = {
+            **_module_state("backbone_2", "estimator"),
+            **{
+                "bbox_detection.backbone_1.weight": object(),
+                "bbox_detection.find_1.weight": object(),
+                "bbox_detection.where.weight": object(),
+            },
+        }
+        fake_torch = types.ModuleType("torch")
+        fake_torch.load = mock.Mock(return_value=state_dict)
+
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "full.pt"
+            source.touch()
+            head_output = Path(directory) / "head.pt"
+            with mock.patch.dict(sys.modules, {"torch": fake_torch}), mock.patch(
+                "legonet.checkpoint_conversion._save_state_dicts_atomically"
+            ) as save:
+                detector_path, returned_head = convert_full_checkpoint(
+                    full_weights_file=source,
+                    detector_output_file=None,
+                    per_object_output_file=head_output,
+                    network_type="per_object_counting",
+                    estimate_type="reg_fpn_p3_p7_min_sig",
+                )
+
+        self.assertIsNone(detector_path)
+        self.assertEqual(returned_head, head_output)
+        save.assert_called_once()
+        outputs = save.call_args[0][0]
+        overwrite = save.call_args[0][1]
+        self.assertEqual([path for path, _ in outputs], [head_output])
+        self.assertFalse(overwrite)
 
 
 if __name__ == "__main__":

@@ -33,28 +33,21 @@ def uploaded_checkpoint_path(uploaded_file) -> Path:
 st.set_page_config(page_title="LegoNet Checkpoint Converter", page_icon="L")
 st.title("LegoNet Checkpoint Converter")
 st.write(
-    "Split a current full-model checkpoint into detector and per-object "
-    "partial weight files."
+    "Split a current per-object full-model checkpoint into detector and "
+    "per-object partial weight files."
 )
 
 network_type = st.selectbox(
     "Network type",
-    ("bbox_detection", *PER_OBJECT_NETWORKS),
+    PER_OBJECT_NETWORKS,
 )
-is_per_object = network_type in PER_OBJECT_NETWORKS
-estimate_type = (
-    st.selectbox("Estimate type", ESTIMATE_TYPES) if is_per_object else None
-)
-attribute_text = (
-    st.text_input(
-        "Attribute names",
-        help=(
-            "Space- or comma-separated names, for example: length diameter color. "
-            "Leave empty when the head module is named estimator."
-        ),
-    )
-    if is_per_object
-    else ""
+estimate_type = st.selectbox("Estimate type", ESTIMATE_TYPES)
+attribute_text = st.text_input(
+    "Attribute names",
+    help=(
+        "Space- or comma-separated names, for example: length diameter color. "
+        "Leave empty when the head module is named estimator."
+    ),
 )
 attribute_names = [
     name for name in attribute_text.replace(",", " ").split() if name
@@ -74,18 +67,19 @@ source_path = (
     else Path(manual_source) if manual_source else None
 )
 
-detector_output = st.text_input("Detector output file path")
-per_object_output = (
-    st.text_input("Per-object output file path") if is_per_object else ""
+save_detector = st.checkbox("Save detector weights", value=True)
+detector_output = (
+    st.text_input("Detector output file path") if save_detector else ""
 )
+per_object_output = st.text_input("Per-object output file path")
 overwrite = st.checkbox("Overwrite existing output files", value=False)
 
 if st.button("Convert checkpoint", type="primary"):
     if source_path is None:
         st.error("Select or enter a full weights file.")
-    elif not detector_output:
+    elif save_detector and not detector_output:
         st.error("Enter a detector output file.")
-    elif is_per_object and not per_object_output:
+    elif not per_object_output:
         st.error("Enter a per-object output file.")
     else:
         try:
@@ -102,14 +96,14 @@ if st.button("Convert checkpoint", type="primary"):
             st.error(str(exc))
         else:
             st.success("Checkpoint conversion completed.")
-            st.download_button(
-                "Download detector weights",
-                data=detector_path.read_bytes(),
-                file_name=detector_path.name,
-            )
-            if head_path is not None:
+            if detector_path is not None:
                 st.download_button(
-                    "Download per-object weights",
-                    data=head_path.read_bytes(),
-                    file_name=head_path.name,
+                    "Download detector weights",
+                    data=detector_path.read_bytes(),
+                    file_name=detector_path.name,
                 )
+            st.download_button(
+                "Download per-object weights",
+                data=head_path.read_bytes(),
+                file_name=head_path.name,
+            )
