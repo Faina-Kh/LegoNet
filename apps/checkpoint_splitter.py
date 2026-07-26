@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import io
 import sys
 import tempfile
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 import streamlit as st
@@ -19,6 +21,24 @@ from legonet.checkpoint_conversion import (
     PER_OBJECT_NETWORKS,
     convert_full_checkpoint,
 )
+
+
+class Tee:
+    """Write console text to both the terminal and an in-memory GUI log."""
+
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, text: str) -> int:
+        """Write text to every configured stream."""
+        for stream in self.streams:
+            stream.write(text)
+        return len(text)
+
+    def flush(self) -> None:
+        """Flush every configured stream."""
+        for stream in self.streams:
+            stream.flush()
 
 
 def uploaded_checkpoint_path(uploaded_file) -> Path:
@@ -163,33 +183,43 @@ if st.button("Convert checkpoint", type="primary"):
     elif not output_directory.strip():
         st.error("Enter or select an output directory.")
     else:
+        console_output = io.StringIO()
         try:
-            output_root = Path(output_directory.strip())
-            detector_output = (
-                output_root
-                / checkpoint_filename(
-                    detector_filename,
-                    "Detector filename",
+            with redirect_stdout(
+                Tee(sys.stdout, console_output)
+            ), redirect_stderr(Tee(sys.stderr, console_output)):
+                output_root = Path(output_directory.strip())
+                detector_output = (
+                    output_root
+                    / checkpoint_filename(
+                        detector_filename,
+                        "Detector filename",
+                    )
+                    if save_detector
+                    else None
                 )
-                if save_detector
-                else None
-            )
-            per_object_output = output_root / checkpoint_filename(
-                per_object_filename,
-                "Per-object filename",
-            )
-            detector_path, head_path = convert_full_checkpoint(
-                full_weights_file=source_path,
-                detector_output_file=detector_output,
-                per_object_output_file=per_object_output,
-                network_type=network_type,
-                estimate_type=estimate_type,
-                attribute_names=attribute_names,
-                overwrite=overwrite,
-            )
+                per_object_output = output_root / checkpoint_filename(
+                    per_object_filename,
+                    "Per-object filename",
+                )
+                detector_path, head_path = convert_full_checkpoint(
+                    full_weights_file=source_path,
+                    detector_output_file=detector_output,
+                    per_object_output_file=per_object_output,
+                    network_type=network_type,
+                    estimate_type=estimate_type,
+                    attribute_names=attribute_names,
+                    overwrite=overwrite,
+                )
         except (FileNotFoundError, FileExistsError, TypeError, ValueError) as exc:
+            if console_output.getvalue():
+                st.subheader("Conversion log")
+                st.code(console_output.getvalue(), language="text")
             st.error(str(exc))
         else:
+            if console_output.getvalue():
+                st.subheader("Conversion log")
+                st.code(console_output.getvalue(), language="text")
             st.success("Checkpoint conversion completed.")
             if detector_path is not None:
                 st.download_button(
