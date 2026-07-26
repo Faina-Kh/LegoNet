@@ -88,8 +88,8 @@ def checkpoint_filename(value: str, description: str) -> str:
     return name
 
 
-st.set_page_config(page_title="LegoNet Checkpoint Converter", page_icon="L")
-st.title("LegoNet Checkpoint Converter")
+st.set_page_config(page_title="LegoNet Checkpoint Splitter", page_icon="L")
+st.title("LegoNet Checkpoint Splitter")
 st.write(
     "Split a current per-object full-model checkpoint into detector and "
     "per-object partial weight files."

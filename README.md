@@ -236,7 +236,7 @@ weights have already been saved and only a new per-object head file is needed.
 The same operation is available in a separate Streamlit page:
 
 ```powershell
-streamlit run apps/checkpoint_converter.py
+streamlit run apps/checkpoint_splitter.py
 ```
 
 The converter page accepts an output directory separately from the detector
