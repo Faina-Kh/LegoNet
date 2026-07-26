@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import io
 import sys
 import tempfile
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 import streamlit as st
@@ -19,6 +21,24 @@ from legonet.checkpoint_conversion import (
     PER_OBJECT_NETWORKS,
     combine_partial_checkpoints,
 )
+
+
+class Tee:
+    """Write console text to both the terminal and an in-memory GUI log."""
+
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, text: str) -> int:
+        """Write text to every configured stream."""
+        for stream in self.streams:
+            stream.write(text)
+        return len(text)
+
+    def flush(self) -> None:
+        """Flush every configured stream."""
+        for stream in self.streams:
+            stream.flush()
 
 
 def uploaded_checkpoint_path(uploaded_file, role: str) -> Path:
@@ -148,19 +168,23 @@ if st.button("Combine checkpoints", type="primary"):
     elif not output_directory.strip():
         st.error("Enter or select an output directory.")
     else:
+        console_output = io.StringIO()
         try:
-            output = Path(output_directory.strip()) / checkpoint_filename(
-                full_filename
-            )
-            saved = combine_partial_checkpoints(
-                detector_weights_file=detector_source,
-                per_object_weights_file=head_source,
-                full_output_file=output,
-                network_type=network_type,
-                estimate_type=estimate_type,
-                attribute_names=attribute_names,
-                overwrite=overwrite,
-            )
+            with redirect_stdout(
+                Tee(sys.stdout, console_output)
+            ), redirect_stderr(Tee(sys.stderr, console_output)):
+                output = Path(output_directory.strip()) / checkpoint_filename(
+                    full_filename
+                )
+                saved = combine_partial_checkpoints(
+                    detector_weights_file=detector_source,
+                    per_object_weights_file=head_source,
+                    full_output_file=output,
+                    network_type=network_type,
+                    estimate_type=estimate_type,
+                    attribute_names=attribute_names,
+                    overwrite=overwrite,
+                )
         except (
             FileNotFoundError,
             FileExistsError,
@@ -168,8 +192,14 @@ if st.button("Combine checkpoints", type="primary"):
             TypeError,
             ValueError,
         ) as exc:
+            if console_output.getvalue():
+                st.subheader("Conversion log")
+                st.code(console_output.getvalue(), language="text")
             st.error(str(exc))
         else:
+            if console_output.getvalue():
+                st.subheader("Conversion log")
+                st.code(console_output.getvalue(), language="text")
             st.success("Full-model checkpoint created.")
             st.download_button(
                 "Download full-model weights",
