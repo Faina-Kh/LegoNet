@@ -174,6 +174,17 @@ if st.button("Combine checkpoints", type="primary"):
         st.error("Select or enter the detector weights file.")
     elif head_source is None:
         st.error("Select or enter the per-object weights file.")
+    elif (
+        network_type in (
+            "per_object_attributes",
+            "per_object_attributes_multibranch",
+        )
+        and not attribute_names
+    ):
+        st.error(
+            "Attribute names are required for attributes networks because "
+            "they use named estimator_<attribute> modules."
+        )
     elif not output_directory.strip():
         st.error("Enter or select an output directory.")
     else:
