@@ -109,6 +109,29 @@ class CheckpointConversionTests(unittest.TestCase):
             ["estimator_length", "estimator_diameter", "estimator_color"],
         )
 
+    def test_empty_multibranch_attributes_use_defined_attribute_estimators(self):
+        detector = _module_state("backbone_1", "find_1", "where")
+        head = _module_state(
+            "backbone_2",
+            "find_2",
+            "estimator_length",
+            "estimator_diameter",
+            "estimator_color",
+            "backbone_2_b",
+            "find_2_b",
+        )
+
+        combined = combine_partial_state_dicts(
+            detector,
+            head,
+            network_type="per_object_attributes_multibranch",
+            estimate_type="withKeyPoints",
+            attribute_names=[],
+        )
+
+        self.assertIn("estimator_length.weight", combined)
+        self.assertNotIn("estimator.weight", combined)
+
     def test_regression_counting_checkpoint_is_split(self):
         state_dict = {
             **_module_state("backbone_2", "estimator"),

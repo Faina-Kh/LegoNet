@@ -46,8 +46,8 @@ def parse_args(arguments: list[str] | None = None) -> argparse.Namespace:
         default=[],
         metavar="NAME",
         help=(
-            "Names used by estimator_<name> modules. Leave empty for the "
-            "single estimator module."
+            "Names used by estimator_<name> modules. Empty uses estimator for "
+            "counting and the current default names for attributes networks."
         ),
     )
     parser.add_argument("--overwrite", action="store_true")
