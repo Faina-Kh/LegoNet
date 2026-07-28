@@ -22,7 +22,6 @@ PER_OBJECT_NETWORKS = (
     "per_object_attributes_multibranch",
 )
 ESTIMATE_TYPES = ("withKeyPoints", "reg_fpn_p3_p7_min_sig")
-DEFAULT_ATTRIBUTE_NAMES = ("length", "diameter", "color")
 _ATTRIBUTE_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
@@ -61,7 +60,10 @@ def per_object_module_names(
             "per_object_attributes_multibranch",
         )
     ):
-        effective_attribute_names = list(DEFAULT_ATTRIBUTE_NAMES)
+        raise ValueError(
+            f"Attribute names are required for {network_type}; this architecture "
+            "uses named estimator_<attribute> modules and has no 'estimator' module."
+        )
 
     modules = ["backbone_2"]
     if (
