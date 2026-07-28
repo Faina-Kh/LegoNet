@@ -120,8 +120,17 @@ network_type = st.selectbox(
     PER_OBJECT_NETWORKS,
 )
 estimate_type = st.selectbox("Estimate type", ESTIMATE_TYPES)
+default_attribute_names = (
+    "length diameter color"
+    if network_type in (
+        "per_object_attributes",
+        "per_object_attributes_multibranch",
+    )
+    else ""
+)
 attribute_text = st.text_input(
     "Attribute names",
+    value=default_attribute_names,
     help=(
         "Space- or comma-separated names, for example: length diameter color. "
         "Leave empty when the head module is named estimator."
