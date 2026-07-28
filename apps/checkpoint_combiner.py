@@ -141,7 +141,8 @@ attribute_text = st.text_input(
     value=default_attribute_names,
     help=(
         "Space- or comma-separated names, for example: length diameter color. "
-        "Leave empty when the head module is named estimator."
+        "Empty uses estimator for counting and length, diameter, color for "
+        "the current attributes networks."
     ),
 )
 attribute_names = [

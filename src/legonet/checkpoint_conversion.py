@@ -22,6 +22,7 @@ PER_OBJECT_NETWORKS = (
     "per_object_attributes_multibranch",
 )
 ESTIMATE_TYPES = ("withKeyPoints", "reg_fpn_p3_p7_min_sig")
+DEFAULT_ATTRIBUTE_NAMES = ("length", "diameter", "color")
 _ATTRIBUTE_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
@@ -52,13 +53,23 @@ def per_object_module_names(
     if estimate_type not in ESTIMATE_TYPES:
         raise ValueError(f"Unsupported estimate type: {estimate_type!r}.")
 
+    effective_attribute_names = list(attribute_names)
+    if (
+        not effective_attribute_names
+        and network_type in (
+            "per_object_attributes",
+            "per_object_attributes_multibranch",
+        )
+    ):
+        effective_attribute_names = list(DEFAULT_ATTRIBUTE_NAMES)
+
     modules = ["backbone_2"]
     if (
         estimate_type == "withKeyPoints"
         or network_type == "per_object_attributes"
     ):
         modules.append("find_2")
-    modules.extend(estimator_module_names(attribute_names))
+    modules.extend(estimator_module_names(effective_attribute_names))
 
     if network_type == "per_object_attributes_multibranch":
         if estimate_type != "withKeyPoints":
