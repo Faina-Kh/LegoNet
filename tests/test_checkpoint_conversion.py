@@ -77,6 +77,30 @@ class CheckpointConversionTests(unittest.TestCase):
                 attribute_names=["length", "diameter", "color"],
             )
 
+    def test_unlisted_checkpoint_attributes_are_named_clearly(self):
+        detector = _module_state("backbone_1", "find_1", "where")
+        head = _module_state(
+            "backbone_2",
+            "find_2",
+            "estimator_length",
+            "estimator_diameter",
+            "estimator_color",
+            "backbone_2_b",
+            "find_2_b",
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"not included in Attribute names: \['diameter', 'length'\]",
+        ):
+            combine_partial_state_dicts(
+                detector,
+                head,
+                network_type="per_object_attributes_multibranch",
+                estimate_type="withKeyPoints",
+                attribute_names=["color"],
+            )
+
     def test_combined_counting_checkpoint_round_trips(self):
         detector = _module_state("backbone_1", "find_1", "where")
         head = _module_state("backbone_2", "find_2", "estimator")

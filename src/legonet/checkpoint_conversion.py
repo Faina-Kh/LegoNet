@@ -95,6 +95,39 @@ def full_per_object_module_names(
     )
 
 
+def validate_attribute_names_against_checkpoint(
+    state_dict: Mapping[str, Any],
+    attribute_names: Sequence[str],
+    checkpoint_description: str,
+) -> None:
+    """Explain named-estimator mismatches using user-facing attribute names."""
+    modules = list_checkpoint_modules(state_dict)
+    checkpoint_attributes = {
+        module[len("estimator_"):]
+        for module in modules
+        if module.startswith("estimator_")
+    }
+    requested_attributes = set(attribute_names)
+    unlisted = sorted(checkpoint_attributes - requested_attributes)
+    missing = sorted(requested_attributes - checkpoint_attributes)
+    if not unlisted and not missing:
+        return
+
+    details = []
+    if unlisted:
+        details.append(
+            f"checkpoint attributes not included in Attribute names: {unlisted}"
+        )
+    if missing:
+        details.append(
+            f"Attribute names without checkpoint estimators: {missing}"
+        )
+    raise ValueError(
+        f"{checkpoint_description} attribute estimators do not match the "
+        f"Attribute names field ({'; '.join(details)})."
+    )
+
+
 def _filter_modules(
     state_dict: Mapping[str, Any],
     module_names: Sequence[str],
@@ -138,6 +171,15 @@ def split_full_state_dict(
         estimate_type,
         attribute_names,
     )
+    if network_type in (
+        "per_object_attributes",
+        "per_object_attributes_multibranch",
+    ):
+        validate_attribute_names_against_checkpoint(
+            state_dict,
+            attribute_names,
+            "Full per-object checkpoint",
+        )
     validate_checkpoint_modules(
         state_dict,
         ["bbox_detection", *full_head_modules],
@@ -176,6 +218,15 @@ def combine_partial_state_dicts(
         estimate_type,
         attribute_names,
     )
+    if network_type in (
+        "per_object_attributes",
+        "per_object_attributes_multibranch",
+    ):
+        validate_attribute_names_against_checkpoint(
+            per_object_state,
+            attribute_names,
+            "Per-object checkpoint",
+        )
 
     validate_checkpoint_modules(
         detector_state,
