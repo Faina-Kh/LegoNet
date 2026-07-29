@@ -128,6 +128,56 @@ def validate_attribute_names_against_checkpoint(
     )
 
 
+def validate_estimator_type_against_checkpoint(
+    state_dict: Mapping[str, Any],
+    estimator_modules: Sequence[str],
+    estimate_type: str,
+    checkpoint_description: str,
+) -> None:
+    """Reject checkpoints whose estimator internals use another architecture."""
+    for module in estimator_modules:
+        prefix = module + "."
+        module_keys = [
+            key[len(prefix):]
+            for key in state_dict
+            if key.startswith(prefix)
+        ]
+        has_regression_submodel = any(
+            key == "regSubmodel" or key.startswith("regSubmodel.")
+            for key in module_keys
+        )
+        has_keypoint_layers = any(
+            key == layer or key.startswith(layer + ".")
+            for key in module_keys
+            for layer in (
+                "sec_reg_layer",
+                "reg_layer_2",
+                "reg_layer_3",
+                "reg_layer_4",
+                "forBinary_reg_layer_L1",
+                "forBinary_reg_layer_crossEnt",
+                "conv1",
+            )
+        )
+        if estimate_type == "reg_fpn_p3_p7_min_sig":
+            mismatch = has_keypoint_layers and not has_regression_submodel
+        elif estimate_type == "withKeyPoints":
+            mismatch = has_regression_submodel
+        else:
+            raise ValueError(f"Unsupported estimate type: {estimate_type!r}.")
+
+        if mismatch:
+            detected = (
+                "reg_fpn_p3_p7_min_sig"
+                if has_regression_submodel
+                else "withKeyPoints"
+            )
+            raise ValueError(
+                f"{checkpoint_description} estimator module {module!r} appears "
+                f"to use {detected!r}, but {estimate_type!r} was selected."
+            )
+
+
 def _filter_modules(
     state_dict: Mapping[str, Any],
     module_names: Sequence[str],
@@ -180,6 +230,13 @@ def split_full_state_dict(
             attribute_names,
             "Full per-object checkpoint",
         )
+    estimator_modules = estimator_module_names(attribute_names)
+    validate_estimator_type_against_checkpoint(
+        state_dict,
+        estimator_modules,
+        estimate_type,
+        "Full per-object checkpoint",
+    )
     validate_checkpoint_modules(
         state_dict,
         ["bbox_detection", *full_head_modules],
@@ -227,6 +284,13 @@ def combine_partial_state_dicts(
             attribute_names,
             "Per-object checkpoint",
         )
+    estimator_modules = estimator_module_names(attribute_names)
+    validate_estimator_type_against_checkpoint(
+        per_object_state,
+        estimator_modules,
+        estimate_type,
+        "Per-object checkpoint",
+    )
 
     validate_checkpoint_modules(
         detector_state,
