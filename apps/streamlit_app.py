@@ -13,23 +13,30 @@ import streamlit as st
 DATASET_OPTIONS = ("roots", "grapes")
 NETWORK_OPTIONS = (
     "bbox_detection",
-    "per_image_estimation_keypoints",
-    "per_image_estimation_regression",
+    "per_image_attributes",
     "per_object_counting",
     "per_object_attributes",
     "per_object_attributes_multibranch",
 )
-NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_estimation_keypoints", "per_image_estimation_regression", "per_object_attributes",
+NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_attributes", "per_object_attributes",
                                           "per_object_attributes_multibranch"),
                                 'grapes': ("bbox_detection", "per_object_counting")
                                 }
 RUN_MODES = ("Inference", "Training")
 VAL_SETS = ("Test", "Val")
-ESTIMATE_TYPES = ("withKeyPoints", "reg_fpn_p3_p7_min_sig")
+ESTIMATE_TYPES = ("keyPoints_based_estimate", "regression_based_estimate")
+ESTIMATE_TYPE_VALUES = {
+    "keyPoints_based_estimate": "withKeyPoints",
+    "regression_based_estimate": "reg_fpn_p3_p7_min_sig",
+}
 OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS = ("per_object_counting", "per_object_attributes", "per_object_attributes_multibranch")
 PER_OBJECT_NETWORKS = OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS
 MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection")
-ESTIMATE_SELECT_NETWORK_OPTIONS = ("per_object_counting", "per_object_attributes")
+ESTIMATE_SELECT_NETWORK_OPTIONS = (
+    "per_image_attributes",
+    "per_object_counting",
+    "per_object_attributes",
+)
 DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
     "per_image_estimation_keypoints": "withKeyPoints",
     "per_image_estimation_regression": "reg_fpn_p3_p7_min_sig",
@@ -263,7 +270,11 @@ with st.sidebar:
 
     dataset_name = st.selectbox("Dataset", DATASET_OPTIONS, index=0)
 
-    network_type = st.selectbox("Network type", NETWORKS_OPTIONS_BY_DATASETS[dataset_name], index=0)
+    selected_network_type = st.selectbox(
+        "Network type",
+        NETWORKS_OPTIONS_BY_DATASETS[dataset_name],
+        index=0,
+    )
 
     run_script = st.selectbox("Run mode", RUN_MODES, index=0)
 
@@ -279,10 +290,31 @@ with st.sidebar:
         gpu_num = ""
 
     st.header("Advanced")
-    if network_type in ESTIMATE_SELECT_NETWORK_OPTIONS:
-        estimate_type = st.selectbox("Estimate type", ESTIMATE_TYPES, index=0)
+    if selected_network_type in ESTIMATE_SELECT_NETWORK_OPTIONS:
+        selected_estimate_type = st.selectbox(
+            "Estimate type",
+            ESTIMATE_TYPES,
+            index=0,
+            help=(
+                "Choose how attributes are estimated: from detected keypoints "
+                "or directly with a regression model."
+            ),
+        )
+        estimate_type = ESTIMATE_TYPE_VALUES[selected_estimate_type]
     else:
-        estimate_type = DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(network_type, "reg_fpn_p3_p7_min_sig")
+        estimate_type = DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(
+            selected_network_type,
+            "reg_fpn_p3_p7_min_sig",
+        )
+
+    if selected_network_type == "per_image_attributes":
+        network_type = (
+            "per_image_estimation_keypoints"
+            if selected_estimate_type == "keyPoints_based_estimate"
+            else "per_image_estimation_regression"
+        )
+    else:
+        network_type = selected_network_type
 
     if run_script == "Training":
         num_of_epochs = st.number_input("Number of epochs", min_value=1, value=300, step=1)
@@ -291,7 +323,7 @@ with st.sidebar:
 
     current_results_dir = st.text_input(
         "Current results dir",
-        value=network_type + "_" + val_set + "_Results",
+        value=selected_network_type + "_" + val_set + "_Results",
         help=(
             "You can edit this run's results folder name. The folder will be "
             "created at: Storage path/ExpResults/Dataset/Current results dir."
