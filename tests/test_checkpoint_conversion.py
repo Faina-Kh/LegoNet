@@ -75,12 +75,11 @@ class CheckpointConversionTests(unittest.TestCase):
 
     def test_keypoint_attributes_are_rejected_as_regression(self):
         detector = _module_state("backbone_1", "find_1", "where")
+        attributes = ["size", "quality"]
         head = {
             **_module_state("backbone_2", "find_2"),
             **_keypoint_module_state(
-                "estimator_length",
-                "estimator_diameter",
-                "estimator_color",
+                *(f"estimator_{name}" for name in attributes),
             ),
         }
 
@@ -94,17 +93,16 @@ class CheckpointConversionTests(unittest.TestCase):
                 head,
                 network_type="per_object_attributes",
                 estimate_type="reg_fpn_p3_p7_min_sig",
-                attribute_names=["length", "diameter", "color"],
+                attribute_names=attributes,
             )
 
     def test_regression_attributes_are_rejected_as_keypoints(self):
         detector = _module_state("backbone_1", "find_1", "where")
+        attributes = ["size", "quality"]
         head = {
             **_module_state("backbone_2", "find_2"),
             **_regression_module_state(
-                "estimator_length",
-                "estimator_diameter",
-                "estimator_color",
+                *(f"estimator_{name}" for name in attributes),
             ),
         }
 
@@ -118,7 +116,7 @@ class CheckpointConversionTests(unittest.TestCase):
                 head,
                 network_type="per_object_attributes",
                 estimate_type="withKeyPoints",
-                attribute_names=["length", "diameter", "color"],
+                attribute_names=attributes,
             )
 
     def test_missing_defined_module_is_rejected_when_combining(self):
