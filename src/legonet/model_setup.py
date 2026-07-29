@@ -175,9 +175,26 @@ def _load_full_weights(model: Any, args: Any) -> None:
             ]
         elif args.estimate_type == "reg_fpn_p3_p7_min_sig":
             module_names = ["bbox_detection", "backbone_2", "estimator"]
-    elif args.network_type in ("per_object_attributes", "per_object_attributes_multibranch"):
-        if args.estimate_type == "withKeyPoints":
-            module_names = ["bbox_detection", "per_object_attributes"]
+    elif args.network_type == "per_object_attributes":
+        module_names = [
+            "bbox_detection",
+            "backbone_2",
+            "find_2",
+            "estimator_length",
+            "estimator_diameter",
+            "estimator_color",
+        ]
+    elif args.network_type == "per_object_attributes_multibranch":
+        module_names = [
+            "bbox_detection",
+            "backbone_2",
+            "find_2",
+            "estimator_length",
+            "estimator_diameter",
+            "estimator_color",
+            "find_2_b",
+            "backbone_2_b",
+        ]
     elif args.network_type == "bbox_detection":
         module_names = ["backbone_1", "find_1", "where"]
 

@@ -285,6 +285,35 @@ class RunnerCharacterizationTests(unittest.TestCase):
             verbose=False,
         )
 
+    def test_full_regression_attributes_load_real_model_modules(self):
+        """Combined regression weights target the model's actual child modules."""
+        args = self._weight_args(
+            load_full_model_weights=True,
+            full_model_weights="full_attributes.pt",
+            network_type="per_object_attributes",
+            estimate_type="reg_fpn_p3_p7_min_sig",
+        )
+        model = mock.Mock()
+        state_dict = object()
+        self.model_setup.torch.load.return_value = state_dict
+
+        self._run_through_weight_setup(args, model)
+
+        self.model_setup.load_submodule_weights.assert_called_once_with(
+            model,
+            state_dict,
+            submodule_names=[
+                "bbox_detection",
+                "backbone_2",
+                "find_2",
+                "estimator_length",
+                "estimator_diameter",
+                "estimator_color",
+            ],
+            strict=False,
+            verbose=False,
+        )
+
     def test_partial_regression_attributes_include_defined_find_module(self):
         """Regression attributes load every weighted module in the built model."""
         args = self._weight_args(
