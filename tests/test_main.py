@@ -214,6 +214,18 @@ class MainEntryPointTests(unittest.TestCase):
 
         self.assertIs(self.main_module.validate_configuration(args), args)
 
+    def test_roots_per_image_runtime_flags_are_initialized(self) -> None:
+        """Per-image roots runs receive the dataset-wide inference flags."""
+        args = SimpleNamespace(
+            dataset_name="roots",
+            network_type="per_image_estimation_keypoints",
+        )
+
+        result = self.main_module.initialize_dataset_runtime_flags(args)
+
+        self.assertTrue(result.predict_empty_image)
+        self.assertFalse(result.do_nmcs)
+
     def test_load_only_bbox_weights_option_is_parsed(self) -> None:
         """Per-object heads can be initialized while loading only the detector."""
         args = self.main_module.parse_args(
