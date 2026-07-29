@@ -19,6 +19,20 @@ def _module_state(*module_names):
     return {f"{name}.weight": object() for name in module_names}
 
 
+def _keypoint_module_state(*module_names):
+    return {
+        f"{name}.sec_reg_layer.weight": object()
+        for name in module_names
+    }
+
+
+def _regression_module_state(*module_names):
+    return {
+        f"{name}.regSubmodel.output.weight": object()
+        for name in module_names
+    }
+
+
 class CheckpointConversionTests(unittest.TestCase):
     """Verify generic module naming and architecture-safe extraction."""
 
@@ -57,6 +71,54 @@ class CheckpointConversionTests(unittest.TestCase):
                 keypoint_head,
                 network_type="per_object_counting",
                 estimate_type="reg_fpn_p3_p7_min_sig",
+            )
+
+    def test_keypoint_attributes_are_rejected_as_regression(self):
+        detector = _module_state("backbone_1", "find_1", "where")
+        head = {
+            **_module_state("backbone_2", "find_2"),
+            **_keypoint_module_state(
+                "estimator_length",
+                "estimator_diameter",
+                "estimator_color",
+            ),
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "appears to use 'withKeyPoints'.*"
+            "'reg_fpn_p3_p7_min_sig' was selected",
+        ):
+            combine_partial_state_dicts(
+                detector,
+                head,
+                network_type="per_object_attributes",
+                estimate_type="reg_fpn_p3_p7_min_sig",
+                attribute_names=["length", "diameter", "color"],
+            )
+
+    def test_regression_attributes_are_rejected_as_keypoints(self):
+        detector = _module_state("backbone_1", "find_1", "where")
+        head = {
+            **_module_state("backbone_2", "find_2"),
+            **_regression_module_state(
+                "estimator_length",
+                "estimator_diameter",
+                "estimator_color",
+            ),
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "appears to use 'reg_fpn_p3_p7_min_sig'.*"
+            "'withKeyPoints' was selected",
+        ):
+            combine_partial_state_dicts(
+                detector,
+                head,
+                network_type="per_object_attributes",
+                estimate_type="withKeyPoints",
+                attribute_names=["length", "diameter", "color"],
             )
 
     def test_missing_defined_module_is_rejected_when_combining(self):
