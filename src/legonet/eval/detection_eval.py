@@ -406,6 +406,8 @@ def evaluateMAP_simple(generator,
     average_precisions = {}
     class_precisions = []
     class_recalls = []
+    pr_curve_recall = np.zeros((0,))
+    pr_curve_precision = np.zeros((0,))
 
     for label in range(generator.num_classes()):
         false_positives = np.zeros((0,))
@@ -476,6 +478,8 @@ def evaluateMAP_simple(generator,
         # compute recall and precision
         recall = true_positives / num_annotations
         precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
+        pr_curve_recall = recall
+        pr_curve_precision = precision
         class_precisions.append(float(precision[-1]))
         class_recalls.append(float(recall[-1]))
 
@@ -488,7 +492,7 @@ def evaluateMAP_simple(generator,
         mAP[label] = average_precisions[label][0]
 
     if generate_PR_curve:
-        plt.plot(recall, precision)
+        plt.plot(pr_curve_recall, pr_curve_precision)
         plt.title(f'mAP={(np.mean(mAP)):.3f}')
         plt.grid(True)
         plt.xlabel("Recall")
