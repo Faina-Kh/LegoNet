@@ -328,6 +328,13 @@ with st.sidebar:
             "For the bounding-box detection model, load a checkpoint containing "
             "the entire model or start without saved weights."
             if network_type == "bbox_detection"
+            else "For per-image models, load a checkpoint containing the entire "
+            "model or start without saved weights."
+            if network_type
+            in (
+                "per_image_estimation_keypoints",
+                "per_image_estimation_regression",
+            )
             else "Choose whether to load a full checkpoint, compatible "
             "task-specific checkpoints, or initialize without saved weights."
         ),
