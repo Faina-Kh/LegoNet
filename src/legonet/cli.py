@@ -290,6 +290,15 @@ def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
     return args
 
 
+def initialize_dataset_runtime_flags(
+    args: argparse.Namespace,
+) -> argparse.Namespace:
+    """Set dataset-wide inference flags before model-specific configuration."""
+    args.predict_empty_image = args.dataset_name == "roots"
+    args.do_nmcs = args.dataset_name == "grapes"
+    return args
+
+
 def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     """Apply the legacy runtime configuration without starting a run."""
     time_stemp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
@@ -398,6 +407,8 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
 
     if args.network_type != "bbox_detection":
         args.freeze_detection = True
+
+    initialize_dataset_runtime_flags(args)
 
     if args.dataset_name == 'grapes':
         #if args.network_type == "bbox_detection":
