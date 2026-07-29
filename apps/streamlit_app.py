@@ -248,8 +248,8 @@ with st.sidebar:
         "Storage path",
         key="storage_path",
         help=(
-            "Uses LEGONET_STORAGE_PATH as its initial value. The local folder "
-            "picker is only available when Streamlit runs on this computer."
+            "Select the folder that contains the Datasets directory. LegoNet "
+            "will also create its ExpResults directory inside this folder."
         ),
     )
     st.button(
@@ -289,7 +289,14 @@ with st.sidebar:
     else:
         num_of_epochs = 0
 
-    current_results_dir = st.text_input("Current results dir", value=network_type+'_'+val_set+"_Results")
+    current_results_dir = st.text_input(
+        "Current results dir",
+        value=network_type + "_" + val_set + "_Results",
+        help=(
+            "You can edit this run's results folder name. The folder will be "
+            "created at: Storage path/ExpResults/Dataset/Current results dir."
+        ),
+    )
 
     have_gt = st.checkbox("Have ground truth", value=True)
     to_draw = st.checkbox("Draw visualizations", value=False)
@@ -303,6 +310,8 @@ with st.sidebar:
     )
     if can_load_only_bbox:
         available_weights_modes = ("detector_only", "full", "partial", "none")
+    elif network_type == "bbox_detection":
+        available_weights_modes = ("full", "none")
     elif network_type in (
         "per_image_estimation_keypoints",
         "per_image_estimation_regression",
@@ -315,6 +324,13 @@ with st.sidebar:
         "Weights loading",
         available_weights_modes,
         format_func=lambda mode: WEIGHTS_MODE_LABELS[mode],
+        help=(
+            "For the bounding-box detection model, load a checkpoint containing "
+            "the entire model or start without saved weights."
+            if network_type == "bbox_detection"
+            else "Choose whether to load a full checkpoint, compatible "
+            "task-specific checkpoints, or initialize without saved weights."
+        ),
     )
     if weights_mode == "detector_only":
         st.caption(
