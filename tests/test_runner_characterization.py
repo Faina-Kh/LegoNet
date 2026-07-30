@@ -254,6 +254,41 @@ class RunnerCharacterizationTests(unittest.TestCase):
             verbose=False,
         )
 
+    def test_full_weight_key_check_prints_successful_comparison(self):
+        """A successful full-checkpoint key check produces visible output."""
+        args = self._weight_args(
+            load_full_model_weights=True,
+            full_model_weights="full.pt",
+        )
+        model = mock.Mock()
+        model.state_dict.return_value = {
+            "backbone.weight": object(),
+            "estimator.weight": object(),
+        }
+        state_dict = {
+            "backbone.weight": object(),
+            "estimator.weight": object(),
+        }
+        self.model_setup.torch.load.return_value = state_dict
+        self.model_setup.list_checkpoint_modules.side_effect = (
+            lambda value: sorted({key.split(".")[0] for key in value})
+        )
+
+        with mock.patch("builtins.print") as print_mock:
+            self.model_setup._load_full_weights(model, args)
+
+        print_mock.assert_any_call(
+            "Checkpoint modules:",
+            ["backbone", "estimator"],
+        )
+        print_mock.assert_any_call(
+            "Built model modules:",
+            ["backbone", "estimator"],
+        )
+        print_mock.assert_any_call(
+            "Key check passed: checkpoint modules match the built model."
+        )
+
     def test_partial_root_attributes_keep_current_module_mapping(self):
         """Root keypoint attributes retain their five-module partial mapping."""
         args = self._weight_args(

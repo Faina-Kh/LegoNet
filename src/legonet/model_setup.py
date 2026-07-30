@@ -134,7 +134,7 @@ def _load_partial_weights(model: Any, args: Any) -> None:
             map_location=config.General.device,
         )
         print(
-            "Available modules in per-object attributes weights file: /n",
+            "Available modules in per-object attributes weights file:\n",
             list_checkpoint_modules(per_object_state),
         )
         _validate_estimator_weights(
@@ -192,17 +192,19 @@ def _load_full_weights(model: Any, args: Any) -> None:
         args.full_model_weights,
         map_location=config.General.device,
     )
-    print(
-        "Available modules in the weights file:",
-        list_checkpoint_modules(model_state),
-    )
+    checkpoint_modules = list_checkpoint_modules(model_state)
+    model_modules = list_checkpoint_modules(model.state_dict())
+    print("Available modules in the weights file:", checkpoint_modules)
     print("Check keys:")
+    print("Checkpoint modules:", checkpoint_modules)
+    print("Built model modules:", model_modules)
 
     validate_checkpoint_modules(
         model_state,
-        list_checkpoint_modules(model.state_dict()),
+        model_modules,
         "Full-model checkpoint",
     )
+    print("Key check passed: checkpoint modules match the built model.")
 
     _validate_estimator_weights(model_state, args, "Full-model checkpoint")
 
