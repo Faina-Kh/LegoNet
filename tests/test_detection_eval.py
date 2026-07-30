@@ -25,6 +25,87 @@ class _Generator:
 class DetectionEvaluationTests(unittest.TestCase):
     """Characterize detection precision/recall semantics."""
 
+    def test_combined_model_detects_images_without_point_annotations(self):
+        """Roots empty images still pass through the bbox detector."""
+        generator = _Generator(num_classes=1, num_images=1)
+        sampler = mock.Mock(groups=[[0]])
+        image = mock.Mock()
+        processed_image = mock.Mock()
+        image.clone.return_value.detach.return_value = processed_image
+        processed_image.to.return_value.float.return_value = "image"
+        data = {
+            "img": image,
+            "bbox_annot": mock.Mock(),
+            "scale": np.array([1.0]),
+        }
+        scores = mock.Mock()
+        labels = mock.Mock()
+        boxes = mock.Mock()
+        scores.cpu.return_value.numpy.return_value = np.array([0.9])
+        labels.cpu.return_value.numpy.return_value = np.array([0])
+        boxes.cpu.return_value.numpy.return_value = np.array(
+            [[1.0, 2.0, 3.0, 4.0]]
+        )
+        model = mock.Mock()
+        model.bbox_detection.return_value = scores, labels, boxes
+        original_network_type = config.General.NETWORK_TYPE
+        original_model_type = config.Detect_and_Estimate.type
+
+        try:
+            config.General.NETWORK_TYPE = (
+                config.NetworkType.detection_and_estimation
+            )
+            config.Detect_and_Estimate.type = "per_object_attributes"
+            detections = detection_eval._get_detections(
+                generator,
+                model,
+                [data],
+                sampler,
+                score_threshold=0.5,
+            )
+        finally:
+            config.General.NETWORK_TYPE = original_network_type
+            config.Detect_and_Estimate.type = original_model_type
+
+        model.bbox_detection.assert_called_once_with(["image"])
+        self.assertEqual(detections[0][0].shape, (1, 5))
+        self.assertAlmostEqual(detections[0][0][0, 4], 0.9)
+
+    def test_empty_image_detection_counts_as_false_positive(self):
+        """A prediction on an empty image lowers full-dataset precision."""
+        generator = _Generator(num_classes=1, num_images=2)
+        annotations = [
+            [np.array([[0.0, 0.0, 10.0, 10.0]])],
+            [np.zeros((0, 4))],
+        ]
+        detections = [
+            [np.array([[0.0, 0.0, 10.0, 10.0, 0.9]])],
+            [np.array([[20.0, 20.0, 30.0, 30.0, 0.8]])],
+        ]
+
+        with (
+            mock.patch.object(
+                detection_eval,
+                "_get_annotations",
+                return_value=annotations,
+            ),
+            mock.patch.object(
+                detection_eval,
+                "_get_detections",
+                return_value=detections,
+            ),
+        ):
+            _, precision, recall = detection_eval.evaluateMAP_simple(
+                generator,
+                dataloader_val=object(),
+                sampler_val=object(),
+                model=object(),
+                iou_threshold=0.5,
+            )
+
+        self.assertAlmostEqual(precision, 0.5)
+        self.assertAlmostEqual(recall, 1.0)
+
     def test_duplicate_detection_counts_as_false_positive(self):
         """A second prediction for the same GT object lowers standard precision."""
         generator = _Generator(num_classes=1, num_images=1)

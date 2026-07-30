@@ -114,7 +114,10 @@ def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05,
     # Returns
         A list of lists containing the detections for each image in the generator.
     """
-    all_detections = [[None for i in range(generator.num_classes())] for j in range(len(generator))]
+    all_detections = [
+        [np.zeros((0, 5)) for _ in range(generator.num_classes())]
+        for _ in range(len(generator))
+    ]
 
     model.eval()
 
@@ -151,7 +154,13 @@ def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05,
                                    torch.tensor(group_idx)]) #, True])
 
                     else:
-                        continue
+                        # Empty images and boxes without point annotations are
+                        # excluded from per-object metrics but must still pass
+                        # through the detector so their predictions count as
+                        # false positives in bbox metrics.
+                        detection_outputs = model.bbox_detection(
+                            [image.to(config.General.device).float()]
+                        )
 
                 else:
                     detection_outputs, count_outputs, count_sample, relevant_points, crops_orig_boxes = \
