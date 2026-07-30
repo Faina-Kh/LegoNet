@@ -59,6 +59,7 @@ def _get_count_and_box_annotations(generator):
     all_box_annotations = [[None for i in range(generator.num_classes())] for j in range(len(generator))]
     all_count_annotations = [[None for i in range(generator.num_classes())] for j in range(len(generator))]
 
+    print("Loading per-object annotations:")
     for i in range(len(generator)):
         # load the annotations
         annotations = generator.load_annotations(i)
@@ -81,10 +82,7 @@ def _get_count_and_box_annotations(generator):
 
 
         print(
-            "Loading per-object annotations: {}/{}".format(
-                i + 1,
-                len(generator),
-            ),
+            "{}/{}".format(i + 1, len(generator)),
             end="\r",
             flush=True,
         )

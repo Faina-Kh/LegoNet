@@ -120,7 +120,13 @@ def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05,
 
     with torch.no_grad():
 
+        print("Running detection inference:")
         for iter_num, data in enumerate(dataloader):  # for index in range(len(dataset)):
+            print(
+                "{}/{}".format(iter_num + 1, len(generator)),
+                end="\r",
+                flush=True,
+            )
             #print(iter_num)
             scale = data['scale']
             image = data['img'].clone().detach()  # .permute(0, 2, 3, 1)
@@ -187,15 +193,6 @@ def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05,
                 for label in range(generator.num_classes()):
                     all_detections[group_idx[0]][label] = np.zeros((0, 5))
 
-            print(
-                "Running detection inference: {}/{}".format(
-                    group_idx[0] + 1,
-                    len(generator),
-                ),
-                end="\r",
-                flush=True,
-            )
-
     print()
     return all_detections
 
@@ -211,6 +208,7 @@ def  _get_annotations(generator):
     """
     all_annotations = [[None for i in range(generator.num_classes())] for j in range(len(generator))]
 
+    print("Loading detection annotations:")
     for i in range(len(generator)):
         # load the annotations
         annotations = generator.load_annotations(i)
@@ -221,10 +219,7 @@ def  _get_annotations(generator):
             all_annotations[i][label] = anns[anns[:, 4] == label, :4].copy()
 
         print(
-            "Loading detection annotations: {}/{}".format(
-                i + 1,
-                len(generator),
-            ),
+            "{}/{}".format(i + 1, len(generator)),
             end="\r",
             flush=True,
         )
