@@ -1587,11 +1587,11 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                                             printf("orig_count_GT: %d | orig_predicted_count: %d |orig_abs_diff: %.3f | orig_rel_error: %.3f\n",
                                                    int(orig_count_GT[i]), np.round(count_pred[i]) ,state['orig_abs_diff'][-1], state['orig_rel_error'][-1])
 
-                                            printf('max_overlap =  %.3f', max_overlap_array[i])
+                                            printf('max_overlap =  %.3f \n', max_overlap_array[i])
 
                                         else:
                                             print('No gt box with iou>=', config.Detection.iou_threshold)
-                                            printf('max_overlap =  %.3f', max_overlap_array[i])
+                                            printf('max_overlap =  %.3f \n', max_overlap_array[i])
 
                                     else:
                                         if orig_color_GT[i] != -1:
@@ -1608,13 +1608,13 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                                                  orig_dia_GT[i], dia_pred[i], state['orig_abs_diff_dia'][-1], state['orig_rel_error_dia'][-1]
                                             )
 
-                                            printf('max_overlap =   %.3f', max_overlap_array[i])
+                                            printf('max_overlap =   %.3f \n', max_overlap_array[i])
 
 
                                         else:
                                             print('No gt box with iou>=', config.Detection.iou_threshold)
                                             if max_overlap_array is not None:
-                                                printf('max_overlap =   %.3f', max_overlap_array[i])
+                                                printf('max_overlap =   %.3f \n', max_overlap_array[i])
                             print()
 
                         if to_draw: # drawings of true detections
