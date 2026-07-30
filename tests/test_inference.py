@@ -125,13 +125,20 @@ class InferenceTests(unittest.TestCase):
         args = SimpleNamespace(
             evaluate_detection=False,
             evaluate_per_object=True,
+            have_GT=True,
         )
+        config.AttributeEstimation.estimate_type = "withKeyPoints"
         model = mock.Mock()
         self.inference.perObject_eval.eval.return_value = (0.25,)
 
         self.inference.run_inference(args, "dataset", "loader", "sampler", model)
 
         self.inference.perObject_eval.eval.assert_called_once()
+        self.assertTrue(
+            self.inference.perObject_eval.eval.call_args.kwargs[
+                "evaluate_points"
+            ]
+        )
         self.inference.utils.printf.assert_called_once_with(
             "rel error: %.3f \n",
             0.25,

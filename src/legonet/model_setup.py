@@ -134,7 +134,7 @@ def _load_partial_weights(model: Any, args: Any) -> None:
             map_location=config.General.device,
         )
         print(
-            "Available modules in per-object attributes weights file:",
+            "Available modules in per-object attributes weights file: /n",
             list_checkpoint_modules(per_object_state),
         )
         _validate_estimator_weights(

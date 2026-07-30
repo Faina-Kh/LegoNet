@@ -25,6 +25,18 @@ class _Generator:
 class DetectionEvaluationTests(unittest.TestCase):
     """Characterize detection precision/recall semantics."""
 
+    def test_empty_gt_scope_counts_images_not_empty_class_slots(self):
+        """An image is empty only when every class has no annotations."""
+        annotations = [
+            [np.zeros((0, 4)), np.zeros((0, 4))],
+            [np.array([[0.0, 0.0, 1.0, 1.0]]), np.zeros((0, 4))],
+        ]
+
+        self.assertEqual(
+            detection_eval._count_empty_gt_images(annotations),
+            1,
+        )
+
     def test_combined_model_detects_images_without_point_annotations(self):
         """Roots empty images still pass through the bbox detector."""
         generator = _Generator(num_classes=1, num_images=1)

@@ -224,6 +224,10 @@ def _evaluate_combined(
         print_to_files=True,
         args=args,
         detection_metrics=detection_metrics,
+        evaluate_points=(
+            getattr(args, "have_GT", False)
+            and config.AttributeEstimation.estimate_type == "withKeyPoints"
+        ),
     )
     relative_error = output[0] if len(output) > 0 else -1
     utils.printf("rel error: %.3f \n", relative_error)

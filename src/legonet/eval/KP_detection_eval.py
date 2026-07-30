@@ -49,11 +49,13 @@ def points_detection_t_p(detections_map_1, GT_centers, alpha=0.1): #local_soft_m
     p=[]
     for det_num in range(sorted_detections.shape[1]):
         det = sorted_detections[[0,1], det_num]
+        if reduced_GT_centers.shape[1] == 0:
+            p.append(sorted_detections[-1, det_num])
+            t.append(0)
+            continue
         dists = np.sqrt(np.sum(np.array([reduced_GT_centers[:, i] - det for i in range(reduced_GT_centers.shape[1])]) ** 2, axis=-1))
         closest_GT_ind = np.argmin(dists)
         min_dist = np.min(dists)
-        if reduced_GT_centers.shape[1] == 0:
-            break
         if(min_dist <= pck_val_thresh):
             p.append(sorted_detections[-1, det_num])
             t.append(1)
@@ -113,7 +115,11 @@ def calc_points_recall_precision_ap(T, P):
 
         fp = np.cumsum(fp)
         tp = np.cumsum(tp)
-        recall = tp / float(npos)
+        recall = (
+            tp / float(npos)
+            if npos > 0
+            else np.zeros_like(tp)
+        )
         precision = tp / (tp + fp)
     else:
         recall = [0]

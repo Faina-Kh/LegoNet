@@ -237,6 +237,14 @@ def  _get_annotations(generator):
     return all_annotations
 
 
+def _count_empty_gt_images(all_annotations):
+    """Count images without a GT box in any class."""
+    return sum(
+        all(class_annotations.shape[0] == 0 for class_annotations in image)
+        for image in all_annotations
+    )
+
+
 def evaluate_detection_params(generator,
                               dataloader_val,
                               sampler_val,
@@ -266,6 +274,12 @@ def evaluate_detection_params(generator,
 
     # gather all annotations
     all_annotations = _get_annotations(generator)
+    print(
+        "Detection metric scope: {} images ({} empty-GT images included)".format(
+            len(generator),
+            _count_empty_gt_images(all_annotations),
+        )
+    )
 
     average_precisions_all = []
 
@@ -423,6 +437,12 @@ def evaluateMAP_simple(generator,
 
     # gather all annotations
     all_annotations = _get_annotations(generator)
+    print(
+        "Detection metric scope: {} images ({} empty-GT images included)".format(
+            len(generator),
+            _count_empty_gt_images(all_annotations),
+        )
+    )
 
     score = score_threshold
 

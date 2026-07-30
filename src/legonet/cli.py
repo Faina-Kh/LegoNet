@@ -424,6 +424,9 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
 
     elif args.dataset_name == 'roots':
 
+        args.filter_empty_bbox = False
+        config.General.filter_empty_bbox = args.filter_empty_bbox
+
         if args.network_type in INCLUDE_BBOX_DETECTION:
             config.Detection.change_anchors = True
             config.Detection.ratios = np.array([0.5, 1, 3])  # np.array([0.5, 1, 3]) #np.array([0.5, 1, 4]) #np.array([0.5, 1, 2])

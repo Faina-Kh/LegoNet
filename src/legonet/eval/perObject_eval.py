@@ -905,7 +905,7 @@ def initiate_global_dicts(state=None, image_name='', initiate=False):
 
 def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_path= "",
          print_to_files=False, args = None, do_profile = False,
-         detection_metrics=None):
+         detection_metrics=None, evaluate_points=False):
     is_roots_2 = (
                 config.Detect_and_Estimate.type == "per_object_attributes" or config.Detect_and_Estimate.type == "per_object_attributes_multibranch")
 
@@ -1598,7 +1598,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             if estimation_outputs is not None:
                 if len(estimation_outputs):
                     if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-                        if config.AttributeEstimation.calc_det_performance:
+                        if evaluate_points:
                             if len(all_predicted_detection_maps)>0:
                                 for b in range(all_predicted_detection_maps.shape[0]):
                                     t, p = points_detection_t_p(all_predicted_detection_maps[b, :, :], all_crops_GT_detections_maps[b, :, :])
@@ -2262,7 +2262,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
         model.train()
         print()
-        if config.AttributeEstimation.calc_det_performance and config.AttributeEstimation.estimate_type == 'withKeyPoints':
+        if evaluate_points:
             recall, precision, ap = calc_points_recall_precision_ap(state['T'], state['P'])
             print(f'Points detection evaluation: mAP = {ap:.3f}, recall = {recall[-1]:.3f}, precision = {precision[-1]:.3f}')
             plot_PR_curve(recall, precision, ap, save_path=config.General.files_path, plots_name = 'Points_PR_curve.png') #config.General.experiment_path)
