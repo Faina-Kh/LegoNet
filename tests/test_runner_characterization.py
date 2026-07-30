@@ -241,7 +241,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
             full_model_weights="full.pt",
         )
         model = mock.Mock()
-        state_dict = object()
+        state_dict = {"estimator.regSubmodel.weight": object()}
         self.model_setup.torch.load.return_value = state_dict
 
         self._run_through_weight_setup(args, model)
@@ -266,7 +266,11 @@ class RunnerCharacterizationTests(unittest.TestCase):
             per_object_weights_file="attributes.pt",
         )
         model = mock.Mock()
-        state_dict = object()
+        state_dict = {
+            "estimator_length.sec_reg_layer.weight": object(),
+            "estimator_diameter.sec_reg_layer.weight": object(),
+            "estimator_color.sec_reg_layer.weight": object(),
+        }
         self.model_setup.torch.load.return_value = state_dict
 
         self._run_through_weight_setup(args, model)
@@ -294,7 +298,11 @@ class RunnerCharacterizationTests(unittest.TestCase):
             estimate_type="reg_fpn_p3_p7_min_sig",
         )
         model = mock.Mock()
-        state_dict = object()
+        state_dict = {
+            "estimator_length.regSubmodel.weight": object(),
+            "estimator_diameter.regSubmodel.weight": object(),
+            "estimator_color.regSubmodel.weight": object(),
+        }
         self.model_setup.torch.load.return_value = state_dict
 
         self._run_through_weight_setup(args, model)
@@ -314,6 +322,91 @@ class RunnerCharacterizationTests(unittest.TestCase):
             verbose=False,
         )
 
+    def test_full_regression_attributes_reject_keypoint_estimators(self):
+        """A keypoint checkpoint cannot initialize regression estimators."""
+        args = self._weight_args(
+            load_full_model_weights=True,
+            full_model_weights="keypoint_attributes.pt",
+            network_type="per_object_attributes",
+            estimate_type="reg_fpn_p3_p7_min_sig",
+        )
+        model = mock.Mock()
+        self.model_setup.torch.load.return_value = {
+            "estimator_length.sec_reg_layer.weight": object(),
+            "estimator_diameter.sec_reg_layer.weight": object(),
+            "estimator_color.sec_reg_layer.weight": object(),
+        }
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "appears to use 'withKeyPoints'",
+        ):
+            self.model_setup._load_full_weights(model, args)
+
+        self.model_setup.load_submodule_weights.assert_not_called()
+
+    def test_estimator_validation_rejects_mismatches_for_all_model_families(self):
+        """Every estimator-bearing model rejects the opposite weight architecture."""
+        keypoint_single = {"estimator.sec_reg_layer.weight": object()}
+        regression_single = {"estimator.regSubmodel.weight": object()}
+        keypoint_attributes = {
+            f"estimator_{name}.sec_reg_layer.weight": object()
+            for name in ("length", "diameter", "color")
+        }
+        regression_attributes = {
+            f"estimator_{name}.regSubmodel.weight": object()
+            for name in ("length", "diameter", "color")
+        }
+        cases = (
+            (
+                "per_image_estimation_keypoints",
+                "withKeyPoints",
+                regression_single,
+            ),
+            (
+                "per_image_estimation_regression",
+                "reg_fpn_p3_p7_min_sig",
+                keypoint_single,
+            ),
+            ("per_object_counting", "withKeyPoints", regression_single),
+            (
+                "per_object_counting",
+                "reg_fpn_p3_p7_min_sig",
+                keypoint_single,
+            ),
+            (
+                "per_object_attributes",
+                "withKeyPoints",
+                regression_attributes,
+            ),
+            (
+                "per_object_attributes",
+                "reg_fpn_p3_p7_min_sig",
+                keypoint_attributes,
+            ),
+            (
+                "per_object_attributes_multibranch",
+                "withKeyPoints",
+                regression_attributes,
+            ),
+        )
+
+        for network_type, estimate_type, state_dict in cases:
+            with self.subTest(
+                network_type=network_type,
+                estimate_type=estimate_type,
+            ):
+                args = SimpleNamespace(
+                    network_type=network_type,
+                    estimate_type=estimate_type,
+                )
+                with self.assertRaisesRegex(ValueError, "appears to use"):
+                    self.model_setup._validate_estimator_weights(
+                        state_dict,
+                        args,
+                        "Test checkpoint",
+                    )
+
     def test_partial_regression_attributes_include_defined_find_module(self):
         """Regression attributes load every weighted module in the built model."""
         args = self._weight_args(
@@ -326,7 +419,11 @@ class RunnerCharacterizationTests(unittest.TestCase):
             per_object_weights_file="attributes_reg.pt",
         )
         model = mock.Mock()
-        state_dict = object()
+        state_dict = {
+            "estimator_length.regSubmodel.weight": object(),
+            "estimator_diameter.regSubmodel.weight": object(),
+            "estimator_color.regSubmodel.weight": object(),
+        }
         self.model_setup.torch.load.return_value = state_dict
 
         self._run_through_weight_setup(args, model)
@@ -357,7 +454,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
             per_object_weights_file="counting.pt",
         )
         model = mock.Mock()
-        state_dict = object()
+        state_dict = {"estimator.sec_reg_layer.weight": object()}
         self.model_setup.torch.load.return_value = state_dict
 
         self._run_through_weight_setup(args, model)
