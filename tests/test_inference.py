@@ -137,6 +137,43 @@ class InferenceTests(unittest.TestCase):
             0.25,
         )
 
+    def test_combined_detection_and_attribute_evaluation_share_model_outputs(self):
+        """Both evaluators reuse one combined-model call per validation sample."""
+        config.General.NETWORK_TYPE = config.NetworkType.detection_and_estimation
+        args = SimpleNamespace(
+            evaluate_detection=True,
+            evaluate_per_object=True,
+            have_GT=True,
+            eval_detection_params=False,
+            txt_results="results.txt",
+        )
+        model = mock.Mock()
+        model.return_value = "combined-output"
+
+        def evaluate_detection(*call_args, **call_kwargs):
+            call_args[3]([None, None, (3,)])
+            return 0.6, 0.7, 0.8
+
+        def evaluate_per_object(*call_args, **call_kwargs):
+            call_args[3]([None, None, (3,)])
+            return (0.25,)
+
+        self.inference.detection_eval.evaluateMAP_simple.side_effect = (
+            evaluate_detection
+        )
+        self.inference.perObject_eval.eval.side_effect = evaluate_per_object
+
+        with mock.patch.object(builtins, "open", mock.mock_open()):
+            self.inference.run_inference(
+                args,
+                "dataset",
+                "loader",
+                "sampler",
+                model,
+            )
+
+        model.assert_called_once_with([None, None, (3,)])
+
     def test_counting_inference_dispatches_image_evaluation(self):
         """Counting inference uses the per-image attribute evaluator."""
         config.General.NETWORK_TYPE = config.NetworkType.per_image_estimation_regression

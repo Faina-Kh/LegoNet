@@ -32,6 +32,11 @@ def _count_target_batch(count):
     return count.reshape(1, 1)
 
 
+def _has_valid_detection_annotations(annotations):
+    """Return whether a padded annotation tensor contains a real bbox row."""
+    return annotations.numel() > 0 and bool((annotations[..., 0] >= 0).any())
+
+
 class PerObjectEstimate(nn.Module):
 
     def __init__(self, dataset, network_type, num_classes, freeze_detection = True):
@@ -106,8 +111,15 @@ class PerObjectEstimate(nn.Module):
             else:
                 classification_loss, regression_loss = self.bbox_detection(img_batch[img_idx].unsqueeze(dim=0))
 
-            if detection_anns[img_idx].numel() == 0 and not config.General.predict_empty_image:
-                continue
+            if (
+                not self.training
+                and detection_anns is not None
+                and not _has_valid_detection_annotations(detection_anns[img_idx])
+                and not config.General.predict_empty_image
+            ):
+                # Keep detector predictions available to bbox evaluation, but
+                # do not create counting crops for an empty per-object sample.
+                return detection_outputs, None, None, None, None
 
             # detection eval output:
             if (detection_outputs[0].to(config.General.device)).equal(torch.zeros(0).to(config.General.device)):

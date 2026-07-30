@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from legonet import utils
 from legonet.utils import printf
 from legonet import config
+from legonet.eval.evaluation_policy import EvaluationTask, should_include_image
 
 
 
@@ -270,6 +271,12 @@ def evaluate_detection_params(generator,
                     detections = all_detections[i][label]
                     annotations = all_annotations[i][label]
 
+                    if not should_include_image(
+                        EvaluationTask.DETECTION,
+                        annotations,
+                        (),
+                    ):
+                        continue
                     if detections is None:
                         continue
 
@@ -418,6 +425,12 @@ def evaluateMAP_simple(generator,
         for i in range(len(generator)):
             detections = all_detections[i][label]
             annotations = all_annotations[i][label]
+            if not should_include_image(
+                EvaluationTask.DETECTION,
+                annotations,
+                (),
+            ):
+                continue
             num_annotations += annotations.shape[0]
             detected_annotations = []
 

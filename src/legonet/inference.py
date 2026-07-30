@@ -1,7 +1,7 @@
 """Inference and visualization orchestration for LegoNet models."""
 
 import os
-from typing import Any
+from typing import Any, Hashable
 
 import numpy as np
 import torch
@@ -12,6 +12,50 @@ from legonet import utils
 from legonet.eval import attribute_estimation_eval, detection_eval
 from legonet.eval import perObject_eval
 from legonet.my_dataloader import UnNormalizer
+
+
+def _group_cache_key(inputs: Any) -> Hashable:
+    """Return a stable validation-sample key from a combined-model input."""
+    group_index = inputs[2]
+    if hasattr(group_index, "detach"):
+        group_index = group_index.detach()
+    if hasattr(group_index, "cpu"):
+        group_index = group_index.cpu()
+    if hasattr(group_index, "tolist"):
+        group_index = group_index.tolist()
+    if isinstance(group_index, list):
+        return tuple(group_index)
+    if isinstance(group_index, tuple):
+        return group_index
+    return group_index
+
+
+class _CachedCombinedModel:
+    """Cache one combined-model output per validation sample."""
+
+    def __init__(self, model: Any) -> None:
+        self._model = model
+        self._outputs: dict[Hashable, Any] = {}
+
+    def __call__(self, inputs: Any) -> Any:
+        key = _group_cache_key(inputs)
+        if key not in self._outputs:
+            self._outputs[key] = self._model(inputs)
+        return self._outputs[key]
+
+    def eval(self) -> "_CachedCombinedModel":
+        """Put the wrapped model in evaluation mode."""
+        self._model.eval()
+        return self
+
+    def train(self, mode: bool = True) -> "_CachedCombinedModel":
+        """Restore the wrapped model's training mode."""
+        self._model.train(mode)
+        return self
+
+    def __getattr__(self, name: str) -> Any:
+        """Delegate model attributes not owned by the cache."""
+        return getattr(self._model, name)
 
 
 def visualize_bboxes(
@@ -197,6 +241,16 @@ def run_inference(
         config.NetworkType.detection,
         config.NetworkType.detection_and_estimation,
     ):
+        evaluation_model = model
+        if (
+            config.General.NETWORK_TYPE
+            == config.NetworkType.detection_and_estimation
+            and args.evaluate_detection
+            and args.have_GT
+            and args.evaluate_per_object
+        ):
+            evaluation_model = _CachedCombinedModel(model)
+
         if (
             config.General.NETWORK_TYPE == config.NetworkType.detection
             or args.evaluate_detection
@@ -206,7 +260,7 @@ def run_inference(
                 dataset_val,
                 dataloader_val,
                 sampler_val,
-                model,
+                evaluation_model,
             )
             print()
         _evaluate_combined(
@@ -214,7 +268,7 @@ def run_inference(
             dataset_val,
             dataloader_val,
             sampler_val,
-            model,
+            evaluation_model,
         )
         return
 

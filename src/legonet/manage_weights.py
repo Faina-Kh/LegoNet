@@ -57,8 +57,8 @@ def validate_checkpoint_modules(
         details.append(f"unexpected modules: {unexpected}")
     raise ValueError(
         f"{checkpoint_description} architecture does not match the built model "
-        f"({'; '.join(details)}). Select weights created for the same network "
-        "type and estimate type."
+        f"({'; '.join(details)}). "
+        f"Select weights created for the same network type and estimate type."
     )
 
 def save_partial_weights(
