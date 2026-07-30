@@ -173,6 +173,12 @@ class InferenceTests(unittest.TestCase):
             )
 
         model.assert_called_once_with([None, None, (3,)])
+        self.assertEqual(
+            self.inference.perObject_eval.eval.call_args.kwargs[
+                "detection_metrics"
+            ],
+            (0.6, 0.7, 0.8),
+        )
 
     def test_counting_inference_dispatches_image_evaluation(self):
         """Counting inference uses the per-image attribute evaluator."""

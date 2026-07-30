@@ -487,14 +487,30 @@ run_clicked = st.button(
     disabled=cuda_required_for_selected_run,
 )
 
+if "run_output" not in st.session_state:
+    st.session_state.run_output = ""
+if "run_status" not in st.session_state:
+    st.session_state.run_status = None
+
+output_placeholder = st.empty()
+status_placeholder = st.empty()
+
+if st.session_state.run_output:
+    output_placeholder.code(st.session_state.run_output)
+if st.session_state.run_status == "success":
+    status_placeholder.success("Run completed successfully.")
+elif st.session_state.run_status == "failed":
+    status_placeholder.error("The previous run failed.")
+
 if run_clicked:
     if not storage_path.strip():
         st.error("Storage path is required.")
         st.stop()
 
-    output_placeholder = st.empty()
-    status_placeholder = st.empty()
     output_lines: list[str] = []
+    st.session_state.run_output = ""
+    st.session_state.run_status = "running"
+    output_placeholder.empty()
 
     status_placeholder.info("Running LegoNet...")
     process = subprocess.Popen(
@@ -509,16 +525,17 @@ if run_clicked:
     if process.stdout is not None:
         for line in process.stdout:
             output_lines.append(line)
-            output_placeholder.code("".join(output_lines))
+            st.session_state.run_output = "".join(output_lines)
+            output_placeholder.code(st.session_state.run_output)
 
     returncode = process.wait()
 
     if returncode == 0:
-        status_placeholder.empty()
-        st.success("Run completed successfully.")
+        st.session_state.run_status = "success"
+        status_placeholder.success("Run completed successfully.")
     else:
-        status_placeholder.empty()
-        st.error(f"Run failed with exit code {returncode}.")
+        st.session_state.run_status = "failed"
+        status_placeholder.error(f"Run failed with exit code {returncode}.")
 
 st.divider()
 st.subheader("Recent Result Files")

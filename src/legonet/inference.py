@@ -145,10 +145,10 @@ def _evaluate_detection(
     dataloader_val: Any,
     sampler_val: Any,
     model: Any,
-) -> None:
+) -> Any:
     """Run the configured detection inference evaluation."""
     if not (args.evaluate_detection and args.have_GT):
-        return
+        return None
 
     print()
     print("Object detection evaluation:\n")
@@ -166,7 +166,7 @@ def _evaluate_detection(
         print("iou, score, class_mAP")
         for average_precision in all_average_precisions:
             print(average_precision)
-        return
+        return None
 
     print(
         f"Results for min score: {config.Detection.min_score}, "
@@ -197,6 +197,7 @@ def _evaluate_detection(
             model,
             unnormalize=UnNormalizer(),
         )
+    return mean_average_precision, precision, recall
 
 
 def _evaluate_combined(
@@ -205,6 +206,7 @@ def _evaluate_combined(
     dataloader_val: Any,
     sampler_val: Any,
     model: Any,
+    detection_metrics: Any = None,
 ) -> None:
     """Run combined detection and attribute-estimation inference."""
     if not args.evaluate_per_object:
@@ -221,6 +223,7 @@ def _evaluate_combined(
         draw_path=config.DrawProperties.save_img_path,
         print_to_files=True,
         args=args,
+        detection_metrics=detection_metrics,
     )
     relative_error = output[0] if len(output) > 0 else -1
     utils.printf("rel error: %.3f \n", relative_error)
@@ -251,11 +254,12 @@ def run_inference(
         ):
             evaluation_model = _CachedCombinedModel(model)
 
+        detection_metrics = None
         if (
             config.General.NETWORK_TYPE == config.NetworkType.detection
             or args.evaluate_detection
         ):
-            _evaluate_detection(
+            detection_metrics = _evaluate_detection(
                 args,
                 dataset_val,
                 dataloader_val,
@@ -269,6 +273,7 @@ def run_inference(
             dataloader_val,
             sampler_val,
             evaluation_model,
+            detection_metrics=detection_metrics,
         )
         return
 

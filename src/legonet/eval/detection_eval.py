@@ -187,8 +187,16 @@ def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05,
                 for label in range(generator.num_classes()):
                     all_detections[group_idx[0]][label] = np.zeros((0, 5))
 
-            print('{}/{}'.format(group_idx[0] + 1, len(generator)), end='\r')
+            print(
+                "Running detection inference: {}/{}".format(
+                    group_idx[0] + 1,
+                    len(generator),
+                ),
+                end="\r",
+                flush=True,
+            )
 
+    print()
     return all_detections
 
 
@@ -212,8 +220,16 @@ def  _get_annotations(generator):
             anns=annotations[0]
             all_annotations[i][label] = anns[anns[:, 4] == label, :4].copy()
 
-        print('{}/{}'.format(i + 1, len(generator)), end='\r')
+        print(
+            "Loading detection annotations: {}/{}".format(
+                i + 1,
+                len(generator),
+            ),
+            end="\r",
+            flush=True,
+        )
 
+    print()
     return all_annotations
 
 

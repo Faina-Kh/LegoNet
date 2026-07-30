@@ -80,8 +80,16 @@ def _get_count_and_box_annotations(generator):
                 all_box_annotations[i][label] = []
 
 
-        print('{}/{}'.format(i + 1, len(generator)), end='\r')
+        print(
+            "Loading per-object annotations: {}/{}".format(
+                i + 1,
+                len(generator),
+            ),
+            end="\r",
+            flush=True,
+        )
 
+    print()
     return all_box_annotations,all_count_annotations
 
 def _prepare_gt_boxes_for_attribute_eval(box_annotations, count_annotations):
@@ -855,7 +863,8 @@ def initiate_global_dicts(state=None, image_name='', initiate=False):
 
 
 def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_path= "",
-         print_to_files=False, args = None, do_profile = False):
+         print_to_files=False, args = None, do_profile = False,
+         detection_metrics=None):
     is_roots_2 = (
                 config.Detect_and_Estimate.type == "per_object_attributes" or config.Detect_and_Estimate.type == "per_object_attributes_multibranch")
 
@@ -1979,13 +1988,25 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     print()
 
             print("====================================================================================================\n")
-            printf("General Stats\n")
+            printf("Per-object matching stats (empty images excluded)\n")
             printf("gt_objects_withGTpoints = %d\n", state['gt_objects_withGTpoints'])
             printf("found_orig_objects_withPoints = %d (%.2f%% of gt objects [recall])\n", state['found_orig_objects'],
                    100 * state['found_orig_objects'] / state['gt_objects_withGTpoints'])
             printf("FP = %d \n",state['FP'])
-            printf("Precision = %.2f%% (%d / (%d + %d)) \n\n",
+            printf("Matched-crop precision = %.2f%% (%d / (%d + %d)) \n\n",
                    100*precision_det, state['found_orig_objects'], state['found_orig_objects'], state['FP'])
+
+            if detection_metrics is not None:
+                detection_map, detection_precision, detection_recall = (
+                    detection_metrics
+                )
+                printf("Bounding-box detection stats (all images)\n")
+                printf(
+                    "mAP = %.3f | precision = %.3f | recall = %.3f\n\n",
+                    detection_map,
+                    detection_precision,
+                    detection_recall,
+                )
 
             print("=====================================================================================================\n")
 
@@ -2208,11 +2229,21 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
         if not is_roots_2:
             #count_points_in_crop = getattr(model, "count_points_in_crop", False)
             final_rel_error = orig_avg_rel_error # crops_avg_rel_error if count_points_in_crop else orig_avg_rel_error #orig_avg_rel_error #
+            reported_recall = (
+                detection_metrics[2]
+                if detection_metrics is not None
+                else state['found_orig_objects']/state['gt_objects_withGTpoints']
+            )
+            reported_precision = (
+                detection_metrics[1]
+                if detection_metrics is not None
+                else precision_det
+            )
             out = [final_rel_error,
                    state['gt_objects_withGTpoints'],
                    state['found_orig_objects'],
-                   state['found_orig_objects']/state['gt_objects_withGTpoints'],
-                   precision_det,
+                   reported_recall,
+                   reported_precision,
                    orig_avg_abs_count_diff,
                    orig_count_agr,
                    orig_MSE,
