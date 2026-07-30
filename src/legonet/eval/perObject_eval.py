@@ -121,6 +121,49 @@ def _prepare_gt_boxes_for_attribute_eval(box_annotations, count_annotations):
 
     return all_boxes, boxes_with_annotations, matched_counts
 
+
+def _geometric_point_centers_map(
+    point_annotations,
+    crop_box,
+    image_scale,
+    output_shape,
+    crop_size,
+):
+    """Project points geometrically inside a crop onto a binary center map.
+
+    This helper is used only for point-detection metrics. It deliberately
+    ignores GT bbox identifiers so roots and grapes use the same geometric
+    point-to-crop association without changing model inputs or attribute
+    calculations.
+    """
+    scale = float(np.asarray(image_scale).reshape(-1)[0])
+    x1, y1, x2, y2 = (float(value) for value in crop_box[:4])
+    output_height, output_width = (int(value) for value in output_shape)
+    crop_height, crop_width = (float(value) for value in crop_size)
+    center_map = np.zeros((output_height, output_width), dtype=np.float32)
+
+    box_width = x2 - x1
+    box_height = y2 - y1
+    if box_width <= 0 or box_height <= 0:
+        return center_map
+
+    for point in point_annotations:
+        point_x = float(point["x"]) * scale
+        point_y = float(point["y"]) * scale
+        if not (x1 <= point_x <= x2 and y1 <= point_y <= y2):
+            continue
+
+        crop_x = (point_x - x1) * crop_width / box_width
+        crop_y = (point_y - y1) * crop_height / box_height
+        map_x = int(round(crop_x * output_width / crop_width))
+        map_y = int(round(crop_y * output_height / crop_height))
+        map_x = min(max(map_x, 0), output_width - 1)
+        map_y = min(max(map_y, 0), output_height - 1)
+        center_map[map_y, map_x] = 1.0
+
+    return center_map
+
+
 def find_points_in_bbox(img, point_anns, bbox_pred, scale):
 
     points=[]
@@ -1295,7 +1338,20 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                             if sample_anns is not None:
                                 all_crops_GT_detections_maps.append(
-                                    sample_anns['points_annot'][5][b])  # sample_anns['points_annot'][-1][5][0]
+                                    torch.tensor(
+                                        _geometric_point_centers_map(
+                                            dataset.image_data_points_location[
+                                                image_name
+                                            ],
+                                            crops_orig_boxes[b],
+                                            scale,
+                                            all_predicted_detection_maps[
+                                                -1
+                                            ].shape,
+                                            config.AttributeEstimation.crops_size,
+                                        )
+                                    )
+                                )
 
                         if sample_anns is not None and args.have_GT: #assuming having GT anns
                             current_count = sample_anns['points_annot'][0][b].item()

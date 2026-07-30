@@ -10,6 +10,39 @@ from legonet.eval import perObject_eval
 class PerObjectEvaluationTests(unittest.TestCase):
     """Characterize bbox-to-GT matching used before attribute evaluation."""
 
+    def test_metric_point_map_uses_geometric_containment_not_bbox_id(self):
+        """Point metrics include contained points from any GT bbox id."""
+        points = [
+            {"x": 15.0, "y": 25.0, "bbox_id": 999},
+            {"x": 50.0, "y": 50.0, "bbox_id": 1},
+        ]
+
+        center_map = perObject_eval._geometric_point_centers_map(
+            point_annotations=points,
+            crop_box=[10.0, 20.0, 30.0, 40.0],
+            image_scale=[1.0],
+            output_shape=(80, 80),
+            crop_size=(640, 640),
+        )
+
+        self.assertEqual(np.sum(center_map), 1.0)
+        self.assertEqual(center_map[20, 20], 1.0)
+
+    def test_metric_point_map_applies_image_scale_before_crop_projection(self):
+        """Original-image point coordinates align with scaled detector boxes."""
+        points = [{"x": 10.0, "y": 10.0, "bbox_id": -1}]
+
+        center_map = perObject_eval._geometric_point_centers_map(
+            point_annotations=points,
+            crop_box=[10.0, 10.0, 30.0, 30.0],
+            image_scale=[2.0],
+            output_shape=(80, 80),
+            crop_size=(640, 640),
+        )
+
+        self.assertEqual(np.sum(center_map), 1.0)
+        self.assertEqual(center_map[40, 40], 1.0)
+
     def test_prepare_gt_boxes_keeps_all_boxes_and_matches_annotated_boxes(self):
         """GT preparation keeps all boxes while selecting boxes with annotations."""
         boxes = np.array(
