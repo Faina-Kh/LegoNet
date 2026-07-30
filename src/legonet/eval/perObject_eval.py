@@ -2041,16 +2041,8 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                     print()
 
-            print("====================================================================================================\n")
-            printf("Per-object matching stats (empty images excluded)\n")
-            printf("gt_objects_withGTpoints = %d\n", state['gt_objects_withGTpoints'])
-            printf("found_orig_objects_withPoints = %d (%.2f%% of gt objects [recall])\n", state['found_orig_objects'],
-                   100 * state['found_orig_objects'] / state['gt_objects_withGTpoints'])
-            printf("FP = %d \n",state['FP'])
-            printf("Matched-crop precision = %.2f%% (%d / (%d + %d)) \n\n",
-                   100*precision_det, state['found_orig_objects'], state['found_orig_objects'], state['FP'])
-
             if detection_metrics is not None:
+                print("====================================================================================================\n")
                 detection_map, detection_precision, detection_recall = (
                     detection_metrics
                 )
