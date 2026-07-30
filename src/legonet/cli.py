@@ -294,6 +294,8 @@ def initialize_dataset_runtime_flags(
     args: argparse.Namespace,
 ) -> argparse.Namespace:
     """Set dataset-wide inference flags before model-specific configuration."""
+    # Roots models support inference on images without annotated objects.
+    # Grapes per-object counting does not, so this remains false for that task.
     args.predict_empty_image = args.dataset_name == "roots"
     args.do_nmcs = args.dataset_name == "grapes"
     return args

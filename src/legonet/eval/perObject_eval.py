@@ -24,6 +24,7 @@ from torchvision import transforms
 from legonet import config
 from legonet.eval.attribute_estimation_eval import SumOfAbsDifferences
 from legonet.eval.detection_eval import _compute_ap, compute_overlap, plot_PR_curve
+from legonet.eval.evaluation_policy import EvaluationTask, should_include_image
 from legonet.eval.KP_detection_eval import (
     calc_points_recall_precision_ap,
     points_detection_t_p,
@@ -965,22 +966,22 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                 )
                 state['num_of_gt_boxes'] += len(box_annotations_all)
 
-                if len(box_annotations_withPoints)==0 and len(box_annotations_all) > 0:
+                if not should_include_image(
+                    EvaluationTask.PER_OBJECT,
+                    box_annotations_all,
+                    box_annotations_withPoints,
+                ):
                     if verbose:
-                        printf("Has gt boxes but no gt points in any gt box...\n")
-                        printf("Skipping this image...\n")
+                        if len(box_annotations_all) == 0:
+                            printf("No gt boxes ...\n")
+                        else:
+                            printf(
+                                "Has gt boxes but no gt points in any gt box...\n"
+                            )
+                        printf("Skipping this image for per-object evaluation...\n")
                         print()
 
-                    #if not config.General.predict_empty_image: #is_roots_2:
-                        continue
-
-                if len(box_annotations_all) == 0:
-                    if verbose:
-                        printf("No gt boxes ...\n")
-                        print()
-
-                    if not config.General.predict_empty_image: #is_roots_2:
-                        continue
+                    continue
 
                 #from list to tensor:
                 if len(box_annotations_withPoints)>1:

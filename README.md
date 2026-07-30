@@ -183,6 +183,17 @@ For grapes per-object counting, each IoU-matched predicted crop is trained
 against the full count stored for its matched GT box. Validation, checkpoint
 selection, and test evaluation use the same original matched-GT count.
 
+### Evaluation of empty images
+
+Bounding-box detection and per-object evaluation intentionally use different
+image sets:
+
+- Bounding-box detection evaluates every image, including images without
+  ground-truth boxes. Predictions on those images are false positives.
+- Per-object evaluation excludes images without usable per-object targets.
+  This includes both images without ground-truth boxes and images whose
+  ground-truth boxes contain no annotated points.
+
 ### Weight selection
 
 Checkpoint paths are supplied explicitly instead of inferred from a predefined
