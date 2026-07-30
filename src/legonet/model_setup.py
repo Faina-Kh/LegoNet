@@ -6,6 +6,10 @@ from typing import Any
 import torch
 
 from legonet import config
+from legonet.checkpoint_conversion import (
+    estimator_module_names,
+    validate_estimator_type_against_checkpoint,
+)
 from legonet.manage_weights import (
     list_checkpoint_modules,
     load_submodule_weights,
@@ -13,6 +17,36 @@ from legonet.manage_weights import (
     save_partial_weights,
     validate_checkpoint_modules,
 )
+
+
+def _validate_estimator_weights(
+    state_dict: Any,
+    args: Any,
+    checkpoint_description: str,
+) -> None:
+    """Reject estimator weights built for a different estimation architecture."""
+    if args.network_type in (
+        "per_image_estimation_keypoints",
+        "per_image_estimation_regression",
+        "per_object_counting",
+    ):
+        estimator_modules = estimator_module_names(())
+    elif args.network_type in (
+        "per_object_attributes",
+        "per_object_attributes_multibranch",
+    ):
+        estimator_modules = estimator_module_names(
+            ("length", "diameter", "color")
+        )
+    else:
+        return
+
+    validate_estimator_type_against_checkpoint(
+        state_dict,
+        estimator_modules,
+        args.estimate_type,
+        checkpoint_description,
+    )
 
 
 def _load_partial_weights(model: Any, args: Any) -> None:
@@ -65,6 +99,11 @@ def _load_partial_weights(model: Any, args: Any) -> None:
             "Available modules in per-object counting weights file:",
             list_checkpoint_modules(per_object_state),
         )
+        _validate_estimator_weights(
+            per_object_state,
+            args,
+            "Per-object counting checkpoint",
+        )
         if args.estimate_type == "withKeyPoints":
             module_names = ["backbone_2", "find_2", "estimator"]
         elif args.estimate_type == "reg_fpn_p3_p7_min_sig":
@@ -97,6 +136,11 @@ def _load_partial_weights(model: Any, args: Any) -> None:
         print(
             "Available modules in per-object attributes weights file:",
             list_checkpoint_modules(per_object_state),
+        )
+        _validate_estimator_weights(
+            per_object_state,
+            args,
+            "Per-object attributes checkpoint",
         )
 
         if args.network_type == "per_object_attributes_multibranch":
@@ -159,6 +203,8 @@ def _load_full_weights(model: Any, args: Any) -> None:
         list_checkpoint_modules(model.state_dict()),
         "Full-model checkpoint",
     )
+
+    _validate_estimator_weights(model_state, args, "Full-model checkpoint")
 
     module_names = None
     if args.network_type == "per_image_estimation_keypoints":
