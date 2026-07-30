@@ -268,24 +268,48 @@ with st.sidebar:
     if folder_dialog_error:
         st.warning(folder_dialog_error)
 
-    dataset_name = st.selectbox("Dataset", DATASET_OPTIONS, index=0)
-
-    selected_network_type = st.selectbox(
-        "Network type",
-        NETWORKS_OPTIONS_BY_DATASETS[dataset_name],
-        index=0,
+    st.session_state.setdefault("runner_dataset_name", DATASET_OPTIONS[0])
+    dataset_name = st.selectbox(
+        "Dataset",
+        DATASET_OPTIONS,
+        key="runner_dataset_name",
     )
 
-    run_script = st.selectbox("Run mode", RUN_MODES, index=0)
+    available_network_types = NETWORKS_OPTIONS_BY_DATASETS[dataset_name]
+    if st.session_state.get("runner_network_type") not in available_network_types:
+        st.session_state.runner_network_type = available_network_types[0]
+    selected_network_type = st.selectbox(
+        "Network type",
+        available_network_types,
+        key="runner_network_type",
+    )
+
+    run_script = st.selectbox(
+        "Run mode",
+        RUN_MODES,
+        key="runner_run_mode",
+    )
 
     if run_script == 'Inference':
-        val_set = st.selectbox("Validation set", VAL_SETS, index=0)
+        val_set = st.selectbox(
+            "Validation set",
+            VAL_SETS,
+            key="runner_validation_set",
+        )
     else:
         val_set = "Val"
 
-    use_gpu = st.checkbox("Use GPU", value=GPU_AVAILABLE)
+    use_gpu = st.checkbox(
+        "Use GPU",
+        value=GPU_AVAILABLE,
+        key="runner_use_gpu",
+    )
     if use_gpu:
-        gpu_num = st.text_input("GPU number", value="0")
+        gpu_num = st.text_input(
+            "GPU number",
+            value="0",
+            key="runner_gpu_number",
+        )
     else:
         gpu_num = ""
 
@@ -294,7 +318,7 @@ with st.sidebar:
         selected_estimate_type = st.selectbox(
             "Estimate type",
             ESTIMATE_TYPES,
-            index=0,
+            key="runner_estimate_type",
             help=(
                 "Choose how attributes are estimated: from detected keypoints "
                 "or directly with a regression model."
@@ -317,23 +341,45 @@ with st.sidebar:
         network_type = selected_network_type
 
     if run_script == "Training":
-        num_of_epochs = st.number_input("Number of epochs", min_value=1, value=300, step=1)
+        num_of_epochs = st.number_input(
+            "Number of epochs",
+            min_value=1,
+            value=300,
+            step=1,
+            key="runner_num_epochs",
+        )
     else:
         num_of_epochs = 0
 
+    st.session_state.setdefault(
+        "runner_results_dir",
+        selected_network_type + "_" + val_set + "_Results",
+    )
     current_results_dir = st.text_input(
         "Current results dir",
-        value=selected_network_type + "_" + val_set + "_Results",
+        key="runner_results_dir",
         help=(
             "You can edit this run's results folder name. The folder will be "
             "created at: Storage path/ExpResults/Dataset/Current results dir."
         ),
     )
 
-    have_gt = st.checkbox("Have ground truth", value=True)
-    to_draw = st.checkbox("Draw visualizations", value=False)
+    have_gt = st.checkbox(
+        "Have ground truth",
+        value=True,
+        key="runner_have_gt",
+    )
+    to_draw = st.checkbox(
+        "Draw visualizations",
+        value=False,
+        key="runner_draw_visualizations",
+    )
     if network_type in OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS:
-        evaluate_detection = st.checkbox("Evaluate detection", value=True)
+        evaluate_detection = st.checkbox(
+            "Evaluate detection",
+            value=True,
+            key="runner_evaluate_detection",
+        )
     else:
         evaluate_detection = network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
 
@@ -352,9 +398,12 @@ with st.sidebar:
     else:
         available_weights_modes = ("partial", "full", "none")
 
+    if st.session_state.get("runner_weights_mode") not in available_weights_modes:
+        st.session_state.runner_weights_mode = available_weights_modes[0]
     weights_mode = st.selectbox(
         "Weights loading",
         available_weights_modes,
+        key="runner_weights_mode",
         format_func=lambda mode: WEIGHTS_MODE_LABELS[mode],
         help=(
             "For the bounding-box detection model, load a checkpoint containing "
