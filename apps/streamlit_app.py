@@ -43,6 +43,7 @@ DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
     "per_object_attributes_multibranch": "withKeyPoints"
 }
 WEIGHTS_TYPES = ('full_model_weights', 'partial_weights')
+STORAGE_PATH_STATE_KEY = "runner_storage_path"
 WEIGHTS_MODE_LABELS = {
     "none": "Do not load weights",
     "full": "Full model checkpoint",
@@ -109,14 +110,14 @@ def browse_for_storage_path() -> None:
     """Update Streamlit state from the optional local folder picker."""
     try:
         selected_path = choose_local_directory(
-            st.session_state.get("storage_path", "")
+            st.session_state.get(STORAGE_PATH_STATE_KEY, "")
         )
     except RuntimeError as error:
         st.session_state.storage_path_dialog_error = str(error)
         return
 
     if selected_path:
-        st.session_state.storage_path = selected_path
+        st.session_state[STORAGE_PATH_STATE_KEY] = selected_path
     st.session_state.storage_path_dialog_error = ""
 
 
@@ -245,15 +246,18 @@ st.title("LegoNet Runner")
 
 with st.sidebar:
     st.header("Run Settings")
-    if "storage_path" not in st.session_state:
-        st.session_state.storage_path = os.environ.get(
-            "LEGONET_STORAGE_PATH",
-            "",
+    if STORAGE_PATH_STATE_KEY not in st.session_state:
+        st.session_state[STORAGE_PATH_STATE_KEY] = st.session_state.get(
+            "storage_path",
+            os.environ.get(
+                "LEGONET_STORAGE_PATH",
+                "",
+            ),
         )
 
     storage_path = st.text_input(
         "Storage path",
-        key="storage_path",
+        key=STORAGE_PATH_STATE_KEY,
         help=(
             "Select the folder that contains the Datasets directory. LegoNet "
             "will also create its ExpResults directory inside this folder."
