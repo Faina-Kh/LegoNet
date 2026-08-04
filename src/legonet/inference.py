@@ -212,7 +212,7 @@ def _evaluate_combined(
     if not args.evaluate_per_object:
         return
 
-    print("Attribute estimation evaluation:\n")
+    print("------------------Attribute estimation evaluation:------------------\n")
     output = perObject_eval.eval(
         dataset_val,
         dataloader_val,
@@ -281,7 +281,7 @@ def run_inference(
         )
         return
 
-    utils.printf("Attribute estimation evaluation:\n")
+    utils.printf("------------------Attribute estimation evaluation:------------------\n")
     if config.General.NETWORK_TYPE in (
         config.NetworkType.per_image_estimation_regression,
         config.NetworkType.per_image_estimation_keypoints,

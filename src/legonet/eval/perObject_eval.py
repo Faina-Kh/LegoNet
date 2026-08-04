@@ -31,6 +31,8 @@ from legonet.eval.KP_detection_eval import (
     visualize_KeyPointsHeatmaps,
 )
 from legonet.eval.regression_metrics import compute_regression_metrics
+from legonet.eval.classification_metrics import compute_classification_metrics
+from legonet.eval.per_object_result import ClassificationType
 from legonet.my_dataloader import UnNormalizer
 from legonet.progress import print_image_progress
 from legonet.utils import printf
@@ -1874,6 +1876,9 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             total_predicted_for_orig_boxes_dia = []
             total_orig_box_for_dia = 0
 
+            total_orig_GT_color = []
+            total_predicted_for_orig_boxes_color = []
+
         else:
             total_crops_GT_counts = []
             total_predicted_counts = []
@@ -1901,6 +1906,14 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                             total_orig_GT_dia.append(state['all_orig_GT_dia'][n][j])
                             total_orig_box_for_dia += 1
                             total_predicted_for_orig_boxes_dia.append(state['all_predicted_dia'][n][j])
+
+                    if state['all_orig_GT_color'][n][j] != -1:
+                        total_orig_GT_color.append(
+                            int(state['all_orig_GT_color'][n][j])
+                        )
+                        total_predicted_for_orig_boxes_color.append(
+                            int(state['all_predicted_color'][n][j])
+                        )
 
                 else:
                     total_crops_GT_counts.append(state['all_crops_GT_counts'][n][j])
@@ -1969,6 +1982,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             )
 
         else:
+            color_metrics = None
             if total_orig_box_for_TRL > 0:
                 trl_metrics = compute_regression_metrics(
                     total_orig_GT_TRL,
@@ -1996,6 +2010,18 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                 orig_var_GT_dia = np.var(total_orig_GT_dia)
                 orig_FVU_dia = 1 - diameter_metrics.one_minus_fvu
                 orig_mean_GT_dia = np.mean(total_orig_GT_dia)
+
+                eligible_color_samples = sum(
+                    int(color) != -1 for color in state['all_data_gt_color']
+                )
+                color_metrics = compute_classification_metrics(
+                    total_orig_GT_color,
+                    total_predicted_for_orig_boxes_color,
+                    class_labels=(0, 1),
+                    class_names=("non_white", "white"),
+                    classification_type=ClassificationType.BINARY,
+                    eligible_samples=eligible_color_samples,
+                )
 
                 precision_det = state['found_orig_objects'] / (state['found_orig_objects'] + state['FP'])
 
@@ -2051,6 +2077,53 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     printf(
                         "orig_avg_abs_dia_diff: %.3f | orig_MSE_dia: %.3f | orig_avg_relative_error_dia: %.3f | orig_1-FVU_dia: %3f\n",
                         orig_avg_abs_dia_diff, orig_MSE_dia, orig_avg_rel_error_dia, 1 - orig_FVU_dia)
+
+                    if color_metrics is not None:
+                        color_accuracy = (
+                            "n/a" if color_metrics.accuracy is None
+                            else f"{color_metrics.accuracy:.3f}"
+                        )
+                        color_balanced_accuracy = (
+                            "n/a" if color_metrics.balanced_accuracy is None
+                            else f"{color_metrics.balanced_accuracy:.3f}"
+                        )
+                        color_macro_f1 = (
+                            "n/a" if color_metrics.macro_f1 is None
+                            else f"{color_metrics.macro_f1:.3f}"
+                        )
+                        color_macro_precision = (
+                            "n/a" if color_metrics.macro_precision is None
+                            else f"{color_metrics.macro_precision:.3f}"
+                        )
+                        color_macro_recall = (
+                            "n/a" if color_metrics.macro_recall is None
+                            else f"{color_metrics.macro_recall:.3f}"
+                        )
+                        color_fvu = (
+                            "n/a" if color_metrics.one_minus_fvu is None
+                            else f"{color_metrics.one_minus_fvu:.3f}"
+                        )
+                        color_coverage = (
+                            "n/a" if color_metrics.coverage is None
+                            else f"{color_metrics.coverage:.3f}"
+                        )
+                        printf(
+                            "color_correct: %d | color_evaluated: %d | color_accuracy: %s | color_balanced_accuracy: %s | color_macro_F1: %s | color_1-FVU: %s | color_coverage: %s\n",
+                            color_metrics.correct_predictions,
+                            color_metrics.evaluated_samples,
+                            color_accuracy,
+                            color_balanced_accuracy,
+                            color_macro_f1,
+                            color_fvu,
+                            color_coverage,
+                        )
+                        printf(
+                            "color_macro_precision: %s | color_macro_recall: %s | color_classes: %s | color_confusion_matrix: %s\n",
+                            color_macro_precision,
+                            color_macro_recall,
+                            color_metrics.class_names,
+                            color_metrics.confusion_matrix,
+                        )
 
                     print()
 
