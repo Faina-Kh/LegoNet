@@ -33,6 +33,9 @@ from legonet.eval.KP_detection_eval import (
 from legonet.eval.regression_metrics import compute_regression_metrics
 from legonet.eval.classification_metrics import compute_classification_metrics
 from legonet.eval.per_object_result import ClassificationType
+from legonet.eval.per_image_attribute_metrics import (
+    compute_roots_per_image_metrics,
+)
 from legonet.my_dataloader import UnNormalizer
 from legonet.progress import print_image_progress
 from legonet.utils import printf
@@ -2070,7 +2073,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                 if args.have_GT:
 
                     printf("====================================================================================================\n")
-                    printf("Summary - for gt boxes TRL and dia \n")
+                    printf("Summary - for gt boxes \n")
                     printf(
                         "orig_avg_abs_TRL_diff: %.3f | orig_MSE_TRL: %.3f | orig_avg_relative_error_TRL: %.3f | orig_1-FVU_TRL: %3f\n",
                         orig_avg_abs_TRL_diff, orig_MSE_TRL, orig_avg_rel_error_TRL, 1 - orig_FVU_TRL)
@@ -2164,23 +2167,40 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             else:
                 if args.have_GT:
                     print('Per image stats based on IoU-matched GT boxes\n')
+                    roots_per_image_metrics = {
+                        image_name: compute_roots_per_image_metrics(records)
+                        for image_name, records in state[
+                            'detections_data_any_crop'
+                        ].items()
+                    }
                     print('Per image gt TRL (sum of RL), predicted sum TRL')
                     abs_error_TRL = []
+                    per_image_fvu_TRL = []
                     for im in state['TRL_per_im_pred_dict'].keys():
                         if state['TRL_per_im_gt_sum_dict'][im] > 0:
                             abs_error_TRL.append(np.abs(state['TRL_per_im_gt_sum_dict'][im] - state['TRL_per_im_pred_dict'][im]) / state['TRL_per_im_gt_sum_dict'][im])
                         else:
                             abs_error_TRL.append(-1)
 
+                        trl_fvu = roots_per_image_metrics[im].trl.one_minus_fvu
+                        if trl_fvu is not None and np.isfinite(trl_fvu):
+                            per_image_fvu_TRL.append(trl_fvu)
                         print("{}: sum_gt_TRL: {:0.2f}, pred_TRL: {:0.2f}, rel_error_TRL: {:0.2f}".format(im, state['TRL_per_im_gt_sum_dict'][im],
                                                                                                 state['TRL_per_im_pred_dict'][im],
                                                                                                 abs_error_TRL[-1]))
                     abs_error_TRL_nonZero = [TRL for TRL in abs_error_TRL if TRL > 0]
 
                     print("Avg of per image rel_error of TRL (for gt>0):{:0.4f}".format(np.mean(abs_error_TRL_nonZero)))
+                    print(
+                        "Avg matched per-image 1-FVU of TRL: {}".format(
+                            f"{np.mean(per_image_fvu_TRL):.4f}"
+                            if per_image_fvu_TRL else "n/a"
+                        )
+                    )
                     print()
 
                     abs_error_dia = []
+                    per_image_fvu_dia = []
                     for im in state['dia_per_im_pred_dict'].keys():
                         if state['dia_per_im_gt_avg_dict'][im] > 0:
                             abs_error_dia.append(
@@ -2188,12 +2208,48 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                         else:
                             abs_error_dia.append(-1)
 
+                        dia_fvu = roots_per_image_metrics[im].diameter.one_minus_fvu
+                        if dia_fvu is not None and np.isfinite(dia_fvu):
+                            per_image_fvu_dia.append(dia_fvu)
                         print("{}: avg_gt_dia: {:0.2f}, avg_pred_dia: {:0.2f}, rel_error_dia: {:0.2f}".format(im,
                                                                                                             state['dia_per_im_gt_avg_dict'][im],
                                                                                                             state['dia_per_im_pred_dict'][im],
                                                                                                             abs_error_dia[-1]))
                     abs_error_dia_nonZero = [dia for dia in abs_error_dia if dia > 0]
                     print("Avg of per image rel_error of dia:{:0.4f}".format(np.mean(abs_error_dia)))
+                    print(
+                        "Avg matched per-image 1-FVU of diameter: {}".format(
+                            f"{np.mean(per_image_fvu_dia):.4f}"
+                            if per_image_fvu_dia else "n/a"
+                        )
+                    )
+                    print()
+
+                    print('Averages of per-image color classification')
+                    per_image_color_errors = []
+                    per_image_color_fvu = []
+                    for image_metrics in roots_per_image_metrics.values():
+                        color = image_metrics.color
+                        if color.evaluated_samples == 0:
+                            continue
+                        if color.error_rate is not None:
+                            per_image_color_errors.append(color.error_rate)
+                        if color.one_minus_fvu is not None and np.isfinite(
+                            color.one_minus_fvu
+                        ):
+                            per_image_color_fvu.append(color.one_minus_fvu)
+                    print(
+                        "Avg per-image color error rate: {}".format(
+                            f"{np.mean(per_image_color_errors):.4f}"
+                            if per_image_color_errors else "n/a"
+                        )
+                    )
+                    print(
+                        "Avg per-image color 1-FVU: {}".format(
+                            f"{np.mean(per_image_color_fvu):.4f}"
+                            if per_image_color_fvu else "n/a"
+                        )
+                    )
 
         #export detections info
         if print_to_files and args is not None:
