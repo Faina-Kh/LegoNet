@@ -14,7 +14,7 @@ def print_image_progress(
 ) -> None:
     """Update one terminal line, or emit one final line for redirected output."""
     output = sys.stdout if stream is None else stream
-    message = f"{label} {current}/{total}"
+    message = f"{label} {current}/{total} \n"
     complete = current >= total
 
     is_terminal = getattr(output, "isatty", lambda: False)()
