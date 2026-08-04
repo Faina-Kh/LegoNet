@@ -549,6 +549,7 @@ if "run_status" not in st.session_state:
 
 output_placeholder = st.empty()
 status_placeholder = st.empty()
+progress_placeholder = st.empty()
 
 if st.session_state.run_output:
     output_placeholder.code(st.session_state.run_output)
@@ -575,10 +576,22 @@ if run_clicked:
         stderr=subprocess.STDOUT,
         text=True,
         bufsize=1,
+        env={**os.environ, "LEGONET_PROGRESS_PROTOCOL": "1"},
     )
 
     if process.stdout is not None:
         for line in process.stdout:
+            if line.startswith("__LEGONET_PROGRESS__\t"):
+                _, label, current_text, total_text = line.rstrip("\r\n").split(
+                    "\t", maxsplit=3
+                )
+                current = int(current_text)
+                total = int(total_text)
+                progress_placeholder.progress(
+                    min(current / total, 1.0) if total else 1.0,
+                    text=f"{label} {current}/{total}",
+                )
+                continue
             output_lines.append(line)
             st.session_state.run_output = "".join(output_lines)
             output_placeholder.code(st.session_state.run_output)
