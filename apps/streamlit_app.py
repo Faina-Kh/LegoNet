@@ -564,10 +564,7 @@ if "run_status" not in st.session_state:
     st.session_state.run_status = None
 
 status_placeholder = st.empty()
-progress_placeholder = st.empty()
-output_container = st.container(height=400)
-with output_container:
-    output_placeholder = st.empty()
+output_placeholder = st.empty()
 
 if st.session_state.run_output:
     output_placeholder.code(st.session_state.run_output)
@@ -582,6 +579,10 @@ if run_clicked:
         st.stop()
 
     output_lines: list[str] = []
+    output_segment: list[str] = []
+    current_output_placeholder = output_placeholder
+    progress_placeholder = None
+    progress_label = None
     st.session_state.run_output = ""
     st.session_state.run_status = "running"
     output_placeholder.empty()
@@ -605,14 +606,22 @@ if run_clicked:
                 )
                 current = int(current_text)
                 total = int(total_text)
+                if progress_placeholder is None or label != progress_label:
+                    progress_placeholder = st.empty()
+                    progress_label = label
                 progress_placeholder.progress(
                     min(current / total, 1.0) if total else 1.0,
                     text=f"{label} {current}/{total}",
                 )
+                current_output_placeholder = None
+                output_segment = []
                 continue
             output_lines.append(line)
+            if current_output_placeholder is None:
+                current_output_placeholder = st.empty()
+            output_segment.append(line)
             st.session_state.run_output = "".join(output_lines)
-            output_placeholder.code(st.session_state.run_output)
+            current_output_placeholder.code("".join(output_segment))
 
     returncode = process.wait()
 
