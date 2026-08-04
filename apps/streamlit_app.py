@@ -461,11 +461,24 @@ with st.sidebar:
 
     selected_weight_paths = {}
     for label, state_key in requested_weight_fields:
+        saved_path_key = f"runner_saved_{state_key}"
+        input_key = f"runner_input_{state_key}"
+        if saved_path_key not in st.session_state:
+            st.session_state[saved_path_key] = st.session_state.get(
+                state_key,
+                "",
+            )
+        if input_key not in st.session_state:
+            st.session_state[input_key] = st.session_state[saved_path_key]
+
         manual_path = st.text_input(
             f"{label} path",
-            key=state_key,
+            key=input_key,
             help="Enter a path that already exists on the machine running Streamlit.",
         )
+        if manual_path:
+            st.session_state[saved_path_key] = manual_path
+
         uploaded_file = st.file_uploader(
             f"Browse local machine for {label.lower()}",
             type=["pt", "pth"],
@@ -473,9 +486,12 @@ with st.sidebar:
         )
         if uploaded_file is not None:
             selected_path = persist_uploaded_weights(uploaded_file, state_key)
+            st.session_state[saved_path_key] = selected_path
             st.caption(f"Uploaded checkpoint: {uploaded_file.name}")
         else:
-            selected_path = manual_path
+            selected_path = manual_path or st.session_state[saved_path_key]
+            if selected_path:
+                st.caption(f"Selected checkpoint: {Path(selected_path).name}")
         selected_weight_paths[state_key] = selected_path
 
     full_weights_file = selected_weight_paths.get("full_weights_file", "")
