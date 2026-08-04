@@ -547,9 +547,11 @@ if "run_output" not in st.session_state:
 if "run_status" not in st.session_state:
     st.session_state.run_status = None
 
-output_placeholder = st.empty()
 status_placeholder = st.empty()
 progress_placeholder = st.empty()
+output_container = st.container(height=400)
+with output_container:
+    output_placeholder = st.empty()
 
 if st.session_state.run_output:
     output_placeholder.code(st.session_state.run_output)
