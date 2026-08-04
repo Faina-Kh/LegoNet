@@ -32,6 +32,7 @@ from legonet.eval.KP_detection_eval import (
 )
 from legonet.eval.regression_metrics import compute_regression_metrics
 from legonet.my_dataloader import UnNormalizer
+from legonet.progress import print_image_progress
 from legonet.utils import printf
 
 
@@ -60,8 +61,8 @@ def _get_count_and_box_annotations(generator):
     all_box_annotations = [[None for i in range(generator.num_classes())] for j in range(len(generator))]
     all_count_annotations = [[None for i in range(generator.num_classes())] for j in range(len(generator))]
 
-    print("Loading per-object annotations:")
-    for i in range(len(generator)):
+    total_images = len(generator)
+    for i in range(total_images):
         # load the annotations
         annotations = generator.load_annotations(i)
 
@@ -82,13 +83,14 @@ def _get_count_and_box_annotations(generator):
                 all_box_annotations[i][label] = []
 
 
-        print(
-            "{}/{}".format(i + 1, len(generator)),
-            end="\r",
-            flush=True,
+        print_image_progress(
+            "Loading per-object annotations:",
+            i + 1,
+            total_images,
         )
 
-    print()
+    if total_images == 0:
+        print_image_progress("Loading per-object annotations:", 0, 0)
     return all_box_annotations,all_count_annotations
 
 def _prepare_gt_boxes_for_attribute_eval(box_annotations, count_annotations):

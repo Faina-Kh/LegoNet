@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from legonet import utils
 from legonet.utils import printf
 from legonet import config
+from legonet.progress import print_image_progress
 from legonet.eval.evaluation_policy import EvaluationTask, should_include_image
 
 
@@ -123,12 +124,12 @@ def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05,
 
     with torch.no_grad():
 
-        print("Running detection inference:")
+        total_images = len(generator)
         for iter_num, data in enumerate(dataloader):  # for index in range(len(dataset)):
-            print(
-                "{}/{}".format(iter_num + 1, len(generator)),
-                end="\r",
-                flush=True,
+            print_image_progress(
+                "Running detection inference:",
+                iter_num + 1,
+                total_images,
             )
             #print(iter_num)
             scale = data['scale']
@@ -202,7 +203,8 @@ def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05,
                 for label in range(generator.num_classes()):
                     all_detections[group_idx[0]][label] = np.zeros((0, 5))
 
-    print()
+        if total_images == 0:
+            print_image_progress("Running detection inference:", 0, 0)
     return all_detections
 
 
@@ -217,8 +219,8 @@ def  _get_annotations(generator):
     """
     all_annotations = [[None for i in range(generator.num_classes())] for j in range(len(generator))]
 
-    print("Loading detection annotations:")
-    for i in range(len(generator)):
+    total_images = len(generator)
+    for i in range(total_images):
         # load the annotations
         annotations = generator.load_annotations(i)
 
@@ -227,13 +229,14 @@ def  _get_annotations(generator):
             anns=annotations[0]
             all_annotations[i][label] = anns[anns[:, 4] == label, :4].copy()
 
-        print(
-            "{}/{}".format(i + 1, len(generator)),
-            end="\r",
-            flush=True,
+        print_image_progress(
+            "Loading detection annotations:",
+            i + 1,
+            total_images,
         )
 
-    print()
+    if total_images == 0:
+        print_image_progress("Loading detection annotations:", 0, 0)
     return all_annotations
 
 
