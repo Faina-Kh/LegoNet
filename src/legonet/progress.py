@@ -17,7 +17,8 @@ def print_image_progress(
     message = f"{label} {current}/{total}"
     complete = current >= total
 
-    if output.isatty():
+    is_terminal = getattr(output, "isatty", lambda: False)()
+    if is_terminal:
         print(
             f"\r{message}",
             end="\n" if complete else "",
