@@ -2083,6 +2083,10 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                             "n/a" if color_metrics.accuracy is None
                             else f"{color_metrics.accuracy:.3f}"
                         )
+                        color_error_rate = (
+                            "n/a" if color_metrics.error_rate is None
+                            else f"{color_metrics.error_rate:.3f}"
+                        )
                         color_balanced_accuracy = (
                             "n/a" if color_metrics.balanced_accuracy is None
                             else f"{color_metrics.balanced_accuracy:.3f}"
@@ -2108,13 +2112,14 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                             else f"{color_metrics.coverage:.3f}"
                         )
                         printf(
-                            "color_correct: %d | color_evaluated: %d | color_accuracy: %s | color_balanced_accuracy: %s | color_macro_F1: %s | color_1-FVU: %s | color_coverage: %s\n",
+                            "color_correct: %d | color_evaluated: %d | color_accuracy: %s | color_error_rate: %s | color_1-FVU: %s | color_balanced_accuracy: %s | color_macro_F1: %s | color_coverage: %s\n",
                             color_metrics.correct_predictions,
                             color_metrics.evaluated_samples,
                             color_accuracy,
+                            color_error_rate,
+                            color_fvu,
                             color_balanced_accuracy,
                             color_macro_f1,
-                            color_fvu,
                             color_coverage,
                         )
                         printf(

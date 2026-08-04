@@ -151,7 +151,7 @@ def _evaluate_detection(
         return None
 
     print()
-    print("Object detection evaluation:\n")
+    print("------------------Object detection evaluation:------------------\n")
     if args.eval_detection_params:
         all_average_precisions = detection_eval.evaluate_detection_params(
             dataset_val,

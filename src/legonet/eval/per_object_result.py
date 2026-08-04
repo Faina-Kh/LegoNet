@@ -104,6 +104,11 @@ class ClassificationMetrics:
             return None
         return self.evaluated_samples / self.eligible_samples
 
+    @property
+    def error_rate(self) -> Optional[float]:
+        """Return the fraction of evaluated predictions classified incorrectly."""
+        return None if self.accuracy is None else 1.0 - self.accuracy
+
 
 @dataclass(frozen=True)
 class AttributeEvaluationResult:

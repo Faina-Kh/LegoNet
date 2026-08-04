@@ -211,7 +211,13 @@ def format_command(command: list[str]) -> str:
 
 def expected_experiment_root(storage_path: str, dataset_name: str, current_results_dir: str) -> Path:
     """Return the experiment folder where main.py writes results for these settings."""
-    return Path(storage_path) / "ExpResults" / dataset_name / current_results_dir
+    return (
+        Path(storage_path)
+        / "ExpResults"
+        / dataset_name
+        / "Results"
+        / current_results_dir
+    )
 
 
 def find_recent_artifacts(experiment_root: Path, limit: int = 12) -> list[Path]:
