@@ -30,6 +30,7 @@ from legonet.eval.KP_detection_eval import (
     points_detection_t_p,
     visualize_KeyPointsHeatmaps,
 )
+from legonet.eval.regression_metrics import compute_regression_metrics
 from legonet.my_dataloader import UnNormalizer
 from legonet.utils import printf
 
@@ -1916,13 +1917,18 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             )
 
             if total_orig_box_for_count>0:
-                orig_avg_abs_count_diff = SumOfAbsDifferences(total_orig_GT_counts, total_predicted_for_orig_boxes) / total_orig_box_for_count
+                count_metrics = compute_regression_metrics(
+                    total_orig_GT_counts,
+                    total_predicted_for_orig_boxes,
+                    relative_errors=state['orig_rel_error'],
+                )
+                orig_avg_abs_count_diff = count_metrics.mean_absolute_error
                 orig_avg_rel_error = (
-                    np.mean(state['orig_rel_error'])
-                    if state['orig_rel_error']
+                    count_metrics.mean_relative_error
+                    if count_metrics.mean_relative_error is not None
                     else -1
                 )
-                orig_MSE = np.mean((np.array(total_orig_GT_counts) - np.array(total_predicted_for_orig_boxes)) ** 2)
+                orig_MSE = count_metrics.mean_squared_error
 
             else:
                 print('No gt boxes for any image')
@@ -1945,11 +1951,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
             if total_orig_box_for_count > 0:
                 orig_var_GT_counts = np.var(total_orig_GT_counts)
-                orig_FVU = (
-                    orig_MSE / orig_var_GT_counts
-                    if orig_var_GT_counts > 0
-                    else float("nan")
-                )
+                orig_FVU = 1 - count_metrics.one_minus_fvu
                 orig_mean_GT_counts = np.mean(total_orig_GT_counts)
 
             else:
@@ -1966,22 +1968,31 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
         else:
             if total_orig_box_for_TRL > 0:
-
-                orig_avg_abs_TRL_diff = SumOfAbsDifferences(total_orig_GT_TRL, total_predicted_for_orig_boxes_TRL) / total_orig_box_for_TRL
-                orig_avg_rel_error_TRL = np.mean(state['orig_rel_error_TRL'])
-                orig_MSE_TRL = np.mean((np.array(total_orig_GT_TRL) - np.array(total_predicted_for_orig_boxes_TRL)) ** 2)
-
-                orig_avg_abs_dia_diff = SumOfAbsDifferences(total_orig_GT_dia,
-                                                            total_predicted_for_orig_boxes_dia) / total_orig_box_for_dia
-                orig_avg_rel_error_dia = np.mean(state['orig_rel_error_dia'])
-                orig_MSE_dia = np.mean((np.array(total_orig_GT_dia) - np.array(total_predicted_for_orig_boxes_dia)) ** 2)
+                trl_metrics = compute_regression_metrics(
+                    total_orig_GT_TRL,
+                    total_predicted_for_orig_boxes_TRL,
+                    relative_errors=state['orig_rel_error_TRL'],
+                    preserve_zero_variance_division=True,
+                )
+                diameter_metrics = compute_regression_metrics(
+                    total_orig_GT_dia,
+                    total_predicted_for_orig_boxes_dia,
+                    relative_errors=state['orig_rel_error_dia'],
+                    preserve_zero_variance_division=True,
+                )
+                orig_avg_abs_TRL_diff = trl_metrics.mean_absolute_error
+                orig_avg_rel_error_TRL = trl_metrics.mean_relative_error
+                orig_MSE_TRL = trl_metrics.mean_squared_error
+                orig_avg_abs_dia_diff = diameter_metrics.mean_absolute_error
+                orig_avg_rel_error_dia = diameter_metrics.mean_relative_error
+                orig_MSE_dia = diameter_metrics.mean_squared_error
 
                 orig_var_GT_TRL = np.var(total_orig_GT_TRL)
-                orig_FVU_TRL = orig_MSE_TRL / orig_var_GT_TRL
+                orig_FVU_TRL = 1 - trl_metrics.one_minus_fvu
                 orig_mean_GT_TRL = np.mean(total_orig_GT_TRL)
 
                 orig_var_GT_dia = np.var(total_orig_GT_dia)
-                orig_FVU_dia = orig_MSE_dia / orig_var_GT_dia
+                orig_FVU_dia = 1 - diameter_metrics.one_minus_fvu
                 orig_mean_GT_dia = np.mean(total_orig_GT_dia)
 
                 precision_det = state['found_orig_objects'] / (state['found_orig_objects'] + state['FP'])

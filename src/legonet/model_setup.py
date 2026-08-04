@@ -194,7 +194,7 @@ def _load_full_weights(model: Any, args: Any) -> None:
     )
     checkpoint_modules = list_checkpoint_modules(model_state)
     model_modules = list_checkpoint_modules(model.state_dict())
-    print("Available modules in the weights file:", checkpoint_modules)
+    print("Available modules in the weights file:/n", checkpoint_modules)
     print("Check keys:")
     print("Checkpoint modules:", checkpoint_modules)
     print("Built model modules:", model_modules)

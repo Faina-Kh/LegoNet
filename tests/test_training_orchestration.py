@@ -81,6 +81,30 @@ class TrainingOrchestrationTests(unittest.TestCase):
 
         self.assertIn("without a valid", print_mock.call_args.args[0])
 
+    def test_empty_iou_sweep_is_reported_without_selecting_checkpoint(self):
+        """Missing sweep metrics do not crash evaluation or replace weights."""
+        args = SimpleNamespace(eval_in_train=True, choose_epoch_by_IoUavg=True)
+        sweep = SimpleNamespace(measurements=(), average_relative_error=None)
+
+        with mock.patch.object(training.torch.cuda, "is_available", return_value=True):
+            with mock.patch.object(
+                training, "evaluate_combined_iou_sweep", return_value=sweep
+            ), mock.patch.object(
+                training, "save_epoch_checkpoint"
+            ) as save_checkpoint, mock.patch("builtins.print") as print_mock:
+                training._evaluate_combined_epoch(
+                    args,
+                    epoch=3,
+                    model="model",
+                    dataset_val="dataset",
+                    dataloader_val="loader",
+                    sampler_val="sampler",
+                    best=training.BestMetrics(),
+                )
+
+        self.assertIn("average_error=n/a", print_mock.call_args.args[0])
+        save_checkpoint.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

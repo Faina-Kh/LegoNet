@@ -12,7 +12,7 @@ import torch.optim as optim
 from legonet import config
 from legonet import utils
 from legonet.checkpointing import save_epoch_checkpoint
-from legonet.eval import attribute_estimation_eval, detection_eval
+from legonet.eval import attribute_estimation_eval
 from legonet.training_evaluation import (
     evaluate_combined_counting_summary,
     evaluate_combined_iou_sweep,
@@ -146,6 +146,17 @@ def _print_epoch_summary(epoch: int, history: Dict[str, List[float]]) -> None:
     utils.printf("Epoch %d summary: %s\n", epoch, ", ".join(summaries))
 
 
+def _save_periodic_checkpoint(epoch: int, model: Any) -> None:
+    """Save a checkpoint on configured non-evaluation epochs."""
+    if (epoch + 1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
+        save_epoch_checkpoint(model, epoch)
+
+
+def _format_optional(value: Optional[float], precision: int = 6) -> str:
+    """Format an optional metric for concise evaluation output."""
+    return "n/a" if value is None else f"{value:.{precision}f}"
+
+
 def _evaluate_detection_epoch(
     args: Any,
     epoch: int,
@@ -160,21 +171,13 @@ def _evaluate_detection_epoch(
         return
     should_evaluate = args.eval_in_train if args.dataset_type == "kcsv" else args.evaluate_detection
     if not should_evaluate:
-        if (
-            args.dataset_type == "kcsv"
-            and (epoch + 1) % config.General.SAVE_EVERY_N_EPOCHS == 0
-        ):
-            save_epoch_checkpoint(model, epoch)
+        if args.dataset_type == "kcsv":
+            _save_periodic_checkpoint(epoch, model)
         return
-    model.eval()
-    mean_ap, precision, recall = detection_eval.evaluateMAP_simple(
-        dataset_val,
-        dataloader_val,
-        sampler_val,
-        model,
-        score_threshold=config.Detection.min_score,
-        iou_threshold=config.Detection.iou_threshold,
-    )
+    metrics = evaluate_detection(dataset_val, dataloader_val, sampler_val, model)
+    mean_ap = metrics.mean_average_precision
+    precision = metrics.precision
+    recall = metrics.recall
     print(f"Current mAP = {mean_ap:.3f}, precision = {precision:.3f}, recall = {recall:.3f}\n")
     if args.dataset_type == "kcsv":
         with open(args.txt_results, "a") as results_file:
@@ -196,8 +199,7 @@ def _evaluate_counting_epoch(
 ) -> None:
     """Evaluate a counting-only model and update its best checkpoint."""
     if not args.eval_in_train:
-        if (epoch + 1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
-            save_epoch_checkpoint(model, epoch)
+        _save_periodic_checkpoint(epoch, model)
         return
     model.eval()
     relative_error = attribute_estimation_eval.eval(dataloader_val, dataset_val, model, args)
@@ -222,8 +224,7 @@ def _evaluate_combined_epoch(
 ) -> None:
     """Evaluate a combined model and update its selected checkpoint."""
     if not args.eval_in_train:
-        if (epoch + 1) % config.General.SAVE_EVERY_N_EPOCHS == 0:
-            save_epoch_checkpoint(model, epoch)
+        _save_periodic_checkpoint(epoch, model)
         return
     if not torch.cuda.is_available():
         print("CUDA not available for combined evaluation")
@@ -238,21 +239,9 @@ def _evaluate_combined_epoch(
             config.Detection.iou_threshold_list,
         )
         for measurement in sweep.measurements:
-            relative_error = (
-                f"{measurement.relative_error:.6f}"
-                if measurement.relative_error is not None
-                else "n/a"
-            )
-            recall = (
-                f"{measurement.recall:.6f}"
-                if measurement.recall is not None
-                else "n/a"
-            )
-            precision = (
-                f"{measurement.precision:.6f}"
-                if measurement.precision is not None
-                else "n/a"
-            )
+            relative_error = _format_optional(measurement.relative_error)
+            recall = _format_optional(measurement.recall)
+            precision = _format_optional(measurement.precision)
             matched_objects = (
                 str(measurement.matched_objects)
                 if measurement.matched_objects is not None
@@ -264,7 +253,7 @@ def _evaluate_combined_epoch(
                 f"precision={precision}"
             )
         average_error = sweep.average_relative_error
-        print(f"average_error={average_error:.3f}\n")
+        print(f"average_error={_format_optional(average_error, precision=3)}\n")
         if average_error is not None and average_error < best.average_relative_error:
             _print_best_error_checkpoint_notice(
                 epoch,
@@ -280,14 +269,8 @@ def _evaluate_combined_epoch(
         dataset_val, dataloader_val, sampler_val, model, args
     )
     relative_error = summary.relative_error
-    relative_error_text = (
-        f"{relative_error:.6f}" if relative_error is not None else "n/a"
-    )
-    one_minus_fvu_text = (
-        f"{summary.one_minus_fvu:.6f}"
-        if summary.one_minus_fvu is not None
-        else "n/a"
-    )
+    relative_error_text = _format_optional(relative_error)
+    one_minus_fvu_text = _format_optional(summary.one_minus_fvu)
     print(
         "Validation results: \n"
         f"orig_avg_relative_error: {relative_error_text} | "

@@ -292,5 +292,5 @@ def run_inference(
             model,
             args,
         )
-        print("Final avg rel error:", relative_error)
+        print("Final avg rel error:  %.3f", relative_error)
     print("done")
