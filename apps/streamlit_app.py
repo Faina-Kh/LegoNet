@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 
 DATASET_OPTIONS = ("roots", "grapes")
@@ -207,6 +208,23 @@ def build_command(
 def format_command(command: list[str]) -> str:
     """Format a command for display in the UI."""
     return " ".join(f'"{part}"' if " " in part else part for part in command)
+
+
+def scroll_to_latest_output(placeholder, update_id: int) -> None:
+    """Scroll the Streamlit page to the newest live-run output."""
+    script = f"""
+        <script>
+            const parentDocument = window.parent.document;
+            const main = parentDocument.querySelector('[data-testid="stMain"]');
+            const target = main || parentDocument.scrollingElement;
+            if (target) {{
+                target.scrollTo({{ top: target.scrollHeight, behavior: 'auto' }});
+            }}
+            // Force this component to refresh for update {update_id}.
+        </script>
+    """
+    with placeholder.container():
+        components.html(script, height=0)
 
 
 def expected_experiment_root(storage_path: str, dataset_name: str, current_results_dir: str) -> Path:
@@ -563,6 +581,7 @@ if "run_status" not in st.session_state:
 
 status_placeholder = st.empty()
 output_placeholder = st.empty()
+scroll_placeholder = st.empty()
 
 if st.session_state.run_output:
     output_placeholder.code(st.session_state.run_output)
@@ -607,6 +626,10 @@ if run_clicked:
                 if progress_placeholder is None or label != progress_label:
                     progress_placeholder = st.empty()
                     progress_label = label
+                    scroll_to_latest_output(
+                        scroll_placeholder,
+                        len(output_lines),
+                    )
                 progress_placeholder.progress(
                     min(current / total, 1.0) if total else 1.0,
                     text=f"{label} {current}/{total}",
@@ -620,8 +643,11 @@ if run_clicked:
             output_segment.append(line)
             st.session_state.run_output = "".join(output_lines)
             current_output_placeholder.code("".join(output_segment))
+            if len(output_lines) == 1 or len(output_lines) % 5 == 0:
+                scroll_to_latest_output(scroll_placeholder, len(output_lines))
 
     returncode = process.wait()
+    scroll_to_latest_output(scroll_placeholder, len(output_lines) + 1)
 
     if returncode == 0:
         st.session_state.run_status = "success"
