@@ -2144,27 +2144,56 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                     print()
 
+            use_all_image_diagnostics = (
+                getattr(args, "predict_empty_image", False)
+                and detection_metrics is not None
+                and len(detection_metrics) > 3
+            )
+            if use_all_image_diagnostics:
+                diagnostics = detection_metrics[3]
+                diagnostic_gt_objects = diagnostics.ground_truth_objects
+                diagnostic_matches = diagnostics.matched_objects
+                diagnostic_false_positives = diagnostics.false_positives
+                diagnostic_scope = "all images, including empty images"
+            else:
+                diagnostic_gt_objects = state['gt_objects_withGTpoints']
+                diagnostic_matches = state['found_orig_objects']
+                diagnostic_false_positives = state['FP']
+                diagnostic_scope = "attribute-annotated images only"
+
+            diagnostic_recall = (
+                diagnostic_matches / diagnostic_gt_objects
+                if diagnostic_gt_objects > 0 else 0.0
+            )
+            diagnostic_prediction_count = (
+                diagnostic_matches + diagnostic_false_positives
+            )
+            diagnostic_precision = (
+                diagnostic_matches / diagnostic_prediction_count
+                if diagnostic_prediction_count > 0 else 0.0
+            )
+
             print("====================================================================================================\n")
-            printf("Per-object matching diagnostics (attribute-evaluated images only)\n")
+            printf("Object matching diagnostics (%s)\n", diagnostic_scope)
             printf(
-                "Attribute-annotated GT objects: %d\n",
-                state['gt_objects_withGTpoints'],
+                "GT objects considered: %d\n",
+                diagnostic_gt_objects,
             )
             printf(
-                "IoU-matched attribute objects: %d (%.2f%% matched-object recall)\n",
-                state['found_orig_objects'],
-                100 * state['found_orig_objects'] / state['gt_objects_withGTpoints'],
+                "IoU-matched objects: %d (%.2f%% recall)\n",
+                diagnostic_matches,
+                100 * diagnostic_recall,
             )
             printf(
                 "Unmatched or duplicate predictions: %d\n",
-                state['FP'],
+                diagnostic_false_positives,
             )
             printf(
                 "Matched-object precision: %.2f%% (%d / (%d + %d))\n\n",
-                100 * precision_det,
-                state['found_orig_objects'],
-                state['found_orig_objects'],
-                state['FP'],
+                100 * diagnostic_precision,
+                diagnostic_matches,
+                diagnostic_matches,
+                diagnostic_false_positives,
             )
 
             if detection_metrics is not None:
@@ -2252,12 +2281,12 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                                                                                                             abs_error_dia[-1]))
                     abs_error_dia_nonZero = [dia for dia in abs_error_dia if dia > 0]
                     print(
-                        "Avg of per image abs difference of diameter:{:0.4f} | rel_error:{:0.4f} | 1-FVU: {}".format(
-                            np.mean(abs_difference_dia),
+                        "Avg of per image rel_error:{:0.4f} | 1-FVU: {} |abs difference of diameter:{:0.4f}".format(
                             np.mean(abs_error_dia),
                             _format_optional_metric(
                                 per_image_metrics.diameter.one_minus_fvu
                             ),
+                            np.mean(abs_difference_dia),
                         )
                     )
                     print()

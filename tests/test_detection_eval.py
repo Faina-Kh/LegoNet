@@ -118,6 +118,39 @@ class DetectionEvaluationTests(unittest.TestCase):
         self.assertAlmostEqual(precision, 0.5)
         self.assertAlmostEqual(recall, 1.0)
 
+    def test_optional_diagnostics_count_all_images(self):
+        """Count diagnostics include predictions made on empty images."""
+        generator = _Generator(num_classes=1, num_images=2)
+        annotations = [
+            [np.array([[0.0, 0.0, 10.0, 10.0]])],
+            [np.zeros((0, 4))],
+        ]
+        detections = [
+            [np.array([[0.0, 0.0, 10.0, 10.0, 0.9]])],
+            [np.array([[20.0, 20.0, 30.0, 30.0, 0.8]])],
+        ]
+
+        with (
+            mock.patch.object(
+                detection_eval, "_get_annotations", return_value=annotations
+            ),
+            mock.patch.object(
+                detection_eval, "_get_detections", return_value=detections
+            ),
+        ):
+            _, _, _, diagnostics = detection_eval.evaluateMAP_simple(
+                generator,
+                dataloader_val=object(),
+                sampler_val=object(),
+                model=object(),
+                iou_threshold=0.5,
+                return_diagnostics=True,
+            )
+
+        self.assertEqual(diagnostics.ground_truth_objects, 1)
+        self.assertEqual(diagnostics.matched_objects, 1)
+        self.assertEqual(diagnostics.false_positives, 1)
+
     def test_duplicate_detection_counts_as_false_positive(self):
         """A second prediction for the same GT object lowers standard precision."""
         generator = _Generator(num_classes=1, num_images=1)

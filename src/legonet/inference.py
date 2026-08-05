@@ -172,7 +172,7 @@ def _evaluate_detection(
         f"Results for min score: {config.Detection.min_score}, "
         f"iou_threshold: {config.Detection.iou_threshold}"
     )
-    mean_average_precision, precision, recall = detection_eval.evaluateMAP_simple(
+    detection_metrics = detection_eval.evaluateMAP_simple(
         dataset_val,
         dataloader_val,
         sampler_val,
@@ -180,7 +180,9 @@ def _evaluate_detection(
         score_threshold=config.Detection.min_score,
         iou_threshold=config.Detection.iou_threshold,
         generate_PR_curve=True,
+        return_diagnostics=True,
     )
+    mean_average_precision, precision, recall = detection_metrics[:3]
     result_line = (
         f"mAP = {mean_average_precision:.3f}, precision = {precision:.3f}, "
         f"recall = {recall:.3f}"
@@ -197,7 +199,7 @@ def _evaluate_detection(
             model,
             unnormalize=UnNormalizer(),
         )
-    return mean_average_precision, precision, recall
+    return detection_metrics
 
 
 def _evaluate_combined(

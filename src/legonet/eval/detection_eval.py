@@ -1,5 +1,6 @@
 import numpy as np
 import os
+from dataclasses import dataclass
 import torch
 import matplotlib.pyplot as plt
 
@@ -8,6 +9,15 @@ from legonet.utils import printf
 from legonet import config
 from legonet.progress import print_image_progress
 from legonet.eval.evaluation_policy import EvaluationTask, should_include_image
+
+
+@dataclass(frozen=True)
+class DetectionDiagnostics:
+    """Full-scope object counts collected during detection evaluation."""
+
+    ground_truth_objects: int
+    matched_objects: int
+    false_positives: int
 
 
 
@@ -424,7 +434,8 @@ def evaluateMAP_simple(generator,
                 iou_threshold=0.5,
                 score_threshold=0.05,
                 max_detections=1000,
-                generate_PR_curve=False
+                generate_PR_curve=False,
+                return_diagnostics=False,
                 ):
     """ Evaluate a given dataset using a given model.
     # Arguments
@@ -458,6 +469,9 @@ def evaluateMAP_simple(generator,
     class_recalls = []
     pr_curve_recall = np.zeros((0,))
     pr_curve_precision = np.zeros((0,))
+    total_annotations = 0
+    total_true_positives = 0
+    total_false_positives = 0
 
     for label in range(generator.num_classes()):
         false_positives = np.zeros((0,))
@@ -510,6 +524,10 @@ def evaluateMAP_simple(generator,
                 else:
                     false_positives = np.append(false_positives, 1)
                     true_positives = np.append(true_positives, 0)
+
+        total_annotations += int(num_annotations)
+        total_true_positives += int(np.sum(true_positives))
+        total_false_positives += int(np.sum(false_positives))
 
         # no annotations -> AP for this class is 0 (is this correct?)
         if num_annotations == 0:
@@ -573,5 +591,14 @@ def evaluateMAP_simple(generator,
     final_precision = float(np.mean(class_precisions)) if class_precisions else 0.0
     final_recall = float(np.mean(class_recalls)) if class_recalls else 0.0
 
-    return np.mean(mAP), final_precision, final_recall #np.mean(precision), np.mean(recall) #np.mean(mAP), precision, recall #  None, None precision, recall
+    metrics = (np.mean(mAP), final_precision, final_recall)
+    if return_diagnostics:
+        return metrics + (
+            DetectionDiagnostics(
+                ground_truth_objects=total_annotations,
+                matched_objects=total_true_positives,
+                false_positives=total_false_positives,
+            ),
+        )
+    return metrics
 
