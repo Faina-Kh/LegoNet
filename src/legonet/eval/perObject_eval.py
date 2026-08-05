@@ -2199,7 +2199,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             if detection_metrics is not None:
                 print("====================================================================================================\n")
                 detection_map, detection_precision, detection_recall = (
-                    detection_metrics
+                    detection_metrics[:3]
                 )
                 printf("Bounding-box detection stats (all images)\n")
                 printf(
