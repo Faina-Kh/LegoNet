@@ -2144,6 +2144,29 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                     print()
 
+            print("====================================================================================================\n")
+            printf("Per-object matching diagnostics (attribute-evaluated images only)\n")
+            printf(
+                "Attribute-annotated GT objects: %d\n",
+                state['gt_objects_withGTpoints'],
+            )
+            printf(
+                "IoU-matched attribute objects: %d (%.2f%% matched-object recall)\n",
+                state['found_orig_objects'],
+                100 * state['found_orig_objects'] / state['gt_objects_withGTpoints'],
+            )
+            printf(
+                "Unmatched or duplicate predictions: %d\n",
+                state['FP'],
+            )
+            printf(
+                "Matched-object precision: %.2f%% (%d / (%d + %d))\n\n",
+                100 * precision_det,
+                state['found_orig_objects'],
+                state['found_orig_objects'],
+                state['FP'],
+            )
+
             if detection_metrics is not None:
                 print("====================================================================================================\n")
                 detection_map, detection_precision, detection_recall = (
