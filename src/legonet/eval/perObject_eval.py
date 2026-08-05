@@ -2199,7 +2199,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     abs_error_TRL_nonZero = [TRL for TRL in abs_error_TRL if TRL > 0]
 
                     print(
-                        "Avg of per image rel_error of TRL (for gt>0):{:0.4f} | 1-FVU: {}".format(
+                        "Avg of per image rel_error of TRL:{:0.4f} | 1-FVU: {}".format(
                             np.mean(abs_error_TRL_nonZero),
                             _format_optional_metric(
                                 per_image_metrics.trl.one_minus_fvu
@@ -2209,7 +2209,14 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     print()
 
                     abs_error_dia = []
+                    abs_difference_dia = []
                     for im in state['dia_per_im_pred_dict'].keys():
+                        abs_difference_dia.append(
+                            np.abs(
+                                state['dia_per_im_gt_avg_dict'][im]
+                                - state['dia_per_im_pred_dict'][im]
+                            )
+                        )
                         if state['dia_per_im_gt_avg_dict'][im] > 0:
                             abs_error_dia.append(
                                 np.abs(state['dia_per_im_gt_avg_dict'][im] - state['dia_per_im_pred_dict'][im]) / state['dia_per_im_gt_avg_dict'][im])
@@ -2222,7 +2229,8 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                                                                                                             abs_error_dia[-1]))
                     abs_error_dia_nonZero = [dia for dia in abs_error_dia if dia > 0]
                     print(
-                        "Avg of per image rel_error of dia:{:0.4f} | 1-FVU: {}".format(
+                        "Avg of per image abs difference of diameter:{:0.4f} | rel_error:{:0.4f} | 1-FVU: {}".format(
+                            np.mean(abs_difference_dia),
                             np.mean(abs_error_dia),
                             _format_optional_metric(
                                 per_image_metrics.diameter.one_minus_fvu

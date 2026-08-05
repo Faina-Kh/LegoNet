@@ -229,8 +229,8 @@ def _evaluate_combined(
             and config.AttributeEstimation.estimate_type == "withKeyPoints"
         ),
     )
-    relative_error = output[0] if len(output) > 0 else -1
-    utils.printf("rel error: %.3f \n", relative_error)
+    #relative_error = output[0] if len(output) > 0 else -1
+    #utils.printf("rel error: %.3f \n", relative_error)
 
 
 def run_inference(

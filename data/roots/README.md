@@ -117,6 +117,9 @@ relative_error_i = abs(gt_i - prediction_i) / gt_i
 ```
 
 Images whose GT aggregate is zero do not enter the mean relative-error value.
+For diameter, the same summary line also reports the mean absolute difference
+between image-level GT and predicted mean diameters.
+
 For color, only absolute error is used:
 
 ```text
