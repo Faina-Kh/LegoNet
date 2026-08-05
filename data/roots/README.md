@@ -110,13 +110,20 @@ classified as white. For example, a mean color of `0.75` means that 75% of the
 image's evaluated roots have label `white`.
 
 Error is calculated between corresponding image-level GT and predicted values.
-The relative error for image `i` is:
+For TRL and diameter, the relative error for image `i` is:
 
 ```text
 relative_error_i = abs(gt_i - prediction_i) / gt_i
 ```
 
 Images whose GT aggregate is zero do not enter the mean relative-error value.
+For color, only absolute error is used:
+
+```text
+color_absolute_error_i = abs(mean_gt_color_i - mean_predicted_color_i)
+```
+
+No image-level relative color error is calculated.
 
 Per-image 1-FVU is then calculated **once across the vectors of image-level
 values**. It is not calculated independently inside every image and those
@@ -129,7 +136,9 @@ MSE = mean((image_gt - image_prediction) ** 2)
 
 This calculation is performed separately for image-level TRL sums, diameter
 means, and color means. If the GT image-level values have zero variance,
-1-FVU is undefined and is reported as `n/a`.
+1-FVU is undefined and is reported as `n/a`. Each attribute's 1-FVU is printed
+beside that attribute's mean image-level error rather than in a separate
+combined summary.
 
 ## Detection scope
 

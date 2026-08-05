@@ -2176,6 +2176,15 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             else:
                 if args.have_GT:
                     print('Per image stats based on IoU-matched GT boxes\n')
+                    image_names = list(state['per_im_pred_dict'].keys())
+                    per_image_metrics = compute_per_image_attribute_metrics(
+                        [state['TRL_per_im_gt_sum_dict'][im] for im in image_names],
+                        [state['TRL_per_im_pred_dict'][im] for im in image_names],
+                        [state['dia_per_im_gt_avg_dict'][im] for im in image_names],
+                        [state['dia_per_im_pred_dict'][im] for im in image_names],
+                        [state['per_im_gt_avg_dict'][im] for im in image_names],
+                        [state['per_im_pred_dict'][im] for im in image_names],
+                    )
                     print('Per image gt TRL (sum of RL), predicted sum TRL')
                     abs_error_TRL = []
                     for im in state['TRL_per_im_pred_dict'].keys():
@@ -2189,7 +2198,14 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                                                                                                 abs_error_TRL[-1]))
                     abs_error_TRL_nonZero = [TRL for TRL in abs_error_TRL if TRL > 0]
 
-                    print("Avg of per image rel_error of TRL (for gt>0):{:0.4f}".format(np.mean(abs_error_TRL_nonZero)))
+                    print(
+                        "Avg of per image rel_error of TRL (for gt>0):{:0.4f} | 1-FVU: {}".format(
+                            np.mean(abs_error_TRL_nonZero),
+                            _format_optional_metric(
+                                per_image_metrics.trl.one_minus_fvu
+                            ),
+                        )
+                    )
                     print()
 
                     abs_error_dia = []
@@ -2205,60 +2221,37 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                                                                                                             state['dia_per_im_pred_dict'][im],
                                                                                                             abs_error_dia[-1]))
                     abs_error_dia_nonZero = [dia for dia in abs_error_dia if dia > 0]
-                    print("Avg of per image rel_error of dia:{:0.4f}".format(np.mean(abs_error_dia)))
+                    print(
+                        "Avg of per image rel_error of dia:{:0.4f} | 1-FVU: {}".format(
+                            np.mean(abs_error_dia),
+                            _format_optional_metric(
+                                per_image_metrics.diameter.one_minus_fvu
+                            ),
+                        )
+                    )
                     print()
 
                     print('Per image average GT and predicted color')
                     abs_error_color = []
-                    relative_error_color = []
-                    image_names = list(state['per_im_pred_dict'].keys())
                     for im in image_names:
                         gt_color = state['per_im_gt_avg_dict'][im]
                         predicted_color = state['per_im_pred_dict'][im]
                         abs_error = np.abs(gt_color - predicted_color)
-                        relative_error = abs_error / gt_color if gt_color > 0 else -1
                         abs_error_color.append(abs_error)
-                        relative_error_color.append(relative_error)
                         print(
-                            "{}: avg_gt_color: {:.2f}, avg_pred_color: {:.2f}, abs_error_color: {:.2f}, rel_error_color: {:.2f}".format(
+                            "{}: avg_gt_color: {:.2f}, avg_pred_color: {:.2f}, abs_error_color: {:.2f}".format(
                                 im,
                                 gt_color,
                                 predicted_color,
                                 abs_error,
-                                relative_error,
                             )
                         )
 
-                    valid_color_errors = [
-                        error for error in relative_error_color if error >= 0
-                    ]
                     print(
-                        "Avg per-image color absolute error: {} | relative error: {}".format(
+                        "Avg of per image absolute error of color: {} | 1-FVU: {}".format(
                             _format_optional_metric(
                                 float(np.mean(abs_error_color))
                                 if abs_error_color else None
-                            ),
-                            f"{np.mean(valid_color_errors):.4f}"
-                            if valid_color_errors else "n/a",
-                        )
-                    )
-
-                    per_image_metrics = compute_per_image_attribute_metrics(
-                        [state['TRL_per_im_gt_sum_dict'][im] for im in image_names],
-                        [state['TRL_per_im_pred_dict'][im] for im in image_names],
-                        [state['dia_per_im_gt_avg_dict'][im] for im in image_names],
-                        [state['dia_per_im_pred_dict'][im] for im in image_names],
-                        [state['per_im_gt_avg_dict'][im] for im in image_names],
-                        [state['per_im_pred_dict'][im] for im in image_names],
-                    )
-
-                    print(
-                        "Per-image aggregate 1-FVU: TRL={} | diameter={} | color={}".format(
-                            _format_optional_metric(
-                                per_image_metrics.trl.one_minus_fvu
-                            ),
-                            _format_optional_metric(
-                                per_image_metrics.diameter.one_minus_fvu
                             ),
                             _format_optional_metric(
                                 per_image_metrics.color.one_minus_fvu
