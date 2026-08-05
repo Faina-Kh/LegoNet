@@ -234,14 +234,6 @@ def find_recent_artifacts(experiment_root: Path, limit: int = 12) -> list[Path]:
     return sorted(artifacts, key=lambda path: path.stat().st_mtime, reverse=True)[:limit]
 
 
-def read_preview(path: Path, max_chars: int = 4000) -> str:
-    """Read a small preview from a result file."""
-    try:
-        return path.read_text(encoding="utf-8", errors="replace")[:max_chars]
-    except OSError as exc:
-        return f"Could not read {path}: {exc}"
-
-
 PROJECT_ROOT = find_project_root(Path(__file__).resolve())
 MAIN_SCRIPT = PROJECT_ROOT / "scripts" / "run_legonet.py"
 GPU_AVAILABLE = has_cuda_gpu()
@@ -656,4 +648,3 @@ else:
         data=selected_artifact.read_bytes(),
         file_name=selected_artifact.name,
     )
-    st.code(read_preview(selected_artifact))
