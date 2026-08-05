@@ -379,6 +379,9 @@ dataset is distributed under the
 dataset associated with the preferred 2024 *Computers and Electronics in
 Agriculture* citation above.
 
+See the [roots dataset README](data/roots/README.md) for the expected runtime
+layout, attribute encoding, and object-level and image-level evaluation rules.
+
 An earlier, related collection is the [Dataset for "Root Length Estimation:
 Automated Minirhizotron Image Analysis with Convolutional Networks without
 Segmentation"](https://doi.org/10.5281/zenodo.7482146). It contains 4,015
