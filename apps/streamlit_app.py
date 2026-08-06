@@ -10,6 +10,8 @@ from pathlib import Path
 import streamlit as st
 import streamlit.components.v1 as components
 
+from legonet.streamlit_output import extract_evaluation_summary
+
 
 DATASET_OPTIONS = ("roots", "grapes")
 NETWORK_OPTIONS = (
@@ -590,6 +592,11 @@ if st.session_state.run_status == "success":
 elif st.session_state.run_status == "failed":
     status_placeholder.error("The previous run failed.")
 
+evaluation_summary = extract_evaluation_summary(st.session_state.run_output)
+if evaluation_summary:
+    st.subheader("Evaluation Summary")
+    st.code(evaluation_summary, language="text")
+
 if run_clicked:
     if not storage_path.strip():
         st.error("Storage path is required.")
@@ -656,16 +663,6 @@ if run_clicked:
         st.session_state.run_status = "failed"
         status_placeholder.error(f"Run failed with exit code {returncode}.")
 
-if st.session_state.run_output:
-    with st.expander("Complete run output", expanded=False):
-        st.text_area(
-            "Captured stdout and stderr",
-            value=st.session_state.run_output,
-            height=600,
-            disabled=True,
-            label_visibility="collapsed",
-        )
-
 st.divider()
 st.subheader("Recent Result Files")
 
@@ -684,14 +681,3 @@ else:
         data=selected_artifact.read_bytes(),
         file_name=selected_artifact.name,
     )
-    with st.expander("Preview selected file", expanded=False):
-        st.text_area(
-            "Result file contents",
-            value=selected_artifact.read_text(
-                encoding="utf-8",
-                errors="replace",
-            ),
-            height=600,
-            disabled=True,
-            label_visibility="collapsed",
-        )
