@@ -5,10 +5,10 @@ import subprocess
 import sys
 import tempfile
 import uuid
+from collections import deque
 from pathlib import Path
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 
 SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src"
@@ -33,6 +33,7 @@ NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_attribute
 RUN_MODES = ("Inference", "Training")
 VAL_SETS = ("Test", "Val")
 ESTIMATE_TYPES = ("keyPoints_based_estimate", "regression_based_estimate")
+LIVE_OUTPUT_LINE_LIMIT = 80
 ESTIMATE_TYPE_VALUES = {
     "keyPoints_based_estimate": "withKeyPoints",
     "regression_based_estimate": "reg_fpn_p3_p7_min_sig",
@@ -215,23 +216,6 @@ def build_command(
 def format_command(command: list[str]) -> str:
     """Format a command for display in the UI."""
     return " ".join(f'"{part}"' if " " in part else part for part in command)
-
-
-def scroll_to_latest_output(placeholder, update_id: int) -> None:
-    """Scroll the Streamlit page to the newest live-run output."""
-    script = f"""
-        <script>
-            const parentDocument = window.parent.document;
-            const main = parentDocument.querySelector('[data-testid="stMain"]');
-            const target = main || parentDocument.scrollingElement;
-            if (target) {{
-                target.scrollTo({{ top: target.scrollHeight, behavior: 'auto' }});
-            }}
-            // Force this component to refresh for update {update_id}.
-        </script>
-    """
-    with placeholder.container():
-        components.html(script, height=0)
 
 
 def expected_experiment_root(storage_path: str, dataset_name: str, current_results_dir: str) -> Path:
@@ -585,10 +569,11 @@ if "run_output" not in st.session_state:
     st.session_state.run_output = ""
 if "run_status" not in st.session_state:
     st.session_state.run_status = None
+if "evaluation_summary" not in st.session_state:
+    st.session_state.evaluation_summary = ""
 
 status_placeholder = st.empty()
 output_placeholder = st.empty()
-scroll_placeholder = st.empty()
 
 if st.session_state.run_output:
     output_placeholder.code(st.session_state.run_output)
@@ -597,22 +582,18 @@ if st.session_state.run_status == "success":
 elif st.session_state.run_status == "failed":
     status_placeholder.error("The previous run failed.")
 
-evaluation_summary = extract_evaluation_summary(st.session_state.run_output)
-if evaluation_summary:
-    st.subheader("Evaluation Summary")
-    st.code(evaluation_summary, language="text")
-
 if run_clicked:
     if not storage_path.strip():
         st.error("Storage path is required.")
         st.stop()
 
-    output_lines: list[str] = []
-    output_segment: list[str] = []
-    current_output_placeholder = output_placeholder
+    output_lines: deque[str] = deque(maxlen=LIVE_OUTPUT_LINE_LIMIT)
+    summary_lines: list[str] = []
+    output_update_count = 0
     progress_placeholder = None
     progress_label = None
     st.session_state.run_output = ""
+    st.session_state.evaluation_summary = ""
     st.session_state.run_status = "running"
     output_placeholder.empty()
 
@@ -638,28 +619,23 @@ if run_clicked:
                 if progress_placeholder is None or label != progress_label:
                     progress_placeholder = st.empty()
                     progress_label = label
-                    scroll_to_latest_output(
-                        scroll_placeholder,
-                        len(output_lines),
-                    )
                 progress_placeholder.progress(
                     min(current / total, 1.0) if total else 1.0,
                     text=f"{label} {current}/{total}",
                 )
-                current_output_placeholder = None
-                output_segment = []
                 continue
             output_lines.append(line)
-            if current_output_placeholder is None:
-                current_output_placeholder = st.empty()
-            output_segment.append(line)
+            output_update_count += 1
             st.session_state.run_output = "".join(output_lines)
-            current_output_placeholder.code("".join(output_segment))
-            if len(output_lines) == 1 or len(output_lines) % 5 == 0:
-                scroll_to_latest_output(scroll_placeholder, len(output_lines))
+            line_summary = extract_evaluation_summary(line)
+            if line_summary:
+                summary_lines.append(line_summary)
+                st.session_state.evaluation_summary = "\n".join(summary_lines)
+            if output_update_count == 1 or output_update_count % 5 == 0:
+                output_placeholder.code(st.session_state.run_output)
 
     returncode = process.wait()
-    scroll_to_latest_output(scroll_placeholder, len(output_lines) + 1)
+    output_placeholder.code(st.session_state.run_output)
 
     if returncode == 0:
         st.session_state.run_status = "success"
@@ -667,6 +643,10 @@ if run_clicked:
     else:
         st.session_state.run_status = "failed"
         status_placeholder.error(f"Run failed with exit code {returncode}.")
+
+if st.session_state.evaluation_summary:
+    st.subheader("Evaluation Summary")
+    st.code(st.session_state.evaluation_summary, language="text")
 
 st.divider()
 st.subheader("Recent Result Files")
