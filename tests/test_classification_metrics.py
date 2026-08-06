@@ -2,7 +2,10 @@
 
 import unittest
 
-from legonet.eval.classification_metrics import compute_classification_metrics
+from legonet.eval.classification_metrics import (
+    compute_classification_metrics,
+    decode_class_predictions,
+)
 from legonet.eval.per_object_result import ClassificationType
 
 
@@ -27,6 +30,21 @@ class ClassificationMetricsTests(unittest.TestCase):
         self.assertAlmostEqual(metrics.balanced_accuracy, 0.75)
         self.assertAlmostEqual(metrics.per_class["white"].precision, 2 / 3)
         self.assertAlmostEqual(metrics.one_minus_fvu, 0.0)
+
+    def test_decodes_one_binary_prediction_per_object(self) -> None:
+        predictions = decode_class_predictions(
+            [[0.2], [0.5], [0.9]], ClassificationType.BINARY
+        )
+
+        self.assertEqual(predictions.tolist(), [0, 1, 1])
+
+    def test_decodes_one_multiclass_prediction_per_object(self) -> None:
+        predictions = decode_class_predictions(
+            [[0.8, 0.1, 0.1], [0.1, 0.2, 0.7]],
+            ClassificationType.NOMINAL,
+        )
+
+        self.assertEqual(predictions.tolist(), [0, 2])
 
     def test_nominal_multiclass_metrics_do_not_compute_fvu(self) -> None:
         metrics = compute_classification_metrics(

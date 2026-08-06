@@ -28,9 +28,13 @@ from legonet.eval.KP_detection_eval import (
     points_detection_t_p,
 )
 from legonet.eval.regression_metrics import compute_regression_metrics
-from legonet.eval.classification_metrics import compute_classification_metrics
+from legonet.eval.classification_metrics import (
+    compute_classification_metrics,
+    decode_class_predictions,
+)
 from legonet.eval.per_object_result import ClassificationType
 from legonet.eval.per_image_attribute_metrics import (
+    aggregate_matched_image_attributes,
     compute_per_image_attribute_metrics,
 )
 from legonet.eval.reporting import (
@@ -983,31 +987,21 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             if len(gt_counts_temp)>0 or is_roots_2:
                 if len(gt_counts_temp)>0:
                     im_gt_avg = np.sum(gt_counts_temp[:, 0]) / gt_counts_temp.shape[0]
-                    state['per_im_gt_avg'].append(im_gt_avg)
-                    state['per_im_gt_avg_dict'][image_name] = im_gt_avg
-
                     if is_roots_2:
                         TRL_im_gt_sum = np.sum(gt_counts_temp[:, 3])
-                        state['TRL_per_im_gt_sum'].append(TRL_im_gt_sum)
-                        state['TRL_per_im_gt_sum_dict'][image_name] = TRL_im_gt_sum
-
                         dia_im_gt_avg = np.sum(gt_counts_temp[:, 4]) / gt_counts_temp.shape[0]
-                        state['dia_per_im_gt_avg'].append(dia_im_gt_avg)
-                        state['dia_per_im_gt_avg_dict'][image_name] = dia_im_gt_avg
+                    else:
+                        state['per_im_gt_avg'].append(im_gt_avg)
+                        state['per_im_gt_avg_dict'][image_name] = im_gt_avg
 
                 else:
                     im_gt_avg = 0
-                    state['per_im_gt_avg'].append(im_gt_avg)
-                    state['per_im_gt_avg_dict'][image_name] = im_gt_avg
-
                     if is_roots_2:
                         TRL_im_gt_sum = 0
-                        state['TRL_per_im_gt_sum'].append(TRL_im_gt_sum)
-                        state['TRL_per_im_gt_sum_dict'][image_name] = TRL_im_gt_sum
-
                         dia_im_gt_avg = 0
-                        state['dia_per_im_gt_avg'].append(dia_im_gt_avg)
-                        state['dia_per_im_gt_avg_dict'][image_name] = dia_im_gt_avg
+                    else:
+                        state['per_im_gt_avg'].append(im_gt_avg)
+                        state['per_im_gt_avg_dict'][image_name] = im_gt_avg
 
             box_annotations_withPoints = []
             box_annotations_all = []
@@ -1118,7 +1112,10 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                         state['predicted_dia_any_crop'].append(current_dia_pred)
                         current_dia_sum += current_dia_pred
 
-                        current_color_pred = np.round(c_out.cpu()[0].numpy())
+                        current_color_pred = decode_class_predictions(
+                            [c_out.cpu()[0].item()],
+                            ClassificationType.BINARY,
+                        )[0]
                         state['predicted_color_any_crop'].append(current_color_pred)
 
                     else:
@@ -1127,14 +1124,13 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     state['predicted_counts_any_crop'].append(current_pred)
                     current_sum += current_pred
 
-                state['per_im_pred_avg'].append(current_sum/estimation_outputs[0].shape[0])  # relevant only to counting
-                state['per_im_pred_dict'][image_name] = state['per_im_pred_avg'][-1]
-
-                if is_roots_2:
-                    state['TRL_per_im_pred_sum'].append(current_TRL_sum) # / estimation_outputs[0].shape[0])
-                    state['TRL_per_im_pred_dict'][image_name] = state['TRL_per_im_pred_sum'][-1]
-                    state['dia_per_im_pred_avg'].append(current_dia_sum / estimation_outputs[0].shape[0])
-                    state['dia_per_im_pred_dict'][image_name] = state['dia_per_im_pred_avg'][-1]
+                if not is_roots_2:
+                    state['per_im_pred_avg'].append(
+                        current_sum / estimation_outputs[0].shape[0]
+                    )
+                    state['per_im_pred_dict'][image_name] = (
+                        state['per_im_pred_avg'][-1]
+                    )
 
             ###################################################################################################################################################
             # detection_outputs - outputs of the detection part (based on module where), after filtering by nms and min score
@@ -1275,11 +1271,17 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                     if estimation_outputs is not None:
                         if is_roots_2:
-                            state['detections_data_any_crop'][image_name]['color_pred'].append(estimation_outputs[0][b][0].cpu().item())
+                            decoded_color = int(
+                                decode_class_predictions(
+                                    [estimation_outputs[0][b][0].cpu().item()],
+                                    ClassificationType.BINARY,
+                                )[0]
+                            )
+                            state['detections_data_any_crop'][image_name]['color_pred'].append(decoded_color)
                             state['detections_data_any_crop'][image_name]['TRL_pred'].append(estimation_outputs[0][b][1].cpu().item())
                             state['detections_data_any_crop'][image_name]['dia_pred'].append(estimation_outputs[0][b][2].cpu().item())
 
-                            color_pred.append(estimation_outputs[0][b][0].cpu().item())
+                            color_pred.append(decoded_color)
                             TRL_pred.append(estimation_outputs[0][b][1].cpu().item())
                             dia_pred.append(estimation_outputs[0][b][2].cpu().item())
 
@@ -1394,15 +1396,17 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                     adjusted_crops_orig_boxes = torch.cat(adjusted_crops_orig_boxes, dim=0)
                     indices = np.argsort(-scores_temp)
-                    adjusted_crops_orig_boxes = adjusted_crops_orig_boxes[indices]
 
                     max_overlap_array = []
 
-                    matches = _match_detections_to_gt(
-                        adjusted_crops_orig_boxes,
+                    sorted_matches = _match_detections_to_gt(
+                        adjusted_crops_orig_boxes[indices],
                         box_annotations_withPoints,
                         config.Detection.iou_threshold,
                     )
+                    matches = [None] * len(sorted_matches)
+                    for sorted_index, original_index in enumerate(indices):
+                        matches[original_index] = sorted_matches[sorted_index]
                     for d, assigned_annotation, max_overlap, is_new_match in matches:
 
                         state['detections_data_any_crop'][image_name]['score'].append(float(d[4]))
@@ -1536,6 +1540,53 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                         state['not_found_gt'][image_name]['color_gt'].append(gt_counts_copy[i][0])
                         state['not_found_gt'][image_name]['color_pred'].append(-1)
+
+            if is_roots_2 and estimation_outputs is not None:
+                image_aggregates = aggregate_matched_image_attributes(
+                    orig_TRL_GT,
+                    TRL_pred,
+                    orig_dia_GT,
+                    dia_pred,
+                    orig_color_GT,
+                    color_pred,
+                )
+                if image_aggregates is not None:
+                    state['TRL_per_im_gt_sum'].append(
+                        image_aggregates.trl_ground_truth
+                    )
+                    state['TRL_per_im_gt_sum_dict'][image_name] = (
+                        image_aggregates.trl_ground_truth
+                    )
+                    state['TRL_per_im_pred_sum'].append(
+                        image_aggregates.trl_prediction
+                    )
+                    state['TRL_per_im_pred_dict'][image_name] = (
+                        image_aggregates.trl_prediction
+                    )
+                    state['dia_per_im_gt_avg'].append(
+                        image_aggregates.diameter_ground_truth
+                    )
+                    state['dia_per_im_gt_avg_dict'][image_name] = (
+                        image_aggregates.diameter_ground_truth
+                    )
+                    state['dia_per_im_pred_avg'].append(
+                        image_aggregates.diameter_prediction
+                    )
+                    state['dia_per_im_pred_dict'][image_name] = (
+                        image_aggregates.diameter_prediction
+                    )
+                    state['per_im_gt_avg'].append(
+                        image_aggregates.color_ground_truth
+                    )
+                    state['per_im_gt_avg_dict'][image_name] = (
+                        image_aggregates.color_ground_truth
+                    )
+                    state['per_im_pred_avg'].append(
+                        image_aggregates.color_prediction
+                    )
+                    state['per_im_pred_dict'][image_name] = (
+                        image_aggregates.color_prediction
+                    )
 
             ############################################################################################################
             # Evaluate the results of the given image

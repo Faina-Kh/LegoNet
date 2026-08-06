@@ -954,7 +954,7 @@ class KeypointBasedEstimator(nn.Module):
 
         else:
             if self.binary_model and self.binary_loss_version == "crossEnt": #config.General.binary_model
-                output = torch.argmax(output)
+                output = torch.argmax(output, dim=1, keepdim=True)
 
             if self.binary_model and self.binary_loss_version == "L1Loss": #config.General.binary_model
                 output = torch.round(output)

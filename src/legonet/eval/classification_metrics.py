@@ -11,6 +11,32 @@ from legonet.eval.per_object_result import (
 )
 
 
+def decode_class_predictions(
+    predictions: Any,
+    classification_type: ClassificationType,
+    threshold: float = 0.5,
+) -> np.ndarray:
+    """Decode per-sample scores into class indices.
+
+    Binary predictions may be scalar scores or a two-column score matrix.
+    Nominal and ordinal predictions use the highest-scoring class per sample.
+    """
+    values = np.asarray(predictions)
+    if values.ndim == 0:
+        values = values.reshape(1)
+    if values.ndim == 1:
+        if classification_type is not ClassificationType.BINARY:
+            raise ValueError("Multiclass predictions require one score per class.")
+        return (values >= threshold).astype(int)
+    if values.ndim != 2:
+        raise ValueError("Predictions must be a score vector or matrix.")
+    if values.shape[1] == 1:
+        if classification_type is not ClassificationType.BINARY:
+            raise ValueError("Multiclass predictions require multiple columns.")
+        return (values[:, 0] >= threshold).astype(int)
+    return np.argmax(values, axis=1)
+
+
 def _safe_ratio(numerator: int, denominator: int) -> Optional[float]:
     """Return a ratio, or ``None`` when it is undefined."""
     return numerator / denominator if denominator > 0 else None

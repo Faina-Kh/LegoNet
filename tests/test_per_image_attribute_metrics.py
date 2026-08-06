@@ -3,6 +3,7 @@
 import unittest
 
 from legonet.eval.per_image_attribute_metrics import (
+    aggregate_matched_image_attributes,
     compute_per_image_attribute_metrics,
 )
 
@@ -23,6 +24,31 @@ class PerImageAttributeMetricsTests(unittest.TestCase):
         self.assertAlmostEqual(metrics.trl.one_minus_fvu, 0.75)
         self.assertAlmostEqual(metrics.diameter.one_minus_fvu, 0.0)
         self.assertAlmostEqual(metrics.color.one_minus_fvu, 0.0)
+
+    def test_aggregates_only_iou_matched_objects(self) -> None:
+        aggregates = aggregate_matched_image_attributes(
+            trl_ground_truth=[10.0, -1.0, 20.0],
+            trl_predictions=[9.0, 100.0, 18.0],
+            diameter_ground_truth=[2.0, -1.0, 4.0],
+            diameter_predictions=[1.0, 100.0, 5.0],
+            color_ground_truth=[0.0, -1.0, 1.0],
+            color_predictions=[0.0, 1.0, 0.0],
+        )
+
+        self.assertIsNotNone(aggregates)
+        self.assertEqual(aggregates.trl_ground_truth, 30.0)
+        self.assertEqual(aggregates.trl_prediction, 27.0)
+        self.assertEqual(aggregates.diameter_ground_truth, 3.0)
+        self.assertEqual(aggregates.diameter_prediction, 3.0)
+        self.assertEqual(aggregates.color_ground_truth, 0.5)
+        self.assertEqual(aggregates.color_prediction, 0.0)
+
+    def test_image_without_matches_has_no_attribute_aggregate(self) -> None:
+        aggregates = aggregate_matched_image_attributes(
+            [-1.0], [10.0], [-1.0], [2.0], [-1.0], [1.0]
+        )
+
+        self.assertIsNone(aggregates)
 
     def test_color_uses_image_means_not_object_classification_accuracy(self) -> None:
         metrics = compute_per_image_attribute_metrics(
