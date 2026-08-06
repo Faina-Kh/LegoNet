@@ -6,7 +6,7 @@ independently testable while the legacy evaluation routine is decomposed.
 """
 
 import os
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable
 
 import cv2
 import matplotlib
@@ -36,6 +36,13 @@ from legonet.eval.per_image_attribute_metrics import (
     compute_per_image_attribute_metrics,
 )
 from legonet.eval.reporting import (
+    SEPARATOR,
+    format_attribute_summary,
+    format_counting_per_image,
+    format_counting_summary,
+    format_detection_metrics,
+    format_matching_diagnostics,
+    format_roots_per_image,
     write_evaluation_artifacts,
     write_keypoint_precision_recall,
 )
@@ -46,15 +53,6 @@ from legonet.utils import printf
 
 
 unnormalize = UnNormalizer()
-
-
-def _format_optional_metric(value: Optional[float]) -> str:
-    """Format a finite evaluation metric or report it as unavailable."""
-    return (
-        f"{value:.4f}"
-        if value is not None and np.isfinite(value)
-        else "n/a"
-    )
 
 
 def _get_detections(detection_outputs, scale):
@@ -2055,97 +2053,33 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                 precision_det = -1
 
         if verbose:
-
             if not is_roots_2:
-
-                printf("====================================================================================================\n")
-                printf("Summary - counting for IoU-matched GT boxes\n")
-                printf(
-                    "orig_avg_abs_count_diff: %.3f | orig_count_agreement: %.3f | orig_MSE: %.3f | orig_avg_relative_error: %.3f | orig_1-FVU: %3f\n",
-                    orig_avg_abs_count_diff, orig_count_agr, orig_MSE, orig_avg_rel_error, 1 - orig_FVU)
-                print()
-
-                printf("====================================================================================================\n")
-                printf("Diagnostic - counting within positive predicted crops\n")
-                printf(
-                    "positive_crops: %d | empty_crops: %d | total_evaluated_crops: %d\n",
-                    crop_count_metrics["num_positive"],
-                    crop_count_metrics["num_empty"],
-                    crop_count_metrics["num_total"],
+                print(
+                    format_counting_summary(
+                        orig_avg_abs_count_diff,
+                        orig_count_agr,
+                        orig_MSE,
+                        orig_avg_rel_error,
+                        1 - orig_FVU,
+                        crop_count_metrics,
+                    ),
+                    end="",
                 )
-                printf(
-                    "crop_MAE: %.3f | crop_count_agreement: %.3f | crop_MSE: %.3f | crop_avg_relative_error: %.3f\n",
-                    crop_count_metrics["mae"],
-                    crop_count_metrics["exact_agreement"],
-                    crop_count_metrics["mse"],
-                    crop_count_metrics["mean_relative_error"],
+            elif args.have_GT:
+                print(
+                    format_attribute_summary(
+                        orig_avg_abs_TRL_diff,
+                        orig_MSE_TRL,
+                        orig_avg_rel_error_TRL,
+                        1 - orig_FVU_TRL,
+                        orig_avg_abs_dia_diff,
+                        orig_MSE_dia,
+                        orig_avg_rel_error_dia,
+                        1 - orig_FVU_dia,
+                        color_metrics,
+                    ),
+                    end="",
                 )
-
-            else:
-                if args.have_GT:
-
-                    printf("====================================================================================================\n")
-                    printf("Results Summary: \n")
-                    printf(
-                        "orig_avg_abs_TRL_diff: %.3f | orig_MSE_TRL: %.3f | orig_avg_relative_error_TRL: %.3f | orig_1-FVU_TRL: %3f\n",
-                        orig_avg_abs_TRL_diff, orig_MSE_TRL, orig_avg_rel_error_TRL, 1 - orig_FVU_TRL)
-                    printf(
-                        "orig_avg_abs_dia_diff: %.3f | orig_MSE_dia: %.3f | orig_avg_relative_error_dia: %.3f | orig_1-FVU_dia: %3f\n",
-                        orig_avg_abs_dia_diff, orig_MSE_dia, orig_avg_rel_error_dia, 1 - orig_FVU_dia)
-
-                    if color_metrics is not None:
-                        color_accuracy = (
-                            "n/a" if color_metrics.accuracy is None
-                            else f"{color_metrics.accuracy:.3f}"
-                        )
-                        color_error_rate = (
-                            "n/a" if color_metrics.error_rate is None
-                            else f"{color_metrics.error_rate:.3f}"
-                        )
-                        color_balanced_accuracy = (
-                            "n/a" if color_metrics.balanced_accuracy is None
-                            else f"{color_metrics.balanced_accuracy:.3f}"
-                        )
-                        color_macro_f1 = (
-                            "n/a" if color_metrics.macro_f1 is None
-                            else f"{color_metrics.macro_f1:.3f}"
-                        )
-                        color_macro_precision = (
-                            "n/a" if color_metrics.macro_precision is None
-                            else f"{color_metrics.macro_precision:.3f}"
-                        )
-                        color_macro_recall = (
-                            "n/a" if color_metrics.macro_recall is None
-                            else f"{color_metrics.macro_recall:.3f}"
-                        )
-                        color_fvu = (
-                            "n/a" if color_metrics.one_minus_fvu is None
-                            else f"{color_metrics.one_minus_fvu:.3f}"
-                        )
-                        color_coverage = (
-                            "n/a" if color_metrics.coverage is None
-                            else f"{color_metrics.coverage:.3f}"
-                        )
-                        printf(
-                            "color_correct: %d | color_evaluated: %d | color_accuracy: %s | color_error_rate: %s | color_1-FVU: %s | color_balanced_accuracy: %s | color_macro_F1: %s | color_coverage: %s\n",
-                            color_metrics.correct_predictions,
-                            color_metrics.evaluated_samples,
-                            color_accuracy,
-                            color_error_rate,
-                            color_fvu,
-                            color_balanced_accuracy,
-                            color_macro_f1,
-                            color_coverage,
-                        )
-                        printf(
-                            "color_macro_precision: %s | color_macro_recall: %s | color_classes: %s | color_confusion_matrix: %s\n",
-                            color_macro_precision,
-                            color_macro_recall,
-                            color_metrics.class_names,
-                            color_metrics.confusion_matrix,
-                        )
-
-                    print()
 
             use_all_image_diagnostics = (
                 getattr(args, "predict_empty_image", False)
@@ -2164,163 +2098,51 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                 diagnostic_false_positives = state['FP']
                 diagnostic_scope = "attribute-annotated images only"
 
-            diagnostic_recall = (
-                diagnostic_matches / diagnostic_gt_objects
-                if diagnostic_gt_objects > 0 else 0.0
-            )
-            diagnostic_prediction_count = (
-                diagnostic_matches + diagnostic_false_positives
-            )
-            diagnostic_precision = (
-                diagnostic_matches / diagnostic_prediction_count
-                if diagnostic_prediction_count > 0 else 0.0
-            )
-
-            print("====================================================================================================\n")
-            printf("Object matching diagnostics (%s)\n", diagnostic_scope)
-            printf(
-                "GT objects considered: %d\n",
-                diagnostic_gt_objects,
-            )
-            printf(
-                "IoU-matched objects: %d (%.2f%% recall)\n",
-                diagnostic_matches,
-                100 * diagnostic_recall,
-            )
-            printf(
-                "Unmatched or duplicate predictions: %d\n",
-                diagnostic_false_positives,
-            )
-            printf(
-                "Matched-object precision: %.2f%% (%d / (%d + %d))\n\n",
-                100 * diagnostic_precision,
-                diagnostic_matches,
-                diagnostic_matches,
-                diagnostic_false_positives,
+            print(
+                format_matching_diagnostics(
+                    diagnostic_scope,
+                    diagnostic_gt_objects,
+                    diagnostic_matches,
+                    diagnostic_false_positives,
+                ),
+                end="",
             )
 
             if detection_metrics is not None:
-                print("====================================================================================================\n")
-                detection_map, detection_precision, detection_recall = (
-                    detection_metrics[:3]
+                print(format_detection_metrics(detection_metrics), end="")
+
+            print(f"{SEPARATOR}\n")
+
+            if not is_roots_2 and args.have_GT:
+                print(
+                    format_counting_per_image(
+                        state['per_im_gt_avg_dict'],
+                        state['per_im_pred_dict'],
+                    ),
+                    end="",
                 )
-                printf("Bounding-box detection stats (all images)\n")
-                printf(
-                    "mAP = %.3f | precision = %.3f | recall = %.3f\n\n",
-                    detection_map,
-                    detection_precision,
-                    detection_recall,
+            elif is_roots_2 and args.have_GT:
+                image_names = list(state['per_im_pred_dict'])
+                per_image_metrics = compute_per_image_attribute_metrics(
+                    [state['TRL_per_im_gt_sum_dict'][im] for im in image_names],
+                    [state['TRL_per_im_pred_dict'][im] for im in image_names],
+                    [state['dia_per_im_gt_avg_dict'][im] for im in image_names],
+                    [state['dia_per_im_pred_dict'][im] for im in image_names],
+                    [state['per_im_gt_avg_dict'][im] for im in image_names],
+                    [state['per_im_pred_dict'][im] for im in image_names],
                 )
-
-            print("=====================================================================================================\n")
-
-            if not is_roots_2:
-                if args.have_GT:
-                    print('Per image stats based on IoU-matched GT boxes\n')
-                    print('Per image gt, predicted avg count')
-                    abs_error = []
-                    for im in state['per_im_pred_dict'].keys():
-                        abs_error.append(np.abs(state['per_im_gt_avg_dict'][im]-state['per_im_pred_dict'][im])/state['per_im_gt_avg_dict'][im])
-                        print("{}: avg_gt: {:.2f}, avg_pred: {:.2f}, rel_error: {:.2f}".
-                              format(im, state['per_im_gt_avg_dict'][im], state['per_im_pred_dict'][im],
-                                     abs_error[-1]))
-
-                    avg_per_image_error = np.mean(abs_error)
-                    print("Avg of per image rel_error:{:.4f}".format(avg_per_image_error))
-
-            else:
-                if args.have_GT:
-                    print('Per image stats based on IoU-matched GT boxes\n')
-                    image_names = list(state['per_im_pred_dict'].keys())
-                    per_image_metrics = compute_per_image_attribute_metrics(
-                        [state['TRL_per_im_gt_sum_dict'][im] for im in image_names],
-                        [state['TRL_per_im_pred_dict'][im] for im in image_names],
-                        [state['dia_per_im_gt_avg_dict'][im] for im in image_names],
-                        [state['dia_per_im_pred_dict'][im] for im in image_names],
-                        [state['per_im_gt_avg_dict'][im] for im in image_names],
-                        [state['per_im_pred_dict'][im] for im in image_names],
-                    )
-                    print('Per image gt TRL (sum of RL), predicted sum TRL')
-                    abs_error_TRL = []
-                    for im in state['TRL_per_im_pred_dict'].keys():
-                        if state['TRL_per_im_gt_sum_dict'][im] > 0:
-                            abs_error_TRL.append(np.abs(state['TRL_per_im_gt_sum_dict'][im] - state['TRL_per_im_pred_dict'][im]) / state['TRL_per_im_gt_sum_dict'][im])
-                        else:
-                            abs_error_TRL.append(-1)
-
-                        print("{}: sum_gt_TRL: {:0.2f}, pred_TRL: {:0.2f}, rel_error_TRL: {:0.2f}".format(im, state['TRL_per_im_gt_sum_dict'][im],
-                                                                                                state['TRL_per_im_pred_dict'][im],
-                                                                                                abs_error_TRL[-1]))
-                    abs_error_TRL_nonZero = [TRL for TRL in abs_error_TRL if TRL > 0]
-
-                    print(
-                        "Avg of per image rel_error of TRL:{:0.4f} | 1-FVU: {}".format(
-                            np.mean(abs_error_TRL_nonZero),
-                            _format_optional_metric(
-                                per_image_metrics.trl.one_minus_fvu
-                            ),
-                        )
-                    )
-                    print()
-
-                    abs_error_dia = []
-                    abs_difference_dia = []
-                    for im in state['dia_per_im_pred_dict'].keys():
-                        abs_difference_dia.append(
-                            np.abs(
-                                state['dia_per_im_gt_avg_dict'][im]
-                                - state['dia_per_im_pred_dict'][im]
-                            )
-                        )
-                        if state['dia_per_im_gt_avg_dict'][im] > 0:
-                            abs_error_dia.append(
-                                np.abs(state['dia_per_im_gt_avg_dict'][im] - state['dia_per_im_pred_dict'][im]) / state['dia_per_im_gt_avg_dict'][im])
-                        else:
-                            abs_error_dia.append(-1)
-
-                        print("{}: avg_gt_dia: {:0.2f}, avg_pred_dia: {:0.2f}, rel_error_dia: {:0.2f}".format(im,
-                                                                                                            state['dia_per_im_gt_avg_dict'][im],
-                                                                                                            state['dia_per_im_pred_dict'][im],
-                                                                                                            abs_error_dia[-1]))
-                    abs_error_dia_nonZero = [dia for dia in abs_error_dia if dia > 0]
-                    print(
-                        "Avg of per image rel_error of diameter:{:0.4f} | 1-FVU: {} |abs difference:{:0.4f}".format(
-                            np.mean(abs_error_dia),
-                            _format_optional_metric(
-                                per_image_metrics.diameter.one_minus_fvu
-                            ),
-                            np.mean(abs_difference_dia),
-                        )
-                    )
-                    print()
-
-                    print('Per image average GT and predicted color')
-                    abs_error_color = []
-                    for im in image_names:
-                        gt_color = state['per_im_gt_avg_dict'][im]
-                        predicted_color = state['per_im_pred_dict'][im]
-                        abs_error = np.abs(gt_color - predicted_color)
-                        abs_error_color.append(abs_error)
-                        print(
-                            "{}: avg_gt_color: {:.2f}, avg_pred_color: {:.2f}, abs_error_color: {:.2f}".format(
-                                im,
-                                gt_color,
-                                predicted_color,
-                                abs_error,
-                            )
-                        )
-
-                    print(
-                        "Avg of per image absolute error of color: {} | 1-FVU: {}".format(
-                            _format_optional_metric(
-                                float(np.mean(abs_error_color))
-                                if abs_error_color else None
-                            ),
-                            _format_optional_metric(
-                                per_image_metrics.color.one_minus_fvu
-                            ),
-                        )
-                    )
+                print(
+                    format_roots_per_image(
+                        state['TRL_per_im_gt_sum_dict'],
+                        state['TRL_per_im_pred_dict'],
+                        state['dia_per_im_gt_avg_dict'],
+                        state['dia_per_im_pred_dict'],
+                        state['per_im_gt_avg_dict'],
+                        state['per_im_pred_dict'],
+                        per_image_metrics,
+                    ),
+                    end="",
+                )
 
         # Export evaluation records.
         if print_to_files and args is not None:
