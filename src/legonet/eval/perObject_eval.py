@@ -34,7 +34,6 @@ from legonet.eval.classification_metrics import (
 )
 from legonet.eval.per_object_result import ClassificationType
 from legonet.eval.per_image_attribute_metrics import (
-    aggregate_matched_image_attributes,
     compute_per_image_attribute_metrics,
 )
 from legonet.eval.reporting import (
@@ -987,21 +986,27 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             if len(gt_counts_temp)>0 or is_roots_2:
                 if len(gt_counts_temp)>0:
                     im_gt_avg = np.sum(gt_counts_temp[:, 0]) / gt_counts_temp.shape[0]
+                    state['per_im_gt_avg'].append(im_gt_avg)
+                    state['per_im_gt_avg_dict'][image_name] = im_gt_avg
                     if is_roots_2:
                         TRL_im_gt_sum = np.sum(gt_counts_temp[:, 3])
+                        state['TRL_per_im_gt_sum'].append(TRL_im_gt_sum)
+                        state['TRL_per_im_gt_sum_dict'][image_name] = TRL_im_gt_sum
                         dia_im_gt_avg = np.sum(gt_counts_temp[:, 4]) / gt_counts_temp.shape[0]
-                    else:
-                        state['per_im_gt_avg'].append(im_gt_avg)
-                        state['per_im_gt_avg_dict'][image_name] = im_gt_avg
+                        state['dia_per_im_gt_avg'].append(dia_im_gt_avg)
+                        state['dia_per_im_gt_avg_dict'][image_name] = dia_im_gt_avg
 
                 else:
                     im_gt_avg = 0
+                    state['per_im_gt_avg'].append(im_gt_avg)
+                    state['per_im_gt_avg_dict'][image_name] = im_gt_avg
                     if is_roots_2:
                         TRL_im_gt_sum = 0
+                        state['TRL_per_im_gt_sum'].append(TRL_im_gt_sum)
+                        state['TRL_per_im_gt_sum_dict'][image_name] = TRL_im_gt_sum
                         dia_im_gt_avg = 0
-                    else:
-                        state['per_im_gt_avg'].append(im_gt_avg)
-                        state['per_im_gt_avg_dict'][image_name] = im_gt_avg
+                        state['dia_per_im_gt_avg'].append(dia_im_gt_avg)
+                        state['dia_per_im_gt_avg_dict'][image_name] = dia_im_gt_avg
 
             box_annotations_withPoints = []
             box_annotations_all = []
@@ -1124,12 +1129,23 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     state['predicted_counts_any_crop'].append(current_pred)
                     current_sum += current_pred
 
-                if not is_roots_2:
-                    state['per_im_pred_avg'].append(
-                        current_sum / estimation_outputs[0].shape[0]
+                state['per_im_pred_avg'].append(
+                    current_sum / estimation_outputs[0].shape[0]
+                )
+                state['per_im_pred_dict'][image_name] = (
+                    state['per_im_pred_avg'][-1]
+                )
+
+                if is_roots_2:
+                    state['TRL_per_im_pred_sum'].append(current_TRL_sum)
+                    state['TRL_per_im_pred_dict'][image_name] = (
+                        state['TRL_per_im_pred_sum'][-1]
                     )
-                    state['per_im_pred_dict'][image_name] = (
-                        state['per_im_pred_avg'][-1]
+                    state['dia_per_im_pred_avg'].append(
+                        current_dia_sum / estimation_outputs[0].shape[0]
+                    )
+                    state['dia_per_im_pred_dict'][image_name] = (
+                        state['dia_per_im_pred_avg'][-1]
                     )
 
             ###################################################################################################################################################
@@ -1540,53 +1556,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                         state['not_found_gt'][image_name]['color_gt'].append(gt_counts_copy[i][0])
                         state['not_found_gt'][image_name]['color_pred'].append(-1)
-
-            if is_roots_2 and estimation_outputs is not None:
-                image_aggregates = aggregate_matched_image_attributes(
-                    orig_TRL_GT,
-                    TRL_pred,
-                    orig_dia_GT,
-                    dia_pred,
-                    orig_color_GT,
-                    color_pred,
-                )
-                if image_aggregates is not None:
-                    state['TRL_per_im_gt_sum'].append(
-                        image_aggregates.trl_ground_truth
-                    )
-                    state['TRL_per_im_gt_sum_dict'][image_name] = (
-                        image_aggregates.trl_ground_truth
-                    )
-                    state['TRL_per_im_pred_sum'].append(
-                        image_aggregates.trl_prediction
-                    )
-                    state['TRL_per_im_pred_dict'][image_name] = (
-                        image_aggregates.trl_prediction
-                    )
-                    state['dia_per_im_gt_avg'].append(
-                        image_aggregates.diameter_ground_truth
-                    )
-                    state['dia_per_im_gt_avg_dict'][image_name] = (
-                        image_aggregates.diameter_ground_truth
-                    )
-                    state['dia_per_im_pred_avg'].append(
-                        image_aggregates.diameter_prediction
-                    )
-                    state['dia_per_im_pred_dict'][image_name] = (
-                        image_aggregates.diameter_prediction
-                    )
-                    state['per_im_gt_avg'].append(
-                        image_aggregates.color_ground_truth
-                    )
-                    state['per_im_gt_avg_dict'][image_name] = (
-                        image_aggregates.color_ground_truth
-                    )
-                    state['per_im_pred_avg'].append(
-                        image_aggregates.color_prediction
-                    )
-                    state['per_im_pred_dict'][image_name] = (
-                        image_aggregates.color_prediction
-                    )
 
             ############################################################################################################
             # Evaluate the results of the given image
