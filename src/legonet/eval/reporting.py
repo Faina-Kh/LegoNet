@@ -109,6 +109,21 @@ def format_attribute_summary(
     return report + "\n"
 
 
+def format_keypoint_summary(
+    average_precision: float,
+    recall: float,
+    precision: float,
+) -> str:
+    """Format the aggregate keypoint-detection metrics."""
+    return (
+        f"{SEPARATOR}\n"
+        "Summary - keypoint detection\n"
+        f"mAP: {_metric_text(average_precision)} | "
+        f"recall: {_metric_text(recall)} | "
+        f"precision: {_metric_text(precision)}\n"
+    )
+
+
 def format_matching_diagnostics(
     scope: str,
     ground_truth_objects: int,
@@ -370,4 +385,18 @@ def write_keypoint_precision_recall(
         Path(output_directory) / "parts_recall_precision.csv",
         ("recall", "precision"),
         list(zip(recall, precision)),
+    )
+
+
+def write_keypoint_summary(
+    output_directory: str,
+    average_precision: float,
+    recall: float,
+    precision: float,
+) -> None:
+    """Write aggregate keypoint-detection metrics as a one-row CSV."""
+    _write_rows(
+        Path(output_directory) / "keypoint_summary.csv",
+        ("mAP", "recall", "precision"),
+        ((average_precision, recall, precision),),
     )
