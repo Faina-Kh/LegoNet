@@ -5,7 +5,6 @@ training and inference pipelines.  Small private helpers keep matching rules
 independently testable while the legacy evaluation routine is decomposed.
 """
 
-import csv
 import os
 from typing import Any, Iterable, Optional
 
@@ -35,6 +34,10 @@ from legonet.eval.classification_metrics import compute_classification_metrics
 from legonet.eval.per_object_result import ClassificationType
 from legonet.eval.per_image_attribute_metrics import (
     compute_per_image_attribute_metrics,
+)
+from legonet.eval.reporting import (
+    write_evaluation_artifacts,
+    write_keypoint_precision_recall,
 )
 from legonet.my_dataloader import UnNormalizer
 from legonet.progress import print_image_progress
@@ -2082,7 +2085,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                 if args.have_GT:
 
                     printf("====================================================================================================\n")
-                    printf("Summary - for gt boxes \n")
+                    printf("Results Summary: \n")
                     printf(
                         "orig_avg_abs_TRL_diff: %.3f | orig_MSE_TRL: %.3f | orig_avg_relative_error_TRL: %.3f | orig_1-FVU_TRL: %3f\n",
                         orig_avg_abs_TRL_diff, orig_MSE_TRL, orig_avg_rel_error_TRL, 1 - orig_FVU_TRL)
@@ -2281,7 +2284,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                                                                                                             abs_error_dia[-1]))
                     abs_error_dia_nonZero = [dia for dia in abs_error_dia if dia > 0]
                     print(
-                        "Avg of per image rel_error:{:0.4f} | 1-FVU: {} |abs difference of diameter:{:0.4f}".format(
+                        "Avg of per image rel_error of diameter:{:0.4f} | 1-FVU: {} |abs difference:{:0.4f}".format(
                             np.mean(abs_error_dia),
                             _format_optional_metric(
                                 per_image_metrics.diameter.one_minus_fvu
@@ -2319,152 +2322,13 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                         )
                     )
 
-        #export detections info
+        # Export evaluation records.
         if print_to_files and args is not None:
-            if is_roots_2:
-                csv_columns = ['img','crop' , 'gt_color', 'pred_color', 'label', 'score', 'max_overlap',  'gt_TRL', 'pred_TRL', 'gt_dia','pred_dia']
-            else:
-                csv_columns = ['img', 'crop', 'gt_count', 'pred_count', 'label', 'score','max_overlap']
-            csv_file = os.path.join(config.General.files_path, "detections_data_any_crop.csv") #
-            f = open(csv_file, 'w', newline='')
-            with f:
-                writer = csv.writer(f)
-                writer.writerow(csv_columns)
-                for img in state['detections_data_any_crop'].keys():
-                    mydata = state['detections_data_any_crop'][img]
-                    for i in range(len(mydata['score'])):
-                        myrow = []
-                        myrow.append(img)
-                        myrow.append(i)
-
-                        if is_roots_2:
-                            myrow.append(mydata['color_gt'][i])
-                            myrow.append(mydata['color_pred'][i])
-                        else:
-                            myrow.append(mydata['gt_count'][i])
-                            myrow.append(mydata['pred'][i])
-
-                        myrow.append(mydata['label'][i])
-                        myrow.append(mydata['score'][i])
-                        myrow.append(mydata['max_overlap'][i])
-
-                        if is_roots_2:
-                            myrow.append(mydata['TRL_gt'][i])
-                            myrow.append(mydata['TRL_pred'][i])
-                            myrow.append(mydata['dia_gt'][i])
-                            myrow.append(mydata['dia_pred'][i])
-
-                        writer.writerow(myrow)
-
-
-            #export not found gt info
-            if is_roots_2:
-                csv_columns = ['img', 'gt_color', 'pred_color', 'label', 'score', 'max_overlap', 'gt_TRL', 'pred_TRL', 'gt_dia', 'pred_dia']
-            else:
-                csv_columns = ['img', 'gt_count', 'pred', 'label', 'score', 'max_overlap']
-            csv_file = os.path.join(config.General.files_path, "not_found_gt_count.csv")
-            f = open(csv_file, 'w', newline='')
-            with f:
-                writer = csv.writer(f)
-                writer.writerow(csv_columns)
-                for img in state['not_found_gt'].keys():
-                    mydata = state['not_found_gt'][img]
-                    if len(mydata)>0:
-                        if config.Detect_and_Estimate.type == "per_object_counting":
-                            data_pred = mydata['pred']
-                        elif is_roots_2:
-                            data_pred = mydata['TRL_pred']
-
-                        for i in range(len(data_pred)):
-                            myrow = []
-                            myrow.append(img)
-                            if is_roots_2:
-                                myrow.append(mydata['color_gt'][i])
-                                myrow.append(mydata['color_pred'][i])
-
-                            else:
-                                myrow.append(mydata['gt_count'][i])
-                                myrow.append(mydata['pred'][i])
-
-                            myrow.append(mydata['label'][i])
-                            myrow.append(mydata['score'][i])
-                            myrow.append(mydata['max_overlap'][i])
-
-                            if is_roots_2:
-                                myrow.append(mydata['TRL_gt'][i])
-                                myrow.append(mydata['TRL_pred'][i])
-                                myrow.append(mydata['dia_gt'][i])
-                                myrow.append(mydata['dia_pred'][i])
-
-                            writer.writerow(myrow)
-                    else:
-                        myrow = []
-                        myrow.append(img)
-                        myrow.append('None')
-                        writer.writerow(myrow)
-
-            # export image data of images without box predictions
-            if is_roots_2:
-                csv_columns = ['img', 'gt_color', 'pred_color', 'label', 'score','max_overlap', 'gt_TRL', 'pred_TRL', 'gt_dia', 'pred_dia']
-            else:
-                csv_columns = ['img', 'gt_count', 'pred', 'label', 'score', 'max_overlap']
-
-            csv_file = os.path.join(config.General.files_path, "images_without_detections.csv")  #
-            f = open(csv_file, 'w', newline='')
-            with f:
-                writer = csv.writer(f)
-                writer.writerow(csv_columns)
-                for img in state['no_predictions'].keys():
-                    mydata = state['no_predictions'][img]
-                    if config.Detect_and_Estimate.type == "per_object_counting":
-                        data_pred = mydata['pred']
-                    elif is_roots_2:
-                        data_pred = mydata['TRL_pred']
-
-                    if len(data_pred) > 0:
-                        for i in range(len(data_pred)):
-                            myrow = []
-                            myrow.append(img)
-                            if is_roots_2:
-                                myrow.append(mydata['color_gt'][i])
-                                myrow.append(mydata['color_pred'][i])
-                            else:
-                                myrow.append(mydata['gt_count'][i])
-                                myrow.append(mydata['pred'][i])
-
-                            myrow.append(mydata['label'][i])
-                            myrow.append(mydata['score'][i])
-                            myrow.append(mydata['max_overlap'][i])
-
-                            if is_roots_2:
-                                myrow.append(mydata['TRL_gt'][i])
-                                myrow.append(mydata['TRL_pred'][i])
-                                myrow.append(mydata['dia_gt'][i])
-                                myrow.append(mydata['dia_pred'][i])
-
-                            writer.writerow(myrow)
-
-                    else:
-                        myrow = []
-                        myrow.append(img)
-                        if is_roots_2:
-                            myrow.append(-1) #'color_pred'
-                            myrow.append(-1) #'color_gt'
-                        else:
-                            myrow.append(0) # 'pred'
-                            myrow.append(0) #'gt_count'
-
-                        myrow.append(-1) #'label'
-                        myrow.append(-1) #'score'
-                        myrow.append(-1) #'max_overlap'
-
-                        if is_roots_2:
-                            myrow.append(0) #'TRL_pred'
-                            myrow.append(0) #'TRL_gt'
-                            myrow.append(0) #'dia_pred'
-                            myrow.append(0) #'dia_gt'
-
-                        writer.writerow(myrow)
+            write_evaluation_artifacts(
+                config.General.files_path,
+                state,
+                attributes=is_roots_2,
+            )
 
 
         model.train()
@@ -2474,18 +2338,11 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             print(f'Points detection evaluation: mAP = {ap:.3f}, recall = {recall[-1]:.3f}, precision = {precision[-1]:.3f}')
             plot_PR_curve(recall, precision, ap, save_path=config.General.files_path, plots_name = 'Points_PR_curve.png') #config.General.experiment_path)
 
-            # print recall and precision  to csv
-            csv_columns = ['recall', 'precision']
-            csv_file = os.path.join(config.General.files_path, "parts_recall_precision.csv")
-            f = open(csv_file, 'w', newline='')
-            with f:
-                writer = csv.writer(f)
-                writer.writerow(csv_columns)
-                for w in range(len(recall)):
-                    myrow = []
-                    myrow.append(recall[w])
-                    myrow.append(precision[w])
-                    writer.writerow(myrow)
+            write_keypoint_precision_recall(
+                config.General.files_path,
+                recall,
+                precision,
+            )
 
         if not is_roots_2:
             #count_points_in_crop = getattr(model, "count_points_in_crop", False)
