@@ -656,6 +656,16 @@ if run_clicked:
         st.session_state.run_status = "failed"
         status_placeholder.error(f"Run failed with exit code {returncode}.")
 
+if st.session_state.run_output:
+    with st.expander("Complete run output", expanded=False):
+        st.text_area(
+            "Captured stdout and stderr",
+            value=st.session_state.run_output,
+            height=600,
+            disabled=True,
+            label_visibility="collapsed",
+        )
+
 st.divider()
 st.subheader("Recent Result Files")
 
@@ -674,3 +684,14 @@ else:
         data=selected_artifact.read_bytes(),
         file_name=selected_artifact.name,
     )
+    with st.expander("Preview selected file", expanded=False):
+        st.text_area(
+            "Result file contents",
+            value=selected_artifact.read_text(
+                encoding="utf-8",
+                errors="replace",
+            ),
+            height=600,
+            disabled=True,
+            label_visibility="collapsed",
+        )
