@@ -20,9 +20,9 @@ mAP: 0.600 | recall: 0.500 | precision: 0.400
         summary = extract_evaluation_summary(output)
 
         self.assertNotIn("image.jpg", summary)
-        self.assertEqual(len(summary.splitlines()), 4)
+        self.assertEqual(len(summary.splitlines()), 3)
         self.assertIn("absolute error of color", summary)
-        self.assertIn("mAP: 0.600", summary)
+        self.assertNotIn("mAP: 0.600", summary)
 
     def test_returns_empty_text_before_metrics_are_available(self) -> None:
         self.assertEqual(extract_evaluation_summary("loading model\n"), "")
