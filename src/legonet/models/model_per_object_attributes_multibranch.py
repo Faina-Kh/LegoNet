@@ -15,12 +15,13 @@ from legonet.my_dataloader import UnNormalizer
 from legonet.eval.matching import choose_boxes_by_IoUandPrc
 
 from legonet.models.model_bbox_detection import BBOX_Detection
+from legonet.models.keypoint_utils import KeypointUtilitiesMixin
 
 
 
 
 
-class PerObjectEstimate(nn.Module):
+class PerObjectEstimate(KeypointUtilitiesMixin, nn.Module):
 
     def __init__(self, dataset, network_type, num_classes, freeze_detection = True):
         super(PerObjectEstimate, self).__init__()
@@ -430,67 +431,9 @@ class PerObjectEstimate(nn.Module):
 
         return bbox_crops
 
-    def image_output_shape(self, image_shape, pyramid_level=3):
-        return (np.array(image_shape[:2]) + 2 ** pyramid_level - 1) // (2 ** pyramid_level)
 
-    def images_ratios(self, image_shape, output_shape):
-        return output_shape / np.array(image_shape[:2])
 
-    def create_gausian_mask(self, center_point, nCols, nRows, q=99, radius=(5, 5)):
-        '''
-        create_gausian_mask creates a gaussian mask to be used as GT annotations for the detection-based counter
-        :param center_point:
-        :param nCols:
-        :param nRows:
-        :param q:
-        :param s:
-        :param radius:
-        :return:
-        '''
-        s = 3
-        # if (s >= radius[0]):
-        #     s = 1
-        x = np.tile(range(nCols), (nRows, 1))
-        y = np.tile(np.reshape(range(nRows), (nRows, 1)), (1, nCols))
 
-        x2 = (((x - round(center_point[0])) * s) / radius[0]) ** 2
-        y2 = (((y - round(center_point[1])) * s) / radius[1]) ** 2
-
-        p = np.exp(-0.5 * (x2 + y2))
-
-        p[np.where(p < np.percentile(p, q))] = 0
-
-        p = p / np.max(p)
-        if not np.isfinite(p).all() or not np.isfinite(p).all():
-            print('divide by zero')
-        return p
-
-    def compute_keypoints_targets_multi_maps(self, image_shape, annotations_points_centers_a, radius=(5, 5), pyramid_level=3):
-        # resize transformed-image and annotations
-        import copy
-        annotations_points_centers = copy.deepcopy(annotations_points_centers_a)
-        # here we should resize image too and then check it with the annotations
-        output_shape = self.image_output_shape(image_shape, pyramid_level=pyramid_level)
-        image_ratio = self.images_ratios(image_shape, output_shape)
-
-        if len(annotations_points_centers) == 0:
-            return [np.zeros(output_shape)]
-
-        annotations = np.zeros(output_shape)
-        for i in range(len(annotations_points_centers)):
-            annotations_points_centers[i]['y'] *= image_ratio[0]
-            annotations_points_centers[i]['x'] *= image_ratio[1]
-
-            current_points = [annotations_points_centers[i]['x'], annotations_points_centers[i]['y'] ]
-            gaussian_map = self.create_gausian_mask(current_points[:2], output_shape[1], output_shape[0],
-                                                    radius=radius)
-            # each center point in the GT will be 1 in the annotation map
-            annotations = np.maximum(annotations, gaussian_map)
-
-            if np.isnan(annotations).any():
-                raise ("nan was found")
-
-        return annotations
 
     def getitem(self, bbox_crops, points = None, anns = None):
         filtered_samples = []
@@ -606,34 +549,6 @@ class PerObjectEstimate(nn.Module):
 
         return points
 
-    def nmcs(self, predicted_boxes, relevant_points):
-
-        non_supressed_indices = [True for i in range(predicted_boxes.shape[0])]
-
-        for i in range(predicted_boxes.shape[0]):
-            current_points = relevant_points[i]
-
-            if len(current_points["x"]) == 0:  # no relevant points
-                continue
-
-            for j in range(predicted_boxes.shape[0]):
-
-                candidate_points = relevant_points[j]
-
-                if i == j or len(candidate_points["x"]) == 0 or non_supressed_indices[j] == False:
-                    continue
-                else:
-                    common_points_count = 0
-                    for m in range(len(candidate_points["x"])):
-                        x1, y1 = candidate_points["x"][m], candidate_points["y"][m],
-                        for n in range(len(current_points["x"])):
-                            x2, y2 = current_points["x"][n], current_points["y"][n],
-                            if x1 == x2 and y1 == y2:
-                                common_points_count += 1
-                    if common_points_count == len(candidate_points["x"]):
-                        non_supressed_indices[j] = False
-
-        return non_supressed_indices
 
     def view_points_on_img(self, img, point_anns):
 
