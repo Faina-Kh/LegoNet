@@ -8,20 +8,18 @@ independently testable while the legacy evaluation routine is decomposed.
 import os
 from typing import Iterable
 
-import cv2
 import matplotlib
 import numpy as np
 import PIL
 import torch
 
-import matplotlib.pyplot as plt
 matplotlib.use("TkAgg")
 from PIL import Image
 from thop import profile, clever_format
 
 from legonet import config
 from legonet.eval.attribute_estimation_eval import SumOfAbsDifferences
-from legonet.eval.detection_eval import _compute_ap, compute_overlap, plot_PR_curve
+from legonet.eval.detection_eval import plot_PR_curve
 from legonet.eval.evaluation_policy import EvaluationTask, should_include_image
 from legonet.eval.evaluation_state import initiate_global_dicts
 from legonet.eval.detection_bookkeeping import record_detection_bookkeeping
@@ -31,6 +29,7 @@ from legonet.eval.KP_detection_eval import (
 )
 from legonet.eval.matching import (
     assign_detection_to_gt as _assign_detection_to_gt,
+    choose_boxes_by_IoUandPrc,
     match_detections_to_gt as _match_detections_to_gt,
 )
 from legonet.eval.regression_metrics import compute_regression_metrics
@@ -195,201 +194,6 @@ def _geometric_point_centers_map(
     return center_map
 
 
-def find_points_in_bbox(img, point_anns, bbox_pred, scale):
-
-    points=[]
-
-    # for drawing
-    im = img.cpu().clone().detach()
-    im = np.array(255 *unnormalize(im))
-    im[im < 0] = 0
-    im[im > 255] = 255
-    im = np.transpose(im, (1, 2, 0))
-    im = cv2.cvtColor(im.astype(np.uint8), cv2.COLOR_BGR2RGB)
-
-    for p in point_anns:
-        p['x'] = p['x'] * scale
-        p['y'] = p['y'] * scale
-
-        cv2.circle(im, (int(p['x']), int(p['y'])), radius=3, color=(0, 0, 255), thickness=2)
-
-
-    for b in range(bbox_pred.shape[0]):
-        p_x = []
-        p_y = []
-        box_x1, box_y1, box_x2, box_y2 = bbox_pred[b]
-        cv2.rectangle(im, (int(box_x1), int(box_y1)), (int(box_x2), int(box_y2)), color=(0, 0, 255), thickness=2)
-
-        for p in point_anns:
-            if p['x']<=box_x2 and p['x']>=box_x1 and p['y']<=box_y2 and p['y']>=box_y1:
-                p_x.append(p['x'])
-                p_y.append(p['y'])
-
-        points.append({'x':p_x, 'y':p_y})
-
-    # cv2.imshow('img', im)
-    # cv2.waitKey(0)
-
-    return points
-
-def visualize_pointMaps(count_outputs, count_sample, image_name, imgToVis, maps_path):
-
-    # Draw GT activations:
-    img_copy = imgToVis.copy()
-    background = img_copy.convert("RGBA")
-    BG_w, BG_h = background.size
-
-    background_2=img_copy.convert('L')   #convert image to monochrome
-    background_2.save(maps_path + '/' + image_name + '_background.png')
-    background_2 = Image.open(maps_path + '/' + image_name + '_background.png')
-    background_2=background_2.convert("RGBA")
-
-    if len(count_sample)>0:
-        anno = count_sample.copy() #.cpu().numpy().copy()
-
-        plt.imsave(maps_path + '/' + image_name + '_anno.png', anno)
-        gt_anns = Image.open(maps_path + '/' + image_name + '_anno.png')
-        gt_anns = gt_anns.resize((BG_w, BG_h), Image.Resampling.LANCZOS) #Image.ANTIALIAS)
-        gt_anns.save(maps_path + '/' + image_name + '_anno.png')
-
-        alphaBlended = Image.blend(gt_anns, background_2, 0.6)
-        alphaBlended.save(maps_path + '/' + image_name + '_Blended_GT.png')
-
-        os.remove(maps_path + '/' + image_name + '_anno.png')
-
-    # Relu map #######################################################################################################
-
-    if len(count_outputs) >0:
-        plt.imsave(maps_path + '/' + image_name + '_Relu.png', count_outputs.cpu())
-        relu_anns = Image.open(maps_path + '/' + image_name + '_Relu.png')
-
-        relu_anns = relu_anns.resize((BG_w, BG_h))  # Image.ANTIALIAS
-        relu_anns.save(maps_path + '/' + image_name + '_Relu.png')
-
-        alphaBlended_relu = Image.blend(relu_anns, background_2.convert('RGBA'), 0.6)
-        alphaBlended_relu.save(maps_path + '/' + image_name + '_Blended_Relu.png')
-
-        os.remove(maps_path + '/' + image_name + '_Relu.png')
-
-    os.remove(maps_path + '/' + image_name + '_background.png')
-
-def nmcs(predicted_boxes, relevant_points):
-
-    non_supressed_indices = [True for i in range(predicted_boxes.shape[0])]
-
-    for i in range(predicted_boxes.shape[0]):
-        current_points = relevant_points[i]
-
-        if len(current_points["x"]) == 0:  # no relevant points
-            continue
-
-        for j in range(predicted_boxes.shape[0]):
-
-            candidate_points = relevant_points[j]
-
-            if i == j or len(candidate_points["x"]) == 0 or non_supressed_indices[j] == False:
-                continue
-            else:
-                common_points_count = 0
-                for m in range(len(candidate_points["x"])):
-                    x1, y1 = candidate_points["x"][m], candidate_points["y"][m],
-                    for n in range(len(current_points["x"])):
-                        x2, y2 = current_points["x"][n], current_points["y"][n],
-                        if x1 == x2 and y1 == y2:
-                            common_points_count += 1
-                if common_points_count == len(candidate_points["x"]):
-                    non_supressed_indices[j] = False
-
-    return non_supressed_indices
-
-def choose_boxes_by_IoUandPrc(detections, annotations, d_scores):
-    #annotations = annotations[0,:,:4]
-    annotations_boxes = annotations[0,:,:4]
-    iou_threshold = config.Detection.iou_threshold
-    precision_thresh = config.Detect_and_Estimate.precision_thresh
-
-    false_positives = np.zeros((0,))
-    true_positives = np.zeros((0,))
-    num_annotations = annotations.shape[0]
-    detected_annotations = []
-
-    indices = np.argsort(-d_scores.cpu())
-    detections = detections[indices, :]
-
-    detection_assignments = []
-
-    for d in detections:
-        if annotations_boxes.shape[0] == 0:
-            false_positives = np.append(false_positives, 1)
-            true_positives = np.append(true_positives, 0)
-            continue
-
-        overlaps = compute_overlap(np.expand_dims(d.cpu(), axis=0), annotations_boxes.cpu().numpy())
-        assigned_annotation = np.argmax(overlaps, axis=1)
-        max_overlap = overlaps[0, assigned_annotation]
-
-        if max_overlap >= iou_threshold and assigned_annotation not in detected_annotations:
-            false_positives = np.append(false_positives, 0)
-            true_positives = np.append(true_positives, 1)
-            detected_annotations.append(assigned_annotation)
-
-            #detection_assignments.append(torch.cat((d.unsqueeze(0), torch.tensor([float(assigned_annotation)]).unsqueeze(0).to(config.General.device)), dim=-1))
-            detection_assignments.append(torch.cat(
-                (d.unsqueeze(0), torch.tensor([float(annotations[0][assigned_annotation[0]][5])]).unsqueeze(0).to(config.General.device)),
-                dim=-1))
-
-        else:
-            false_positives = np.append(false_positives, 1)
-            true_positives = np.append(true_positives, 0)
-
-            detection_assignments.append(torch.cat((d.unsqueeze(0),torch.tensor([-1.0]).unsqueeze(0).to(config.General.device)), dim=-1))
-
-
-    # changes for roots
-    return detection_assignments
-
-
-
-    # no annotations -> AP for this class is 0 (is this correct?)
-    if num_annotations == 0:
-        mAP = 0
-    else:
-
-        # sort by score
-        false_positives = false_positives[indices]
-        true_positives = true_positives[indices]
-
-        # compute false positives and true positives
-        false_positives = np.cumsum(false_positives)
-        true_positives = np.cumsum(true_positives)
-
-        # compute recall and precision
-        recall = true_positives / num_annotations
-        precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
-
-        # compute average precision
-        mAP = _compute_ap(recall, precision)
-
-        # sort by precision
-        precision_idx= np.argsort(-precision)
-        precision2=precision[precision_idx]
-        recall2=recall[precision_idx]
-
-        relevant_idx=np.where(precision2>precision_thresh)[0]
-        if len(relevant_idx) >0:
-            relevant_idx=relevant_idx[-1]
-
-            pr= precision2[relevant_idx]
-            rc=recall2[relevant_idx]
-            #print('mAP = {:0.3f}, th={}, pr={}, rc={}\n'.format(mAP, precision_thresh, pr, rc))
-            detections=detections[:(relevant_idx+1)]
-
-            return detections
-
-        else:
-            #print('No relevant detections...\n')
-            return []
-
 def _compute_positive_crop_count_metrics(
     ground_truth_counts: Iterable[float],
     predicted_counts: Iterable[float],
@@ -439,162 +243,6 @@ def _compute_positive_crop_count_metrics(
         }
     )
     return metrics
-
-def view_points_on_img(img, point_anns):
-
-    for p in point_anns:
-        cv2.circle(img, (int(p['x']), int(p['y'])), radius=3, color=(0, 0, 255), thickness=2)
-
-    cv2.imshow('img', img)
-    cv2.waitKey(0)
-
-
-##########################################################################################
-def image_output_shape(image_shape, pyramid_level=3):
-    return (np.array(image_shape[:2]) + 2 ** pyramid_level - 1) // (2 ** pyramid_level)
-
-def images_ratios(image_shape, output_shape):
-    return output_shape / np.array(image_shape[:2])
-
-def create_gausian_mask(center_point, nCols, nRows, q=99, radius=(5, 5)):
-    '''
-    create_gausian_mask creates a gaussian mask to be used as GT annotations for the detection-based counter
-    :param center_point:
-    :param nCols:
-    :param nRows:
-    :param q:
-    :param s:
-    :param radius:
-    :return:
-    '''
-    s = 3
-    # if (s >= radius[0]):
-    #     s = 1
-    x = np.tile(range(nCols), (nRows, 1))
-    y = np.tile(np.reshape(range(nRows), (nRows, 1)), (1, nCols))
-
-    x2 = (((x - np.round(center_point[0])) * s) / radius[0]) ** 2
-    y2 = (((y - np.round(center_point[1])) * s) / radius[1]) ** 2
-
-    p = np.exp(-0.5 * (x2 + y2))
-
-    p[np.where(p < np.percentile(p, q))] = 0
-
-    p = p / np.max(p)
-    if not np.isfinite(p).all() or not np.isfinite(p).all():
-        print('divide by zero')
-    return p
-
-def compute_keypoints_targets_multi_maps(image_shape, annotations_points_centers_a, radius=(5, 5), pyramid_level=3):
-    # resize transformed-image and annotations
-    import copy
-    annotations_points_centers = copy.deepcopy(annotations_points_centers_a)
-
-    # here we should resize image too and then check it with the annotations
-    output_shape = image_output_shape(image_shape[2:], pyramid_level=pyramid_level)
-
-    image_ratio = images_ratios(image_shape[2:], output_shape)
-
-    if len(annotations_points_centers) == 0:
-        return [np.zeros(output_shape)]
-
-    per_img_anns = []
-    img_num = len(annotations_points_centers)
-    for i in range(img_num):
-        current_points_a = annotations_points_centers[i]  # [N, [x, y, points class, bbox_id]]
-        current_points = np.array([current_points_a['x'], current_points_a['y']])
-        current_points[0] = current_points[0] * image_ratio[0]
-        current_points[1] = current_points[1] * image_ratio[1]
-        annotations = np.zeros(output_shape)
-        for j in range(current_points[0].shape[0]):
-            gaussian_map = create_gausian_mask((current_points[0,j],current_points[1,j]), output_shape[1], output_shape[0],
-                                                    radius=radius)
-            # each center point in the GT will be 1 in the annotation map
-            annotations = np.maximum(annotations, gaussian_map)
-
-        if np.isnan(annotations).any():
-            raise ("nan was found")
-
-        per_img_anns.append(annotations)
-
-    return per_img_anns
-
-def objects_recall_precision(all_annotations, all_detections):
-
-    average_precisions = {}
-
-    false_positives = np.zeros((0,))
-    true_positives = np.zeros((0,))
-    scores = np.zeros((0,))
-    num_annotations = 0.0
-
-    for i in range(len(all_annotations)):
-        detections = all_detections[i]
-        annotations = all_annotations[i]
-
-        if len(annotations) >0:
-            if len(detections)>0:
-
-                if len(annotations.shape) == 1:
-                    annotations = np.expand_dims(annotations, axis=0)
-
-                num_annotations += annotations.shape[0]
-                detected_annotations = []
-
-                scores_temp = np.zeros((0,))
-
-                for d in detections:
-                  scores_temp = np.append(scores_temp, d[4])
-
-                indices = np.argsort(-scores_temp)
-
-                detections = detections[indices,:]
-
-                for d in detections:
-                    scores = np.append(scores, d[4])
-
-                    overlaps = compute_overlap(np.expand_dims(d, axis=0), annotations)
-                    assigned_annotation = np.argmax(overlaps, axis=1)
-                    max_overlap = overlaps[0, assigned_annotation]
-
-                    if max_overlap >= config.Detection.iou_threshold and assigned_annotation not in detected_annotations:
-                        false_positives = np.append(false_positives, 0)
-                        true_positives = np.append(true_positives, 1)
-                        detected_annotations.append(assigned_annotation)
-                    else:
-                        false_positives = np.append(false_positives, 1)
-                        true_positives = np.append(true_positives, 0)
-
-            else:
-                scores = np.append(scores, 0)
-                false_positives = np.append(false_positives, 0)
-                true_positives = np.append(true_positives, 0)
-
-    # sort by score
-    indices = np.argsort(-scores)
-    false_positives = false_positives[indices]
-    true_positives = true_positives[indices]
-
-    # compute false positives and true positives
-    false_positives = np.cumsum(false_positives)
-    true_positives = np.cumsum(true_positives)
-
-    # compute recall and precision
-    recall = true_positives / num_annotations
-    precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
-
-    # compute average precision
-    mAP = _compute_ap(recall, precision)
-
-    plot_PR_curve(recall, precision, mAP, save_path= config.General.files_path,  plots_name = "objects_PR_curve.png") #"D:\\Faina\\Parts count papers\\paper 2\\docs\\grapes")#draw_path)
-    # plt.plot(recall, precision)
-    # plt.title('mAP = {:.2f}'.format(np.mean(mAP)))
-    # plt.grid(True)
-    # plt.xlabel("Recall")
-    # plt.ylabel("Precision")
-    # plt.savefig(os.path.join(draw_path,"objects_PR_curve.png"))
-
-    return mAP, precision, recall
 
     # if initiate:
     #     # for counting
