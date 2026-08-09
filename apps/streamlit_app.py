@@ -573,9 +573,13 @@ if "evaluation_summary" not in st.session_state:
     st.session_state.evaluation_summary = ""
 
 status_placeholder = st.empty()
-output_placeholder = st.empty()
+live_output_container = st.container()
+output_placeholder = live_output_container.empty()
 
-if st.session_state.run_output:
+if (
+    st.session_state.run_output
+    and st.session_state.run_status != "success"
+):
     output_placeholder.code(st.session_state.run_output)
 if st.session_state.run_status == "success":
     status_placeholder.success("Run completed successfully.")
@@ -588,9 +592,12 @@ if run_clicked:
         st.stop()
 
     output_lines: deque[str] = deque(maxlen=LIVE_OUTPUT_LINE_LIMIT)
+    output_segment: deque[str] = deque(maxlen=LIVE_OUTPUT_LINE_LIMIT)
     summary_lines: list[str] = []
     output_update_count = 0
     progress_placeholder = None
+    progress_placeholders = []
+    output_placeholders = [output_placeholder]
     progress_label = None
     st.session_state.run_output = ""
     st.session_state.evaluation_summary = ""
@@ -617,14 +624,21 @@ if run_clicked:
                 current = int(current_text)
                 total = int(total_text)
                 if progress_placeholder is None or label != progress_label:
-                    progress_placeholder = st.empty()
+                    progress_placeholder = live_output_container.empty()
+                    progress_placeholders.append(progress_placeholder)
                     progress_label = label
+                    output_placeholder = None
+                    output_segment.clear()
                 progress_placeholder.progress(
                     min(current / total, 1.0) if total else 1.0,
                     text=f"{label} {current}/{total}",
                 )
                 continue
             output_lines.append(line)
+            if output_placeholder is None:
+                output_placeholder = live_output_container.empty()
+                output_placeholders.append(output_placeholder)
+            output_segment.append(line)
             output_update_count += 1
             st.session_state.run_output = "".join(output_lines)
             line_summary = extract_evaluation_summary(line)
@@ -632,21 +646,30 @@ if run_clicked:
                 summary_lines.append(line_summary)
                 st.session_state.evaluation_summary = "\n".join(summary_lines)
             if output_update_count == 1 or output_update_count % 5 == 0:
-                output_placeholder.code(st.session_state.run_output)
+                output_placeholder.code("".join(output_segment))
 
     returncode = process.wait()
-    output_placeholder.code(st.session_state.run_output)
+    if output_placeholder is not None:
+        output_placeholder.code("".join(output_segment))
+    for completed_progress in progress_placeholders:
+        completed_progress.empty()
 
     if returncode == 0:
         st.session_state.run_status = "success"
         status_placeholder.success("Run completed successfully.")
+        for completed_output in output_placeholders:
+            completed_output.empty()
     else:
         st.session_state.run_status = "failed"
         status_placeholder.error(f"Run failed with exit code {returncode}.")
 
 if st.session_state.evaluation_summary:
     st.subheader("Evaluation Summary")
-    st.code(st.session_state.evaluation_summary, language="text")
+    st.code(
+        st.session_state.evaluation_summary,
+        language="text",
+        wrap_lines=True,
+    )
 
 st.divider()
 st.subheader("Recent Result Files")
