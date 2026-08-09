@@ -1,0 +1,45 @@
+"""Tests for post-aggregation evaluation finalization."""
+
+import unittest
+
+from legonet.eval.evaluation_finalization import build_legacy_result
+from legonet.eval.metric_aggregation import PostLoopMetrics
+
+
+class EvaluationFinalizationTests(unittest.TestCase):
+    def test_counting_result_preserves_legacy_field_order(self):
+        state = {"gt_objects_withGTpoints": 5, "found_orig_objects": 4}
+        metrics = PostLoopMetrics(
+            had_predictions=True,
+            has_original_gt=True,
+            precision_detection=0.8,
+            count_relative_error=0.1,
+            count_mae=0.5,
+            count_agreement=0.75,
+            count_mse=0.4,
+            count_fvu=0.2,
+        )
+
+        result = build_legacy_result(
+            state, metrics, attributes=False, detection_metrics=None
+        )
+
+        self.assertEqual(result, [0.1, 5, 4, 0.8, 0.8, 0.5, 0.75, 0.4, 0.8])
+
+    def test_attribute_result_remains_training_metric_only(self):
+        metrics = PostLoopMetrics(
+            had_predictions=True,
+            has_original_gt=True,
+            precision_detection=1.0,
+            trl_relative_error=0.25,
+        )
+
+        result = build_legacy_result(
+            {}, metrics, attributes=True, detection_metrics=None
+        )
+
+        self.assertEqual(result, [0.25])
+
+
+if __name__ == "__main__":
+    unittest.main()

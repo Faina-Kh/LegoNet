@@ -17,14 +17,11 @@ from thop import profile, clever_format
 
 from legonet import config
 from legonet.eval.attribute_estimation_eval import SumOfAbsDifferences
-from legonet.eval.detection_eval import plot_PR_curve
 from legonet.eval.evaluation_policy import EvaluationTask, should_include_image
+from legonet.eval.evaluation_finalization import finalize_evaluation
 from legonet.eval.evaluation_state import initiate_global_dicts
 from legonet.eval.detection_bookkeeping import record_detection_bookkeeping
-from legonet.eval.KP_detection_eval import (
-    calc_points_recall_precision_ap,
-    points_detection_t_p,
-)
+from legonet.eval.KP_detection_eval import points_detection_t_p
 from legonet.eval.matching import (
     assign_detection_to_gt as _assign_detection_to_gt,
     choose_boxes_by_IoUandPrc,
@@ -36,22 +33,6 @@ from legonet.eval.metric_aggregation import (
     compute_positive_crop_count_metrics as _compute_positive_crop_count_metrics,
 )
 from legonet.eval.per_object_result import ClassificationType
-from legonet.eval.per_image_attribute_metrics import (
-    compute_per_image_attribute_metrics,
-)
-from legonet.eval.reporting import (
-    SEPARATOR,
-    format_attribute_summary,
-    format_counting_per_image,
-    format_counting_summary,
-    format_detection_metrics,
-    format_keypoint_summary,
-    format_matching_diagnostics,
-    format_roots_per_image,
-    write_evaluation_artifacts,
-    write_keypoint_precision_recall,
-    write_keypoint_summary,
-)
 from legonet.eval.visualization import (
     save_keypoint_heatmap,
     save_object_visualizations,
@@ -190,122 +171,6 @@ def _geometric_point_centers_map(
         center_map[map_y, map_x] = 1.0
 
     return center_map
-
-
-
-    # if initiate:
-    #     # for counting
-    #     all_predicted_counts = []
-    #     T, P = [], []
-    #     all_crops_GT_counts = []
-    #     crops_abs_diff = []
-    #     crops_rel_error = []
-    #
-    #     all_orig_GT_counts = []
-    #     orig_abs_diff = []
-    #     orig_rel_error = []
-    #
-    #     all_data_gt_count = []
-    #     gt_objects_withGTpoints = 0
-    #     found_orig_objects = 0
-    #     FP = 0
-    #     predicted_counts_any_crop = []
-    #     matched_without_gt_points = 0
-    #     crops_without_gt_points = 0
-    #     detections_data_any_crop = {}
-    #
-    #     not_found_gt = {}
-    #     no_predictions = {}
-    #
-    #     per_im_gt_avg = []
-    #     per_im_gt_avg_dict = {}
-    #     per_im_pred_avg = []
-    #     per_im_pred_dict = {}
-    #
-    #     num_of_gt_boxes = 0
-    #     all_detections = []
-    #     all_annotations = []
-    #
-    #     if config.Detect_and_Estimate.type == "per_object_attributes":
-    #         all_predicted_TRL = []
-    #         all_predicted_dia = []
-    #         all_predicted_color = []
-    #
-    #         all_crops_GT_TRL = []
-    #         crops_abs_diff_TRL = []
-    #         crops_rel_error_TRL = []
-    #
-    #         all_crops_GT_dia = []
-    #         crops_abs_diff_dia = []
-    #         crops_rel_error_dia = []
-    #
-    #         all_orig_GT_TRL = []
-    #         orig_abs_diff_TRL = []
-    #         orig_rel_error_TRL = []
-    #
-    #         all_orig_GT_dia = []
-    #         orig_abs_diff_dia = []
-    #         orig_rel_error_dia = []
-    #
-    #         all_orig_GT_color = []
-    #         orig_abs_diff_color = []
-    #
-    #         all_data_gt_TRL = []
-    #         predicted_TRL_any_crop = []
-    #
-    #         all_data_gt_dia = []
-    #         predicted_dia_any_crop = []
-    #
-    #         all_data_gt_color = []
-    #         predicted_color_any_crop = []
-    #
-    #         TRL_per_im_gt_sum = []
-    #         TRL_per_im_gt_sum_dict = {}
-    #         TRL_per_im_pred_sum = []
-    #         TRL_per_im_pred_dict = {}
-    #
-    #         dia_per_im_gt_avg = []
-    #         dia_per_im_gt_avg_dict = {}
-    #         dia_per_im_pred_avg = []
-    #         dia_per_im_pred_dict = {}
-    #
-    # else:
-    #     detections_data_any_crop[image_name] = {
-    #         'pred': [],
-    #         'gt_count': [],
-    #         'label': [],
-    #         'score': [],
-    #         'gt_box_id': [],
-    #         'max_overlap': []
-    #     }
-    #
-    #     not_found_gt[image_name] = {
-    #         'pred': [],
-    #         'gt_count': [],
-    #         'label': [],
-    #         'score': [],
-    #         'max_overlap': []
-    #     }
-    #
-    #     if config.Detect_and_Estimate.type == "per_object_attributes":
-    #         detections_data_any_crop[image_name].update({
-    #             'color_pred': [],
-    #             'color_gt': [],
-    #             'TRL_pred': [],
-    #             'TRL_gt': [],
-    #             'dia_pred': [],
-    #             'dia_gt': []
-    #         })
-    #
-    #         not_found_gt[image_name].update({
-    #             'color_pred': [],
-    #             'color_gt': [],
-    #             'TRL_pred': [],
-    #             'TRL_gt': [],
-    #             'dia_pred': [],
-    #             'dia_gt': []
-    #         })
-
 
 
 
@@ -942,182 +807,19 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             state,
             attributes=is_roots_2,
         )
-        if not summary_metrics.had_predictions and verbose:
-            print("There are no images with predicted boxes")
-        if not summary_metrics.has_original_gt:
-            if not is_roots_2 or args.have_GT:
-                print("No gt boxes for any image")
-
-        crop_count_metrics = summary_metrics.crop_count_metrics
-        orig_avg_abs_count_diff = summary_metrics.count_mae
-        orig_avg_rel_error = summary_metrics.count_relative_error
-        orig_MSE = summary_metrics.count_mse
-        orig_count_agr = summary_metrics.count_agreement
-        orig_FVU = summary_metrics.count_fvu
-
-        orig_avg_abs_TRL_diff = summary_metrics.trl_mae
-        orig_avg_rel_error_TRL = summary_metrics.trl_relative_error
-        orig_MSE_TRL = summary_metrics.trl_mse
-        orig_FVU_TRL = summary_metrics.trl_fvu
-        orig_avg_abs_dia_diff = summary_metrics.diameter_mae
-        orig_avg_rel_error_dia = summary_metrics.diameter_relative_error
-        orig_MSE_dia = summary_metrics.diameter_mse
-        orig_FVU_dia = summary_metrics.diameter_fvu
-        color_metrics = summary_metrics.color_metrics
-        precision_det = summary_metrics.precision_detection
-        if verbose:
-            if not is_roots_2:
-                print(
-                    format_counting_summary(
-                        orig_avg_abs_count_diff,
-                        orig_count_agr,
-                        orig_MSE,
-                        orig_avg_rel_error,
-                        1 - orig_FVU,
-                        crop_count_metrics,
-                    ),
-                    end="",
-                )
-            elif args.have_GT:
-                print(
-                    format_attribute_summary(
-                        orig_avg_abs_TRL_diff,
-                        orig_MSE_TRL,
-                        orig_avg_rel_error_TRL,
-                        1 - orig_FVU_TRL,
-                        orig_avg_abs_dia_diff,
-                        orig_MSE_dia,
-                        orig_avg_rel_error_dia,
-                        1 - orig_FVU_dia,
-                        color_metrics,
-                    ),
-                    end="",
-                )
-
-            use_all_image_diagnostics = (
-                getattr(args, "predict_empty_image", False)
-                and detection_metrics is not None
-                and len(detection_metrics) > 3
-            )
-            if use_all_image_diagnostics:
-                diagnostics = detection_metrics[3]
-                diagnostic_gt_objects = diagnostics.ground_truth_objects
-                diagnostic_matches = diagnostics.matched_objects
-                diagnostic_false_positives = diagnostics.false_positives
-                diagnostic_scope = "all images, including empty images"
-            else:
-                diagnostic_gt_objects = state['gt_objects_withGTpoints']
-                diagnostic_matches = state['found_orig_objects']
-                diagnostic_false_positives = state['FP']
-                diagnostic_scope = "attribute-annotated images only"
-
-            print(
-                format_matching_diagnostics(
-                    diagnostic_scope,
-                    diagnostic_gt_objects,
-                    diagnostic_matches,
-                    diagnostic_false_positives,
-                ),
-                end="",
-            )
-
-            if detection_metrics is not None:
-                print(format_detection_metrics(detection_metrics), end="")
-
-            print(f"{SEPARATOR}\n")
-
-            if not is_roots_2 and args.have_GT:
-                print(
-                    format_counting_per_image(
-                        state['per_im_gt_avg_dict'],
-                        state['per_im_pred_dict'],
-                    ),
-                    end="",
-                )
-            elif is_roots_2 and args.have_GT:
-                image_names = list(state['per_im_pred_dict'])
-                per_image_metrics = compute_per_image_attribute_metrics(
-                    [state['TRL_per_im_gt_sum_dict'][im] for im in image_names],
-                    [state['TRL_per_im_pred_dict'][im] for im in image_names],
-                    [state['dia_per_im_gt_avg_dict'][im] for im in image_names],
-                    [state['dia_per_im_pred_dict'][im] for im in image_names],
-                    [state['per_im_gt_avg_dict'][im] for im in image_names],
-                    [state['per_im_pred_dict'][im] for im in image_names],
-                )
-                print(
-                    format_roots_per_image(
-                        state['TRL_per_im_gt_sum_dict'],
-                        state['TRL_per_im_pred_dict'],
-                        state['dia_per_im_gt_avg_dict'],
-                        state['dia_per_im_pred_dict'],
-                        state['per_im_gt_avg_dict'],
-                        state['per_im_pred_dict'],
-                        per_image_metrics,
-                    ),
-                    end="",
-                )
-
-        # Export evaluation records.
-        if print_to_files and args is not None:
-            write_evaluation_artifacts(
-                config.General.files_path,
-                state,
-                attributes=is_roots_2,
-            )
-
-
         model.train()
-        print()
-        if evaluate_points:
-            recall, precision, ap = calc_points_recall_precision_ap(state['T'], state['P'])
-            show_keypoint_summary = (
-                verbose
-                or os.environ.get("LEGONET_STREAMLIT_SUMMARIES") == "1"
-            )
-            if show_keypoint_summary:
-                print(
-                    format_keypoint_summary(ap, recall[-1], precision[-1]),
-                    end="",
-                )
-            plot_PR_curve(recall, precision, ap, save_path=config.General.files_path, plots_name = 'Points_PR_curve.png') #config.General.experiment_path)
-
-            write_keypoint_precision_recall(
-                config.General.files_path,
-                recall,
-                precision,
-            )
-            write_keypoint_summary(
-                config.General.files_path,
-                ap,
-                recall[-1],
-                precision[-1],
-            )
-
-        if not is_roots_2:
-            final_rel_error = orig_avg_rel_error
-            reported_recall = (
-                detection_metrics[2]
-                if detection_metrics is not None
-                else state['found_orig_objects']/state['gt_objects_withGTpoints']
-            )
-            reported_precision = (
-                detection_metrics[1]
-                if detection_metrics is not None
-                else precision_det
-            )
-            out = [final_rel_error,
-                   state['gt_objects_withGTpoints'],
-                   state['found_orig_objects'],
-                   reported_recall,
-                   reported_precision,
-                   orig_avg_abs_count_diff,
-                   orig_count_agr,
-                   orig_MSE,
-                   (1 - orig_FVU)]
-        else:
-            out = [orig_avg_rel_error_TRL]
-
-        return out
+        return finalize_evaluation(
+            state,
+            summary_metrics,
+            attributes=is_roots_2,
+            have_gt=args.have_GT,
+            predict_empty_image=getattr(args, "predict_empty_image", False),
+            verbose=verbose,
+            print_to_files=print_to_files and args is not None,
+            detection_metrics=detection_metrics,
+            evaluate_points=evaluate_points,
+            files_path=config.General.files_path,
+        )
 
 
 
