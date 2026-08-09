@@ -45,9 +45,7 @@ def eval(dataloader, dataset, model, args, do_profile = False):
         all_predicted_counts = []
         alpha = 0.1
         T, P = [], []
-
         all_rel_error = []
-
         predicted_maps = None
 
         if args.dataset_name == "roots":
@@ -69,14 +67,10 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                 elif full_rgbImage_name.lower().endswith(".png"):
                     Image_name = full_rgbImage_name.split(".png")[0]
 
-                #Image_name = full_rgbImage_name.split(".jpg")[0]  # ("_rgb")[0]
-
                 if args.network_type == "per_image_estimation_regression":
                     if args.have_GT:
                         count_GT = first_scalar(data['annot'][0])
-
                         count_pred = float(model([data['img'].to(config.General.device).float(), data['annot']])[0].squeeze().item())
-
                     else:
                         count_pred = float(model([data['img'].to(config.General.device).float()])[0].squeeze().item())
 
@@ -86,9 +80,6 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                 elif args.network_type == "per_image_estimation_keypoints":
                     if args.have_GT:
                         count_GT = first_scalar(data['annot'][0])
-
-                        #print(Image_name,": ", count_GT)
-
                         count_outputs = model([data['img'].to(config.General.device).float(), data['annot']])
 
                         ###########################################################################################################
@@ -107,7 +98,6 @@ def eval(dataloader, dataset, model, args, do_profile = False):
 
                     else:
                         count_outputs = model([data['img'].to(config.General.device).float()])
-
 
                     count_pred = count_outputs[0].squeeze().item() #float(count_outputs[0].cpu().detach().numpy())
                     #if config.General.binary_model:
@@ -149,7 +139,6 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                             visualize_KeyPointsHeatmaps(predicted_map, None, Image_name, map_name, img,
                                                         config.DrawProperties.maps_path, count_pred, count_GT)
 
-
                 if args.have_GT:
                     all_GT_counts.append(count_GT)
 
@@ -170,7 +159,6 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                             all_rel_error.append(rel_error)
                         else:
                             rel_error = -1
-
 
                 all_predicted_counts.append(count_pred)
 
@@ -267,19 +255,16 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                             Image_name, int(count_GT), np.round(count_pred), count_pred,
                             abs(count_GT - count_pred)))
 
-
         print('\n Summary:')
 
         if args.have_GT:
             num_of_images = len(all_GT_counts)
             CountDiff = SumOfDifferences(all_GT_counts, all_predicted_counts) / num_of_images
             AbsCountDiff = SumOfAbsDifferences(all_GT_counts, all_predicted_counts) / num_of_images
-            # Rsq = np.cumsum(np.array(all_GT_counts) - np.array(all_predicted_counts))
 
         if args.dataset_name == "roots":
 
             if args.have_GT:
-
                 if  model.estimator.binary_model:
                     print('AbsCountDiff: {:.3f} | accuracy {:.3f} \n'.format(
                         AbsCountDiff, 1-AbsCountDiff))
@@ -289,11 +274,8 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                             f.write('\n')
                             f.write('AbsCountDiff: {:.3f} | accuracy {:.3f} \n'.format(
                                 AbsCountDiff, 1-AbsCountDiff ))
-
                 else:
-
                     mean_rel_error = np.mean(all_rel_error)
-
                     SE = 0
                     count_non_zero = 0
                     for i in range(len(all_GT_counts)):
@@ -314,11 +296,10 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                             f.write('AbsCountDiff: {:.3f} | MSE {:.3f} | RelError (gt>0): {:.3f} \n'.format(
                                 AbsCountDiff, MSE, mean_rel_error))
 
-
                 if config.AttributeEstimation.calc_det_performance and config.General.experiment_path != "" and args.have_GT and config.AttributeEstimation.estimate_type == 'withKeyPoints':
                     recall, precision, ap = calc_points_recall_precision_ap(T, P)
                     plot_PR_curve(recall, precision, ap,
-                                  save_path=config.General.files_path, plots_name = 'Points_PR_curve.png')  # config.General.experiment_path)
+                                  save_path=config.General.files_path, plots_name = 'Points_PR_curve.png')
 
                     # print recall and precision  to csv
                     csv_columns = ['recall', 'precision']

@@ -178,7 +178,6 @@ def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05,
                         model([image.to(config.General.device).float(), [data['bbox_annot'], data['points_annot']],
                                torch.tensor(group_idx)])  # image.cuda().float().unsqueeze(dim=0))
 
-
             scores, labels, boxes = detection_outputs
 
             scores = scores.cpu().numpy()
