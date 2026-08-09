@@ -163,7 +163,6 @@ def _load_partial_weights(model: Any, args: Any) -> None:
             ]
         elif args.estimate_type == "reg_fpn_p3_p7_min_sig":
             module_names = ["backbone_2",
-                            "find_2",
                             "estimator_length",
                             "estimator_diameter",
                             "estimator_color",
@@ -227,11 +226,12 @@ def _load_full_weights(model: Any, args: Any) -> None:
         module_names = [
             "bbox_detection",
             "backbone_2",
-            "find_2",
             "estimator_length",
             "estimator_diameter",
             "estimator_color",
         ]
+        if args.estimate_type == "withKeyPoints":
+            module_names.insert(2, "find_2")
     elif args.network_type == "per_object_attributes_multibranch":
         module_names = [
             "bbox_detection",

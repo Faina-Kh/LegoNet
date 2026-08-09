@@ -119,7 +119,7 @@ class CheckpointConversionTests(unittest.TestCase):
                 attribute_names=attributes,
             )
 
-    def test_missing_defined_module_is_rejected_when_combining(self):
+    def test_regression_attributes_do_not_require_find_module(self):
         detector = _module_state("backbone_1", "find_1", "where")
         incomplete_head = _module_state(
             "backbone_2",
@@ -128,14 +128,15 @@ class CheckpointConversionTests(unittest.TestCase):
             "estimator_color",
         )
 
-        with self.assertRaisesRegex(ValueError, "missing modules.*find_2"):
-            combine_partial_state_dicts(
-                detector,
-                incomplete_head,
-                network_type="per_object_attributes",
-                estimate_type="reg_fpn_p3_p7_min_sig",
-                attribute_names=["length", "diameter", "color"],
-            )
+        combined = combine_partial_state_dicts(
+            detector,
+            incomplete_head,
+            network_type="per_object_attributes",
+            estimate_type="reg_fpn_p3_p7_min_sig",
+            attribute_names=["length", "diameter", "color"],
+        )
+
+        self.assertNotIn("find_2", {name.split(".")[0] for name in combined})
 
     def test_unlisted_checkpoint_attributes_are_named_clearly(self):
         detector = _module_state("backbone_1", "find_1", "where")
@@ -291,7 +292,7 @@ class CheckpointConversionTests(unittest.TestCase):
             },
         )
 
-    def test_defined_find_module_is_retained_for_regression_attributes(self):
+    def test_find_module_is_rejected_for_regression_attributes(self):
         attributes = ["length", "diameter", "color"]
         state_dict = {
             **_module_state(
@@ -308,14 +309,13 @@ class CheckpointConversionTests(unittest.TestCase):
             },
         }
 
-        _, head = split_full_state_dict(
-            state_dict,
-            network_type="per_object_attributes",
-            estimate_type="reg_fpn_p3_p7_min_sig",
-            attribute_names=attributes,
-        )
-
-        self.assertIn("find_2", {name.split(".")[0] for name in head})
+        with self.assertRaisesRegex(ValueError, "unexpected modules.*find_2"):
+            split_full_state_dict(
+                state_dict,
+                network_type="per_object_attributes",
+                estimate_type="reg_fpn_p3_p7_min_sig",
+                attribute_names=attributes,
+            )
 
     def test_detector_output_can_be_omitted(self):
         state_dict = {

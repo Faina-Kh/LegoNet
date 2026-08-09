@@ -29,12 +29,11 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
         self.bbox_detection = BBOX_Detection(num_classes = num_classes, freeze_detection = self.freeze_detection)
         self.backbone_2 = legos.ResNetBackboneModule(name='backbone_for_attribute', pretrained=True) #name='backbone_for_count'
 
-        self.find_2 = legos.FindModule(num_classes=num_classes,
-                                       name='find_for_attribute',
-                                       task='attribute_estimation',
-                                       Find_for_count = False) #name='find_for_count', task='counting'
-
         if config.AttributeEstimation.estimate_type == 'withKeyPoints': #LeanCountingModule
+            self.find_2 = legos.FindModule(num_classes=num_classes,
+                                           name='find_for_attribute',
+                                           task='attribute_estimation',
+                                           Find_for_count=False)
             self.estimator_length = legos.KeypointBasedEstimator(attribute_name = 'length')
             self.estimator_diameter = legos.KeypointBasedEstimator(attribute_name = 'diameter')
             self.estimator_color = legos.KeypointBasedEstimator(attribute_name='color', binary_model=True)

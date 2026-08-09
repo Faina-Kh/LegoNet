@@ -348,7 +348,6 @@ class RunnerCharacterizationTests(unittest.TestCase):
             submodule_names=[
                 "bbox_detection",
                 "backbone_2",
-                "find_2",
                 "estimator_length",
                 "estimator_diameter",
                 "estimator_color",
@@ -442,8 +441,8 @@ class RunnerCharacterizationTests(unittest.TestCase):
                         "Test checkpoint",
                     )
 
-    def test_partial_regression_attributes_include_defined_find_module(self):
-        """Regression attributes load every weighted module in the built model."""
+    def test_partial_regression_attributes_exclude_find_module(self):
+        """Regression attributes load only modules used by the regression path."""
         args = self._weight_args(
             load_partial_weights=True,
             load_bbox_det_weights=False,
@@ -468,7 +467,6 @@ class RunnerCharacterizationTests(unittest.TestCase):
             state_dict,
             submodule_names=[
                 "backbone_2",
-                "find_2",
                 "estimator_length",
                 "estimator_diameter",
                 "estimator_color",

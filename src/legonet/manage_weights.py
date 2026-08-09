@@ -129,7 +129,7 @@ def save_partial_weights(
                                   'LeanCountingModule_color']
 
             elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                submodules = ['backbone_2', 'find_2',
+                submodules = ['backbone_2',
                               'CountWithRegModule_length', 'CountWithRegModule_diameter', 'CountWithRegModule_color']
 
                 rename_map = {'CountWithRegModule_length': 'estimator_length',

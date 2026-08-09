@@ -66,10 +66,7 @@ def per_object_module_names(
         )
 
     modules = ["backbone_2"]
-    if (
-        estimate_type == "withKeyPoints"
-        or network_type == "per_object_attributes"
-    ):
+    if estimate_type == "withKeyPoints":
         modules.append("find_2")
     modules.extend(estimator_module_names(effective_attribute_names))
 
