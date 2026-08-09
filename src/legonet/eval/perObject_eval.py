@@ -17,9 +17,12 @@ from thop import profile, clever_format
 
 from legonet import config
 from legonet.eval.attribute_estimation_eval import SumOfAbsDifferences
-from legonet.eval.evaluation_policy import EvaluationTask, should_include_image
 from legonet.eval.evaluation_finalization import finalize_evaluation
 from legonet.eval.image_context import prepare_image_context
+from legonet.eval.ground_truth_preparation import (
+    prepare_image_ground_truth,
+    split_boxes_by_annotations as _prepare_gt_boxes_for_attribute_eval,
+)
 from legonet.eval.evaluation_state import initiate_global_dicts
 from legonet.eval.detection_bookkeeping import record_detection_bookkeeping
 from legonet.eval.KP_detection_eval import points_detection_t_p
@@ -100,36 +103,6 @@ def _get_count_and_box_annotations(generator):
         print_image_progress("Loading per-object annotations:", 0, 0)
     return all_box_annotations,all_count_annotations
 
-def _prepare_gt_boxes_for_attribute_eval(box_annotations, count_annotations):
-    """Split GT boxes into all boxes and boxes with attribute/count annotations.
-
-    Args:
-        box_annotations: Iterable of GT boxes. Each row is expected to include
-            ``x1, y1, x2, y2, class_id, box_id``.
-        count_annotations: Iterable of count/attribute annotation rows. Column
-            2 is expected to contain the corresponding GT ``box_id``.
-
-    Returns:
-        tuple: ``(all_boxes, boxes_with_annotations, matched_counts)`` where
-        the two box lists contain tensors shaped ``(1, box_columns)`` to
-        preserve the historical downstream concatenation behavior.
-    """
-    all_boxes = []
-    boxes_with_annotations = []
-    matched_counts = []
-
-    for box in box_annotations:
-        box_id = box[5]
-        box_tensor = torch.tensor(box).unsqueeze(dim=0)
-        all_boxes.append(box_tensor)
-
-        for count_annotation in count_annotations:
-            if count_annotation[2] == box_id:
-                matched_counts.append(count_annotation)
-                boxes_with_annotations.append(box_tensor)
-                break
-
-    return all_boxes, boxes_with_annotations, matched_counts
 
 
 def _geometric_point_centers_map(
@@ -236,92 +209,36 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             box_annotations_temp = image_context.box_annotations
             gt_counts_temp = image_context.count_annotations
 
-            if len(gt_counts_temp)>0 or is_roots_2:
-                if len(gt_counts_temp)>0:
-                    im_gt_avg = np.sum(gt_counts_temp[:, 0]) / gt_counts_temp.shape[0]
-                    state['per_im_gt_avg'].append(im_gt_avg)
-                    state['per_im_gt_avg_dict'][image_name] = im_gt_avg
-                    if is_roots_2:
-                        TRL_im_gt_sum = np.sum(gt_counts_temp[:, 3])
-                        state['TRL_per_im_gt_sum'].append(TRL_im_gt_sum)
-                        state['TRL_per_im_gt_sum_dict'][image_name] = TRL_im_gt_sum
-                        dia_im_gt_avg = np.sum(gt_counts_temp[:, 4]) / gt_counts_temp.shape[0]
-                        state['dia_per_im_gt_avg'].append(dia_im_gt_avg)
-                        state['dia_per_im_gt_avg_dict'][image_name] = dia_im_gt_avg
-
-                else:
-                    im_gt_avg = 0
-                    state['per_im_gt_avg'].append(im_gt_avg)
-                    state['per_im_gt_avg_dict'][image_name] = im_gt_avg
-                    if is_roots_2:
-                        TRL_im_gt_sum = 0
-                        state['TRL_per_im_gt_sum'].append(TRL_im_gt_sum)
-                        state['TRL_per_im_gt_sum_dict'][image_name] = TRL_im_gt_sum
-                        dia_im_gt_avg = 0
-                        state['dia_per_im_gt_avg'].append(dia_im_gt_avg)
-                        state['dia_per_im_gt_avg_dict'][image_name] = dia_im_gt_avg
-
-            box_annotations_withPoints = []
-            box_annotations_all = []
-            gt_counts=[]
-
             state = initiate_global_dicts(state, image_name)
             if verbose:
-                printf(
-                    "##############################################################################################\n")
+                printf("##############################################################################################\n")
                 printf("image: %s\n", image_name)
                 printf("##############################################################################################\n")
 
-            if args.have_GT:
-                (   box_annotations_all,
-                    box_annotations_withPoints,
-                    gt_counts,
-                ) = _prepare_gt_boxes_for_attribute_eval(
-                    box_annotations_temp,
-                    gt_counts_temp,
-                )
-                state['num_of_gt_boxes'] += len(box_annotations_all)
+            prepared_gt = prepare_image_ground_truth(
+                state,
+                image_name,
+                box_annotations_temp,
+                gt_counts_temp,
+                have_gt=args.have_GT,
+                attributes=is_roots_2,
+            )
+            im_gt_avg = prepared_gt.image_gt_average
+            TRL_im_gt_sum = prepared_gt.image_trl_sum
+            dia_im_gt_avg = prepared_gt.image_diameter_average
+            box_annotations_all = prepared_gt.all_boxes
+            box_annotations_withPoints = prepared_gt.annotated_boxes
+            gt_counts = prepared_gt.matched_counts
 
-                if not should_include_image(
-                    EvaluationTask.PER_OBJECT,
-                    box_annotations_all,
-                    box_annotations_withPoints,
-                ):
-                    if verbose:
-                        if len(box_annotations_all) == 0:
-                            printf("No gt boxes ...\n")
-                        else:
-                            printf(
-                                "Has gt boxes but no gt points in any gt box...\n"
-                            )
-                        printf("Skipping this image for per-object evaluation...\n")
-                        print()
-
-                    continue
-
-                #from list to tensor:
-                if len(box_annotations_withPoints)>1:
-                    box_annotations_withPoints = torch.cat(box_annotations_withPoints, dim=0)
-
-                elif len(box_annotations_withPoints)==1:
-                    box_annotations_withPoints=box_annotations_withPoints[0]
-
-                if len(box_annotations_all)>1:
-                    box_annotations_all = torch.cat(box_annotations_all, dim=0)
-                else:
-                    if len(box_annotations_all)>0:
-                        box_annotations_all=box_annotations_all[0]
-
-                # get stats - count gt boxes with gt points
-                for c in gt_counts:
-                    state['all_data_gt_count'].append(c[0])
-                    state['gt_objects_withGTpoints'] += 1
-
-                    if is_roots_2:
-                        state['all_data_gt_TRL'].append(c[3])
-                        state['all_data_gt_dia'].append(c[4])
-                        state['all_data_gt_color'].append(c[0])
-
+            if not prepared_gt.include_image:
+                if verbose:
+                    if prepared_gt.skip_reason == "no_gt_boxes":
+                        printf("No gt boxes ...\n")
+                    else:
+                        printf("Has gt boxes but no gt points in any gt box...\n")
+                    printf("Skipping this image for per-object evaluation...\n")
+                    print()
+                continue
 
             # run the network
             if not args.have_GT:
