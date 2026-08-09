@@ -11,6 +11,8 @@ from legonet.checkpoint_conversion import (
     combine_partial_state_dicts,
     convert_full_checkpoint,
     estimator_module_names,
+    remove_checkpoint_module,
+    remove_checkpoint_module_from_state_dict,
     split_full_state_dict,
 )
 
@@ -38,6 +40,48 @@ class CheckpointConversionTests(unittest.TestCase):
 
     def test_empty_attribute_names_use_single_estimator(self):
         self.assertEqual(estimator_module_names([]), ["estimator"])
+
+    def test_requested_module_and_children_are_removed(self):
+        state_dict = {
+            "backbone_2.layer.weight": object(),
+            "find_2.classifier.weight": object(),
+            "find_2.regressor.bias": object(),
+            "estimator_length.weight": object(),
+        }
+
+        filtered = remove_checkpoint_module_from_state_dict(
+            state_dict,
+            "find_2",
+        )
+
+        self.assertEqual(
+            set(filtered),
+            {"backbone_2.layer.weight", "estimator_length.weight"},
+        )
+
+    def test_missing_requested_module_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "was not found"):
+            remove_checkpoint_module_from_state_dict(
+                {"backbone_2.layer.weight": object()},
+                "find_2",
+            )
+
+    def test_module_removal_requires_distinct_output(self):
+        fake_torch = types.ModuleType("torch")
+        fake_torch.load = mock.Mock(
+            return_value={"find_2.classifier.weight": object()}
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "weights.pt"
+            source.touch()
+            with mock.patch.dict(sys.modules, {"torch": fake_torch}):
+                with self.assertRaisesRegex(ValueError, "cannot replace"):
+                    remove_checkpoint_module(
+                        weights_file=source,
+                        output_file=source,
+                        module_name="find_2",
+                    )
 
     def test_partial_counting_checkpoints_are_combined(self):
         detector = _module_state("backbone_1", "find_1", "where")

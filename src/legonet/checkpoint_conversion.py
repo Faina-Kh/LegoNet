@@ -375,6 +375,64 @@ def _output_file_path(
     return path
 
 
+def remove_checkpoint_module_from_state_dict(
+    state_dict: Mapping[str, Any],
+    module_name: str,
+) -> dict[str, Any]:
+    """Return a state dictionary without the requested module and its children."""
+    normalized_name = module_name.strip().strip(".")
+    if not normalized_name:
+        raise ValueError("Module name must not be empty.")
+
+    prefix = f"{normalized_name}."
+    filtered_state = {
+        key: value
+        for key, value in state_dict.items()
+        if key != normalized_name and not key.startswith(prefix)
+    }
+    if len(filtered_state) == len(state_dict):
+        raise ValueError(
+            f"Module {normalized_name!r} was not found in the checkpoint."
+        )
+    return filtered_state
+
+
+def remove_checkpoint_module(
+    weights_file: str | Path,
+    output_file: str | Path,
+    module_name: str,
+    overwrite: bool = False,
+) -> Path:
+    """Remove one module from a checkpoint and save the result to a new file."""
+    import torch
+
+    source = Path(weights_file)
+    if not source.is_file():
+        raise FileNotFoundError(f"Weights file does not exist: {source}")
+
+    output = _output_file_path(
+        output_file,
+        "Output weights file",
+        required=True,
+    )
+    assert output is not None
+    if source.resolve() == output.resolve():
+        raise ValueError("The output file cannot replace the source checkpoint.")
+
+    state_dict = torch.load(source, map_location="cpu", weights_only=True)
+    if not isinstance(state_dict, Mapping):
+        raise TypeError("Checkpoint must contain a state dictionary.")
+
+    filtered_state = remove_checkpoint_module_from_state_dict(
+        state_dict,
+        module_name,
+    )
+    print("Input checkpoint modules:", list_checkpoint_modules(state_dict))
+    print("Output checkpoint modules:", list_checkpoint_modules(filtered_state))
+    _save_state_dicts_atomically([(output, filtered_state)], overwrite)
+    return output
+
+
 def convert_full_checkpoint(
     full_weights_file: str | Path,
     detector_output_file: str | Path | None,

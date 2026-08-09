@@ -279,6 +279,16 @@ The reverse operation also has a local Streamlit page:
 streamlit run apps/checkpoint_combiner.py
 ```
 
+To remove one obsolete module, such as `find_2`, from a checkpoint through a
+local Streamlit page, run:
+
+```powershell
+streamlit run apps/checkpoint_module_remover.py
+```
+
+The page preserves the source checkpoint, displays the modules before and
+after removal, and writes the cleaned weights to a separate output file.
+
 Boolean values accept `true`, `false`, `yes`, `no`, `1`, or `0`. Explicit
 false values are preserved.
 
