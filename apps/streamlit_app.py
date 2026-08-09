@@ -5,7 +5,6 @@ import subprocess
 import sys
 import tempfile
 import uuid
-from collections import deque
 from pathlib import Path
 
 import streamlit as st
@@ -33,7 +32,6 @@ NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_attribute
 RUN_MODES = ("Inference", "Training")
 VAL_SETS = ("Test", "Val")
 ESTIMATE_TYPES = ("keyPoints_based_estimate", "regression_based_estimate")
-LIVE_OUTPUT_LINE_LIMIT = 80
 ESTIMATE_TYPE_VALUES = {
     "keyPoints_based_estimate": "withKeyPoints",
     "regression_based_estimate": "reg_fpn_p3_p7_min_sig",
@@ -573,7 +571,7 @@ if "evaluation_summary" not in st.session_state:
     st.session_state.evaluation_summary = ""
 
 status_placeholder = st.empty()
-live_output_container = st.container()
+live_output_container = st.container(height=500)
 output_placeholder = live_output_container.empty()
 
 if st.session_state.run_output:
@@ -588,8 +586,8 @@ if run_clicked:
         st.error("Storage path is required.")
         st.stop()
 
-    output_lines: deque[str] = deque(maxlen=LIVE_OUTPUT_LINE_LIMIT)
-    output_segment: deque[str] = deque(maxlen=LIVE_OUTPUT_LINE_LIMIT)
+    output_lines: list[str] = []
+    output_segment: list[str] = []
     summary_lines: list[str] = []
     output_update_count = 0
     progress_placeholder = None
