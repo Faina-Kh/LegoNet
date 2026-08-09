@@ -11,7 +11,6 @@ def extract_evaluation_summary(output: str) -> str:
         "Avg of per image rel_error of TRL:",
         "Avg of per image rel_error of diameter:",
         "Avg of per image absolute error of color:",
-        "Points detection evaluation:",
     )
     lines = [
         line.strip()
