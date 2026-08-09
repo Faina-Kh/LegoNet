@@ -16,11 +16,12 @@ class DetectorLifecycleMixin:
 
     def freeze_detector(self) -> None:
         """Disable training and gradients for the embedded detector modules."""
-        self.bbox_detection.eval()
+        detector = getattr(self, "bbox_detection", self)
+        detector.eval()
         for component in (
-            self.bbox_detection.backbone_1,
-            self.bbox_detection.find_1,
-            self.bbox_detection.where,
+            detector.backbone_1,
+            detector.find_1,
+            detector.where,
         ):
             for parameter in component.parameters():
                 parameter.requires_grad = False

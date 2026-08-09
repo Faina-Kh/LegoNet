@@ -38,6 +38,18 @@ class DetectorLifecycleTests(unittest.TestCase):
             all(not parameter.requires_grad for parameter in model.bbox_detection.parameters())
         )
 
+    def test_detector_can_freeze_itself(self):
+        detector = _DetectorWithLifecycle()
+
+        detector.freeze_detector()
+
+        self.assertFalse(detector.training)
+        self.assertTrue(all(not parameter.requires_grad for parameter in detector.parameters()))
+
+
+class _DetectorWithLifecycle(DetectorLifecycleMixin, _Detector):
+    pass
+
 
 if __name__ == "__main__":
     unittest.main()

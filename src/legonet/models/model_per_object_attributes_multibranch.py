@@ -53,7 +53,6 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
         self.freeze_bn()
 
 
-
     def forward(self, inputs):
 
         img_batch, annotations, group_idx = inputs
@@ -392,9 +391,6 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
             cv2.waitKey(0)
 
         return bbox_crops
-
-
-
 
 
     def getitem(self, bbox_crops, points = None, anns = None):

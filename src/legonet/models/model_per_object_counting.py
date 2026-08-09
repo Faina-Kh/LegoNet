@@ -7,7 +7,6 @@ import numpy as np
 from itertools import compress
 
 from legonet import legos
-from legonet import utils
 from legonet import config
 import legonet.my_dataloader as myDataloader
 from legonet.my_dataloader import UnNormalizer
@@ -66,7 +65,6 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
         self.roi_align = roi_align
 
         self.freeze_bn()
-
 
 
     def forward(self, inputs): #, count_points_in_crop = True):
@@ -436,9 +434,6 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
         return bbox_crops
 
 
-
-
-
     def getitem(self, bbox_crops, points = None): #, anns = None):
         filtered_samples = []
         for b in range(len(bbox_crops)):
@@ -503,17 +498,3 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
             filtered_samples.append(sample)
 
         return filtered_samples
-
-
-
-
-
-
-def main():
-
-    m = torch.load("D:\\PyCharmProjects\\LEGONet\\lean_weights\\legonet_final.pt")
-    utils.save_named_module_weights(m,"D:\\PyCharmProjects\\LEGONet\\lean_weights\\")
-
-if __name__ == '__main__':
-    main()
-

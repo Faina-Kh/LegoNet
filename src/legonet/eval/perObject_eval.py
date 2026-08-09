@@ -6,8 +6,6 @@ independently testable while the legacy evaluation routine is decomposed.
 """
 
 import os
-from typing import Iterable
-
 import matplotlib
 import numpy as np
 import PIL
@@ -32,10 +30,10 @@ from legonet.eval.matching import (
     choose_boxes_by_IoUandPrc,
     match_detections_to_gt as _match_detections_to_gt,
 )
-from legonet.eval.regression_metrics import compute_regression_metrics
-from legonet.eval.classification_metrics import (
-    compute_classification_metrics,
-    decode_class_predictions,
+from legonet.eval.classification_metrics import decode_class_predictions
+from legonet.eval.metric_aggregation import (
+    aggregate_post_loop_metrics,
+    compute_positive_crop_count_metrics as _compute_positive_crop_count_metrics,
 )
 from legonet.eval.per_object_result import ClassificationType
 from legonet.eval.per_image_attribute_metrics import (
@@ -194,55 +192,6 @@ def _geometric_point_centers_map(
     return center_map
 
 
-def _compute_positive_crop_count_metrics(
-    ground_truth_counts: Iterable[float],
-    predicted_counts: Iterable[float],
-) -> dict[str, float | int]:
-    """Compute diagnostic counting metrics for non-empty predicted crops.
-
-    Crop-level accuracy is meaningful only when a crop contains at least one
-    annotated point. Empty crops are reported separately and remain part of
-    the detection evaluation, but they do not enter these counting metrics.
-
-    Raises:
-        ValueError: If the ground-truth and prediction arrays are misaligned.
-    """
-    ground_truth = np.asarray(list(ground_truth_counts), dtype=float)
-    predictions = np.asarray(list(predicted_counts), dtype=float)
-    if ground_truth.shape != predictions.shape:
-        raise ValueError("Crop ground-truth and prediction counts must align")
-
-    positive_mask = ground_truth > 0
-    positive_ground_truth = ground_truth[positive_mask]
-    positive_predictions = predictions[positive_mask]
-    num_positive = int(np.count_nonzero(positive_mask))
-
-    metrics: dict[str, float | int] = {
-        "num_total": int(ground_truth.size),
-        "num_positive": num_positive,
-        "num_empty": int(np.count_nonzero(ground_truth == 0)),
-        "mae": -1.0,
-        "mse": -1.0,
-        "mean_relative_error": -1.0,
-        "exact_agreement": -1.0,
-    }
-    if num_positive == 0:
-        return metrics
-
-    absolute_errors = np.abs(positive_ground_truth - positive_predictions)
-    metrics.update(
-        {
-            "mae": float(np.mean(absolute_errors)),
-            "mse": float(np.mean(absolute_errors**2)),
-            "mean_relative_error": float(
-                np.mean(absolute_errors / positive_ground_truth)
-            ),
-            "exact_agreement": float(
-                np.mean(positive_ground_truth == positive_predictions)
-            ),
-        }
-    )
-    return metrics
 
     # if initiate:
     #     # for counting
@@ -989,182 +938,33 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                                 )
                             print()
 
-        ################################################################################################################
-        # Get results summary
-        ################################################################################################################
+        summary_metrics = aggregate_post_loop_metrics(
+            state,
+            attributes=is_roots_2,
+        )
+        if not summary_metrics.had_predictions and verbose:
+            print("There are no images with predicted boxes")
+        if not summary_metrics.has_original_gt:
+            if not is_roots_2 or args.have_GT:
+                print("No gt boxes for any image")
 
-        if not is_roots_2:
-            if len(state['all_predicted_counts'])==0:
-                if verbose:
-                    print('There are no images with predicted boxes')
+        crop_count_metrics = summary_metrics.crop_count_metrics
+        orig_avg_abs_count_diff = summary_metrics.count_mae
+        orig_avg_rel_error = summary_metrics.count_relative_error
+        orig_MSE = summary_metrics.count_mse
+        orig_count_agr = summary_metrics.count_agreement
+        orig_FVU = summary_metrics.count_fvu
 
-            num_of_images = len(state['all_crops_GT_counts'])
-            relevant_arr = state['all_crops_GT_counts']
-
-        elif is_roots_2:
-            if len(state['all_predicted_TRL'])==0:
-                if verbose:
-                    print('There are no images with predicted boxes')
-
-            num_of_images = len(state['all_predicted_TRL'])
-            relevant_arr = state['all_predicted_TRL']
-
-        # gather all results
-        if is_roots_2:
-            total_predicted_TRL = []
-            total_orig_GT_TRL = []
-            total_predicted_for_orig_boxes_TRL = []
-            total_orig_box_for_TRL = 0
-
-            total_predicted_dia = []
-            total_orig_GT_dia = []
-            total_predicted_for_orig_boxes_dia = []
-            total_orig_box_for_dia = 0
-
-            total_orig_GT_color = []
-            total_predicted_for_orig_boxes_color = []
-
-        else:
-            total_crops_GT_counts = []
-            total_predicted_counts = []
-
-            total_orig_GT_counts = []
-            total_predicted_for_orig_boxes = []
-            total_orig_box_for_count = 0
-
-        for n in range(num_of_images):
-            for j in range(len(relevant_arr[n])):
-                if is_roots_2:
-                    total_predicted_TRL.append(state['all_predicted_TRL'][n][j])
-                    total_predicted_dia.append(state['all_predicted_dia'][n][j])
-
-                    if len(state['all_orig_GT_TRL'][n]) > 0:
-                        if state['all_orig_GT_TRL'][n][j] != -1:
-                            total_orig_GT_TRL.append(state['all_orig_GT_TRL'][n][j])
-                            total_orig_box_for_TRL += 1
-                            total_predicted_for_orig_boxes_TRL.append(state['all_predicted_TRL'][n][j])
-
-                            total_orig_GT_dia.append(state['all_orig_GT_dia'][n][j])
-                            total_orig_box_for_dia += 1
-                            total_predicted_for_orig_boxes_dia.append(state['all_predicted_dia'][n][j])
-
-                    if state['all_orig_GT_color'][n][j] != -1:
-                        total_orig_GT_color.append(
-                            int(state['all_orig_GT_color'][n][j])
-                        )
-                        total_predicted_for_orig_boxes_color.append(
-                            int(state['all_predicted_color'][n][j])
-                        )
-
-                else:
-                    total_crops_GT_counts.append(state['all_crops_GT_counts'][n][j])
-                    total_predicted_counts.append(state['all_predicted_counts'][n][j])
-
-                    if len(state['all_orig_GT_counts'][n])>0:
-                        if state['all_orig_GT_counts'][n][j] != -1:
-                            total_orig_GT_counts.append(state['all_orig_GT_counts'][n][j])
-                            total_orig_box_for_count+=1
-                            total_predicted_for_orig_boxes.append(state['all_predicted_counts'][n][j])
-
-        if not is_roots_2:
-            crop_count_metrics = _compute_positive_crop_count_metrics(
-                total_crops_GT_counts,
-                total_predicted_counts,
-            )
-
-            if total_orig_box_for_count>0:
-                count_metrics = compute_regression_metrics(
-                    total_orig_GT_counts,
-                    total_predicted_for_orig_boxes,
-                    relative_errors=state['orig_rel_error'],
-                )
-                orig_avg_abs_count_diff = count_metrics.mean_absolute_error
-                orig_avg_rel_error = (
-                    count_metrics.mean_relative_error
-                    if count_metrics.mean_relative_error is not None
-                    else -1
-                )
-                orig_MSE = count_metrics.mean_squared_error
-
-            else:
-                print('No gt boxes for any image')
-                orig_avg_abs_count_diff = -1
-                orig_avg_rel_error=-1
-                orig_MSE = -1
-
-                #return []
-
-            if total_orig_box_for_count >0:
-                orig_count_agr = 0
-                for i in range(total_orig_box_for_count):
-                    if total_orig_GT_counts[i] == total_predicted_for_orig_boxes[i]:
-                        orig_count_agr += 1
-                orig_count_agr = orig_count_agr / total_orig_box_for_count
-
-            else:
-                orig_count_agr=-1
-
-            if total_orig_box_for_count > 0:
-                orig_FVU = 1 - count_metrics.one_minus_fvu
-
-            else:
-                orig_FVU = -1
-
-            detection_count = state['found_orig_objects'] + state['FP']
-            precision_det = (
-                state['found_orig_objects'] / detection_count
-                if detection_count > 0
-                else -1
-            )
-
-        else:
-            color_metrics = None
-            if total_orig_box_for_TRL > 0:
-                trl_metrics = compute_regression_metrics(
-                    total_orig_GT_TRL,
-                    total_predicted_for_orig_boxes_TRL,
-                    relative_errors=state['orig_rel_error_TRL'],
-                    preserve_zero_variance_division=True,
-                )
-                diameter_metrics = compute_regression_metrics(
-                    total_orig_GT_dia,
-                    total_predicted_for_orig_boxes_dia,
-                    relative_errors=state['orig_rel_error_dia'],
-                    preserve_zero_variance_division=True,
-                )
-                orig_avg_abs_TRL_diff = trl_metrics.mean_absolute_error
-                orig_avg_rel_error_TRL = trl_metrics.mean_relative_error
-                orig_MSE_TRL = trl_metrics.mean_squared_error
-
-                orig_avg_abs_dia_diff = diameter_metrics.mean_absolute_error
-                orig_avg_rel_error_dia = diameter_metrics.mean_relative_error
-                orig_MSE_dia = diameter_metrics.mean_squared_error
-
-                orig_FVU_TRL = 1 - trl_metrics.one_minus_fvu
-                orig_FVU_dia = 1 - diameter_metrics.one_minus_fvu
-
-                eligible_color_samples = sum(
-                    int(color) != -1 for color in state['all_data_gt_color']
-                )
-                color_metrics = compute_classification_metrics(
-                    total_orig_GT_color,
-                    total_predicted_for_orig_boxes_color,
-                    class_labels=(0, 1),
-                    class_names=("non_white", "white"),
-                    classification_type=ClassificationType.BINARY,
-                    eligible_samples=eligible_color_samples,
-                )
-
-                precision_det = state['found_orig_objects'] / (state['found_orig_objects'] + state['FP'])
-
-            else:
-                if args.have_GT:
-                    print('No gt boxes for any image')
-                orig_avg_rel_error_TRL = 100000
-                orig_FVU_TRL = -1
-                orig_FVU_dia = -1
-                precision_det = -1
-
+        orig_avg_abs_TRL_diff = summary_metrics.trl_mae
+        orig_avg_rel_error_TRL = summary_metrics.trl_relative_error
+        orig_MSE_TRL = summary_metrics.trl_mse
+        orig_FVU_TRL = summary_metrics.trl_fvu
+        orig_avg_abs_dia_diff = summary_metrics.diameter_mae
+        orig_avg_rel_error_dia = summary_metrics.diameter_relative_error
+        orig_MSE_dia = summary_metrics.diameter_mse
+        orig_FVU_dia = summary_metrics.diameter_fvu
+        color_metrics = summary_metrics.color_metrics
+        precision_det = summary_metrics.precision_detection
         if verbose:
             if not is_roots_2:
                 print(

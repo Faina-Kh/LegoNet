@@ -6,9 +6,10 @@ import math
 from legonet import anchors
 from legonet import legos
 from legonet import config
+from legonet.models.detector_lifecycle import DetectorLifecycleMixin
 
 
-class BBOX_Detection(nn.Module):
+class BBOX_Detection(DetectorLifecycleMixin, nn.Module):
 
     def __init__(self, network_type = 'bbox_detection', num_classes = 1, ResNet_depth = 50,
                  pretrained = True, num_anchors = 9, min_score = config.Detection.min_score, prior = 0.01,
@@ -39,27 +40,6 @@ class BBOX_Detection(nn.Module):
         self.clipBoxes = legos.ClipBoxes()
 
         self.freeze_bn()
-
-    def freeze_bn(self):
-        '''Freeze BatchNorm layers.'''
-        for layer in self.modules():
-            if isinstance(layer, nn.BatchNorm2d):
-                layer.eval()
-
-    def freeze_detector(self):
-        self.eval()
-        # for p in self.parameters():
-        #     p.requires_grad = False
-
-        # freeze gradients of detection
-        for param in self.backbone_1.parameters():
-            param.requires_grad = False
-
-        for param in self.find_1.parameters():
-            param.requires_grad = False
-
-        for param in self.where.parameters():
-            param.requires_grad = False
 
     def forward(self, inputs):
 
