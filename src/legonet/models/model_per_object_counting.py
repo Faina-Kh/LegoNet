@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torchvision.ops
 from torchvision.ops import roi_align
 import copy
 import cv2
@@ -16,6 +15,7 @@ from legonet.eval.matching import choose_boxes_by_IoUandPrc
 
 from legonet.models.model_bbox_detection import BBOX_Detection
 from legonet.models.keypoint_utils import KeypointUtilitiesMixin
+from legonet.models.detector_lifecycle import DetectorLifecycleMixin
 
 
 def _full_count_for_box(count_annotations, box_id):
@@ -38,7 +38,7 @@ def _has_valid_detection_annotations(annotations):
     return annotations.numel() > 0 and bool((annotations[..., 0] >= 0).any())
 
 
-class PerObjectEstimate(KeypointUtilitiesMixin, nn.Module):
+class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Module):
 
     def __init__(self, dataset, network_type, num_classes, freeze_detection = True):
         super(PerObjectEstimate, self).__init__()
@@ -67,26 +67,7 @@ class PerObjectEstimate(KeypointUtilitiesMixin, nn.Module):
 
         self.freeze_bn()
 
-    def freeze_bn(self):
-        '''Freeze BatchNorm layers.'''
-        for layer in self.modules():
-            if isinstance(layer, nn.BatchNorm2d):
-                layer.eval()
 
-    def freeze_detector(self):
-        self.bbox_detection.eval()
-        # for p in self.bbox_detection.parameters():
-        #     p.requires_grad = False
-
-        # freeze gradients of detection
-        for param in self.bbox_detection.backbone_1.parameters():
-            param.requires_grad = False
-
-        for param in self.bbox_detection.find_1.parameters():
-            param.requires_grad = False
-
-        for param in self.bbox_detection.where.parameters():
-            param.requires_grad = False
 
     def forward(self, inputs): #, count_points_in_crop = True):
 
@@ -403,25 +384,6 @@ class PerObjectEstimate(KeypointUtilitiesMixin, nn.Module):
             else:
                 return detection_outputs, estimation_outputs, None, None, None  #[],...
 
-    def get_detection_output(self, transformed_anchors, classification_vector):
-
-        scores = torch.max(classification_vector, dim=2, keepdim=True)[0]
-
-        scores_over_thresh = (scores > self.min_score)[0, :, 0]
-
-        if scores_over_thresh.sum() == 0:
-            # no boxes to NMS, just return
-            return [torch.zeros(0), torch.zeros(0), torch.zeros(0, 4)]
-
-        classification = classification_vector[:, scores_over_thresh, :]
-        transformed_anchors = transformed_anchors[:, scores_over_thresh, :]
-        scores = scores[:, scores_over_thresh, :]
-
-        anchors_nms_idx = torchvision.ops.nms(transformed_anchors[0, :, :], scores[0, :, 0], config.Detection.NMS_THRESHOLD)
-
-        nms_scores, nms_class = classification[0, anchors_nms_idx, :].max(dim=1)
-
-        return [nms_scores, nms_class, transformed_anchors[0, anchors_nms_idx, :]]
 
     def get_crops(self, img, bbox_pred=None, anns=None, view_im = False):
         if view_im and anns is not None :
@@ -544,13 +506,6 @@ class PerObjectEstimate(KeypointUtilitiesMixin, nn.Module):
 
 
 
-    def view_points_on_img(self, img, point_anns):
-
-        for p in point_anns:
-            cv2.circle(img, (int(p['x']), int(p['y'])), radius=3, color=(0, 0, 255), thickness=2)
-
-        cv2.imshow('img', img)
-        cv2.waitKey(0)
 
 
 
