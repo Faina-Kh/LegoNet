@@ -19,6 +19,7 @@ from legonet import config
 from legonet.eval.attribute_estimation_eval import SumOfAbsDifferences
 from legonet.eval.evaluation_policy import EvaluationTask, should_include_image
 from legonet.eval.evaluation_finalization import finalize_evaluation
+from legonet.eval.image_context import prepare_image_context
 from legonet.eval.evaluation_state import initiate_global_dicts
 from legonet.eval.detection_bookkeeping import record_detection_bookkeeping
 from legonet.eval.KP_detection_eval import points_detection_t_p
@@ -214,20 +215,26 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                 color_pred = []
                 orig_color_GT = []
 
-            image = data['img'].clone().detach()
-            scale= data['scale']
-
-            group_idx=sampler.groups[iter_num]
-            img_id = dataset.image_ids[group_idx[0]]
-            image_name = dataset.img_info[img_id]['name']
-            image_path = os.path.join(dataset.base_dir, image_name)
-
-            # get image annotations - bboxes and counts
-            if args.have_GT:
-                box_annotations_temp = all_box_annotations[img_id][0]
-                gt_counts_temp = all_count_annotations[img_id][0]
-            else:
-                gt_counts_temp = []
+            image_context = prepare_image_context(
+                dataset,
+                sampler,
+                iter_num,
+                data,
+                have_gt=args.have_GT,
+                all_box_annotations=(
+                    all_box_annotations if args.have_GT else None
+                ),
+                all_count_annotations=(
+                    all_count_annotations if args.have_GT else None
+                ),
+            )
+            image = image_context.image
+            scale = image_context.scale
+            group_idx = image_context.group_indices
+            image_name = image_context.image_name
+            image_path = image_context.image_path
+            box_annotations_temp = image_context.box_annotations
+            gt_counts_temp = image_context.count_annotations
 
             if len(gt_counts_temp)>0 or is_roots_2:
                 if len(gt_counts_temp)>0:
