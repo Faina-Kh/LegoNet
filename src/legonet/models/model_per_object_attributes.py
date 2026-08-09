@@ -580,46 +580,6 @@ class PerObjectEstimate(KeypointUtilitiesMixin, nn.Module):
 
         return filtered_samples
 
-    def find_points_in_bbox(self, img, point_anns, bbox_pred, scale, network_type):
-
-        unnormalize = UnNormalizer()
-
-        points=[]
-
-        # for drawing
-        im = img.cpu().clone().detach()
-        im = np.array(255 *unnormalize(im))
-        im[im < 0] = 0
-        im[im > 255] = 255
-        im = np.transpose(im, (1, 2, 0))
-        im = cv2.cvtColor(im.astype(np.uint8), cv2.COLOR_BGR2RGB)
-
-        for p in point_anns:
-            p['x'] = p['x'] * scale
-            p['y'] = p['y'] * scale
-
-            cv2.circle(im, (int(p['x']), int(p['y'])), radius=3, color=(0, 0, 255), thickness=2)
-
-
-        for b in range(bbox_pred.shape[0]):
-            p_x = []
-            p_y = []
-            box_x1, box_y1, box_x2, box_y2, box_id = bbox_pred[b,:5] #box_x1, box_y1, box_x2, box_y2 = bbox_pred[b,:4]
-            cv2.rectangle(im, (int(box_x1), int(box_y1)), (int(box_x2), int(box_y2)), color=(0, 0, 255), thickness=2)
-
-            for p in point_anns:
-                if p['bbox_id']!=box_id:
-                    continue
-                if p['x']<=box_x2 and p['x']>=box_x1 and p['y']<=box_y2 and p['y']>=box_y1:
-                    p_x.append(p['x'])
-                    p_y.append(p['y'])
-
-            points.append({'x':p_x, 'y':p_y})
-
-        # cv2.imshow('img', im)
-        # cv2.waitKey(0)
-
-        return points
 
 
     def view_points_on_img(self, img, point_anns):

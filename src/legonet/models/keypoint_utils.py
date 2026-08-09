@@ -96,3 +96,46 @@ class KeypointUtilitiesMixin:
                     non_supressed_indices[j] = False
 
         return non_supressed_indices
+
+    @staticmethod
+    def find_points_in_bbox(
+        img,
+        point_anns: list[dict[str, float]],
+        bbox_pred,
+        scale: float,
+        network_type: str,
+    ) -> list[dict[str, list[float]]]:
+        """Assign scaled points to predicted boxes using the legacy model rules.
+
+        Attribute models additionally require the point's ``bbox_id`` to match
+        the predicted box's GT identifier. Counting models use geometric
+        containment only. Point coordinates are scaled in place to preserve the
+        behavior of the original model implementations.
+
+        ``img`` remains in the signature for compatibility with existing model
+        call sites; the previous implementations only used it for disabled
+        visualization code.
+        """
+        del img
+        for point in point_anns:
+            point["x"] *= scale
+            point["y"] *= scale
+
+        points_by_box = []
+        require_matching_bbox_id = network_type == "per_object_attributes"
+        for box in bbox_pred:
+            box_x1, box_y1, box_x2, box_y2, box_id = box[:5]
+            point_x = []
+            point_y = []
+            for point in point_anns:
+                if require_matching_bbox_id and point["bbox_id"] != box_id:
+                    continue
+                if (
+                    box_x1 <= point["x"] <= box_x2
+                    and box_y1 <= point["y"] <= box_y2
+                ):
+                    point_x.append(point["x"])
+                    point_y.append(point["y"])
+            points_by_box.append({"x": point_x, "y": point_y})
+
+        return points_by_box
