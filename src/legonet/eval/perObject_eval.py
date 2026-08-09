@@ -24,6 +24,7 @@ from legonet.eval.attribute_estimation_eval import SumOfAbsDifferences
 from legonet.eval.detection_eval import _compute_ap, compute_overlap, plot_PR_curve
 from legonet.eval.evaluation_policy import EvaluationTask, should_include_image
 from legonet.eval.evaluation_state import initiate_global_dicts
+from legonet.eval.detection_bookkeeping import record_detection_bookkeeping
 from legonet.eval.KP_detection_eval import (
     calc_points_recall_precision_ap,
     points_detection_t_p,
@@ -1179,166 +1180,23 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     box_annotations_withPoints[i, 2] = box_annotations_withPoints[i, 2] * scale[0]
                     box_annotations_withPoints[i, 3] = box_annotations_withPoints[i, 3] * scale[0]
 
-            gt_counts_copy = gt_counts.copy()
-
-            remove_found_ids = []
-
-            if len(adjusted_crops_orig_boxes)>0:
-
-                if len(box_annotations_withPoints)>0:
-
-                    scores_temp = np.zeros((0,))
-
-                    for i in range(len(adjusted_crops_orig_boxes)):
-                        scores_temp = np.append(scores_temp, adjusted_crops_orig_boxes[i][4])
-                        adjusted_crops_orig_boxes[i] = torch.tensor(adjusted_crops_orig_boxes[i]).unsqueeze(dim=0)
-
-                    adjusted_crops_orig_boxes = torch.cat(adjusted_crops_orig_boxes, dim=0)
-                    indices = np.argsort(-scores_temp)
-
-                    max_overlap_array = []
-
-                    sorted_matches = _match_detections_to_gt(
-                        adjusted_crops_orig_boxes[indices],
-                        box_annotations_withPoints,
-                        config.Detection.iou_threshold,
-                    )
-                    matches = [None] * len(sorted_matches)
-                    for sorted_index, original_index in enumerate(indices):
-                        matches[original_index] = sorted_matches[sorted_index]
-                    for d, assigned_annotation, max_overlap, is_new_match in matches:
-
-                        state['detections_data_any_crop'][image_name]['score'].append(float(d[4]))
-                        state['detections_data_any_crop'][image_name]['max_overlap'].append(max_overlap)
-
-                        if is_new_match:
-                            max_overlap_array.append(max_overlap)
-                            state['found_orig_objects'] += 1
-
-                            state['detections_data_any_crop'][image_name]['label'].append(1)
-
-                            gt_box_id = box_annotations_withPoints[assigned_annotation][5]
-
-                            state['detections_data_any_crop'][image_name]['gt_box_id'].append(gt_box_id)
-
-                            # find the gt count value of the assigned gt box
-                            has_points=False
-                            for g in range(len(gt_counts)):
-                                if gt_counts[g][2] == gt_box_id:
-                                    if not is_roots_2:
-                                        gt_count = gt_counts[g][0]
-                                        orig_count_GT.append(gt_count)
-                                        state['detections_data_any_crop'][image_name]['gt_count'].append(gt_count)
-
-                                    has_points=True
-
-                                    if is_roots_2:
-                                        gt_TRL = gt_counts[g][3]
-                                        orig_TRL_GT.append(gt_TRL)
-                                        gt_dia = gt_counts[g][4]
-                                        orig_dia_GT.append(gt_dia)
-                                        gt_color = gt_counts[g][0]
-                                        orig_color_GT.append(gt_color)
-
-
-                                    #collect the found gt indexes in gt_counts
-                                    remove_found_ids.append(g)
-
-                                    if is_roots_2:
-                                        state['detections_data_any_crop'][image_name]['color_gt'].append(gt_color)
-                                        state['detections_data_any_crop'][image_name]['TRL_gt'].append(gt_TRL)
-                                        state['detections_data_any_crop'][image_name]['dia_gt'].append(gt_dia)
-
-                                    break
-
-                            # matched a gt box without gt points
-                            if not has_points:
-
-                                #state['matched_without_gt_points']+=1
-                                if not is_roots_2:
-                                    orig_count_GT.append(-1)
-                                    state['detections_data_any_crop'][image_name]['gt_count'].append(0)
-
-                                else:
-                                    orig_TRL_GT.append(-1)
-                                    state['detections_data_any_crop'][image_name]['TRL_gt'].append(0)
-                                    orig_dia_GT.append(-1)
-                                    state['detections_data_any_crop'][image_name]['dia_gt'].append(0)
-                                    orig_color_GT.append(-1)
-                                    state['detections_data_any_crop'][image_name]['color_gt'].append(-1)
-
-                        else:
-                            if not is_roots_2:
-                                orig_count_GT.append(-1)
-
-                            max_overlap_array.append(max_overlap)
-                            state['FP'] += 1
-                            state['detections_data_any_crop'][image_name]['label'].append(0)
-                            if not is_roots_2:
-                                state['detections_data_any_crop'][image_name]['gt_count'].append(-1)
-
-                            state['detections_data_any_crop'][image_name]['gt_box_id'].append(torch.tensor(-1, dtype=float))
-
-                            if is_roots_2:
-                                orig_TRL_GT.append(-1)
-                                state['detections_data_any_crop'][image_name]['TRL_gt'].append(-1)
-                                orig_dia_GT.append(-1)
-                                state['detections_data_any_crop'][image_name]['dia_gt'].append(-1)
-                                orig_color_GT.append(-1)
-                                state['detections_data_any_crop'][image_name]['color_gt'].append(-1)
-
-                else:
-
-                    max_overlap_array=None
-
-                    for i in range(len(adjusted_crops_orig_boxes)):
-
-                        state['FP'] += 1
-
-                        state['detections_data_any_crop'][image_name]['score'].append(-1)
-                        state['detections_data_any_crop'][image_name]['max_overlap'].append(-1)
-
-                        state['detections_data_any_crop'][image_name]['label'].append(0)
-                        if not is_roots_2:
-                            state['detections_data_any_crop'][image_name]['gt_count'].append(-1)
-
-                        state['detections_data_any_crop'][image_name]['gt_box_id'].append(torch.tensor(-1, dtype=float))
-
-                        if is_roots_2:
-                            orig_TRL_GT.append(-1)
-                            state['detections_data_any_crop'][image_name]['TRL_gt'].append(-1)
-                            orig_dia_GT.append(-1)
-                            state['detections_data_any_crop'][image_name]['dia_gt'].append(-1)
-
-                            orig_color_GT.append(-1)
-                            state['detections_data_any_crop'][image_name]['color_gt'].append(-1)
-
-            # get the not found boxes (that have points)
-            # remove those that were found
-            all = np.arange(len(gt_counts_copy))
-            if len(remove_found_ids)>0:
-                keep_not_found = list(set(all) - set(remove_found_ids))
-            else:
-                keep_not_found=all
-
-            if len(keep_not_found)>0:
-                for i in keep_not_found:
-                    if config.Detect_and_Estimate.type == "per_object_counting":
-                        state['not_found_gt'][image_name]['gt_count'].append(gt_counts_copy[i][0])
-                        state['not_found_gt'][image_name]['pred'].append(-1)
-
-                    state['not_found_gt'][image_name]['label'].append(1)
-                    state['not_found_gt'][image_name]['score'].append(-1)
-                    state['not_found_gt'][image_name]['max_overlap'].append(-1)
-
-                    if is_roots_2:
-                        state['not_found_gt'][image_name]['TRL_gt'].append(gt_counts_copy[i][3])
-                        state['not_found_gt'][image_name]['TRL_pred'].append(-1)
-                        state['not_found_gt'][image_name]['dia_gt'].append(gt_counts_copy[i][4])
-                        state['not_found_gt'][image_name]['dia_pred'].append(-1)
-
-                        state['not_found_gt'][image_name]['color_gt'].append(gt_counts_copy[i][0])
-                        state['not_found_gt'][image_name]['color_pred'].append(-1)
+            bookkeeping = record_detection_bookkeeping(
+                state=state,
+                image_name=image_name,
+                predicted_boxes=adjusted_crops_orig_boxes,
+                annotated_boxes=box_annotations_withPoints,
+                gt_values=gt_counts,
+                attributes=is_roots_2,
+                counting=(
+                    config.Detect_and_Estimate.type == "per_object_counting"
+                ),
+                iou_threshold=config.Detection.iou_threshold,
+            )
+            orig_count_GT = bookkeeping.count_ground_truth
+            orig_TRL_GT = bookkeeping.trl_ground_truth
+            orig_dia_GT = bookkeeping.diameter_ground_truth
+            orig_color_GT = bookkeeping.color_ground_truth
+            max_overlap_array = bookkeeping.max_overlaps
 
             ############################################################################################################
             # Evaluate the results of the given image
