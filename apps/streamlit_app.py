@@ -8,6 +8,7 @@ import uuid
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 
 SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src"
@@ -214,6 +215,30 @@ def build_command(
 def format_command(command: list[str]) -> str:
     """Format a command for display in the UI."""
     return " ".join(f'"{part}"' if " " in part else part for part in command)
+
+
+def keep_live_output_at_bottom(placeholder, update_id: int) -> None:
+    """Keep only the live-output container scrolled to its newest content."""
+    script = f"""
+        <script>
+            window.setTimeout(() => {{
+                const root = window.parent.document.querySelector(
+                    '.st-key-live_output_scroller'
+                );
+                if (!root) return;
+                const elements = [root, ...root.querySelectorAll('*')];
+                const scroller = elements.find((element) => {{
+                    const style = window.parent.getComputedStyle(element);
+                    return element.scrollHeight > element.clientHeight &&
+                        (style.overflowY === 'auto' || style.overflowY === 'scroll');
+                }});
+                if (scroller) scroller.scrollTop = scroller.scrollHeight;
+                // Force component refresh for output update {update_id}.
+            }}, 0);
+        </script>
+    """
+    with placeholder.container():
+        components.html(script, height=0)
 
 
 def expected_experiment_root(storage_path: str, dataset_name: str, current_results_dir: str) -> Path:
@@ -571,8 +596,12 @@ if "evaluation_summary" not in st.session_state:
     st.session_state.evaluation_summary = ""
 
 status_placeholder = st.empty()
-live_output_container = st.container(height=500)
+live_output_container = st.container(
+    height=500,
+    key="live_output_scroller",
+)
 output_placeholder = live_output_container.empty()
+scroll_trigger = st.empty()
 
 if st.session_state.run_output:
     output_placeholder.code(st.session_state.run_output)
@@ -625,6 +654,11 @@ if run_clicked:
                     min(current / total, 1.0) if total else 1.0,
                     text=f"{label} {current}/{total}",
                 )
+                if current == 1 or current % 5 == 0 or current >= total:
+                    keep_live_output_at_bottom(
+                        scroll_trigger,
+                        output_update_count + current,
+                    )
                 continue
             output_lines.append(line)
             if output_placeholder is None:
@@ -638,10 +672,15 @@ if run_clicked:
                 st.session_state.evaluation_summary = "\n".join(summary_lines)
             if output_update_count == 1 or output_update_count % 5 == 0:
                 output_placeholder.code("".join(output_segment))
+                keep_live_output_at_bottom(
+                    scroll_trigger,
+                    output_update_count,
+                )
 
     returncode = process.wait()
     if output_placeholder is not None:
         output_placeholder.code("".join(output_segment))
+    keep_live_output_at_bottom(scroll_trigger, output_update_count + 1)
 
     if returncode == 0:
         st.session_state.run_status = "success"
