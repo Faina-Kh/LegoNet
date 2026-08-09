@@ -6,7 +6,7 @@ independently testable while the legacy evaluation routine is decomposed.
 """
 
 import os
-from typing import Any, Iterable
+from typing import Iterable
 
 import cv2
 import matplotlib
@@ -27,6 +27,10 @@ from legonet.eval.evaluation_state import initiate_global_dicts
 from legonet.eval.KP_detection_eval import (
     calc_points_recall_precision_ap,
     points_detection_t_p,
+)
+from legonet.eval.matching import (
+    assign_detection_to_gt as _assign_detection_to_gt,
+    match_detections_to_gt as _match_detections_to_gt,
 )
 from legonet.eval.regression_metrics import compute_regression_metrics
 from legonet.eval.classification_metrics import (
@@ -384,78 +388,6 @@ def choose_boxes_by_IoUandPrc(detections, annotations, d_scores):
         else:
             #print('No relevant detections...\n')
             return []
-
-def _assign_detection_to_gt(
-    detection: Any,
-    annotations: Any,
-    detected_annotations: Iterable[int],
-    iou_threshold: float,
-) -> tuple[int, float, bool]:
-    """Match one predicted box to an unmatched GT box by IoU threshold.
-
-    Args:
-        detection: Predicted box with at least ``x1, y1, x2, y2`` coordinates.
-        annotations: GT boxes with at least ``x1, y1, x2, y2`` coordinates.
-        detected_annotations: GT annotation indices already matched by higher-score boxes.
-        iou_threshold: Minimum IoU required for a true detection.
-
-    Returns:
-        tuple: ``(assigned_annotation, max_overlap, is_new_match)`` where
-        ``assigned_annotation`` is ``None`` when no annotations are available.
-    """
-    if len(annotations) == 0:
-        return None, -1.0, False
-
-    overlaps = compute_overlap(
-        np.expand_dims(np.asarray(detection), axis=0),
-        np.asarray(annotations),
-    )
-    assigned_annotation = int(np.argmax(overlaps, axis=1)[0])
-    max_overlap = float(overlaps[0, assigned_annotation])
-    is_new_match = (
-        max_overlap >= iou_threshold
-        and assigned_annotation not in detected_annotations
-    )
-
-    return assigned_annotation, max_overlap, is_new_match
-
-
-def _match_detections_to_gt(
-    detections: Iterable[Any],
-    annotations: Any,
-    iou_threshold: float,
-) -> list[tuple[Any, int, float, bool]]:
-    """Match score-ordered detections to GT boxes at most once.
-
-    Args:
-        detections: Predicted boxes ordered by descending confidence. Each row
-            must begin with ``x1, y1, x2, y2``.
-        annotations: Ground-truth boxes accepted by :func:`compute_overlap`.
-        iou_threshold: Minimum IoU required for a match.
-
-    Returns:
-        list: Tuples containing ``(detection, assigned_gt_index, max_iou,
-        is_new_match)``. A detection with ``is_new_match=False`` is a false
-        positive, including duplicate matches to an already claimed GT box.
-    """
-    detected_annotations = []
-    matches = []
-
-    for detection in detections:
-        assigned_annotation, max_overlap, is_new_match = _assign_detection_to_gt(
-            detection,
-            annotations,
-            detected_annotations,
-            iou_threshold,
-        )
-        if is_new_match:
-            detected_annotations.append(assigned_annotation)
-        matches.append(
-            (detection, assigned_annotation, max_overlap, is_new_match)
-        )
-
-    return matches
-
 
 def _compute_positive_crop_count_metrics(
     ground_truth_counts: Iterable[float],
