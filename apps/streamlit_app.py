@@ -634,7 +634,11 @@ if run_clicked:
         stderr=subprocess.STDOUT,
         text=True,
         bufsize=1,
-        env={**os.environ, "LEGONET_PROGRESS_PROTOCOL": "1"},
+        env={
+            **os.environ,
+            "LEGONET_PROGRESS_PROTOCOL": "1",
+            "LEGONET_STREAMLIT_SUMMARIES": "1",
+        },
     )
 
     if process.stdout is not None:

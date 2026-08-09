@@ -1622,7 +1622,11 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
         print()
         if evaluate_points:
             recall, precision, ap = calc_points_recall_precision_ap(state['T'], state['P'])
-            if verbose:
+            show_keypoint_summary = (
+                verbose
+                or os.environ.get("LEGONET_STREAMLIT_SUMMARIES") == "1"
+            )
+            if show_keypoint_summary:
                 print(
                     format_keypoint_summary(ap, recall[-1], precision[-1]),
                     end="",
