@@ -4,6 +4,7 @@ import io
 import tempfile
 import unittest
 from contextlib import redirect_stdout
+from pathlib import Path
 from unittest.mock import patch
 
 from legonet.eval.evaluation_finalization import (
@@ -39,6 +40,7 @@ class EvaluationFinalizationTests(unittest.TestCase):
         output = io.StringIO()
 
         with tempfile.TemporaryDirectory() as directory:
+            text_results = Path(directory) / "results.txt"
             with patch(
                 "legonet.eval.evaluation_finalization.write_evaluation_artifacts"
             ):
@@ -54,9 +56,15 @@ class EvaluationFinalizationTests(unittest.TestCase):
                         detection_metrics=None,
                         evaluate_points=False,
                         files_path=directory,
+                        text_results_path=str(text_results),
                     )
+            saved_output = text_results.read_text(encoding="utf-8")
 
         self.assertIn("Evaluation Summary - per-object counting", output.getvalue())
+        self.assertIn(
+            "Evaluation Summary - per-object counting",
+            saved_output,
+        )
 
     def test_counting_result_preserves_legacy_field_order(self):
         state = {"gt_objects_withGTpoints": 5, "found_orig_objects": 4}

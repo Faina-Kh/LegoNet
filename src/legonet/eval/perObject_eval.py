@@ -626,6 +626,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             detection_metrics=detection_metrics,
             evaluate_points=evaluate_points,
             files_path=config.General.files_path,
+            text_results_path=getattr(args, "txt_results", None),
         )
 
 

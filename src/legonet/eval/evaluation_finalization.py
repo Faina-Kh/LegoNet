@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import sys
+from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from legonet.eval.KP_detection_eval import calc_points_recall_precision_ap
@@ -35,6 +37,7 @@ def finalize_evaluation(
     detection_metrics: Sequence[Any] | None,
     evaluate_points: bool,
     files_path: str,
+    text_results_path: str | None = None,
 ) -> list[float]:
     """Report final metrics, write requested artifacts, and build legacy output."""
     _print_availability(metrics, attributes=attributes, have_gt=have_gt, verbose=verbose)
@@ -44,10 +47,13 @@ def finalize_evaluation(
         or os.environ.get("LEGONET_STREAMLIT_SUMMARIES") == "1"
     )
     if report_summary:
-        _print_metric_summary(
-            metrics,
-            attributes=attributes,
-            have_gt=have_gt,
+        _emit_summary(
+            _format_metric_summary(
+                metrics,
+                attributes=attributes,
+                have_gt=have_gt,
+            ),
+            text_results_path,
         )
     if verbose:
         _print_verbose_details(
@@ -67,6 +73,7 @@ def finalize_evaluation(
             state,
             files_path=files_path,
             report_summary=report_summary,
+            text_results_path=text_results_path,
         )
 
     return build_legacy_result(
@@ -124,40 +131,61 @@ def _print_availability(
         print("No gt boxes for any image")
 
 
-def _print_metric_summary(
+def _format_metric_summary(
     metrics: PostLoopMetrics,
     *,
     attributes: bool,
     have_gt: bool,
-) -> None:
-    """Print the aggregate summary shared by console and text-file output."""
+) -> str:
+    """Format the aggregate summary shared by console and text-file output."""
     if not attributes:
-        print(
-            format_counting_summary(
-                metrics.count_mae,
-                metrics.count_agreement,
-                metrics.count_mse,
-                metrics.count_relative_error,
-                1 - metrics.count_fvu,
-                metrics.crop_count_metrics,
-            ),
-            end="",
+        return format_counting_summary(
+            metrics.count_mae,
+            metrics.count_agreement,
+            metrics.count_mse,
+            metrics.count_relative_error,
+            1 - metrics.count_fvu,
+            metrics.crop_count_metrics,
         )
     elif have_gt:
-        print(
-            format_attribute_summary(
-                metrics.trl_mae,
-                metrics.trl_mse,
-                metrics.trl_relative_error,
-                1 - metrics.trl_fvu,
-                metrics.diameter_mae,
-                metrics.diameter_mse,
-                metrics.diameter_relative_error,
-                1 - metrics.diameter_fvu,
-                metrics.color_metrics,
-            ),
-            end="",
+        return format_attribute_summary(
+            metrics.trl_mae,
+            metrics.trl_mse,
+            metrics.trl_relative_error,
+            1 - metrics.trl_fvu,
+            metrics.diameter_mae,
+            metrics.diameter_mse,
+            metrics.diameter_relative_error,
+            1 - metrics.diameter_fvu,
+            metrics.color_metrics,
         )
+    return ""
+
+
+def _stdout_mirrors(path: Path) -> bool:
+    """Return whether the current stdout tee already writes to ``path``."""
+    streams = getattr(sys.stdout, "streams", ())
+    target = os.path.abspath(os.fspath(path))
+    return any(
+        getattr(stream, "name", None)
+        and os.path.abspath(os.fspath(stream.name)) == target
+        for stream in streams
+    )
+
+
+def _emit_summary(summary: str, text_results_path: str | None) -> None:
+    """Print a summary and explicitly persist it when stdout is not file-backed."""
+    if not summary:
+        return
+    print(summary, end="")
+    if not text_results_path:
+        return
+    results_path = Path(text_results_path)
+    if _stdout_mirrors(results_path):
+        return
+    results_path.parent.mkdir(parents=True, exist_ok=True)
+    with results_path.open("a", encoding="utf-8") as results_file:
+        results_file.write(summary)
 
 
 def _print_verbose_details(
@@ -240,16 +268,17 @@ def _finalize_keypoints(
     *,
     files_path: str,
     report_summary: bool,
+    text_results_path: str | None,
 ) -> None:
     recall, precision, average_precision = calc_points_recall_precision_ap(
         state["T"], state["P"]
     )
     if report_summary:
-        print(
+        _emit_summary(
             format_keypoint_summary(
                 average_precision, recall[-1], precision[-1]
             ),
-            end="",
+            text_results_path,
         )
     plot_PR_curve(
         recall,
