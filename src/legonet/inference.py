@@ -193,8 +193,6 @@ def _evaluate_detection(
         f"recall = {recall:.3f}"
     )
     print(result_line)
-    with open(args.txt_results, "a") as results_file:
-        results_file.write(result_line + "\n")
 
     if (
         config.General.to_draw

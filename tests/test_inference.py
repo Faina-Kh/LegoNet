@@ -73,7 +73,7 @@ class InferenceTests(unittest.TestCase):
         config.General.to_draw = False
 
     def test_detection_inference_records_metrics(self):
-        """Detection inference evaluates, prints, and appends its metrics."""
+        """Detection inference prints metrics for the runner's output tee."""
         config.General.NETWORK_TYPE = config.NetworkType.detection
         args = SimpleNamespace(
             evaluate_detection=True,
@@ -95,9 +95,7 @@ class InferenceTests(unittest.TestCase):
 
         model.eval.assert_called_once_with()
         self.inference.detection_eval.evaluateMAP_simple.assert_called_once()
-        mocked_open().write.assert_called_once_with(
-            "mAP = 0.600, precision = 0.700, recall = 0.800\n"
-        )
+        mocked_open.assert_not_called()
 
     def test_detection_parameter_sweep_uses_configured_lists(self):
         """Parameter-sweep inference forwards all configured thresholds."""

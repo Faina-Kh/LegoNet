@@ -99,7 +99,7 @@ def save_detection_overview(
                     width=line_width,
                 )
                 image_stem = image_name.split(".jpg")[0]
-                gt_image.save(Path(gt_path) / f"{image_stem}_gt_{index}.jpg")
+                gt_image.save(Path(gt_path) / f"{image_stem}_gt_box_{index}.jpg")
 
         if draw_gt_only:
             image.save(Path(gt_path) / image_name)

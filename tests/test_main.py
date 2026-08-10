@@ -36,6 +36,23 @@ class MainEntryPointTests(unittest.TestCase):
         """Importing the module must not launch training or inference."""
         self.runner_stub.run.assert_not_called()
 
+    def test_finalizes_text_results_without_creating_a_run_csv(self) -> None:
+        """Run finalization keeps the text log and structured CSVs separate."""
+        with TemporaryDirectory() as directory:
+            results_path = Path(directory) / "results.txt"
+            results_path.write_text(
+                "Evaluation Summary - per-object attributes\n"
+                "orig_avg_abs_TRL_diff: 0.100\n",
+                encoding="utf-8",
+            )
+            args = SimpleNamespace(txt_results=str(results_path))
+
+            self.main_module.finalize_text_results(args, 120.0)
+            output = results_path.read_text(encoding="utf-8")
+
+        self.assertIn("Execution time in minutes: 2.00", output)
+        self.assertIn("\nEvaluation Summary\n", output)
+
     def test_main_configures_arguments_and_runs_once(self) -> None:
         """Calling main explicitly configures and dispatches one run."""
         import legonet
@@ -56,8 +73,8 @@ class MainEntryPointTests(unittest.TestCase):
                     return_value=configured_args,
                 )
             )
-            print_to_csv = stack.enter_context(
-                mock.patch.object(self.main_module, "print_to_csv")
+            finalize_text_results = stack.enter_context(
+                mock.patch.object(self.main_module, "finalize_text_results")
             )
             stack.enter_context(
                 mock.patch.object(legonet, "runner", self.runner_stub, create=True)
@@ -73,7 +90,7 @@ class MainEntryPointTests(unittest.TestCase):
         parse_args.assert_called_once_with(["--help-placeholder"])
         configure_runtime.assert_called_once_with(parsed_args)
         self.runner_stub.run.assert_called_once_with(configured_args)
-        print_to_csv.assert_called_once()
+        finalize_text_results.assert_called_once()
 
     def test_cli_storage_path_takes_precedence(self) -> None:
         """An explicit CLI path overrides the environment setting."""

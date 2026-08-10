@@ -9,7 +9,6 @@ from pathlib import Path
 
 from legonet import config, paths
 from legonet.streamlit_output import append_evaluation_summary
-import csv
 from datetime import datetime
 
 import warnings
@@ -17,19 +16,15 @@ import faulthandler
 
 ########################################################################################################################
 
-def print_to_csv(args, executionTime):
+def finalize_text_results(args, execution_time: float) -> None:
+    """Append execution time and the consolidated summary to the text output."""
     if getattr(args, "txt_results", ""):
-        with open(args.txt_results, 'a') as f:
-            f.write(f'Execution time in minutes: {(executionTime / 60):.2f}\n')
+        with open(args.txt_results, "a", encoding="utf-8") as results_file:
+            results_file.write(
+                f"Execution time in minutes: {(execution_time / 60):.2f}\n"
+            )
 
         append_evaluation_summary(args.txt_results)
-
-        with open(args.txt_results, "r", encoding="utf-8") as f_in, \
-                open(args.output_csv, "w", newline="", encoding="utf-8") as f_out:
-
-            writer = csv.writer(f_out)
-            for line in f_in:
-                writer.writerow(line.strip().split("|"))
 
 
 def parse_bool(value):
@@ -578,10 +573,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         args.txt_results = os.path.join(config.General.files_path,
                                         "with_Vis_results_"+ args.val_set +".txt" if config.General.to_draw else
                                         "without_Vis_results_"+ args.val_set +".txt")
-        args.output_csv = os.path.join(config.General.files_path,
-                                       "with_Vis_results_"+ args.val_set +".csv" if config.General.to_draw else
-                                       "without_Vis_results_"+ args.val_set +".csv")
-
         if config.DrawProperties.DRAW_MAPS:
             config.DrawProperties.maps_path = os.path.join(config.DrawProperties.save_img_path, "points_maps")
             os.makedirs(config.DrawProperties.maps_path, exist_ok=True)
@@ -590,7 +581,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         config.General.files_path = os.path.join(config.General.experiment_path, "OutputFiles_Train")  # , 'Test2')
 
         args.txt_results = os.path.join(config.General.files_path, "Train_results.txt")
-        args.output_csv = os.path.join(config.General.files_path, "Train_results.csv")
 
     os.makedirs(config.General.files_path, exist_ok=True)
 
@@ -756,7 +746,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     execution_time = time.time() - start_time
     print(f"Execution time in minutes: {execution_time / 60:.3f}")
-    print_to_csv(args, execution_time)
+    finalize_text_results(args, execution_time)
     return 0
 
 
