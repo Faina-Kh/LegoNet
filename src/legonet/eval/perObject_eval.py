@@ -19,6 +19,7 @@ from legonet import config
 from legonet.eval.attribute_estimation_eval import SumOfAbsDifferences
 from legonet.eval.evaluation_finalization import finalize_evaluation
 from legonet.eval.image_context import prepare_image_context
+from legonet.eval.model_input import build_per_object_model_input
 from legonet.eval.ground_truth_preparation import (
     prepare_image_ground_truth,
     split_boxes_by_annotations as _prepare_gt_boxes_for_attribute_eval,
@@ -240,29 +241,26 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     print()
                 continue
 
-            # run the network
-            if not args.have_GT:
-                input = [image.to(config.General.device).float(), None, torch.tensor(group_idx)] #, True]
-                detection_outputs, estimation_outputs, sample_anns, relevant_points_anns, crops_orig_boxes = model(input)
-
-            elif 'points_annot' in data.keys():
-                input = [image.to(config.General.device).float(), [data['bbox_annot'], data['points_annot']],
-                         torch.tensor(group_idx)]
-                detection_outputs, estimation_outputs, sample_anns, relevant_points_anns, crops_orig_boxes = \
-                    model(input)
-
-            else:
-                input = [image.to(config.General.device).float(), [data['bbox_annot'], None],
-                         torch.tensor(group_idx)]
-                detection_outputs, estimation_outputs, sample_anns, relevant_points_anns, crops_orig_boxes = \
-                    model(input)
+            model_input = build_per_object_model_input(
+                image,
+                data,
+                group_idx,
+                have_gt=args.have_GT,
+                device=config.General.device,
+            )
+            (
+                detection_outputs,
+                estimation_outputs,
+                sample_anns,
+                relevant_points_anns,
+                crops_orig_boxes,
+            ) = model(model_input)
 
             if iter_num==0 and do_profile:
                 print("Both_2 FLOPS:")
 
                 # Use thop to profile the model
-                input = input
-                flops, params = profile(model, inputs=(input,))
+                flops, params = profile(model, inputs=(model_input,))
 
                 # Print the estimated FLOPS and parameters
                 flops_str, params_str = clever_format([flops, params], "%.3f")
