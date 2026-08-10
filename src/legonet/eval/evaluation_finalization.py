@@ -14,7 +14,6 @@ from legonet.eval.reporting import (
     format_attribute_summary,
     format_counting_per_image,
     format_counting_summary,
-    format_detection_metrics,
     format_keypoint_summary,
     format_matching_diagnostics,
     format_roots_per_image,
@@ -188,8 +187,6 @@ def _print_detection_diagnostics(
         format_matching_diagnostics(scope, gt_objects, matches, false_positives),
         end="",
     )
-    if detection_metrics is not None:
-        print(format_detection_metrics(detection_metrics), end="")
 
 
 def _print_attribute_per_image(state: Mapping[str, Any]) -> None:

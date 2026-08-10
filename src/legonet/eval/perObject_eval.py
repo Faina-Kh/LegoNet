@@ -22,6 +22,7 @@ from legonet.eval.image_context import prepare_image_context
 from legonet.eval.model_input import build_per_object_model_input
 from legonet.eval.prediction_summary import record_per_image_predictions
 from legonet.eval.no_prediction_bookkeeping import record_no_predictions
+from legonet.eval.detection_inputs import prepare_detection_evaluation_inputs
 from legonet.eval.ground_truth_preparation import (
     prepare_image_ground_truth,
     split_boxes_by_annotations as _prepare_gt_boxes_for_attribute_eval,
@@ -302,29 +303,19 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                 continue
 
-            # Detection evaluation
-            # add scores to pred boxes
-            detections = np.concatenate((bbox_pred, np.array([obj_scores]).T), axis=1)
-            state['all_detections'].append(detections)
-
-            if args.have_GT:
-                if len(dataset.image_data_points_location[image_name]) > 0:
-                    point_anns = dataset.image_data_points_location[image_name]  # data from kcsv file (original coords)
-                else:
-                    dataset.image_data_points_location[image_name] = []
-                current_anns = []
-                if len(box_annotations_all) > 0:
-                    gt_boxes = data['bbox_annot'][0]
-
-                    for i in range(gt_boxes.shape[0]): # get coordinates of orig image
-                        x1 = gt_boxes[i, 0].numpy() / scale
-                        y1 = gt_boxes[i, 1].numpy() / scale
-                        x2 = gt_boxes[i, 2].numpy() / scale
-                        y2 = gt_boxes[i, 3].numpy() / scale
-
-                        current_anns.append(np.array([x1,y1,x2,y2]).reshape(4))#.reshape(4))
-
-                state['all_annotations'].append(np.array(current_anns)) #np.array([x1,y1,x2,y2]).reshape(4))
+            detection_inputs = prepare_detection_evaluation_inputs(
+                state,
+                dataset,
+                data,
+                image_name,
+                bbox_pred,
+                obj_scores,
+                scale,
+                have_gt=args.have_GT,
+                has_ground_truth_boxes=len(box_annotations_all) > 0,
+            )
+            point_anns = detection_inputs.point_annotations
+            gt_boxes = detection_inputs.ground_truth_boxes
 
             if to_draw:
                 draw = PIL.ImageDraw.Draw(orig_img)
@@ -336,7 +327,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                                      width=config.DrawProperties.LINE_WIDTH)
 
                     if len(box_annotations_all) > 0:
-                        gt_boxes = data['bbox_annot'][0]
                         for i in range(gt_boxes.shape[0]):
                             x1 = gt_boxes[i, 0].item() / scale[0]
                             y1 = gt_boxes[i, 1].item() / scale[0]
@@ -469,7 +459,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
             if to_draw:
                 if len(box_annotations_all) > 0:
-                    gt_boxes = data['bbox_annot'][0]
                     for i in range(gt_boxes.shape[0]):
                         x1 = gt_boxes[i, 0].item()/scale[0]
                         y1 = gt_boxes[i, 1].item()/scale[0]

@@ -1,8 +1,13 @@
 """Tests for post-aggregation evaluation finalization."""
 
+import io
 import unittest
+from contextlib import redirect_stdout
 
-from legonet.eval.evaluation_finalization import build_legacy_result
+from legonet.eval.evaluation_finalization import (
+    _print_detection_diagnostics,
+    build_legacy_result,
+)
 from legonet.eval.metric_aggregation import PostLoopMetrics
 
 
@@ -39,6 +44,26 @@ class EvaluationFinalizationTests(unittest.TestCase):
         )
 
         self.assertEqual(result, [0.25])
+
+    def test_per_object_diagnostics_do_not_repeat_bbox_detection_stats(self):
+        state = {
+            "gt_objects_withGTpoints": 5,
+            "found_orig_objects": 4,
+            "FP": 1,
+        }
+        output = io.StringIO()
+
+        with redirect_stdout(output):
+            _print_detection_diagnostics(
+                state,
+                predict_empty_image=False,
+                detection_metrics=[0.75, 0.8, 0.6],
+            )
+
+        report = output.getvalue()
+        self.assertIn("Object matching diagnostics", report)
+        self.assertNotIn("Bounding-box detection stats", report)
+        self.assertNotIn("mAP:", report)
 
 
 if __name__ == "__main__":
