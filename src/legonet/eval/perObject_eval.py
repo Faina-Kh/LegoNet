@@ -21,6 +21,7 @@ from legonet.eval.evaluation_finalization import finalize_evaluation
 from legonet.eval.image_context import prepare_image_context
 from legonet.eval.model_input import build_per_object_model_input
 from legonet.eval.prediction_summary import record_per_image_predictions
+from legonet.eval.no_prediction_bookkeeping import record_no_predictions
 from legonet.eval.ground_truth_preparation import (
     prepare_image_ground_truth,
     split_boxes_by_annotations as _prepare_gt_boxes_for_attribute_eval,
@@ -179,16 +180,12 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
             # get per image stats
             crops_count_GT = []
-            orig_count_GT = []
             count_pred = []
 
             if is_roots_2:
-                orig_TRL_GT = []
                 TRL_pred = []
-                orig_dia_GT = []
                 dia_pred = []
                 color_pred = []
-                orig_color_GT = []
 
             image_context = prepare_image_context(
                 dataset,
@@ -275,6 +272,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                 attributes=is_roots_2,
             )
 
+            ###################################################################################################################################################
             # detection_outputs - outputs of the detection part (based on module where), after filtering by nms and min score
             # estimation_outputs - prediction of counting per box from detection_outputs
             # sample_anns - has the crop in its 'img' key. In training, it has also 'points_annot' key that holds the gt annotations per crop - relevant
@@ -285,7 +283,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             orig_img = Image.open(image_path)
 
             # bbox_pred - all predicted boxes - with or without points in it - rescaled to the orig img size
-
             obj_scores, bbox_pred = _get_detections(detection_outputs, scale) #bbox_pred coordinates for original image size
 
             if bbox_pred is None or len(bbox_pred)==0:
@@ -293,38 +290,15 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     printf("Image has no predicted boxes...\n")
                     print()
 
-                if not image_name in state['no_predictions'].keys():
-
-                    state['no_predictions'][image_name]= {
-                   'gt_count': [], 'label': [], 'score': [], 'max_overlap': []
-                    }
-
-                    if config.Detect_and_Estimate.type == "per_object_counting":
-                        state['no_predictions'][image_name].update({'pred': []})
-
-                    if is_roots_2:
-                        state['no_predictions'][image_name].update({
-                            'TRL_pred': [], 'TRL_gt': [], 'dia_pred': [], 'dia_gt': [], 'color_pred': [], 'color_gt': []
-                        })
-
-                if config.Detect_and_Estimate.type == "per_object_counting":
-                    state['no_predictions'][image_name]['pred'].append(0)
-
-                state['no_predictions'][image_name]['gt_count'].append(im_gt_avg)
-                state['no_predictions'][image_name]['label'].append(-1)
-                state['no_predictions'][image_name]['score'].append(-1)
-                state['no_predictions'][image_name]['max_overlap'].append(-1)
-
-                if is_roots_2:
-                    state['no_predictions'][image_name]['TRL_pred'].append(0)
-                    state['no_predictions'][image_name]['TRL_gt'].append(TRL_im_gt_sum)
-                    state['no_predictions'][image_name]['dia_pred'].append(0)
-                    state['no_predictions'][image_name]['dia_gt'].append(dia_im_gt_avg)
-                    state['no_predictions'][image_name]['color_pred'].append(-1)
-                    if TRL_im_gt_sum==0:
-                        state['no_predictions'][image_name]['color_gt'].append(-1)
-                    else:
-                        state['no_predictions'][image_name]['color_gt'].append(im_gt_avg)  # no gt avg color
+                record_no_predictions(
+                    state,
+                    image_name,
+                    image_gt_average=im_gt_avg,
+                    image_trl_sum=TRL_im_gt_sum,
+                    image_diameter_average=dia_im_gt_avg,
+                    attributes=is_roots_2,
+                    network_type=config.Detect_and_Estimate.type,
+                )
 
                 continue
 
@@ -387,7 +361,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                 orig_img.save(os.path.join(draw_path, image_name))
 
-
             ############################################################################################################
             # Preparing the evaluation of the counting results per crop - doesn't depend on the detection performance -
             # we only need to find and evaluate the crops that include gt points - otherwise we'll compare
@@ -410,7 +383,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
             if not isinstance(bbox_pred, list):
                 for b in range(bbox_pred.shape[0]):
-
                     if estimation_outputs is not None:
                         if is_roots_2:
                             decoded_color = int(
@@ -437,10 +409,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                         adjusted_crops_orig_boxes.append(crops_orig_boxes[b])
 
                     if config.AttributeEstimation.estimate_type == 'withKeyPoints' and estimation_outputs is not None:
-                        #if config.DrawProperties.DRAW_MAPS:
                         all_predicted_detection_maps.append(orig_predicted_detection_maps[-1][b])
-
-                        #if to_draw and config.DrawProperties.DRAW_MAPS: #draw_maps:
                         all_predicted_detection_maps_toDraw.append([
                             orig_predicted_detection_maps[0][b], orig_predicted_detection_maps[1][b],
                             orig_predicted_detection_maps[2][b], orig_predicted_detection_maps[3][b],
@@ -511,7 +480,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                 else:
                     gt_boxes = []
 
-                #orig_img.show(title=image_name)
                 # save the original img with pred bbox and gt anns
                 orig_img.save(os.path.join(draw_path,image_name))
 
@@ -559,11 +527,9 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                         state['all_orig_GT_counts'].append(orig_count_GT) # count in the corresponding annotated box, it is -1 if the crop is false positive
 
                     else:
-                        #state['all_crops_GT_TRL'].append(crops_TRL_GT)
                         state['all_predicted_TRL'].append(TRL_pred)
                         state['all_orig_GT_TRL'].append(orig_TRL_GT)
 
-                        #state['all_crops_GT_dia'].append(crops_dia_GT)
                         state['all_predicted_dia'].append(dia_pred)
                         state['all_orig_GT_dia'].append(orig_dia_GT)
 
@@ -581,16 +547,15 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                         elif crops_count_GT[i] > 0:
                             if orig_color_GT[i] != -1:
-                                state['orig_abs_diff_TRL'].append(abs(orig_TRL_GT[i] - TRL_pred[i])) # count_pred[i]))
+                                state['orig_abs_diff_TRL'].append(abs(orig_TRL_GT[i] - TRL_pred[i]))
                                 state['orig_rel_error_TRL'].append(abs(orig_TRL_GT[i] - TRL_pred[i]) / orig_TRL_GT[i])
 
-                                state['orig_abs_diff_dia'].append(abs(orig_dia_GT[i] - dia_pred[i]))  # count_pred[i]))
+                                state['orig_abs_diff_dia'].append(abs(orig_dia_GT[i] - dia_pred[i]))
                                 state['orig_rel_error_dia'].append(abs(orig_dia_GT[i] - dia_pred[i]) / orig_dia_GT[i])
 
-                                state['orig_abs_diff_color'].append(abs(orig_color_GT[i] - color_pred[i]))  # count_pred[i]))
+                                state['orig_abs_diff_color'].append(abs(orig_color_GT[i] - color_pred[i]))
 
                         if verbose:
-
                             if (not is_roots_2 and len(orig_count_GT) > 0) \
                                     or (is_roots_2 and len(orig_color_GT) > 0):
 
@@ -700,12 +665,5 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             evaluate_points=evaluate_points,
             files_path=config.General.files_path,
         )
-
-
-
-
-
-
-
 
 
