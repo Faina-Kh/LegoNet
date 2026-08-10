@@ -416,7 +416,7 @@ with st.sidebar:
         value=False,
         key="runner_draw_visualizations",
     )
-    if to_draw:
+    if to_draw and network_type in PER_OBJECT_NETWORKS:
         draw_detection_overview = st.checkbox(
             "Draw detection overview",
             value=True,

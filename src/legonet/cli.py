@@ -566,11 +566,8 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         args.base_dir = myDatasetsPath
 
     if args.run_script == 'Inference':
-        if args.network_type == 'bbox_detection':
-            results_dir = os.path.join(config.General.experiment_path, 'Inf_min_score_'+str(config.Detection.min_score))
-            os.makedirs(results_dir, exist_ok=True)
-        else:
-            results_dir = os.path.join(config.General.experiment_path)
+        results_dir = config.General.experiment_path
+        os.makedirs(results_dir, exist_ok=True)
 
         if args.to_draw:
             config.DrawProperties.save_img_path = os.path.join(results_dir, "Vis_" + args.val_set)
