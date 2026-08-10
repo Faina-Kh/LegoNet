@@ -8,11 +8,9 @@ independently testable while the legacy evaluation routine is decomposed.
 import os
 import matplotlib
 import numpy as np
-import PIL
 import torch
 
 matplotlib.use("TkAgg")
-from PIL import Image
 from thop import profile, clever_format
 
 from legonet import config
@@ -42,6 +40,7 @@ from legonet.eval.metric_aggregation import (
 )
 from legonet.eval.per_object_result import ClassificationType
 from legonet.eval.visualization import (
+    save_detection_overview,
     save_keypoint_heatmap,
     save_object_visualizations,
 )
@@ -280,9 +279,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             # for evaluation during training.
             ###################################################################################################################################################
 
-            # original image
-            orig_img = Image.open(image_path)
-
             # bbox_pred - all predicted boxes - with or without points in it - rescaled to the orig img size
             obj_scores, bbox_pred = _get_detections(detection_outputs, scale) #bbox_pred coordinates for original image size
 
@@ -318,38 +314,19 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             gt_boxes = detection_inputs.ground_truth_boxes
 
             if to_draw:
-                draw = PIL.ImageDraw.Draw(orig_img)
-
-                if args.have_GT:
-                    for p in point_anns:
-                        r = config.DrawProperties.POINT_RADIUS
-                        draw.ellipse((p['x']-r, p['y']-r, p['x']+r, p['y']+r), fill="black",
-                                     width=config.DrawProperties.LINE_WIDTH)
-
-                    if len(box_annotations_all) > 0:
-                        for i in range(gt_boxes.shape[0]):
-                            x1 = gt_boxes[i, 0].item() / scale[0]
-                            y1 = gt_boxes[i, 1].item() / scale[0]
-                            x2 = gt_boxes[i, 2].item() / scale[0]
-                            y2 = gt_boxes[i, 3].item()/ scale[0]
-                            draw.rectangle(((x1, y1), (x2, y2)), outline="blue", width=config.DrawProperties.LINE_WIDTH)
-
-                            orig_img_2 = Image.open(image_path)
-                            draw_gt = PIL.ImageDraw.Draw(orig_img_2)
-                            draw_gt.rectangle(((x1, y1), (x2, y2)), outline="blue", width=config.DrawProperties.LINE_WIDTH)
-                            orig_img_2.save(os.path.join(gt_path, image_name.split(".jpg")[0]+"_gt_"+str(i) + ".jpg"))
-
-                    orig_img.save(os.path.join(gt_path, image_name))
-
-                if len(bbox_pred)> 0:
-                    for b in range(bbox_pred.shape[0]):
-                        x1 = bbox_pred[b, 0]
-                        y1 = bbox_pred[b, 1]
-                        x2 = bbox_pred[b, 2]
-                        y2 = bbox_pred[b, 3]
-                        draw.rectangle(((x1, y1), (x2, y2)), outline="red", width=config.DrawProperties.LINE_WIDTH)
-
-                orig_img.save(os.path.join(draw_path, image_name))
+                save_detection_overview(
+                    image_path=image_path,
+                    image_name=image_name,
+                    predicted_boxes=bbox_pred,
+                    gt_boxes=gt_boxes,
+                    point_annotations=point_anns,
+                    scale=scale,
+                    have_gt=args.have_GT,
+                    draw_path=draw_path,
+                    gt_path=gt_path,
+                    line_width=config.DrawProperties.LINE_WIDTH,
+                    point_radius=config.DrawProperties.POINT_RADIUS,
+                )
 
             ############################################################################################################
             # Preparing the evaluation of the counting results per crop - doesn't depend on the detection performance -
@@ -456,21 +433,6 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             # Preparing the evaluation in comparison to the gt points' count of the relevant gt object -
             # the object with iou>thresh of the predicted box with the gt box
             ############################################################################################################
-
-            if to_draw:
-                if len(box_annotations_all) > 0:
-                    for i in range(gt_boxes.shape[0]):
-                        x1 = gt_boxes[i, 0].item()/scale[0]
-                        y1 = gt_boxes[i, 1].item()/scale[0]
-                        x2 = gt_boxes[i, 2].item()/scale[0]
-                        y2 = gt_boxes[i, 3].item()/scale[0]
-                        draw.rectangle(((x1, y1), (x2, y2)), outline="blue", width=config.DrawProperties.LINE_WIDTH)
-
-                else:
-                    gt_boxes = []
-
-                # save the original img with pred bbox and gt anns
-                orig_img.save(os.path.join(draw_path,image_name))
 
             if len(box_annotations_withPoints)>0:
                 for i in range(box_annotations_withPoints.shape[0]):

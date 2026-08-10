@@ -54,6 +54,65 @@ def _visualize_keypoint_heatmaps(*args: Any) -> None:
     visualize_KeyPointsHeatmaps(*args)
 
 
+def save_detection_overview(
+    image_path: str,
+    image_name: str,
+    predicted_boxes: Sequence[Sequence[Any]],
+    gt_boxes: Any,
+    point_annotations: Sequence[Mapping[str, Any]],
+    scale: Any,
+    have_gt: bool,
+    draw_path: str,
+    gt_path: str,
+    line_width: int,
+    point_radius: int,
+) -> None:
+    """Save original-image overlays for points, GT boxes, and predictions."""
+    image = Image.open(image_path)
+    draw = ImageDraw.Draw(image)
+
+    if have_gt:
+        for point in point_annotations:
+            draw.ellipse(
+                (
+                    point["x"] - point_radius,
+                    point["y"] - point_radius,
+                    point["x"] + point_radius,
+                    point["y"] + point_radius,
+                ),
+                fill="black",
+                width=line_width,
+            )
+
+        for index, box in enumerate(gt_boxes):
+            coordinates = scaled_box(box, scale)
+            draw.rectangle(
+                (coordinates[:2], coordinates[2:]),
+                outline="blue",
+                width=line_width,
+            )
+            gt_image = Image.open(image_path)
+            gt_draw = ImageDraw.Draw(gt_image)
+            gt_draw.rectangle(
+                (coordinates[:2], coordinates[2:]),
+                outline="blue",
+                width=line_width,
+            )
+            image_stem = image_name.split(".jpg")[0]
+            gt_image.save(Path(gt_path) / f"{image_stem}_gt_{index}.jpg")
+
+        image.save(Path(gt_path) / image_name)
+
+    for box in predicted_boxes:
+        coordinates = tuple(_number(value) for value in box[:4])
+        draw.rectangle(
+            (coordinates[:2], coordinates[2:]),
+            outline="red",
+            width=line_width,
+        )
+    image.save(Path(draw_path) / image_name)
+
+
 def save_object_visualizations(
     image_path: str,
     image_name: str,

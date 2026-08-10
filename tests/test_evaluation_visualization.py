@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 
 from legonet.eval.visualization import (
+    save_detection_overview,
     save_keypoint_heatmap,
     save_object_visualizations,
     scaled_box,
@@ -54,6 +55,32 @@ class EvaluationVisualizationTests(TestCase):
                 (output_path / "sample_crop_on_image_0.jpg").is_file()
             )
             self.assertTrue((output_path / "sample_crop_0.jpg").is_file())
+
+    def test_detection_overview_saves_gt_and_prediction_images(self) -> None:
+        with TemporaryDirectory() as temporary_directory:
+            output_path = Path(temporary_directory)
+            gt_path = output_path / "gt"
+            gt_path.mkdir()
+            image_path = output_path / "source.jpg"
+            Image.new("RGB", (32, 32), "white").save(image_path)
+
+            save_detection_overview(
+                image_path=str(image_path),
+                image_name="sample.jpg",
+                predicted_boxes=np.asarray([[4, 4, 24, 24]], dtype=float),
+                gt_boxes=np.asarray([[8, 8, 20, 20]], dtype=float),
+                point_annotations=[{"x": 12, "y": 12}],
+                scale=[1],
+                have_gt=True,
+                draw_path=str(output_path),
+                gt_path=str(gt_path),
+                line_width=1,
+                point_radius=2,
+            )
+
+            self.assertTrue((output_path / "sample.jpg").is_file())
+            self.assertTrue((gt_path / "sample.jpg").is_file())
+            self.assertTrue((gt_path / "sample_gt_0.jpg").is_file())
 
     @patch("legonet.eval.visualization._visualize_keypoint_heatmaps")
     def test_keypoint_heatmap_uses_fifth_map_and_advances_index(
