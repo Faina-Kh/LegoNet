@@ -8,6 +8,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from legonet import config, paths
+from legonet.streamlit_output import append_evaluation_summary
 import csv
 from datetime import datetime
 
@@ -20,6 +21,8 @@ def print_to_csv(args, executionTime):
     if getattr(args, "txt_results", ""):
         with open(args.txt_results, 'a') as f:
             f.write(f'Execution time in minutes: {(executionTime / 60):.2f}\n')
+
+        append_evaluation_summary(args.txt_results)
 
         with open(args.txt_results, "r", encoding="utf-8") as f_in, \
                 open(args.output_csv, "w", newline="", encoding="utf-8") as f_out:

@@ -1,5 +1,10 @@
 """Presentation helpers for the local Streamlit runner."""
 
+from pathlib import Path
+
+
+SUMMARY_SEPARATOR = "=" * 100
+
 
 def extract_evaluation_summary(output: str) -> str:
     """Extract compact aggregate metrics from verbose evaluation output."""
@@ -21,3 +26,23 @@ def extract_evaluation_summary(output: str) -> str:
         if line.strip().startswith(summary_prefixes)
     ]
     return "\n".join(lines)
+
+
+def append_evaluation_summary(text_results_path: str) -> str:
+    """Append the GUI's consolidated evaluation summary to a text artifact."""
+    results_path = Path(text_results_path)
+    if not results_path.is_file():
+        return ""
+    output = results_path.read_text(encoding="utf-8")
+    summary = extract_evaluation_summary(output)
+    if not summary:
+        return ""
+    section = (
+        f"\n{SUMMARY_SEPARATOR}\n"
+        "Evaluation Summary\n"
+        f"{SUMMARY_SEPARATOR}\n"
+        f"{summary}\n"
+    )
+    with results_path.open("a", encoding="utf-8") as results_file:
+        results_file.write(section)
+    return section

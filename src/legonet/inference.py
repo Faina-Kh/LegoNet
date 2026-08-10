@@ -65,7 +65,12 @@ def visualize_bboxes(
     model: Any,
     unnormalize: Any,
 ) -> None:
-    """Save validation images with predicted and ground-truth bounding boxes."""
+    """Save standalone-detector GT/prediction overlays in their own folder."""
+    output_directory = os.path.join(
+        config.DrawProperties.save_img_path,
+        "BBOX visualization",
+    )
+    os.makedirs(output_directory, exist_ok=True)
     font = ImageFont.truetype("arial.ttf", 14)
     print()
     for index, data in enumerate(dataloader_val):
@@ -136,7 +141,7 @@ def visualize_bboxes(
             label_draw.text((0, 0), image_name, font=font)
             image.paste(label_image, (0, 0))
             output_name = image_name.split(".jpg")[0] + "_annot.jpg"
-            image.save(os.path.join(config.DrawProperties.save_img_path, output_name))
+            image.save(os.path.join(output_directory, output_name))
 
 
 def _evaluate_detection(
@@ -191,7 +196,10 @@ def _evaluate_detection(
     with open(args.txt_results, "a") as results_file:
         results_file.write(result_line + "\n")
 
-    if config.General.to_draw:
+    if (
+        config.General.to_draw
+        and config.General.NETWORK_TYPE == config.NetworkType.detection
+    ):
         visualize_bboxes(
             dataloader_val,
             sampler_val,

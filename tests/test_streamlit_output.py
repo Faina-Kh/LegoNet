@@ -1,8 +1,13 @@
 """Tests for compact Streamlit evaluation output."""
 
 import unittest
+import tempfile
+from pathlib import Path
 
-from legonet.streamlit_output import extract_evaluation_summary
+from legonet.streamlit_output import (
+    append_evaluation_summary,
+    extract_evaluation_summary,
+)
 
 
 class StreamlitOutputTests(unittest.TestCase):
@@ -37,6 +42,22 @@ orig_avg_abs_count_diff: 0.500 | orig_count_agreement: 0.750 | orig_MSE: 0.400 |
 
     def test_returns_empty_text_before_metrics_are_available(self) -> None:
         self.assertEqual(extract_evaluation_summary("loading model\n"), "")
+
+    def test_appends_consolidated_summary_to_text_results(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            results_path = Path(directory) / "results.txt"
+            results_path.write_text(
+                "Evaluation Summary - per-object attributes\n"
+                "orig_avg_abs_TRL_diff: 0.100 | orig_MSE_TRL: 0.020\n",
+                encoding="utf-8",
+            )
+
+            section = append_evaluation_summary(str(results_path))
+            saved_output = results_path.read_text(encoding="utf-8")
+
+        self.assertIn("\nEvaluation Summary\n", section)
+        self.assertIn("orig_avg_abs_TRL_diff: 0.100", section)
+        self.assertTrue(saved_output.endswith(section))
 
 
 if __name__ == "__main__":

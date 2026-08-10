@@ -119,6 +119,39 @@ class InferenceTests(unittest.TestCase):
         self.assertIs(call[1]["score_threshold"], config.Detection.min_score_list)
         self.assertEqual(call[1]["save_path"], "results")
 
+    def test_bbox_visualization_is_only_created_for_standalone_detection(self):
+        """Combined models leave visualization to the per-object evaluator."""
+        args = SimpleNamespace(
+            evaluate_detection=True,
+            have_GT=True,
+            eval_detection_params=False,
+            evaluate_per_object=False,
+            txt_results="results.txt",
+        )
+        model = mock.Mock()
+        self.inference.detection_eval.evaluateMAP_simple.return_value = (
+            0.6,
+            0.7,
+            0.8,
+        )
+        config.General.to_draw = True
+
+        with (
+            mock.patch.object(builtins, "open", mock.mock_open()),
+            mock.patch.object(self.inference, "visualize_bboxes") as visualize,
+        ):
+            config.General.NETWORK_TYPE = config.NetworkType.detection_and_estimation
+            self.inference.run_inference(
+                args, "dataset", "loader", "sampler", model
+            )
+            visualize.assert_not_called()
+
+            config.General.NETWORK_TYPE = config.NetworkType.detection
+            self.inference.run_inference(
+                args, "dataset", "loader", "sampler", model
+            )
+            visualize.assert_called_once()
+
     def test_combined_inference_dispatches_attribute_evaluation(self):
         """Combined inference invokes per-object evaluation when requested."""
         config.General.NETWORK_TYPE = config.NetworkType.detection_and_estimation
@@ -139,10 +172,7 @@ class InferenceTests(unittest.TestCase):
                 "evaluate_points"
             ]
         )
-        self.inference.utils.printf.assert_called_once_with(
-            "rel error: %.3f \n",
-            0.25,
-        )
+        self.inference.utils.printf.assert_not_called()
 
     def test_combined_detection_and_attribute_evaluation_share_model_outputs(self):
         """Both evaluators reuse one combined-model call per validation sample."""
