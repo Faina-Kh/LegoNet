@@ -160,7 +160,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
     model.eval()
 
     if to_draw:
-        crops_path = os.path.join(draw_path, "crops")
+        crops_path = os.path.join(draw_path, "Predicted crops with GT points")
         if not os.path.exists(crops_path):
             os.makedirs(crops_path)
 

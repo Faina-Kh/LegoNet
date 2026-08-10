@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 
 from legonet.eval.visualization import (
+    _matched_gt_box,
     save_detection_overview,
     save_keypoint_heatmap,
     save_object_visualizations,
@@ -38,7 +39,7 @@ class EvaluationVisualizationTests(TestCase):
                 bbox_crop=np.ones((3, 16, 16), dtype=np.float32),
                 predicted_box=[4, 4, 24, 24],
                 scale=[1],
-                gt_boxes=np.asarray([[5, 5, 20, 20]], dtype=float),
+                gt_boxes=np.asarray([[5, 5, 20, 20, 0, 1]], dtype=float),
                 gt_box_id=1,
                 roots_attributes=True,
                 image_points=[{"x": 10, "y": 10}],
@@ -55,6 +56,24 @@ class EvaluationVisualizationTests(TestCase):
                 (output_path / "sample_crop_on_image_0.jpg").is_file()
             )
             self.assertTrue((output_path / "sample_crop_0.jpg").is_file())
+
+    def test_roots_matched_box_uses_bbox_id_not_row_position(self) -> None:
+        gt_boxes = np.asarray(
+            [
+                [4, 6, 20, 24, 0, 0],
+                [40, 60, 80, 100, 0, 7],
+            ],
+            dtype=float,
+        )
+
+        matched_box = _matched_gt_box(
+            gt_boxes,
+            gt_box_id=0,
+            scale=[2],
+            roots_attributes=True,
+        )
+
+        self.assertEqual(matched_box, (2.0, 3.0, 10.0, 12.0))
 
     def test_detection_overview_saves_gt_and_prediction_images(self) -> None:
         with TemporaryDirectory() as temporary_directory:

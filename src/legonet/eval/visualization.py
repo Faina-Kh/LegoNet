@@ -28,10 +28,7 @@ def _matched_gt_box(
     """Return the matched GT box in original-image coordinates."""
     if gt_box_id == -1 or len(gt_boxes) == 0:
         return None
-    if roots_attributes:
-        gt_box = gt_boxes[gt_box_id - 1]
-    else:
-        gt_box = gt_boxes[gt_boxes[:, 5] == gt_box_id][0]
+    gt_box = gt_boxes[gt_boxes[:, 5] == gt_box_id][0]
     return scaled_box(gt_box, scale)
 
 
