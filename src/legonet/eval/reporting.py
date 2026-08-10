@@ -47,7 +47,7 @@ def format_counting_summary(
     """Format global counting and positive-crop diagnostics."""
     return (
         f"{SEPARATOR}\n"
-        "Summary - counting for IoU-matched GT boxes\n"
+        "Evaluation Summary - per-object counting for IoU-matched GT boxes\n"
         f"orig_avg_abs_count_diff: {mean_absolute_error:.3f} | "
         f"orig_count_agreement: {exact_agreement:.3f} | "
         f"orig_MSE: {mean_squared_error:.3f} | "
@@ -79,7 +79,7 @@ def format_attribute_summary(
     """Format global roots regression and color classification metrics."""
     report = (
         f"{SEPARATOR}\n"
-        "Results Summary: \n"
+        "Evaluation Summary - per-object attributes\n"
         f"orig_avg_abs_TRL_diff: {trl_mean_absolute_error:.3f} | "
         f"orig_MSE_TRL: {trl_mean_squared_error:.3f} | "
         f"orig_avg_relative_error_TRL: {trl_mean_relative_error:.3f} | "
@@ -117,7 +117,7 @@ def format_keypoint_summary(
     """Format the aggregate keypoint-detection metrics."""
     return (
         f"{SEPARATOR}\n"
-        "Summary - keypoint detection\n"
+        "Evaluation Summary - keypoint detection\n"
         f"mAP: {_metric_text(average_precision)} | "
         f"recall: {_metric_text(recall)} | "
         f"precision: {_metric_text(precision)}\n"

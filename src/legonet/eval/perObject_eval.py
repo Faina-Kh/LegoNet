@@ -159,14 +159,23 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
     model.eval()
 
+    draw_detection_overview = getattr(
+        args, "draw_detection_overview", True
+    )
+    draw_gt_only = getattr(args, "draw_gt_only", False)
+
     if to_draw:
-        crops_path = os.path.join(draw_path, "Predicted crops with GT points")
+        crops_path = os.path.join(draw_path, "Predicted crops")
         if not os.path.exists(crops_path):
             os.makedirs(crops_path)
 
-        gt_path = os.path.join(draw_path, "gt only")
-        if not os.path.exists(gt_path):
+        gt_path = os.path.join(draw_path, "GT only")
+        if draw_gt_only and not os.path.exists(gt_path):
             os.makedirs(gt_path)
+
+        predicted_boxes_path = os.path.join(draw_path, "Predicted boxes on image")
+        if not os.path.exists(predicted_boxes_path):
+            os.makedirs(predicted_boxes_path)
 
     # gather all annotations, per image, per label
     if args.have_GT:
@@ -313,7 +322,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             point_anns = detection_inputs.point_annotations
             gt_boxes = detection_inputs.ground_truth_boxes
 
-            if to_draw:
+            if to_draw and (draw_detection_overview or draw_gt_only):
                 save_detection_overview(
                     image_path=image_path,
                     image_name=image_name,
@@ -322,10 +331,12 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     point_annotations=point_anns,
                     scale=scale,
                     have_gt=args.have_GT,
-                    draw_path=draw_path,
+                    draw_path=predicted_boxes_path,
                     gt_path=gt_path,
                     line_width=config.DrawProperties.LINE_WIDTH,
                     point_radius=config.DrawProperties.POINT_RADIUS,
+                    draw_detection_overview=draw_detection_overview,
+                    draw_gt_only=draw_gt_only,
                 )
 
             ############################################################################################################
@@ -566,7 +577,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                                     image_points=point_anns,
                                     crop_points=relevant_points_anns[i],
                                     has_positive_target=crops_count_GT[i] != 0,
-                                    draw_path=draw_path,
+                                    predicted_boxes_path=predicted_boxes_path,
                                     crops_path=crops_path,
                                     line_width=config.DrawProperties.LINE_WIDTH,
                                     unnormalize=unnormalize,

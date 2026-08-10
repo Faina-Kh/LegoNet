@@ -142,6 +142,10 @@ class MainEntryPointTests(unittest.TestCase):
                 "false",
                 "--to-draw",
                 "false",
+                "--draw-detection-overview",
+                "false",
+                "--draw-gt-only",
+                "true",
                 "--evaluate-detection",
                 "false",
                 "--load-weights",
@@ -155,6 +159,8 @@ class MainEntryPointTests(unittest.TestCase):
 
         self.assertFalse(result.have_GT)
         self.assertFalse(result.to_draw)
+        self.assertFalse(result.draw_detection_overview)
+        self.assertTrue(result.draw_gt_only)
         self.assertFalse(result.evaluate_detection)
         self.assertFalse(result.load_weights)
         self.assertFalse(result.save_from_model_file)
@@ -167,6 +173,8 @@ class MainEntryPointTests(unittest.TestCase):
 
         self.assertTrue(result.have_GT)
         self.assertFalse(result.to_draw)
+        self.assertTrue(result.draw_detection_overview)
+        self.assertFalse(result.draw_gt_only)
         self.assertTrue(result.evaluate_detection)
         self.assertTrue(result.load_weights)
         self.assertFalse(result.save_from_model_file)

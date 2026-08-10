@@ -38,10 +38,20 @@ def finalize_evaluation(
 ) -> list[float]:
     """Report final metrics, write requested artifacts, and build legacy output."""
     _print_availability(metrics, attributes=attributes, have_gt=have_gt, verbose=verbose)
-    if verbose:
-        _print_summaries(
-            state,
+    report_summary = (
+        verbose
+        or print_to_files
+        or os.environ.get("LEGONET_STREAMLIT_SUMMARIES") == "1"
+    )
+    if report_summary:
+        _print_metric_summary(
             metrics,
+            attributes=attributes,
+            have_gt=have_gt,
+        )
+    if verbose:
+        _print_verbose_details(
+            state,
             attributes=attributes,
             have_gt=have_gt,
             predict_empty_image=predict_empty_image,
@@ -53,7 +63,11 @@ def finalize_evaluation(
 
     print()
     if evaluate_points:
-        _finalize_keypoints(state, files_path=files_path, verbose=verbose)
+        _finalize_keypoints(
+            state,
+            files_path=files_path,
+            report_summary=report_summary,
+        )
 
     return build_legacy_result(
         state,
@@ -110,15 +124,13 @@ def _print_availability(
         print("No gt boxes for any image")
 
 
-def _print_summaries(
-    state: Mapping[str, Any],
+def _print_metric_summary(
     metrics: PostLoopMetrics,
     *,
     attributes: bool,
     have_gt: bool,
-    predict_empty_image: bool,
-    detection_metrics: Sequence[Any] | None,
 ) -> None:
+    """Print the aggregate summary shared by console and text-file output."""
     if not attributes:
         print(
             format_counting_summary(
@@ -147,6 +159,16 @@ def _print_summaries(
             end="",
         )
 
+
+def _print_verbose_details(
+    state: Mapping[str, Any],
+    *,
+    attributes: bool,
+    have_gt: bool,
+    predict_empty_image: bool,
+    detection_metrics: Sequence[Any] | None,
+) -> None:
+    """Print matching diagnostics and per-image rows for interactive inspection."""
     _print_detection_diagnostics(
         state,
         predict_empty_image=predict_empty_image,
@@ -217,12 +239,12 @@ def _finalize_keypoints(
     state: Mapping[str, Any],
     *,
     files_path: str,
-    verbose: bool,
+    report_summary: bool,
 ) -> None:
     recall, precision, average_precision = calc_points_recall_precision_ap(
         state["T"], state["P"]
     )
-    if verbose or os.environ.get("LEGONET_STREAMLIT_SUMMARIES") == "1":
+    if report_summary:
         print(
             format_keypoint_summary(
                 average_precision, recall[-1], precision[-1]

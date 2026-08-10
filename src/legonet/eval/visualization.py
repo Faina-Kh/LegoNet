@@ -63,6 +63,8 @@ def save_detection_overview(
     gt_path: str,
     line_width: int,
     point_radius: int,
+    draw_detection_overview: bool = True,
+    draw_gt_only: bool = False,
 ) -> None:
     """Save original-image overlays for points, GT boxes, and predictions."""
     image = Image.open(image_path)
@@ -88,26 +90,29 @@ def save_detection_overview(
                 outline="blue",
                 width=line_width,
             )
-            gt_image = Image.open(image_path)
-            gt_draw = ImageDraw.Draw(gt_image)
-            gt_draw.rectangle(
+            if draw_gt_only:
+                gt_image = Image.open(image_path)
+                gt_draw = ImageDraw.Draw(gt_image)
+                gt_draw.rectangle(
+                    (coordinates[:2], coordinates[2:]),
+                    outline="blue",
+                    width=line_width,
+                )
+                image_stem = image_name.split(".jpg")[0]
+                gt_image.save(Path(gt_path) / f"{image_stem}_gt_{index}.jpg")
+
+        if draw_gt_only:
+            image.save(Path(gt_path) / image_name)
+
+    if draw_detection_overview:
+        for box in predicted_boxes:
+            coordinates = tuple(_number(value) for value in box[:4])
+            draw.rectangle(
                 (coordinates[:2], coordinates[2:]),
-                outline="blue",
+                outline="red",
                 width=line_width,
             )
-            image_stem = image_name.split(".jpg")[0]
-            gt_image.save(Path(gt_path) / f"{image_stem}_gt_{index}.jpg")
-
-        image.save(Path(gt_path) / image_name)
-
-    for box in predicted_boxes:
-        coordinates = tuple(_number(value) for value in box[:4])
-        draw.rectangle(
-            (coordinates[:2], coordinates[2:]),
-            outline="red",
-            width=line_width,
-        )
-    image.save(Path(draw_path) / image_name)
+        image.save(Path(draw_path) / image_name)
 
 
 def save_object_visualizations(
@@ -123,7 +128,7 @@ def save_object_visualizations(
     image_points: Sequence[Mapping[str, Any]],
     crop_points: Sequence[Mapping[str, Any]],
     has_positive_target: bool,
-    draw_path: str,
+    predicted_boxes_path: str,
     crops_path: str,
     line_width: int,
     unnormalize: Callable[[Any], Any],
@@ -163,7 +168,7 @@ def save_object_visualizations(
 
     image_stem = image_name.split(".jpg")[0]
     source_image.save(
-        Path(draw_path) / f"{image_stem}_crop_on_image_{crop_index}.jpg"
+        Path(predicted_boxes_path) / f"{image_stem}_predicted_BBOX_{crop_index}.jpg"
     )
 
     crop_image = _crop_image(bbox_crop, unnormalize)

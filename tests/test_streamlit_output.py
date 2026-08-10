@@ -20,9 +20,20 @@ mAP: 0.600 | recall: 0.500 | precision: 0.400
         summary = extract_evaluation_summary(output)
 
         self.assertNotIn("image.jpg", summary)
-        self.assertEqual(len(summary.splitlines()), 3)
+        self.assertEqual(len(summary.splitlines()), 4)
         self.assertIn("absolute error of color", summary)
-        self.assertNotIn("mAP: 0.600", summary)
+        self.assertIn("mAP: 0.600", summary)
+
+    def test_extracts_counting_summary(self) -> None:
+        output = """
+Evaluation Summary - per-object counting for IoU-matched GT boxes
+orig_avg_abs_count_diff: 0.500 | orig_count_agreement: 0.750 | orig_MSE: 0.400 | orig_avg_relative_error: 0.100 | orig_1-FVU: 0.800000
+"""
+
+        summary = extract_evaluation_summary(output)
+
+        self.assertIn("Evaluation Summary - per-object counting", summary)
+        self.assertIn("orig_avg_abs_count_diff: 0.500", summary)
 
     def test_returns_empty_text_before_metrics_are_available(self) -> None:
         self.assertEqual(extract_evaluation_summary("loading model\n"), "")

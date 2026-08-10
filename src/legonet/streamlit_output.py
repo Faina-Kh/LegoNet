@@ -4,6 +4,8 @@
 def extract_evaluation_summary(output: str) -> str:
     """Extract compact aggregate metrics from verbose evaluation output."""
     summary_prefixes = (
+        "Evaluation Summary -",
+        "orig_avg_abs_count_diff:",
         "orig_avg_abs_TRL_diff:",
         "orig_avg_abs_dia_diff:",
         "color_correct:",
@@ -11,6 +13,7 @@ def extract_evaluation_summary(output: str) -> str:
         "Avg of per image rel_error of TRL:",
         "Avg of per image rel_error of diameter:",
         "Avg of per image absolute error of color:",
+        "mAP:",
     )
     lines = [
         line.strip()

@@ -1,17 +1,63 @@
 """Tests for post-aggregation evaluation finalization."""
 
 import io
+import tempfile
 import unittest
 from contextlib import redirect_stdout
+from unittest.mock import patch
 
 from legonet.eval.evaluation_finalization import (
     _print_detection_diagnostics,
+    finalize_evaluation,
     build_legacy_result,
 )
 from legonet.eval.metric_aggregation import PostLoopMetrics
 
 
 class EvaluationFinalizationTests(unittest.TestCase):
+    def test_print_to_files_emits_summary_when_verbose_is_false(self):
+        state = {"gt_objects_withGTpoints": 5, "found_orig_objects": 4}
+        metrics = PostLoopMetrics(
+            had_predictions=True,
+            has_original_gt=True,
+            precision_detection=0.8,
+            count_relative_error=0.1,
+            count_mae=0.5,
+            count_agreement=0.75,
+            count_mse=0.4,
+            count_fvu=0.2,
+            crop_count_metrics={
+                "num_positive": 4,
+                "num_empty": 1,
+                "num_total": 5,
+                "mae": 0.5,
+                "exact_agreement": 0.75,
+                "mse": 0.4,
+                "mean_relative_error": 0.1,
+            },
+        )
+        output = io.StringIO()
+
+        with tempfile.TemporaryDirectory() as directory:
+            with patch(
+                "legonet.eval.evaluation_finalization.write_evaluation_artifacts"
+            ):
+                with redirect_stdout(output):
+                    finalize_evaluation(
+                        state,
+                        metrics,
+                        attributes=False,
+                        have_gt=True,
+                        predict_empty_image=False,
+                        verbose=False,
+                        print_to_files=True,
+                        detection_metrics=None,
+                        evaluate_points=False,
+                        files_path=directory,
+                    )
+
+        self.assertIn("Evaluation Summary - per-object counting", output.getvalue())
+
     def test_counting_result_preserves_legacy_field_order(self):
         state = {"gt_objects_withGTpoints": 5, "found_orig_objects": 4}
         metrics = PostLoopMetrics(

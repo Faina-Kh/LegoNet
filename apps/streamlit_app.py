@@ -165,6 +165,8 @@ def build_command(
     num_of_epochs: int,
     have_gt: bool,
     to_draw: bool,
+    draw_detection_overview: bool,
+    draw_gt_only: bool,
     evaluate_detection: bool,
     weights_mode: str,
     full_weights_file: str = "",
@@ -198,6 +200,10 @@ def build_command(
         bool_arg(have_gt),
         "--to-draw",
         bool_arg(to_draw),
+        "--draw-detection-overview",
+        bool_arg(draw_detection_overview),
+        "--draw-gt-only",
+        bool_arg(draw_gt_only),
         "--evaluate-detection",
         bool_arg(evaluate_detection),
         "--weights-mode",
@@ -410,6 +416,20 @@ with st.sidebar:
         value=False,
         key="runner_draw_visualizations",
     )
+    draw_detection_overview = st.checkbox(
+        "Draw detection overview",
+        value=True,
+        disabled=not to_draw,
+        key="runner_draw_detection_overview",
+        help="Save full-image GT/prediction overlays; disable for dense images.",
+    )
+    draw_gt_only = st.checkbox(
+        "Draw GT-only images",
+        value=False,
+        disabled=not to_draw,
+        key="runner_draw_gt_only",
+        help="Save annotation-debugging images without predictions.",
+    )
     if network_type in OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS:
         evaluate_detection = st.checkbox(
             "Evaluate detection",
@@ -547,6 +567,8 @@ command = build_command(
     num_of_epochs=int(num_of_epochs),
     have_gt=have_gt,
     to_draw=to_draw,
+    draw_detection_overview=draw_detection_overview,
+    draw_gt_only=draw_gt_only,
     evaluate_detection=evaluate_detection,
     weights_mode=weights_mode,
     full_weights_file=full_weights_file,

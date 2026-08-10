@@ -194,6 +194,39 @@ image sets:
   This includes both images without ground-truth boxes and images whose
   ground-truth boxes contain no annotated points.
 
+### Evaluation visualizations
+
+Visualization output is controlled by the master `--to-draw` option. Two
+additional options control full-image artifacts independently:
+
+| Option | Default | Output |
+|---|---:|---|
+| `--draw-detection-overview` | `true` | Saves full images with GT points/boxes and predicted boxes. |
+| `--draw-gt-only` | `false` | Saves annotation-debugging images containing GT points and boxes without predictions. |
+
+For example:
+
+```bash
+python scripts/run_legonet.py \
+  ... \
+  --to-draw true \
+  --draw-detection-overview false \
+  --draw-gt-only false
+```
+
+The options affect only the full-image overview and GT-only artifacts.
+Per-object predicted-box images, predicted crops, and requested keypoint maps
+remain available while `--to-draw true` is selected.
+
+The detection overview is useful for relatively sparse datasets such as
+grapes. Dense roots images may contain many overlapping roots, points, GT
+boxes, and predictions, making the full-image overview difficult to read. For
+roots, disabling `--draw-detection-overview` while retaining per-object crop
+visualizations is usually clearer.
+
+GT-only output is intended for annotation inspection rather than routine model
+evaluation. Its folder is not created unless `--draw-gt-only true` is passed.
+
 ### Weight selection
 
 Checkpoint paths are supplied explicitly instead of inferred from a predefined

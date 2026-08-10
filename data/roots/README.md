@@ -150,6 +150,36 @@ ground-truth boxes; predictions on empty images count as false positives.
 Per-object attribute evaluation requires usable matched attribute annotations.
 The two evaluations therefore intentionally operate on different scopes.
 
+## Visualization guidance
+
+Roots images are dense: a single image can contain many overlapping root
+objects, point annotations, GT boxes, and predicted boxes. Consequently, a
+full-image detection overview can become difficult to interpret. Per-object
+matched-box images and predicted crops are generally more useful for checking
+root attribute estimates.
+
+Use the master drawing switch together with the overview controls:
+
+```text
+--to-draw true
+--draw-detection-overview false
+--draw-gt-only false
+```
+
+- `--draw-detection-overview` controls the full-image GT/prediction overlay.
+  It defaults to `true` for compatibility and can be disabled without turning
+  off per-object visualizations.
+- `--draw-gt-only` controls annotation-debugging images containing GT points
+  and boxes without predictions. It defaults to `false`, and the `GT only`
+  folder is created only when this option is enabled.
+- Per-object predicted-box images, predicted crops, and requested keypoint
+  maps remain controlled by `--to-draw`.
+
+The GT box drawn for each matched prediction is selected by its stored
+`bbox_id`, not by its row position in the annotation array. This is important
+for the roots dataset because IDs are zero-based and may not remain contiguous
+after invalid boxes are filtered.
+
 ## Example
 
 Run roots per-object attribute inference with:
@@ -163,6 +193,9 @@ python scripts/run_legonet.py \
   --run-script Inference \
   --val-set Test \
   --have-gt true \
+  --to-draw true \
+  --draw-detection-overview false \
+  --draw-gt-only false \
   --weights-mode full \
   --full-weights-file /path/to/per_object_attributes.pt
 ```

@@ -81,6 +81,18 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--num-of-epochs", "--num_of_epochs", type=int, default=None)
     parser.add_argument("--have-gt", "--have_GT", type=parse_bool, default=None)
     parser.add_argument("--to-draw", "--to_draw", type=parse_bool, default=None)
+    parser.add_argument(
+        "--draw-detection-overview",
+        "--draw_detection_overview",
+        type=parse_bool,
+        default=None,
+    )
+    parser.add_argument(
+        "--draw-gt-only",
+        "--draw_gt_only",
+        type=parse_bool,
+        default=None,
+    )
     parser.add_argument("--save-from-model-file", "--save_from_model_file", type=parse_bool, default=None)
     parser.add_argument("--load-weights", "--load_weights", type=parse_bool, default=None)
     parser.add_argument(
@@ -185,6 +197,14 @@ def resolve_boolean_options(args: argparse.Namespace) -> argparse.Namespace:
     """Apply boolean defaults while preserving explicit CLI values."""
     args.have_GT = True if args.have_gt is None else args.have_gt
     args.to_draw = False if args.to_draw is None else args.to_draw
+    args.draw_detection_overview = (
+        True
+        if args.draw_detection_overview is None
+        else args.draw_detection_overview
+    )
+    args.draw_gt_only = (
+        False if args.draw_gt_only is None else args.draw_gt_only
+    )
     args.evaluate_detection = (
         True if args.evaluate_detection is None else args.evaluate_detection
     )
