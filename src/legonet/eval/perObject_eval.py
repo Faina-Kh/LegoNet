@@ -20,6 +20,7 @@ from legonet.eval.attribute_estimation_eval import SumOfAbsDifferences
 from legonet.eval.evaluation_finalization import finalize_evaluation
 from legonet.eval.image_context import prepare_image_context
 from legonet.eval.model_input import build_per_object_model_input
+from legonet.eval.prediction_summary import record_per_image_predictions
 from legonet.eval.ground_truth_preparation import (
     prepare_image_ground_truth,
     split_boxes_by_annotations as _prepare_gt_boxes_for_attribute_eval,
@@ -267,56 +268,13 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                 print(f"FLOPS: {flops_str}")
                 print(f"Params: {params_str}")
 
-            # get predictions stats
-            current_sum = 0 #for count estimate
-            if is_roots_2:
-                current_TRL_sum = 0
-                current_dia_sum = 0
+            record_per_image_predictions(
+                state,
+                image_name,
+                estimation_outputs,
+                attributes=is_roots_2,
+            )
 
-            if estimation_outputs is not None:
-                for c_out in estimation_outputs[0]:
-                    if is_roots_2:
-                        current_pred = np.round(c_out.cpu()[0].numpy())
-                        current_TRL_pred = c_out.cpu()[1].numpy()
-                        state['predicted_TRL_any_crop'].append(current_TRL_pred)
-                        current_TRL_sum += current_TRL_pred
-
-                        current_dia_pred = c_out.cpu()[2].numpy()
-                        state['predicted_dia_any_crop'].append(current_dia_pred)
-                        current_dia_sum += current_dia_pred
-
-                        current_color_pred = decode_class_predictions(
-                            [c_out.cpu()[0].item()],
-                            ClassificationType.BINARY,
-                        )[0]
-                        state['predicted_color_any_crop'].append(current_color_pred)
-
-                    else:
-                        current_pred = np.round(c_out.cpu().item())
-
-                    state['predicted_counts_any_crop'].append(current_pred)
-                    current_sum += current_pred
-
-                state['per_im_pred_avg'].append(
-                    current_sum / estimation_outputs[0].shape[0]
-                )
-                state['per_im_pred_dict'][image_name] = (
-                    state['per_im_pred_avg'][-1]
-                )
-
-                if is_roots_2:
-                    state['TRL_per_im_pred_sum'].append(current_TRL_sum)
-                    state['TRL_per_im_pred_dict'][image_name] = (
-                        state['TRL_per_im_pred_sum'][-1]
-                    )
-                    state['dia_per_im_pred_avg'].append(
-                        current_dia_sum / estimation_outputs[0].shape[0]
-                    )
-                    state['dia_per_im_pred_dict'][image_name] = (
-                        state['dia_per_im_pred_avg'][-1]
-                    )
-
-            ###################################################################################################################################################
             # detection_outputs - outputs of the detection part (based on module where), after filtering by nms and min score
             # estimation_outputs - prediction of counting per box from detection_outputs
             # sample_anns - has the crop in its 'img' key. In training, it has also 'points_annot' key that holds the gt annotations per crop - relevant
