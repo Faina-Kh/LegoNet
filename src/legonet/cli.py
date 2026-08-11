@@ -568,7 +568,11 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     if args.have_GT:
         args.base_dir = None
     else:
-        args.base_dir = myDatasetsPath
+        args.base_dir = (
+            os.path.join(myDatasetsPath, "sub_" + args.val_set)
+            if args.dataset_name == "roots"
+            else myDatasetsPath
+        )
 
     if args.run_script == 'Inference':
         results_dir = config.General.experiment_path

@@ -65,8 +65,9 @@ def visualize_bboxes(
     dataset_val: Any,
     model: Any,
     unnormalize: Any,
+    have_ground_truth: bool = True,
 ) -> None:
-    """Save standalone-detector GT/prediction overlays in their own folder."""
+    """Save standalone-detector prediction overlays, with GT when available."""
     output_directory = os.path.join(
         config.DrawProperties.save_img_path,
         "BBOX visualization",
@@ -128,14 +129,15 @@ def visualize_bboxes(
                     width=config.DrawProperties.LINE_WIDTH,
                 )
 
-            for annotation in data["bbox_annot"].numpy()[0]:
-                if annotation[0] != -1:
-                    x1, y1, x2, y2 = [int(value) for value in annotation[:4]]
-                    draw.rectangle(
-                        ((x1, y1), (x2, y2)),
-                        outline="blue",
-                        width=config.DrawProperties.LINE_WIDTH,
-                    )
+            if have_ground_truth:
+                for annotation in data["bbox_annot"].numpy()[0]:
+                    if annotation[0] != -1:
+                        x1, y1, x2, y2 = [int(value) for value in annotation[:4]]
+                        draw.rectangle(
+                            ((x1, y1), (x2, y2)),
+                            outline="blue",
+                            width=config.DrawProperties.LINE_WIDTH,
+                        )
 
             label_image = Image.new("RGBA", (200, 20), "black")
             label_draw = ImageDraw.Draw(label_image)
@@ -153,48 +155,46 @@ def _evaluate_detection(
     model: Any,
 ) -> Any:
     """Run the configured detection inference evaluation."""
-    if not (args.evaluate_detection and args.have_GT):
-        return None
-
-    print()
-    print("------------------Object detection evaluation:------------------\n")
-    if args.eval_detection_params:
-        all_average_precisions = detection_eval.evaluate_detection_params(
-            dataset_val,
-            dataloader_val,
-            sampler_val,
-            model,
-            iou_threshold=config.Detection.iou_threshold_list,
-            score_threshold=config.Detection.min_score_list,
-            save_path=args.test_dir,
-            show_PR_curve=True,
-        )
-        print("iou, score, class_mAP")
-        for average_precision in all_average_precisions:
-            print(average_precision)
-        return None
-
-    print(
-        f"Results for min score: {config.Detection.min_score}, "
-        f"iou_threshold: {config.Detection.iou_threshold}"
-    )
-    detection_metrics = detection_eval.evaluateMAP_simple(
-        dataset_val,
-        dataloader_val,
-        sampler_val,
-        model,
-        score_threshold=config.Detection.min_score,
-        iou_threshold=config.Detection.iou_threshold,
-        generate_PR_curve=True,
-        return_diagnostics=True,
-    )
-    mean_average_precision, precision, recall = detection_metrics[:3]
-    result_line = (
-        f"mAP = {mean_average_precision:.3f}, precision = {precision:.3f}, "
-        f"recall = {recall:.3f}"
-    )
-    print()
-    print(result_line)
+    detection_metrics = None
+    if args.evaluate_detection and args.have_GT:
+        print()
+        print("------------------Object detection evaluation:------------------\n")
+        if args.eval_detection_params:
+            all_average_precisions = detection_eval.evaluate_detection_params(
+                dataset_val,
+                dataloader_val,
+                sampler_val,
+                model,
+                iou_threshold=config.Detection.iou_threshold_list,
+                score_threshold=config.Detection.min_score_list,
+                save_path=args.test_dir,
+                show_PR_curve=True,
+            )
+            print("iou, score, class_mAP")
+            for average_precision in all_average_precisions:
+                print(average_precision)
+        else:
+            print(
+                f"Results for min score: {config.Detection.min_score}, "
+                f"iou_threshold: {config.Detection.iou_threshold}"
+            )
+            detection_metrics = detection_eval.evaluateMAP_simple(
+                dataset_val,
+                dataloader_val,
+                sampler_val,
+                model,
+                score_threshold=config.Detection.min_score,
+                iou_threshold=config.Detection.iou_threshold,
+                generate_PR_curve=True,
+                return_diagnostics=True,
+            )
+            mean_average_precision, precision, recall = detection_metrics[:3]
+            result_line = (
+                f"mAP = {mean_average_precision:.3f}, "
+                f"precision = {precision:.3f}, recall = {recall:.3f}"
+            )
+            print()
+            print(result_line)
 
     if (
         config.General.to_draw
@@ -206,6 +206,7 @@ def _evaluate_detection(
             dataset_val,
             model,
             unnormalize=UnNormalizer(),
+            have_ground_truth=args.have_GT,
         )
     return detection_metrics
 

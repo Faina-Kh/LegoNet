@@ -217,6 +217,8 @@ def evaluate(
             num_of_images = len(all_GT_values)
             valueDiff = sum_of_differences(all_GT_values, all_predicted_values) / num_of_images
             AbsvalueDiff = sum_of_absolute_differences(all_GT_values, all_predicted_values) / num_of_images
+        else:
+            print(f"Predictions generated: {len(all_predicted_values)}")
 
         #if args.dataset_name == "roots":
         if args.have_GT:

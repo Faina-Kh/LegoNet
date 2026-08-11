@@ -150,6 +150,32 @@ class InferenceTests(unittest.TestCase):
             )
             visualize.assert_called_once()
 
+    def test_detection_without_ground_truth_still_draws_predictions(self):
+        """Standalone detection drawing does not depend on GT metrics."""
+        config.General.NETWORK_TYPE = config.NetworkType.detection
+        config.General.to_draw = True
+        args = SimpleNamespace(
+            evaluate_detection=False,
+            have_GT=False,
+            evaluate_per_object=False,
+        )
+        model = mock.Mock()
+
+        with mock.patch.object(self.inference, "visualize_bboxes") as visualize:
+            self.inference.run_inference(
+                args, "dataset", "loader", "sampler", model
+            )
+
+        self.inference.detection_eval.evaluateMAP_simple.assert_not_called()
+        visualize.assert_called_once_with(
+            "loader",
+            "sampler",
+            "dataset",
+            model,
+            unnormalize=mock.ANY,
+            have_ground_truth=False,
+        )
+
     def test_combined_inference_dispatches_attribute_evaluation(self):
         """Combined inference invokes per-object evaluation when requested."""
         config.General.NETWORK_TYPE = config.NetworkType.detection_and_estimation

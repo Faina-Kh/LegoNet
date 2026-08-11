@@ -655,13 +655,14 @@ class KCSVDataset(Dataset):
             for key, value in self.classes.items():
                 self.labels[value] = key
 
-            # csv with img_path, class_name, x1, y1, x2, y2,
-            try:
-                with self._open_for_csv(self.train_file) as file:
-                    self.image_data_bbox, self.image_data_points_location = self._read_annotations(csv.reader(file, delimiter=','), self.classes)
+            if self.have_GT:
+                # csv with img_path, class_name, x1, y1, x2, y2,
+                try:
+                    with self._open_for_csv(self.train_file) as file:
+                        self.image_data_bbox, self.image_data_points_location = self._read_annotations(csv.reader(file, delimiter=','), self.classes)
 
-            except ValueError as e:
-                raise_from(ValueError('invalid CSV annotations file: {}: {}'.format(self.train_file, e)), None)
+                except ValueError as e:
+                    raise_from(ValueError('invalid CSV annotations file: {}: {}'.format(self.train_file, e)), None)
 
         else:
             result = {}

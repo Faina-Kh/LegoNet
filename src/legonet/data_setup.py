@@ -83,6 +83,8 @@ def _build_kcsv_datasets(args: Any) -> Tuple[Any, Any]:
         dataset_val = KCSVDataset(
             input_file=args.val_file,
             class_list=args.kcsv_classes,
+            base_dir=getattr(args, "base_dir", None),
+            have_GT=getattr(args, "have_GT", True),
             pre_process=args.pre_process,
             transform=transforms.Compose(
                 [
@@ -162,6 +164,16 @@ def build_data(args: Any) -> DataBundle:
     else:
         raise ValueError(
             "Dataset type not understood (must be csv_LCC or coco), exiting."
+        )
+
+    if (
+        not getattr(args, "have_GT", True)
+        and dataset_val is not None
+        and len(dataset_val) == 0
+    ):
+        raise ValueError(
+            f"No input images were found in the no-GT image directory: "
+            f"{getattr(args, 'base_dir', None)}"
         )
 
     sampler = None
