@@ -193,6 +193,7 @@ def _evaluate_detection(
         f"mAP = {mean_average_precision:.3f}, precision = {precision:.3f}, "
         f"recall = {recall:.3f}"
     )
+    print()
     print(result_line)
 
     if (
@@ -301,5 +302,3 @@ def run_inference(
             model,
             args,
         )
-        printf("Final avg rel error: %.3f \n", relative_error)
-    print("Done")

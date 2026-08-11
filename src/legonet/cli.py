@@ -19,12 +19,12 @@ import faulthandler
 def finalize_text_results(args, execution_time: float) -> None:
     """Append execution time and the consolidated summary to the text output."""
     if getattr(args, "txt_results", ""):
+        append_evaluation_summary(args.txt_results)
+
         with open(args.txt_results, "a", encoding="utf-8") as results_file:
             results_file.write(
                 f"Execution time in minutes: {(execution_time / 60):.2f}\n"
             )
-
-        append_evaluation_summary(args.txt_results)
 
 
 def parse_bool(value):

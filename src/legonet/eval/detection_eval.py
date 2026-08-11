@@ -286,6 +286,7 @@ def evaluate_detection_params(generator,
 
     # gather all annotations
     all_annotations = _get_annotations(generator)
+    print()
     print(
         "Detection metric scope: {} images ({} empty-GT images included)".format(
             len(generator),
@@ -450,6 +451,7 @@ def evaluateMAP_simple(generator,
 
     # gather all annotations
     all_annotations = _get_annotations(generator)
+    print()
     print(
         "Detection metric scope: {} images ({} empty-GT images included)".format(
             len(generator),

@@ -203,7 +203,7 @@ def _load_full_weights(model: Any, args: Any) -> None:
         model_modules,
         "Full-model checkpoint",
     )
-    print("Key check passed: checkpoint modules match the built model.")
+    print("Key check passed: checkpoint modules match the built model.\n")
 
     _validate_estimator_weights(model_state, args, "Full-model checkpoint")
 

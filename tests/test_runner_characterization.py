@@ -286,7 +286,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
             ["backbone", "estimator"],
         )
         print_mock.assert_any_call(
-            "Key check passed: checkpoint modules match the built model."
+            "Key check passed: checkpoint modules match the built model.\n"
         )
 
     def test_partial_root_attributes_keep_current_module_mapping(self):

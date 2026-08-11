@@ -13,8 +13,8 @@ class PerImageAttributeEvaluationTests(unittest.TestCase):
         args = SimpleNamespace(network_type="per_image_estimation_regression")
 
         with mock.patch.object(
-            per_image_attribute_eval._legacy_evaluator,
-            "eval",
+            per_image_attribute_eval,
+            "evaluate",
             return_value=0.25,
         ):
             result = per_image_attribute_eval.evaluate_checkpoint_metrics(
@@ -29,8 +29,8 @@ class PerImageAttributeEvaluationTests(unittest.TestCase):
         args = SimpleNamespace(network_type="per_image_estimation_keypoints")
 
         with mock.patch.object(
-            per_image_attribute_eval._legacy_evaluator,
-            "eval",
+            per_image_attribute_eval,
+            "evaluate",
             return_value=0.1,
         ):
             result = per_image_attribute_eval.evaluate_checkpoint_metrics(
