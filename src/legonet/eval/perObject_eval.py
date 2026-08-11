@@ -5,7 +5,9 @@ training and inference pipelines.  Small private helpers keep matching rules
 independently testable while the legacy evaluation routine is decomposed.
 """
 
-import os
+from pathlib import Path
+from typing import Any, Sequence
+
 import matplotlib
 import numpy as np
 import torch
@@ -151,11 +153,32 @@ def _geometric_point_centers_map(
 
 
 
-def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_path= "",
-         print_to_files=False, args = None, do_profile = False,
-         detection_metrics=None, evaluate_points=False):
-    is_roots_2 = (
-                config.Detect_and_Estimate.type == "per_object_attributes" or config.Detect_and_Estimate.type == "per_object_attributes_multibranch")
+def eval(
+    dataset: Any,
+    dataloader: Any,
+    sampler: Any,
+    model: Any,
+    verbose: bool = True,
+    to_draw: bool = True,
+    draw_path: str | Path = "",
+    print_to_files: bool = False,
+    args: Any | None = None,
+    do_profile: bool = False,
+    detection_metrics: Sequence[Any] | None = None,
+    evaluate_points: bool = False,
+) -> list[float]:
+    """Evaluate per-object counting or attributes on a prepared dataset.
+
+    The return value preserves the historical list consumed by training. Full
+    metrics are reported through the configured text and structured artifacts.
+    """
+    if args is None:
+        raise ValueError("Per-object evaluation requires configured run arguments.")
+
+    evaluates_attributes = config.Detect_and_Estimate.type in {
+        "per_object_attributes",
+        "per_object_attributes_multibranch",
+    }
 
     model.eval()
 
@@ -165,23 +188,22 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
     draw_gt_only = getattr(args, "draw_gt_only", False)
 
     if to_draw:
-        crops_path = os.path.join(draw_path, "Predicted crops")
-        if not os.path.exists(crops_path):
-            os.makedirs(crops_path)
+        visualization_root = Path(draw_path)
+        crops_path = visualization_root / "Predicted crops"
+        crops_path.mkdir(parents=True, exist_ok=True)
 
-        gt_path = os.path.join(draw_path, "GT only")
-        if draw_gt_only and not os.path.exists(gt_path):
-            os.makedirs(gt_path)
+        gt_path = visualization_root / "GT only"
+        if draw_gt_only:
+            gt_path.mkdir(parents=True, exist_ok=True)
 
-        predicted_boxes_path = os.path.join(draw_path, "Predicted boxes on image")
-        if not os.path.exists(predicted_boxes_path):
-            os.makedirs(predicted_boxes_path)
+        predicted_boxes_path = visualization_root / "Predicted boxes on image"
+        predicted_boxes_path.mkdir(parents=True, exist_ok=True)
 
     # gather all annotations, per image, per label
     if args.have_GT:
         all_box_annotations, all_count_annotations = _get_count_and_box_annotations(dataset)
 
-    with (((((((((((torch.no_grad()))))))))))):
+    with torch.no_grad():
 
         state = initiate_global_dicts(initiate=True)
         print()
@@ -191,7 +213,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             crops_count_GT = []
             count_pred = []
 
-            if is_roots_2:
+            if evaluates_attributes:
                 TRL_pred = []
                 dia_pred = []
                 color_pred = []
@@ -229,7 +251,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                 box_annotations_temp,
                 gt_counts_temp,
                 have_gt=args.have_GT,
-                attributes=is_roots_2,
+                attributes=evaluates_attributes,
             )
             im_gt_avg = prepared_gt.image_gt_average
             TRL_im_gt_sum = prepared_gt.image_trl_sum
@@ -278,7 +300,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                 state,
                 image_name,
                 estimation_outputs,
-                attributes=is_roots_2,
+                attributes=evaluates_attributes,
             )
 
             ###################################################################################################################################################
@@ -302,7 +324,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                     image_gt_average=im_gt_avg,
                     image_trl_sum=TRL_im_gt_sum,
                     image_diameter_average=dia_im_gt_avg,
-                    attributes=is_roots_2,
+                    attributes=evaluates_attributes,
                     network_type=config.Detect_and_Estimate.type,
                 )
 
@@ -362,7 +384,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
             if not isinstance(bbox_pred, list):
                 for b in range(bbox_pred.shape[0]):
                     if estimation_outputs is not None:
-                        if is_roots_2:
+                        if evaluates_attributes:
                             decoded_color = int(
                                 decode_class_predictions(
                                     [estimation_outputs[0][b][0].cpu().item()],
@@ -423,7 +445,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                 else:
                     max_gt_count_of_crop = -1
 
-                if max_gt_count_of_crop == -1 and not is_roots_2:
+                if max_gt_count_of_crop == -1 and not evaluates_attributes:
                     sample_anns = None
                 else:
                     if config.AttributeEstimation.estimate_type == 'withKeyPoints':
@@ -458,7 +480,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                 predicted_boxes=adjusted_crops_orig_boxes,
                 annotated_boxes=box_annotations_withPoints,
                 gt_values=gt_counts,
-                attributes=is_roots_2,
+                attributes=evaluates_attributes,
                 counting=(
                     config.Detect_and_Estimate.type == "per_object_counting"
                 ),
@@ -483,7 +505,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                                     state['T']=state['T']+ t
                                     state['P']=state['P']+ p
 
-                    if not is_roots_2:
+                    if not evaluates_attributes:
                         state['all_crops_GT_counts'].append(crops_count_GT)  # based on the number of points in the crop
                         state['all_predicted_counts'].append(np.round(count_pred))
                         state['all_orig_GT_counts'].append(orig_count_GT) # count in the corresponding annotated box, it is -1 if the crop is false positive
@@ -500,7 +522,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
                     maps_idx=0
                     for i in range(len(crops_count_GT)):
-                        if not is_roots_2:
+                        if not evaluates_attributes:
                             if len(orig_count_GT) > 0:
                                 if orig_count_GT[i] != -1:
                                     state['orig_abs_diff'].append(abs(orig_count_GT[i] - np.round(count_pred[i]))) #count_pred[i]))
@@ -518,10 +540,10 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                                 state['orig_abs_diff_color'].append(abs(orig_color_GT[i] - color_pred[i]))
 
                         if verbose:
-                            if (not is_roots_2 and len(orig_count_GT) > 0) \
-                                    or (is_roots_2 and len(orig_color_GT) > 0):
+                            if (not evaluates_attributes and len(orig_count_GT) > 0) \
+                                    or (evaluates_attributes and len(orig_color_GT) > 0):
 
-                                    if not is_roots_2:
+                                    if not evaluates_attributes:
                                         if orig_count_GT[i] != -1:
                                             printf("orig_count_GT: %d | orig_predicted_count: %d |orig_abs_diff: %.3f | orig_rel_error: %.3f\n",
                                                    int(orig_count_GT[i]), np.round(count_pred[i]) ,state['orig_abs_diff'][-1], state['orig_rel_error'][-1])
@@ -573,7 +595,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                                     scale=scale,
                                     gt_boxes=gt_boxes,
                                     gt_box_id=gt_box_id,
-                                    roots_attributes=is_roots_2,
+                                    roots_attributes=evaluates_attributes,
                                     image_points=point_anns,
                                     crop_points=relevant_points_anns[i],
                                     has_positive_target=crops_count_GT[i] != 0,
@@ -602,7 +624,7 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
                                     )
 
                     if verbose:
-                        if not args.have_GT and len(estimation_outputs) >0 and is_roots_2:
+                        if not args.have_GT and len(estimation_outputs) >0 and evaluates_attributes:
                             for i in range(len(TRL_pred)):
                                 printf(
                                     "color_pred: %.3f | TRL_pred: %.3f | dia_pred: %.3f \n",
@@ -612,17 +634,17 @@ def eval(dataset, dataloader, sampler, model, verbose=True, to_draw=True, draw_p
 
         summary_metrics = aggregate_post_loop_metrics(
             state,
-            attributes=is_roots_2,
+            attributes=evaluates_attributes,
         )
         model.train()
         return finalize_evaluation(
             state,
             summary_metrics,
-            attributes=is_roots_2,
+            attributes=evaluates_attributes,
             have_gt=args.have_GT,
             predict_empty_image=getattr(args, "predict_empty_image", False),
             verbose=verbose,
-            print_to_files=print_to_files and args is not None,
+            print_to_files=print_to_files,
             detection_metrics=detection_metrics,
             evaluate_points=evaluate_points,
             files_path=config.General.files_path,
