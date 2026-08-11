@@ -301,5 +301,5 @@ def run_inference(
             model,
             args,
         )
-        printf("Final avg rel error: %.3f", relative_error)
+        printf("Final avg rel error: %.3f \n", relative_error)
     print("Done")
