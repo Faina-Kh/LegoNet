@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from legonet import config
 from legonet import utils
-from legonet.eval import attribute_estimation_eval, detection_eval
+from legonet.eval import detection_eval, per_image_attribute_eval
 from legonet.eval import perObject_eval
 from legonet.my_dataloader import UnNormalizer
 
@@ -208,7 +208,7 @@ def _evaluate_detection(
     return detection_metrics
 
 
-def _evaluate_combined(
+def _evaluate_attributes(
     args: Any,
     dataset_val: Any,
     dataloader_val: Any,
@@ -216,7 +216,7 @@ def _evaluate_combined(
     model: Any,
     detection_metrics: Any = None,
 ) -> None:
-    """Run combined detection and attribute-estimation inference."""
+    """Evaluate per-object attributes produced by a combined model."""
     if not args.evaluate_per_object:
         return
 
@@ -279,7 +279,7 @@ def run_inference(
                 evaluation_model,
             )
             print()
-        _evaluate_combined(
+        _evaluate_attributes(
             args,
             dataset_val,
             dataloader_val,
@@ -294,7 +294,7 @@ def run_inference(
         config.NetworkType.per_image_estimation_regression,
         config.NetworkType.per_image_estimation_keypoints,
     ):
-        relative_error = attribute_estimation_eval.eval(
+        relative_error = per_image_attribute_eval.evaluate(
             dataloader_val,
             dataset_val,
             model,

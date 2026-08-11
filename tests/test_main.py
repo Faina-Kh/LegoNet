@@ -182,6 +182,16 @@ class MainEntryPointTests(unittest.TestCase):
         self.assertFalse(result.load_weights)
         self.assertFalse(result.save_from_model_file)
 
+    def test_checkpoint_attribute_can_be_selected_from_cli(self) -> None:
+        args = self.main_module.parse_args(
+            ["--checkpoint-attribute", "diameter"]
+        )
+
+        self.assertEqual(
+            args.checkpoint_attribute,
+            "diameter",
+        )
+
     def test_boolean_defaults_preserve_legacy_run_mode(self) -> None:
         """Omitted options still default to GT evaluation and weight loading."""
         result = self.main_module.resolve_boolean_options(

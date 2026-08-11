@@ -60,8 +60,9 @@ class TrainingOrchestrationTests(unittest.TestCase):
         """Training completion reports the best error and its epoch."""
         args = SimpleNamespace(choose_epoch_by_IoUavg=False)
         best = training.BestMetrics(
-            relative_error=0.25,
-            relative_error_epoch=17,
+            checkpoint_metric_name="length_relative_error",
+            checkpoint_metric_value=0.25,
+            checkpoint_metric_epoch=17,
         )
 
         with mock.patch("builtins.print") as print_mock:
@@ -69,7 +70,21 @@ class TrainingOrchestrationTests(unittest.TestCase):
 
         self.assertEqual(
             print_mock.call_args.args[0],
-            "Best validation relative error: 0.250000, achieved at epoch 17.",
+            "Best validation length_relative_error: 0.250000, achieved at epoch 17.",
+        )
+
+    def test_checkpoint_comparison_minimizes_error(self):
+        self.assertFalse(
+            training._is_better_checkpoint_error(
+                0.8,
+                0.7,
+            )
+        )
+        self.assertTrue(
+            training._is_better_checkpoint_error(
+                0.2,
+                0.3,
+            )
         )
 
     def test_best_training_error_reports_missing_validation(self):

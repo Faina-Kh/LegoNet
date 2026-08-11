@@ -16,7 +16,6 @@ matplotlib.use("TkAgg")
 from thop import profile, clever_format
 
 from legonet import config
-from legonet.eval.attribute_estimation_eval import SumOfAbsDifferences
 from legonet.eval.evaluation_finalization import finalize_evaluation
 from legonet.eval.image_context import prepare_image_context
 from legonet.eval.model_input import build_per_object_model_input
@@ -37,6 +36,7 @@ from legonet.eval.matching import (
 )
 from legonet.eval.crop_predictions import prepare_crop_predictions
 from legonet.eval.metric_aggregation import (
+    PostLoopMetrics,
     aggregate_post_loop_metrics,
     compute_positive_crop_count_metrics as _compute_positive_crop_count_metrics,
 )
@@ -165,7 +165,8 @@ def eval(
     do_profile: bool = False,
     detection_metrics: Sequence[Any] | None = None,
     evaluate_points: bool = False,
-) -> list[float]:
+    return_metrics: bool = False,
+) -> list[float] | PostLoopMetrics:
     """Evaluate per-object counting or attributes on a prepared dataset.
 
     The return value preserves the historical list consumed by training. Full
@@ -571,7 +572,7 @@ def eval(
             attributes=evaluates_attributes,
         )
         model.train()
-        return finalize_evaluation(
+        legacy_result = finalize_evaluation(
             state,
             summary_metrics,
             attributes=evaluates_attributes,
@@ -584,5 +585,6 @@ def eval(
             files_path=config.General.files_path,
             text_results_path=getattr(args, "txt_results", None),
         )
+        return summary_metrics if return_metrics else legacy_result
 
 

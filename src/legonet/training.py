@@ -12,12 +12,11 @@ import torch.optim as optim
 from legonet import config
 from legonet import utils
 from legonet.checkpointing import save_epoch_checkpoint
-from legonet.eval import attribute_estimation_eval
+from legonet.eval import per_image_attribute_eval
 from legonet.training_evaluation import (
-    evaluate_combined_counting_summary,
     evaluate_combined_iou_sweep,
-    evaluate_combined_once,
     evaluate_detection,
+    evaluate_per_object_checkpoint_metrics,
 )
 from legonet.training_step import LossResult, run_training_step
 
@@ -34,23 +33,27 @@ DETECTION_NETWORKS = {
 class BestMetrics:
     """Best validation metrics observed during a training run."""
 
-    relative_error: float = 100.0
-    relative_error_epoch: Optional[int] = None
     mean_average_precision: float = 0.0
     average_relative_error: float = 100.0
     average_relative_error_epoch: Optional[int] = None
+    checkpoint_metric_name: Optional[str] = None
+    checkpoint_metric_value: Optional[float] = None
+    checkpoint_metric_epoch: Optional[int] = None
 
 
 def _print_best_error_checkpoint_notice(
     epoch: int,
-    previous_error: float,
+    previous_error: Optional[float],
     current_error: float,
     metric_name: str = "relative error",
 ) -> None:
-    """Report replacement of the saved best checkpoint by a lower error."""
+    """Report replacement of the saved best checkpoint by a better metric."""
+    previous_text = (
+        "none" if previous_error is None else f"{previous_error:.6f}"
+    )
     print(
         f"New best validation {metric_name}: {current_error:.6f} "
-        f"(previous: {previous_error:.6f}) at epoch {epoch}. \n"
+        f"(previous: {previous_text}) at epoch {epoch}. \n"
         "Replacing the previously saved best-epoch weights file. \n"
     )
 
@@ -62,9 +65,9 @@ def _print_best_training_error(args: Any, best: BestMetrics) -> None:
         epoch = best.average_relative_error_epoch
         metric_name = "IoU-averaged relative error"
     else:
-        error = best.relative_error
-        epoch = best.relative_error_epoch
-        metric_name = "relative error"
+        error = best.checkpoint_metric_value
+        epoch = best.checkpoint_metric_epoch
+        metric_name = best.checkpoint_metric_name or "checkpoint metric"
 
     if epoch is None:
         print("Training completed without a valid validation relative error.")
@@ -73,6 +76,18 @@ def _print_best_training_error(args: Any, best: BestMetrics) -> None:
     print(
         f"Best validation {metric_name}: {error:.6f}, achieved at epoch {epoch}."
     )
+
+
+def _is_better_checkpoint_error(
+    current: Optional[float],
+    previous: Optional[float],
+) -> bool:
+    """Return whether an available checkpoint error improves by decreasing."""
+    if current is None:
+        return False
+    if previous is None:
+        return True
+    return current < previous
 
 
 def _epoch_loss_keys(args: Any) -> List[str]:
@@ -189,7 +204,7 @@ def _evaluate_detection_epoch(
         save_epoch_checkpoint(model, epoch, replace_existing=True)
 
 
-def _evaluate_counting_epoch(
+def _evaluate_per_image_attribute_epoch(
     args: Any,
     epoch: int,
     model: Any,
@@ -197,19 +212,32 @@ def _evaluate_counting_epoch(
     dataloader_val: Any,
     best: BestMetrics,
 ) -> None:
-    """Evaluate a counting-only model and update its best checkpoint."""
+    """Evaluate a per-image attribute model and update its best checkpoint."""
     if not args.eval_in_train:
         _save_periodic_checkpoint(epoch, model)
         return
     model.eval()
-    relative_error = attribute_estimation_eval.eval(dataloader_val, dataset_val, model, args)
-    print(f"Rel_error: {relative_error:.3f} | prev_best: {best.relative_error:.3f}\n")
-    if relative_error < best.relative_error:
+    summary = per_image_attribute_eval.evaluate_checkpoint_metrics(
+        dataloader_val, dataset_val, model, args
+    )
+    metric_value = summary.metric_value
+    print(
+        f"{summary.metric_name}: {_format_optional(metric_value)} | "
+        f"prev_best: {_format_optional(best.checkpoint_metric_value)}\n"
+    )
+    if _is_better_checkpoint_error(
+        metric_value,
+        best.checkpoint_metric_value,
+    ):
         _print_best_error_checkpoint_notice(
-            epoch, best.relative_error, relative_error
+            epoch,
+            best.checkpoint_metric_value,
+            metric_value,
+            metric_name=summary.metric_name,
         )
-        best.relative_error = relative_error
-        best.relative_error_epoch = epoch
+        best.checkpoint_metric_name = summary.metric_name
+        best.checkpoint_metric_value = metric_value
+        best.checkpoint_metric_epoch = epoch
         save_epoch_checkpoint(model, epoch, replace_existing=True)
 
 
@@ -265,23 +293,30 @@ def _evaluate_combined_epoch(
             best.average_relative_error_epoch = epoch
             save_epoch_checkpoint(model, epoch, replace_existing=True)
         return
-    summary = evaluate_combined_counting_summary(
+    summary = evaluate_per_object_checkpoint_metrics(
         dataset_val, dataloader_val, sampler_val, model, args
     )
-    relative_error = summary.relative_error
-    relative_error_text = _format_optional(relative_error)
+    metric_value = summary.metric_value
+    metric_value_text = _format_optional(metric_value)
     one_minus_fvu_text = _format_optional(summary.one_minus_fvu)
     print(
         "Validation results: \n"
-        f"orig_avg_relative_error: {relative_error_text} | "
-        f"orig_1-FVU: {one_minus_fvu_text} \n"
+        f"{summary.metric_name}: {metric_value_text} | "
+        f"related_1-FVU: {one_minus_fvu_text} \n"
     )
-    if relative_error is not None and relative_error < best.relative_error:
+    if _is_better_checkpoint_error(
+        metric_value,
+        best.checkpoint_metric_value,
+    ):
         _print_best_error_checkpoint_notice(
-            epoch, best.relative_error, relative_error
+            epoch,
+            best.checkpoint_metric_value,
+            metric_value,
+            metric_name=summary.metric_name,
         )
-        best.relative_error = relative_error
-        best.relative_error_epoch = epoch
+        best.checkpoint_metric_name = summary.metric_name
+        best.checkpoint_metric_value = metric_value
+        best.checkpoint_metric_epoch = epoch
         save_epoch_checkpoint(model, epoch, replace_existing=True)
 
 
@@ -373,7 +408,7 @@ def train_model(
                 args, epoch, model, dataset_val, dataloader_val, sampler_val, best
             )
         elif args.network_type in ("per_image_estimation_keypoints", "per_image_estimation_regression"):
-            _evaluate_counting_epoch(
+            _evaluate_per_image_attribute_epoch(
                 args, epoch, model, dataset_val, dataloader_val, best
             )
         else:

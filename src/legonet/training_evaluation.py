@@ -51,11 +51,76 @@ class IoUSweepResult:
 
 
 @dataclass(frozen=True)
-class CountingSummary:
-    """Publication counting metrics used during checkpoint selection."""
+class CheckpointSelectionMetrics:
+    """Task-neutral metrics used during checkpoint selection."""
 
-    relative_error: Optional[float]
+    metric_name: str
+    metric_value: Optional[float]
     one_minus_fvu: Optional[float]
+
+
+ATTRIBUTE_CHECKPOINT_NAMES = {"length", "diameter", "color"}
+
+
+def _finite_metric(value: Any) -> Optional[float]:
+    """Convert one finite metric value or return ``None`` when unavailable."""
+    if value is None or not np.isfinite(value):
+        return None
+    return float(value)
+
+
+def select_checkpoint_metrics(
+    metrics: Any,
+    *,
+    network_type: str,
+    requested_attribute: str | None,
+) -> CheckpointSelectionMetrics:
+    """Select the fixed error metric for counting or one chosen attribute."""
+    if network_type == "per_object_counting":
+        metric_name = "count_relative_error"
+        metric_value = metrics.count_relative_error
+        one_minus_fvu = _finite_metric(1 - metrics.count_fvu)
+    else:
+        attribute_name = requested_attribute or "length"
+        if attribute_name not in ATTRIBUTE_CHECKPOINT_NAMES:
+            raise ValueError(
+                f"Checkpoint attribute {attribute_name!r} is not valid for "
+                f"{network_type}. Choose one of: "
+                f"{', '.join(sorted(ATTRIBUTE_CHECKPOINT_NAMES))}."
+            )
+        color_metrics = metrics.color_metrics
+        if attribute_name == "length":
+            metric_name = "length_relative_error"
+            metric_value = metrics.trl_relative_error
+            one_minus_fvu = _finite_metric(1 - metrics.trl_fvu)
+        elif attribute_name == "diameter":
+            metric_name = "diameter_relative_error"
+            metric_value = metrics.diameter_relative_error
+            one_minus_fvu = _finite_metric(1 - metrics.diameter_fvu)
+        else:
+            metric_name = "color_error_rate"
+            metric_value = (
+                color_metrics.error_rate if color_metrics is not None else None
+            )
+            one_minus_fvu = _finite_metric(
+                color_metrics.one_minus_fvu
+                if color_metrics is not None
+                else None
+            )
+
+    if requested_attribute and network_type == "per_object_counting":
+        raise ValueError(
+            "Per-object counting always uses count relative error and does not "
+            "accept a checkpoint attribute."
+        )
+    has_ground_truth = getattr(metrics, "has_original_gt", True)
+    return CheckpointSelectionMetrics(
+        metric_name=metric_name,
+        metric_value=(
+            _finite_metric(metric_value) if has_ground_truth else None
+        ),
+        one_minus_fvu=one_minus_fvu if has_ground_truth else None,
+    )
 
 
 @contextmanager
@@ -110,17 +175,17 @@ def evaluate_detection(
     return DetectionMetrics(mean_average_precision, precision, recall)
 
 
-def evaluate_combined_once(
+def evaluate_per_object_checkpoint_metrics(
     dataset_val: Any,
     dataloader_val: Any,
     sampler_val: Any,
     model: Any,
     args: Any,
-) -> Optional[float]:
-    """Evaluate combined tasks once while preserving the training dataset."""
+) -> CheckpointSelectionMetrics:
+    """Evaluate one IoU and return metrics used to select a checkpoint."""
     model.eval()
     with _validation_dataset(model, dataset_val):
-        output = perObject_eval.eval(
+        metrics = perObject_eval.eval(
             dataset_val,
             dataloader_val,
             sampler_val,
@@ -129,32 +194,13 @@ def evaluate_combined_once(
             to_draw=False,
             print_to_files=True,
             args=args,
+            return_metrics=True,
         )
-    return _relative_error(output)
-
-
-def evaluate_combined_counting_summary(
-    dataset_val: Any,
-    dataloader_val: Any,
-    sampler_val: Any,
-    model: Any,
-    args: Any,
-) -> CountingSummary:
-    """Evaluate one IoU silently and return the two counting summary metrics."""
-    model.eval()
-    with _validation_dataset(model, dataset_val):
-        output = perObject_eval.eval(
-            dataset_val,
-            dataloader_val,
-            sampler_val,
-            model,
-            verbose=False,
-            to_draw=False,
-            print_to_files=True,
-            args=args,
-        )
-    one_minus_fvu = float(output[8]) if len(output) > 8 else None
-    return CountingSummary(_relative_error(output), one_minus_fvu)
+    return select_checkpoint_metrics(
+        metrics,
+        network_type=args.network_type,
+        requested_attribute=getattr(args, "checkpoint_attribute", None),
+    )
 
 
 def evaluate_combined_iou_sweep(

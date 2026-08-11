@@ -183,6 +183,16 @@ For grapes per-object counting, each IoU-matched predicted crop is trained
 against the full count stored for its matched GT box. Validation, checkpoint
 selection, and test evaluation use the same original matched-GT count.
 
+### Best-epoch metric
+
+Per-object counting always minimizes count relative error when selecting the
+best checkpoint. Attribute training accepts `--checkpoint-attribute` with
+`length`, `diameter`, or `color`; it minimizes the corresponding relative
+error for continuous attributes and the classification error rate for color.
+Length is the default, preserving the published roots training behavior.
+1-FVU remains a reported metric and is not used for checkpoint selection. The
+Streamlit runner shows the attribute selector only for attribute networks.
+
 ### Evaluation of empty images
 
 Bounding-box detection and per-object evaluation intentionally use different

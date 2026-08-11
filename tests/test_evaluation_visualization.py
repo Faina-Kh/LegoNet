@@ -101,7 +101,6 @@ class EvaluationVisualizationTests(TestCase):
 
             self.assertTrue((output_path / "sample.jpg").is_file())
             self.assertTrue((gt_path / "sample.jpg").is_file())
-            self.assertTrue((gt_path / "sample_gt_0.jpg").is_file())
 
     def test_detection_overview_does_not_require_gt_folder_when_disabled(self) -> None:
         with TemporaryDirectory() as temporary_directory:

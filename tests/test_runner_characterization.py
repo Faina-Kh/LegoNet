@@ -76,7 +76,7 @@ def _runner_dependency_stubs():
 
     evaluation_module = _module(
         "legonet.eval",
-        attribute_estimation_eval=mock.Mock(),
+        per_image_attribute_eval=mock.Mock(),
         detection_eval=mock.Mock(),
         perObject_eval=mock.Mock(),
     )

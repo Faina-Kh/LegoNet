@@ -5,6 +5,7 @@ from unittest import mock
 
 import numpy as np
 
+from legonet import config
 from legonet.eval import detection_eval
 
 

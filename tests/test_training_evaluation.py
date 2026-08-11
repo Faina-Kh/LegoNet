@@ -4,6 +4,7 @@ import importlib
 import sys
 import types
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 from legonet import config
@@ -90,39 +91,98 @@ class TrainingEvaluationTests(unittest.TestCase):
 
         self.assertIsNone(result.average_relative_error)
 
-    def test_single_evaluation_restores_dataset_and_rejects_missing_error(self):
-        """Single-IoU evaluation also restores the model's training dataset."""
+    def test_checkpoint_metrics_extract_relative_error_and_one_minus_fvu(self):
+        """Silent training evaluation returns checkpoint-selection metrics."""
         training_dataset = object()
         model = mock.Mock(dataset=training_dataset)
-        self.evaluation.perObject_eval.eval.return_value = []
+        self.evaluation.perObject_eval.eval.return_value = SimpleNamespace(
+            count_relative_error=0.2,
+            count_fvu=0.35,
+            trl_relative_error=100000,
+            trl_mae=-1,
+            trl_mse=-1,
+            trl_fvu=-1,
+            diameter_relative_error=-1,
+            diameter_mae=-1,
+            diameter_mse=-1,
+            diameter_fvu=-1,
+            color_metrics=None,
+        )
 
-        relative_error = self.evaluation.evaluate_combined_once(
+        summary = self.evaluation.evaluate_per_object_checkpoint_metrics(
             object(),
             "loader",
             "sampler",
             model,
-            args=object(),
+            args=SimpleNamespace(
+                network_type="per_object_counting",
+                checkpoint_attribute=None,
+            ),
         )
 
-        self.assertIsNone(relative_error)
-        self.assertIs(model.dataset, training_dataset)
-
-    def test_counting_summary_extracts_relative_error_and_one_minus_fvu(self):
-        """Silent training evaluation returns only publication counting metrics."""
-        training_dataset = object()
-        model = mock.Mock(dataset=training_dataset)
-        self.evaluation.perObject_eval.eval.return_value = (
-            0.2, 10, 7, 0.7, 0.8, 1.0, 0.1, 2.0, 0.65
-        )
-
-        summary = self.evaluation.evaluate_combined_counting_summary(
-            object(), "loader", "sampler", model, args=object()
-        )
-
-        self.assertEqual(summary.relative_error, 0.2)
+        self.assertEqual(summary.metric_name, "count_relative_error")
+        self.assertEqual(summary.metric_value, 0.2)
         self.assertEqual(summary.one_minus_fvu, 0.65)
         self.assertFalse(self.evaluation.perObject_eval.eval.call_args.kwargs["verbose"])
+        self.assertTrue(
+            self.evaluation.perObject_eval.eval.call_args.kwargs["return_metrics"]
+        )
         self.assertIs(model.dataset, training_dataset)
+
+    def test_selects_requested_continuous_attribute_metric(self):
+        metrics = SimpleNamespace(
+            count_relative_error=-1,
+            count_fvu=-1,
+            trl_relative_error=0.2,
+            trl_mae=1.0,
+            trl_mse=2.0,
+            trl_fvu=0.25,
+            diameter_relative_error=0.3,
+            diameter_mae=0.4,
+            diameter_mse=0.5,
+            diameter_fvu=0.35,
+            color_metrics=None,
+        )
+
+        summary = self.evaluation.select_checkpoint_metrics(
+            metrics,
+            network_type="per_object_attributes",
+            requested_attribute="diameter",
+        )
+
+        self.assertEqual(summary.metric_name, "diameter_relative_error")
+        self.assertEqual(summary.metric_value, 0.3)
+        self.assertAlmostEqual(summary.one_minus_fvu, 0.65)
+
+    def test_color_selection_always_uses_error_rate(self):
+        color_metrics = SimpleNamespace(
+            error_rate=0.1,
+            accuracy=0.9,
+            one_minus_fvu=0.7,
+        )
+        metrics = SimpleNamespace(
+            count_relative_error=-1,
+            count_fvu=-1,
+            trl_relative_error=0.2,
+            trl_mae=1.0,
+            trl_mse=2.0,
+            trl_fvu=0.25,
+            diameter_relative_error=0.3,
+            diameter_mae=0.4,
+            diameter_mse=0.5,
+            diameter_fvu=0.35,
+            color_metrics=color_metrics,
+        )
+
+        summary = self.evaluation.select_checkpoint_metrics(
+            metrics,
+            network_type="per_object_attributes",
+            requested_attribute="color",
+        )
+
+        self.assertEqual(summary.metric_name, "color_error_rate")
+        self.assertEqual(summary.metric_value, 0.1)
+        self.assertEqual(summary.one_minus_fvu, 0.7)
 
     def test_iou_sweep_restores_state_when_evaluation_fails(self):
         """Evaluator exceptions cannot leak validation state into training."""

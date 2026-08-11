@@ -39,6 +39,7 @@ ESTIMATE_TYPE_VALUES = {
 }
 OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS = ("per_object_counting", "per_object_attributes", "per_object_attributes_multibranch")
 PER_OBJECT_NETWORKS = OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS
+ATTRIBUTE_CHECKPOINT_NAMES = ("length", "diameter", "color")
 MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection")
 ESTIMATE_SELECT_NETWORK_OPTIONS = (
     "per_image_attributes",
@@ -168,6 +169,7 @@ def build_command(
     draw_detection_overview: bool,
     draw_gt_only: bool,
     evaluate_detection: bool,
+    checkpoint_attribute: str,
     weights_mode: str,
     full_weights_file: str = "",
     bbox_weights_file: str = "",
@@ -209,6 +211,8 @@ def build_command(
         "--weights-mode",
         weights_mode,
     ]
+    if checkpoint_attribute:
+        command.extend(["--checkpoint-attribute", checkpoint_attribute])
     if full_weights_file:
         command.extend(["--full-weights-file", full_weights_file])
     if bbox_weights_file:
@@ -441,6 +445,23 @@ with st.sidebar:
     else:
         evaluate_detection = network_type in MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS
 
+    checkpoint_attribute = ""
+    if (
+        run_script == "Training"
+        and network_type
+        in ("per_object_attributes", "per_object_attributes_multibranch")
+    ):
+        checkpoint_attribute = st.selectbox(
+            "Best-epoch attribute",
+            ATTRIBUTE_CHECKPOINT_NAMES,
+            key="runner_checkpoint_attribute",
+            format_func=str.title,
+            help=(
+                "Select the attribute whose validation error is minimized. "
+                "Counting always minimizes count relative error."
+            ),
+        )
+
     can_load_only_bbox = (
         run_script == "Training" and network_type in PER_OBJECT_NETWORKS
     )
@@ -572,6 +593,7 @@ command = build_command(
     draw_detection_overview=draw_detection_overview,
     draw_gt_only=draw_gt_only,
     evaluate_detection=evaluate_detection,
+    checkpoint_attribute=checkpoint_attribute,
     weights_mode=weights_mode,
     full_weights_file=full_weights_file,
     bbox_weights_file=bbox_weights_file,

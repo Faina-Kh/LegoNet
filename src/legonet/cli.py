@@ -112,6 +112,16 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--full-weights-file", "--full_weights_file", default=None)
     parser.add_argument("--bbox-weights-file", "--bbox_weights_file", default=None)
     parser.add_argument("--per-object-weights-file", "--per_object_weights_file", default=None)
+    parser.add_argument(
+        "--checkpoint-attribute",
+        "--checkpoint_attribute",
+        choices=["length", "diameter", "color"],
+        default=None,
+        help=(
+            "Attribute whose error selects the best attribute-model checkpoint. "
+            "Defaults to length. Counting always uses relative error."
+        ),
+    )
 
     parsed_args = parser.parse_args(args)
     # if parsed_args.run_script is None:

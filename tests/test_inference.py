@@ -30,8 +30,8 @@ class InferenceTests(unittest.TestCase):
         torch = _module("torch", no_grad=mock.Mock(), tensor=mock.Mock())
         evaluation_package = _module(
             "legonet.eval",
-            attribute_estimation_eval=mock.Mock(),
             detection_eval=mock.Mock(),
+            per_image_attribute_eval=mock.Mock(),
             perObject_eval=mock.Mock(),
         )
         dataloader_module = _module(
@@ -62,13 +62,13 @@ class InferenceTests(unittest.TestCase):
         for evaluator in (
             self.inference.detection_eval,
             self.inference.perObject_eval,
-            self.inference.attribute_estimation_eval,
+            self.inference.per_image_attribute_eval,
         ):
             evaluator.reset_mock()
         self.inference.detection_eval.evaluateMAP_simple.side_effect = None
         self.inference.detection_eval.evaluate_detection_params.side_effect = None
         self.inference.perObject_eval.eval.side_effect = None
-        self.inference.attribute_estimation_eval.eval.side_effect = None
+        self.inference.per_image_attribute_eval.evaluate.side_effect = None
         self.inference.utils.printf.reset_mock()
         config.General.to_draw = False
 
@@ -220,11 +220,11 @@ class InferenceTests(unittest.TestCase):
         config.General.NETWORK_TYPE = config.NetworkType.per_image_estimation_regression
         args = SimpleNamespace()
         model = mock.Mock()
-        self.inference.attribute_estimation_eval.eval.return_value = 0.4
+        self.inference.per_image_attribute_eval.evaluate.return_value = 0.4
 
         self.inference.run_inference(args, "dataset", "loader", "sampler", model)
 
-        self.inference.attribute_estimation_eval.eval.assert_called_once_with(
+        self.inference.per_image_attribute_eval.evaluate.assert_called_once_with(
             "loader",
             "dataset",
             model,
