@@ -35,12 +35,11 @@ from legonet.eval.matching import (
     choose_boxes_by_IoUandPrc,
     match_detections_to_gt as _match_detections_to_gt,
 )
-from legonet.eval.classification_metrics import decode_class_predictions
+from legonet.eval.crop_predictions import prepare_crop_predictions
 from legonet.eval.metric_aggregation import (
     aggregate_post_loop_metrics,
     compute_positive_crop_count_metrics as _compute_positive_crop_count_metrics,
 )
-from legonet.eval.per_object_result import ClassificationType
 from legonet.eval.visualization import (
     save_detection_overview,
     save_keypoint_heatmap,
@@ -209,15 +208,6 @@ def eval(
         print()
         for iter_num, data in enumerate(dataloader):
 
-            # get per image stats
-            crops_count_GT = []
-            count_pred = []
-
-            if evaluates_attributes:
-                TRL_pred = []
-                dia_pred = []
-                color_pred = []
-
             image_context = prepare_image_context(
                 dataset,
                 sampler,
@@ -367,95 +357,39 @@ def eval(
             # the predicted count to 0, probably since the points weren't annotated
             ############################################################################################################
 
-            adjusted_crops_orig_boxes = []
-
-            if sample_anns is not None: #not the detect_with_points model or no predictions
-                if config.AttributeEstimation.estimate_type == 'withKeyPoints' and estimation_outputs is not None:
-                    orig_predicted_detection_maps = [estimation_outputs[1], estimation_outputs[2], estimation_outputs[3],
-                                                     estimation_outputs[4], estimation_outputs[6]]  # estimation_outputs[6]
-                    all_predicted_detection_maps = []
-                    all_predicted_detection_maps_toDraw = []
-
-                    all_crops_GT_detections_maps = []
-
-                if 'points_annot' not in sample_anns.keys():
-                    sample_anns['points_annot']=[]
-
-            if not isinstance(bbox_pred, list):
-                for b in range(bbox_pred.shape[0]):
-                    if estimation_outputs is not None:
-                        if evaluates_attributes:
-                            decoded_color = int(
-                                decode_class_predictions(
-                                    [estimation_outputs[0][b][0].cpu().item()],
-                                    ClassificationType.BINARY,
-                                )[0]
-                            )
-                            state['detections_data_any_crop'][image_name]['color_pred'].append(decoded_color)
-                            state['detections_data_any_crop'][image_name]['TRL_pred'].append(estimation_outputs[0][b][1].cpu().item())
-                            state['detections_data_any_crop'][image_name]['dia_pred'].append(estimation_outputs[0][b][2].cpu().item())
-
-                            color_pred.append(decoded_color)
-                            TRL_pred.append(estimation_outputs[0][b][1].cpu().item())
-                            dia_pred.append(estimation_outputs[0][b][2].cpu().item())
-
-                            #adjusted_crops_orig_boxes.append(crops_orig_boxes[b])
-                        else:
-                            prediction = np.round(estimation_outputs[0][b].cpu().item())
-                            state['detections_data_any_crop'][image_name]['pred'].append(prediction)
-                            count_pred.append(prediction)
-
-                    if len(crops_orig_boxes) > 0:
-                        adjusted_crops_orig_boxes.append(crops_orig_boxes[b])
-
-                    if config.AttributeEstimation.estimate_type == 'withKeyPoints' and estimation_outputs is not None:
-                        all_predicted_detection_maps.append(orig_predicted_detection_maps[-1][b])
-                        all_predicted_detection_maps_toDraw.append([
-                            orig_predicted_detection_maps[0][b], orig_predicted_detection_maps[1][b],
-                            orig_predicted_detection_maps[2][b], orig_predicted_detection_maps[3][b],
-                            orig_predicted_detection_maps[4][b]])
-
-                        if sample_anns is not None:
-                            all_crops_GT_detections_maps.append(
-                                torch.tensor(
-                                    _geometric_point_centers_map(
-                                        dataset.image_data_points_location[
-                                            image_name
-                                        ],
-                                        crops_orig_boxes[b],
-                                        scale,
-                                        all_predicted_detection_maps[
-                                            -1
-                                        ].shape,
-                                        config.AttributeEstimation.crops_size,
-                                    )
-                                )
-                            )
-
-                    if sample_anns is not None and args.have_GT: #assuming having GT anns
-                        current_count = sample_anns['points_annot'][0][b].item()
-                        if current_count ==0: #empty crop
-                            state['crops_without_gt_points'] +=1
-
-                        crops_count_GT.append(current_count)  # just to know if it's an empty crop
-
-            if sample_anns is not None:
-                if len(crops_count_GT)>0:
-                    max_gt_count_of_crop = np.max(crops_count_GT)
-                else:
-                    max_gt_count_of_crop = -1
-
-                if max_gt_count_of_crop == -1 and not evaluates_attributes:
-                    sample_anns = None
-                else:
-                    if config.AttributeEstimation.estimate_type == 'withKeyPoints':
-                        if args.have_GT:
-                            all_crops_GT_detections_maps = torch.cat([torch.unsqueeze(map, dim=0) for map in all_crops_GT_detections_maps], dim=0)
-
-                        if len(all_predicted_detection_maps)>1:
-                            all_predicted_detection_maps = torch.cat([torch.unsqueeze(map, dim=0) for map in all_predicted_detection_maps], dim=0)
-                        else:
-                            all_predicted_detection_maps = all_predicted_detection_maps[0].unsqueeze(dim=0)
+            crop_predictions = prepare_crop_predictions(
+                state=state,
+                dataset=dataset,
+                image_name=image_name,
+                predicted_boxes=bbox_pred,
+                original_crop_boxes=crops_orig_boxes,
+                estimation_outputs=estimation_outputs,
+                sample_annotations=sample_anns,
+                scale=scale,
+                evaluates_attributes=evaluates_attributes,
+                have_ground_truth=args.have_GT,
+                estimate_type=config.AttributeEstimation.estimate_type,
+                crop_size=config.AttributeEstimation.crops_size,
+                point_center_map_builder=_geometric_point_centers_map,
+            )
+            sample_anns = crop_predictions.sample_annotations
+            adjusted_crops_orig_boxes = (
+                crop_predictions.adjusted_original_boxes
+            )
+            crops_count_GT = crop_predictions.ground_truth_counts
+            count_pred = crop_predictions.count_predictions
+            TRL_pred = crop_predictions.trl_predictions
+            dia_pred = crop_predictions.diameter_predictions
+            color_pred = crop_predictions.color_predictions
+            all_predicted_detection_maps = (
+                crop_predictions.predicted_detection_maps
+            )
+            all_predicted_detection_maps_toDraw = (
+                crop_predictions.predicted_maps_to_draw
+            )
+            all_crops_GT_detections_maps = (
+                crop_predictions.ground_truth_detection_maps
+            )
 
             if np.sum(crops_count_GT)==0 and len(bbox_pred)>0: #sample_anns is None
                 if verbose and args.have_GT:

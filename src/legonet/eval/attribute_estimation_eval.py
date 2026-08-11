@@ -36,21 +36,23 @@ def SumOfAbsDifferences(A,B):
 def eval(dataloader, dataset, model, args, do_profile = False):
 
     print("Start evaluation")
-
     model.eval()
+
+    is_attributes = config.Detect_and_Estimate.type in {
+        "per_image_estimation_keypoints",
+        "per_image_estimation_regression"
+    }
 
     with (torch.no_grad()):
 
-        all_GT_counts = []
-        all_predicted_counts = []
-        alpha = 0.1
+        all_GT_values = []
+        all_predicted_values = []
         T, P = [], []
         all_rel_error = []
         predicted_maps = None
 
-        if args.dataset_name == "roots":
+        if is_attributes:
             if args.txt_results != "":
-
                 with open(args.txt_results, 'a') as f:
                     if args.have_GT:
                         f.write('image| GT | predicted | abs diff | rel_error')
@@ -60,7 +62,7 @@ def eval(dataloader, dataset, model, args, do_profile = False):
 
             for iter_num, data in enumerate(dataloader):
 
-                full_rgbImage_name = dataset.bgr_images_names[dataloader.batch_sampler.groups[iter_num][0]] #[iter_num]
+                full_rgbImage_name = dataset.bgr_images_names[dataloader.batch_sampler.groups[iter_num][0]]
 
                 if full_rgbImage_name.lower().endswith((".jpg", ".jpeg")):
                     Image_name = full_rgbImage_name.split(".jpg")[0]
@@ -140,7 +142,7 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                                                         config.DrawProperties.maps_path, count_pred, count_GT)
 
                 if args.have_GT:
-                    all_GT_counts.append(count_GT)
+                    all_GT_values.append(count_GT)
 
                 if predicted_maps is not None and args.have_GT: #and Image_name not in names:
                     if config.AttributeEstimation.calc_det_performance and dataset.csv_leaf_location_file != "":
@@ -160,7 +162,7 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                         else:
                             rel_error = -1
 
-                all_predicted_counts.append(count_pred)
+                all_predicted_values.append(count_pred)
 
                 if  model.estimator.binary_model:
                     if args.have_GT:
@@ -215,7 +217,6 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                                 f.write('\n')
 
         else:
-
             for index in range(len(dataset)):
                 data = dataset[index]
                 count_GT = data['annot'][0][0]
@@ -223,10 +224,6 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                 # run network
                 image = torch.tensor(data['img']).permute(2, 0, 1)
                 count_outputs = model(image.to(config.General.device).float().unsqueeze(dim=0))
-
-                full_rgbImage_name = dataset.bgr_images_names[index]
-                Image_name = full_rgbImage_name.split("_rgb")[0]
-
                 if len(count_outputs):
                     count_pred = count_outputs[0]
                     count_pred = count_pred.cpu().item()
@@ -234,22 +231,8 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                     full_rgbImage_name = dataset.bgr_images_names[index]
                     Image_name = full_rgbImage_name.split("_rgb")[0]
 
-                    # if visualize_im:
-                    #     if not generator.epoch == None:
-                    #         if generator.epoch==0 or (generator.epoch+1) % 20 == 0 :
-                    #             visualize_images(output, Image_name, save_path, generator, model, image)
-                    #     else:
-                    #         visualize_images(output, Image_name, save_path, generator, model, image)
-
-                    all_GT_counts.append(count_GT)
-
-                    # if args.calc_det_performance:
-                    #     t, p = detection_evaluation(os.path.join(dataset.base_dir, Image_name), model, image,
-                    #                                 count_outputs[-1][0, :, :, 0], alpha)
-                    #     T = T + t
-                    #     P = P + p
-
-                    all_predicted_counts.append(np.round(count_pred))
+                    all_GT_values.append(count_GT)
+                    all_predicted_values.append(np.round(count_pred))
                     print(
                         'image: {} | GT: {} | predicted: {} ({}) | abs diff: {}'.format(
                             Image_name, int(count_GT), np.round(count_pred), count_pred,
@@ -258,43 +241,41 @@ def eval(dataloader, dataset, model, args, do_profile = False):
         print('\n Summary:')
 
         if args.have_GT:
-            num_of_images = len(all_GT_counts)
-            CountDiff = SumOfDifferences(all_GT_counts, all_predicted_counts) / num_of_images
-            AbsCountDiff = SumOfAbsDifferences(all_GT_counts, all_predicted_counts) / num_of_images
+            num_of_images = len(all_GT_values)
+            valueDiff = SumOfDifferences(all_GT_values, all_predicted_values) / num_of_images
+            AbsvalueDiff = SumOfAbsDifferences(all_GT_values, all_predicted_values) / num_of_images
 
         if args.dataset_name == "roots":
-
             if args.have_GT:
                 if  model.estimator.binary_model:
-                    print('AbsCountDiff: {:.3f} | accuracy {:.3f} \n'.format(
-                        AbsCountDiff, 1-AbsCountDiff))
+                    print('AbsvalueDiff: {:.3f} | accuracy {:.3f} \n'.format(
+                        AbsvalueDiff, 1-AbsvalueDiff))
 
                     if args.txt_results != "":
                         with open(args.txt_results, 'a') as f:
                             f.write('\n')
-                            f.write('AbsCountDiff: {:.3f} | accuracy {:.3f} \n'.format(
-                                AbsCountDiff, 1-AbsCountDiff ))
+                            f.write('AbsvalueDiff: {:.3f} | accuracy {:.3f} \n'.format(
+                                AbsvalueDiff, 1-AbsvalueDiff ))
                 else:
                     mean_rel_error = np.mean(all_rel_error)
                     SE = 0
                     count_non_zero = 0
-                    for i in range(len(all_GT_counts)):
-                        if all_GT_counts[i] > 0:
+                    for i in range(len(all_GT_values)):
+                        if all_GT_values[i] > 0:
                             count_non_zero += 1
-                            SE += (all_GT_counts[i] - all_predicted_counts[i]) ** 2
+                            SE += (all_GT_values[i] - all_predicted_values[i]) ** 2
                     if count_non_zero > 0:
                         MSE = SE / count_non_zero
                     else:
                         MSE = None
 
-                    print('AbsCountDiff: {:.3f} | MSE {:.3f} | RelError (gt>0): {:.3f} \n'.format(AbsCountDiff, MSE,
+                    print('AbsvalueDiff: {:.3f} | MSE {:.3f} | RelError (gt>0): {:.3f} \n'.format(AbsvalueDiff, MSE,
                                                                                                   mean_rel_error))
-
                     if args.txt_results != "":
                         with open(args.txt_results, 'a') as f:
                             f.write('\n')
-                            f.write('AbsCountDiff: {:.3f} | MSE {:.3f} | RelError (gt>0): {:.3f} \n'.format(
-                                AbsCountDiff, MSE, mean_rel_error))
+                            f.write('AbsvalueDiff: {:.3f} | MSE {:.3f} | RelError (gt>0): {:.3f} \n'.format(
+                                AbsvalueDiff, MSE, mean_rel_error))
 
                 if config.AttributeEstimation.calc_det_performance and config.General.experiment_path != "" and args.have_GT and config.AttributeEstimation.estimate_type == 'withKeyPoints':
                     recall, precision, ap = calc_points_recall_precision_ap(T, P)
@@ -315,36 +296,28 @@ def eval(dataloader, dataset, model, args, do_profile = False):
                             writer.writerow(myrow)
 
         else:
-            MSE = np.mean((np.array(all_GT_counts) - np.array(all_predicted_counts)) ** 2)
+            MSE = np.mean((np.array(all_GT_values) - np.array(all_predicted_values)) ** 2)
             countAgr = 0
             for i in range(num_of_images):
-                if all_GT_counts[i] == all_predicted_counts[i]:
+                if all_GT_values[i] == all_predicted_values[i]:
                     countAgr += 1
             CountAgreement = countAgr / num_of_images
-
-            # R_2 = r2_score(all_GT_counts, all_predicted_counts)
-            # TODO - change r2 score function
-            R_2 = 0
-
-            print('CountDiff: {} | AbsCountDiff: {} | CountAgreement: {} | MSE {} \n'.format(
-                CountDiff, AbsCountDiff, CountAgreement, MSE))
+            print('valueDiff: {} | AbsvalueDiff: {} | CountAgreement: {} | MSE {} \n'.format(
+                valueDiff, AbsvalueDiff, CountAgreement, MSE))
 
         model.train()
 
         if args.dataset_name == "roots":
-
             if  model.estimator.binary_model:
                 if args.have_GT:
-                    return AbsCountDiff
+                    return AbsvalueDiff
                 else:
                     return None
-
             else:
                 if args.have_GT:
                     return mean_rel_error
                 else:
                     return None
-
         else:
             return CountAgreement
 
