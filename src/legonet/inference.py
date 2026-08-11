@@ -12,6 +12,7 @@ from legonet import utils
 from legonet.eval import detection_eval, per_image_attribute_eval
 from legonet.eval import perObject_eval
 from legonet.my_dataloader import UnNormalizer
+from legonet.utils import printf
 
 
 def _group_cache_key(inputs: Any) -> Hashable:
@@ -300,5 +301,5 @@ def run_inference(
             model,
             args,
         )
-        print("Final avg rel error:  %.3f", relative_error)
-    print("done")
+        printf("Final avg rel error: %.3f", relative_error)
+    print("Done")
