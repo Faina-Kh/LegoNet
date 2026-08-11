@@ -427,16 +427,21 @@ with st.sidebar:
             key="runner_draw_detection_overview",
             help="Save full-image GT/prediction overlays; disable for dense images.",
         )
-        draw_gt_only = st.checkbox(
-            "Draw GT-only images",
-            value=False,
-            key="runner_draw_gt_only",
-            help="Save annotation-debugging images without predictions.",
-        )
+        if have_gt:
+            draw_gt_only = st.checkbox(
+                "Draw GT-only images",
+                value=False,
+                key="runner_draw_gt_only",
+                help="Save annotation-debugging images without predictions.",
+            )
+        else:
+            draw_gt_only = False
     else:
         draw_detection_overview = False
         draw_gt_only = False
-    if network_type in OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS:
+    if not have_gt:
+        evaluate_detection = False
+    elif network_type in OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS:
         evaluate_detection = st.checkbox(
             "Evaluate detection",
             value=True,
