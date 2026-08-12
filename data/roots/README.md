@@ -137,7 +137,7 @@ MSE = mean((image_gt - image_prediction) ** 2)
 1-FVU = 1 - MSE / variance(image_gt)
 ```
 
-This calculation is performed separately for image-level TRL sums, diameter
+This calculation is performed separately for image-level length sums (TRLs), diameter
 means, and color means. If the GT image-level values have zero variance,
 1-FVU is undefined and is reported as `n/a`. Each attribute's 1-FVU is printed
 beside that attribute's mean image-level error rather than in a separate

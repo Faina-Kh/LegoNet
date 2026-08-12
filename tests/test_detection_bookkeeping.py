@@ -72,6 +72,10 @@ class DetectionBookkeepingTests(unittest.TestCase):
         self.assertIsNone(result.max_overlaps)
         self.assertEqual(state["FP"], 1)
         self.assertEqual(
+            state["detections_data_any_crop"]["grapes.jpg"]["score"],
+            [0.7],
+        )
+        self.assertEqual(
             state["not_found_gt"]["grapes.jpg"]["gt_count"], [4.0]
         )
         self.assertEqual(state["not_found_gt"]["grapes.jpg"]["pred"], [-1])

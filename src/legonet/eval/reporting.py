@@ -194,7 +194,7 @@ def format_prediction_aggregates(
     else:
         for image_name, color_prediction in predictions.items():
             lines.append(
-                f"{image_name}: predicted TRL sum: "
+                f"{image_name}: predicted length sum (TRL): "
                 f"{trl_predictions[image_name]:.2f}, predicted diameter average: "
                 f"{diameter_predictions[image_name]:.2f}, "
                 f"predicted color average: {color_prediction:.2f}"

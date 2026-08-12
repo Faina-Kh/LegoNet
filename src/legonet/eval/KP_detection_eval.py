@@ -167,13 +167,13 @@ def visualize_KeyPointsHeatmaps(predicted_map, gt_map, image_name, map_name, img
 
         alphaBlended.save(draw_path + '/' + map_name+'_Blended_GT.png')
 
-    # Relu map #######################################################################################################
+    # Predicted map #######################################################################################################
     if predicted_map is not None:
-        plt.imsave(draw_path + '/' + map_name+ '_Relu.png', predicted_map)
-        relu_pred = Image.open(draw_path + '/' + map_name+ '_Relu.png')
+        plt.imsave(draw_path + '/' + map_name+ '_Predicted.png', predicted_map)
+        relu_pred = Image.open(draw_path + '/' + map_name+ '_Predicted.png')
 
-        relu_pred = relu_pred.resize((BG_w, BG_h))  # Image.ANTIALIAS
-        relu_pred.save(draw_path + '/' + map_name+ '_Relu.png')
+        relu_pred = relu_pred.resize((BG_w, BG_h))
+        relu_pred.save(draw_path + '/' + map_name+ '_Predicted.png')
 
         alphaBlended_relu = Image.blend(relu_pred, background_2.convert('RGBA'), 0.7)
 
@@ -182,9 +182,9 @@ def visualize_KeyPointsHeatmaps(predicted_map, gt_map, image_name, map_name, img
             draw.text((50, 50), "Pred "+ attribute_name+ " = " + str(np.round(count_pred, 2)),
                       (255, 255, 255), font=font)
 
-        alphaBlended_relu.save(draw_path + '/' + map_name+ '_Blended_Relu.png')
+        alphaBlended_relu.save(draw_path + '/' + map_name+ '_Predicted.png')
 
-        os.remove(draw_path + '/' + map_name + '_Relu.png')
+        os.remove(draw_path + '/' + map_name + '_Predicted.png')
 
     if gt_map is not None:
          os.remove(draw_path + '/' + map_name+ '_anno.png')

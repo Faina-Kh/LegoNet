@@ -1602,7 +1602,7 @@ def kcsv_collater_2(data):
                 max_map_height = np.array(map_heights).max()
                 annot_padded = torch.ones((len(ann), max_map_height, max_map_width)) * -1
                 #import matplotlib.pyplot as plt
-                #plt.imsave('vis' + '/' + 'ann1' + '_Relu.png', annotation_map_1)
+                #plt.imsave('vis' + '/' + 'ann1' + '_Predicted.png', annotation_map_1)
 
                 for idx, annot in enumerate(ann):
                     #temp = torch.ones((int(annot.shape[1]), int(annot.shape[2])), dtype=torch.float).cpu()* annot[0].data
@@ -1664,7 +1664,7 @@ def kcsv_collater_2(data):
                         max_map_height = np.array(map_heights).max()
                         annot_padded = torch.ones((len(ann), max_map_height, max_map_width)) * -1
                         # import matplotlib.pyplot as plt
-                        # plt.imsave('vis' + '/' + 'ann1' + '_Relu.png', annotation_map_1)
+                        # plt.imsave('vis' + '/' + 'ann1' + '_Predicted.png', annotation_map_1)
 
                         for idx, annot in enumerate(ann):
                             # temp = torch.ones((int(annot.shape[1]), int(annot.shape[2])), dtype=torch.float).cpu()* annot[0].data

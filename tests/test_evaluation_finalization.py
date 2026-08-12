@@ -141,7 +141,7 @@ class EvaluationFinalizationTests(unittest.TestCase):
         report = output.getvalue()
         self.assertNotIn("Object matching diagnostics", report)
         self.assertIn("Per-image predicted aggregates", report)
-        self.assertIn("predicted TRL sum: 8.00", report)
+        self.assertIn("predicted length sum (TRL): 8.00", report)
 
 
 if __name__ == "__main__":

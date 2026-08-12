@@ -173,7 +173,7 @@ class EvaluationReportingTests(unittest.TestCase):
         )
 
         self.assertIn("Per-image predicted aggregates", report)
-        self.assertIn("predicted TRL sum: 12.00", report)
+        self.assertIn("predicted length sum (TRL): 12.00", report)
         self.assertIn("predicted diameter average: 0.75", report)
         self.assertIn("predicted color average: 0.50", report)
         self.assertIn("empty.png: no detected objects", report)

@@ -151,7 +151,7 @@ def record_detection_bookkeeping(
 
     elif predicted_boxes:
         max_overlaps = None
-        for _ in predicted_boxes:
+        for detection in predicted_boxes:
             _append_false_positive(
                 state,
                 image_name,
@@ -160,7 +160,7 @@ def record_detection_bookkeeping(
                 trl_ground_truth,
                 diameter_ground_truth,
                 color_ground_truth,
-                -1,
+                float(detection[4]),
                 -1,
             )
 

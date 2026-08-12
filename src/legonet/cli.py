@@ -588,7 +588,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
                                         "with_Vis_results_"+ args.val_set +".txt" if config.General.to_draw else
                                         "without_Vis_results_"+ args.val_set +".txt")
         if config.DrawProperties.DRAW_MAPS:
-            config.DrawProperties.maps_path = os.path.join(config.DrawProperties.save_img_path, "points_maps")
+            config.DrawProperties.maps_path = os.path.join(config.DrawProperties.save_img_path, "KP heatmaps")
             os.makedirs(config.DrawProperties.maps_path, exist_ok=True)
 
     else:
