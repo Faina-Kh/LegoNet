@@ -136,7 +136,11 @@ def prepare_crop_predictions(
         maximum_crop_count = (
             np.max(ground_truth_counts) if ground_truth_counts else -1
         )
-        if maximum_crop_count == -1 and not evaluates_attributes:
+        if (
+            have_ground_truth
+            and maximum_crop_count == -1
+            and not evaluates_attributes
+        ):
             sample_annotations = None
         elif uses_keypoints:
             if have_ground_truth:

@@ -144,6 +144,28 @@ class CropPredictionPreparationTests(unittest.TestCase):
         self.assertEqual(tuple(result.predicted_detection_maps.shape), (1, 2, 2))
         self.assertEqual(result.trl_predictions, [4.0])
 
+    def test_no_gt_counting_preserves_crop_images_for_visualization(self) -> None:
+        state = _state(attribute_mode=False)
+        sample_annotations = {"img": [object()]}
+
+        result = prepare_crop_predictions(
+            state=state,
+            dataset=SimpleNamespace(),
+            image_name="image.jpg",
+            predicted_boxes=np.zeros((1, 4)),
+            original_crop_boxes=[[1, 2, 3, 4]],
+            estimation_outputs=[torch.tensor([2.0])],
+            sample_annotations=sample_annotations,
+            scale=[1.0],
+            evaluates_attributes=False,
+            have_ground_truth=False,
+            estimate_type="regression",
+            crop_size=(640, 640),
+            point_center_map_builder=lambda *args: np.zeros((2, 2)),
+        )
+
+        self.assertIs(result.sample_annotations, sample_annotations)
+
 
 if __name__ == "__main__":
     unittest.main()

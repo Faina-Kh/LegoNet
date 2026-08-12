@@ -513,50 +513,71 @@ def eval(
                                                 printf('max_overlap =   %.3f \n', max_overlap_array[i])
                             print()
 
-                        if to_draw: # drawings of true detections
-                            if len(crops_count_GT) > 0:
-                                bbox_crop = sample_anns['img'][i].clone()
+                    if to_draw and sample_anns is not None:
+                        for i in range(len(adjusted_crops_orig_boxes)):
+                            bbox_crop = sample_anns['img'][i].clone()
+                            gt_box_id = -1
+                            if args.have_GT:
                                 gt_box_id = int(
                                     state['detections_data_any_crop'][image_name][
                                         'gt_box_id'
                                     ][i].item()
                                 )
-                                crop_image = save_object_visualizations(
-                                    image_path=image_path,
+                            crop_image = save_object_visualizations(
+                                image_path=image_path,
+                                image_name=image_name,
+                                crop_index=i,
+                                bbox_crop=bbox_crop,
+                                predicted_box=crops_orig_boxes[i],
+                                scale=scale,
+                                gt_boxes=gt_boxes,
+                                gt_box_id=gt_box_id,
+                                roots_attributes=evaluates_attributes,
+                                image_points=point_anns,
+                                crop_points=(
+                                    relevant_points_anns[i]
+                                    if args.have_GT
+                                    and i < len(relevant_points_anns)
+                                    else []
+                                ),
+                                has_positive_target=(
+                                    args.have_GT
+                                    and i < len(crops_count_GT)
+                                    and crops_count_GT[i] != 0
+                                ),
+                                predicted_boxes_path=predicted_boxes_path,
+                                crops_path=crops_path,
+                                line_width=config.DrawProperties.LINE_WIDTH,
+                                unnormalize=unnormalize,
+                            )
+
+                            if (
+                                config.AttributeEstimation.estimate_type
+                                == 'withKeyPoints'
+                                and (
+                                    not args.have_GT
+                                    or (
+                                        i < len(crops_count_GT)
+                                        and crops_count_GT[i] != 0
+                                    )
+                                )
+                            ):
+                                maps_idx = save_keypoint_heatmap(
                                     image_name=image_name,
                                     crop_index=i,
-                                    bbox_crop=bbox_crop,
-                                    predicted_box=crops_orig_boxes[i],
-                                    scale=scale,
-                                    gt_boxes=gt_boxes,
-                                    gt_box_id=gt_box_id,
-                                    roots_attributes=evaluates_attributes,
-                                    image_points=point_anns,
-                                    crop_points=relevant_points_anns[i],
-                                    has_positive_target=crops_count_GT[i] != 0,
-                                    predicted_boxes_path=predicted_boxes_path,
-                                    crops_path=crops_path,
-                                    line_width=config.DrawProperties.LINE_WIDTH,
-                                    unnormalize=unnormalize,
+                                    crop_image=crop_image,
+                                    point_maps=(
+                                        sample_anns['points_annot']
+                                        if args.have_GT
+                                        else None
+                                    ),
+                                    predicted_maps=(
+                                        all_predicted_detection_maps_toDraw
+                                    ),
+                                    maps_index=maps_idx,
+                                    draw_maps=config.DrawProperties.DRAW_MAPS,
+                                    maps_path=config.DrawProperties.maps_path,
                                 )
-
-                                if (
-                                    config.AttributeEstimation.estimate_type
-                                    == 'withKeyPoints'
-                                    and crops_count_GT[i] != 0
-                                ):
-                                    maps_idx = save_keypoint_heatmap(
-                                        image_name=image_name,
-                                        crop_index=i,
-                                        crop_image=crop_image,
-                                        point_maps=sample_anns['points_annot'],
-                                        predicted_maps=(
-                                            all_predicted_detection_maps_toDraw
-                                        ),
-                                        maps_index=maps_idx,
-                                        draw_maps=config.DrawProperties.DRAW_MAPS,
-                                        maps_path=config.DrawProperties.maps_path,
-                                    )
 
                     if verbose:
                         if not args.have_GT and len(estimation_outputs) >0 and evaluates_attributes:

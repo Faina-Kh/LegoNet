@@ -175,3 +175,26 @@ class EvaluationVisualizationTests(TestCase):
 
         self.assertEqual(next_index, 1)
         visualize_heatmap.assert_not_called()
+
+    @patch("legonet.eval.visualization._visualize_keypoint_heatmaps")
+    def test_keypoint_heatmap_supports_prediction_only_rendering(
+        self, visualize_heatmap
+    ) -> None:
+        predicted_maps = [
+            [np.full((2, 2), index, dtype=float) for index in range(5)]
+        ]
+
+        save_keypoint_heatmap(
+            image_name="sample.png",
+            crop_index=0,
+            crop_image=Image.new("RGB", (8, 8)),
+            point_maps=None,
+            predicted_maps=predicted_maps,
+            maps_index=0,
+            draw_maps=True,
+            maps_path="maps",
+        )
+
+        arguments = visualize_heatmap.call_args[0]
+        np.testing.assert_array_equal(arguments[0], predicted_maps[0][4])
+        self.assertIsNone(arguments[1])

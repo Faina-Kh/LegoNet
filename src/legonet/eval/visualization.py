@@ -192,17 +192,21 @@ def save_keypoint_heatmap(
     image_name: str,
     crop_index: int,
     crop_image: Image.Image,
-    point_maps: Sequence[Any],
+    point_maps: Sequence[Any] | None,
     predicted_maps: Sequence[Any],
     maps_index: int,
     draw_maps: bool,
     maps_path: str,
 ) -> int:
-    """Optionally save the fifth keypoint heatmap and advance its map index."""
-    true_maps = [
-        np.asarray(point_maps[index][crop_index]).copy()
-        for index in (1, 2, 3, 4, 5)
-    ]
+    """Optionally save the fifth predicted heatmap, with GT when available."""
+    true_maps = (
+        [
+            np.asarray(point_maps[index][crop_index]).copy()
+            for index in (1, 2, 3, 4, 5)
+        ]
+        if point_maps is not None
+        else [None] * 5
+    )
     output_maps = []
     if len(predicted_maps[crop_index]) > 1:
         output_maps = [predicted_maps[maps_index][index] for index in range(5)]
