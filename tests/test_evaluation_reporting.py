@@ -11,6 +11,7 @@ from legonet.eval.reporting import (
     format_attribute_summary,
     format_keypoint_summary,
     format_matching_diagnostics,
+    format_prediction_aggregates,
     format_roots_per_image,
     write_evaluation_artifacts,
     write_keypoint_precision_recall,
@@ -68,7 +69,7 @@ class EvaluationReportingTests(unittest.TestCase):
                 ],
             )
             self.assertEqual(
-                _read_csv(output / "not_found_gt_count.csv")[1],
+                _read_csv(output / "not_found_gt.csv")[1],
                 ["a.jpg", "7", "-1", "1", "-1", "-1"],
             )
             self.assertEqual(
@@ -102,6 +103,26 @@ class EvaluationReportingTests(unittest.TestCase):
                 _read_csv(output / "images_without_detections.csv")[1],
                 ["empty.jpg", "-1", "-1", "-1", "-1", "-1", "0", "0", "0", "0"],
             )
+
+    def test_no_gt_does_not_write_not_found_gt_artifact(self) -> None:
+        state = {
+            "detections_data_any_crop": {},
+            "not_found_gt": {},
+            "no_predictions": {},
+        }
+
+        with tempfile.TemporaryDirectory() as directory:
+            write_evaluation_artifacts(
+                directory,
+                state,
+                attributes=True,
+                have_gt=False,
+            )
+            output = Path(directory)
+
+            self.assertFalse((output / "not_found_gt.csv").exists())
+            self.assertTrue((output / "detections_data_any_crop.csv").exists())
+            self.assertTrue((output / "images_without_detections.csv").exists())
 
     def test_writes_keypoint_precision_recall(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -142,6 +163,20 @@ class EvaluationReportingTests(unittest.TestCase):
         self.assertIn("all images, including empty images", report)
         self.assertIn("60.00% recall", report)
         self.assertIn("75.00%", report)
+
+    def test_formats_no_gt_attribute_prediction_aggregates(self) -> None:
+        report = format_prediction_aggregates(
+            {"a.png": 0.5},
+            trl_predictions={"a.png": 12.0},
+            diameter_predictions={"a.png": 0.75},
+            images_without_detections=("empty.png",),
+        )
+
+        self.assertIn("Per-image predicted aggregates", report)
+        self.assertIn("predicted TRL sum: 12.00", report)
+        self.assertIn("predicted diameter average: 0.75", report)
+        self.assertIn("predicted color average: 0.50", report)
+        self.assertIn("empty.png: no detected objects", report)
 
     def test_attribute_summary_reports_unavailable_color_metrics(self) -> None:
         color = ClassificationMetrics(

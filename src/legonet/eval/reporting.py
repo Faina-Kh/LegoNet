@@ -177,6 +177,34 @@ def format_counting_per_image(
     return "\n".join(lines) + "\n"
 
 
+def format_prediction_aggregates(
+    predictions: Mapping[str, float],
+    *,
+    trl_predictions: Mapping[str, float] | None = None,
+    diameter_predictions: Mapping[str, float] | None = None,
+    images_without_detections: Sequence[str] = (),
+) -> str:
+    """Format per-image aggregates when ground truth is unavailable."""
+    lines = ["Per-image predicted aggregates"]
+    if trl_predictions is None or diameter_predictions is None:
+        for image_name, prediction in predictions.items():
+            lines.append(
+                f"{image_name}: predicted average count: {prediction:.2f}"
+            )
+    else:
+        for image_name, color_prediction in predictions.items():
+            lines.append(
+                f"{image_name}: predicted TRL sum: "
+                f"{trl_predictions[image_name]:.2f}, predicted diameter average: "
+                f"{diameter_predictions[image_name]:.2f}, "
+                f"predicted color average: {color_prediction:.2f}"
+            )
+    for image_name in images_without_detections:
+        if image_name not in predictions:
+            lines.append(f"{image_name}: no detected objects")
+    return "\n".join(lines) + "\n"
+
+
 def format_roots_per_image(
     trl_ground_truth: Mapping[str, float],
     trl_predictions: Mapping[str, float],
@@ -350,8 +378,9 @@ def write_evaluation_artifacts(
     output_directory: str,
     state: Mapping[str, Any],
     attributes: bool,
+    have_gt: bool = True,
 ) -> None:
-    """Write the three historical per-object evaluation CSV artifacts."""
+    """Write per-object CSV artifacts applicable to the evaluation mode."""
     output_path = Path(output_directory)
     _write_rows(
         output_path / "detections_data_any_crop.csv",
@@ -361,11 +390,12 @@ def write_evaluation_artifacts(
     summary_columns = (
         ATTRIBUTE_SUMMARY_COLUMNS if attributes else COUNT_SUMMARY_COLUMNS
     )
-    _write_rows(
-        output_path / "not_found_gt_count.csv",
-        summary_columns,
-        _summary_rows(state["not_found_gt"], attributes, False),
-    )
+    if have_gt:
+        _write_rows(
+            output_path / "not_found_gt.csv",
+            summary_columns,
+            _summary_rows(state["not_found_gt"], attributes, False),
+        )
     _write_rows(
         output_path / "images_without_detections.csv",
         summary_columns,

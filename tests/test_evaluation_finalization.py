@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from legonet.eval.evaluation_finalization import (
     _print_detection_diagnostics,
+    _print_verbose_details,
     finalize_evaluation,
     build_legacy_result,
 )
@@ -118,6 +119,29 @@ class EvaluationFinalizationTests(unittest.TestCase):
         self.assertIn("Object matching diagnostics", report)
         self.assertNotIn("Bounding-box detection stats", report)
         self.assertNotIn("mAP:", report)
+
+    def test_no_gt_prints_predictions_without_matching_diagnostics(self):
+        state = {
+            "per_im_pred_dict": {"image.png": 0.5},
+            "TRL_per_im_pred_dict": {"image.png": 8.0},
+            "dia_per_im_pred_dict": {"image.png": 0.4},
+            "no_predictions": {},
+        }
+        output = io.StringIO()
+
+        with redirect_stdout(output):
+            _print_verbose_details(
+                state,
+                attributes=True,
+                have_gt=False,
+                predict_empty_image=True,
+                detection_metrics=None,
+            )
+
+        report = output.getvalue()
+        self.assertNotIn("Object matching diagnostics", report)
+        self.assertIn("Per-image predicted aggregates", report)
+        self.assertIn("predicted TRL sum: 8.00", report)
 
 
 if __name__ == "__main__":

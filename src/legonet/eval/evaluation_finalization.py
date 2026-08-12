@@ -18,6 +18,7 @@ from legonet.eval.reporting import (
     format_counting_summary,
     format_keypoint_summary,
     format_matching_diagnostics,
+    format_prediction_aggregates,
     format_roots_per_image,
     write_evaluation_artifacts,
     write_keypoint_precision_recall,
@@ -65,7 +66,12 @@ def finalize_evaluation(
         )
 
     if print_to_files:
-        write_evaluation_artifacts(files_path, state, attributes=attributes)
+        write_evaluation_artifacts(
+            files_path,
+            state,
+            attributes=attributes,
+            have_gt=have_gt,
+        )
 
     print()
     if evaluate_points:
@@ -197,12 +203,13 @@ def _print_verbose_details(
     detection_metrics: Sequence[Any] | None,
 ) -> None:
     """Print matching diagnostics and per-image rows for interactive inspection."""
-    _print_detection_diagnostics(
-        state,
-        predict_empty_image=predict_empty_image,
-        detection_metrics=detection_metrics,
-    )
-    print(f"{SEPARATOR}\n")
+    if have_gt:
+        _print_detection_diagnostics(
+            state,
+            predict_empty_image=predict_empty_image,
+            detection_metrics=detection_metrics,
+        )
+        print(f"{SEPARATOR}\n")
 
     if not attributes and have_gt:
         print(
@@ -213,6 +220,21 @@ def _print_verbose_details(
         )
     elif attributes and have_gt:
         _print_attribute_per_image(state)
+    elif not have_gt:
+        print(f"{SEPARATOR}\n")
+        print(
+            format_prediction_aggregates(
+                state["per_im_pred_dict"],
+                trl_predictions=(
+                    state["TRL_per_im_pred_dict"] if attributes else None
+                ),
+                diameter_predictions=(
+                    state["dia_per_im_pred_dict"] if attributes else None
+                ),
+                images_without_detections=tuple(state["no_predictions"]),
+            ),
+            end="",
+        )
 
 
 def _print_detection_diagnostics(
