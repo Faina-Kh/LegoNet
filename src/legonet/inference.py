@@ -1,6 +1,7 @@
 """Inference and visualization orchestration for LegoNet models."""
 
 import os
+from pathlib import Path
 from typing import Any, Hashable
 
 import numpy as np
@@ -139,11 +140,24 @@ def visualize_bboxes(
                             width=config.DrawProperties.LINE_WIDTH,
                         )
 
-            label_image = Image.new("RGBA", (200, 20), "black")
+            legend = (
+                f"{image_name} | predictions: red | ground truth: blue"
+                if have_ground_truth
+                else f"{image_name} | predictions: red"
+            )
+            text_box = font.getbbox(legend)
+            label_width = max(200, text_box[2] - text_box[0] + 10)
+            label_height = max(20, text_box[3] - text_box[1] + 8)
+            label_image = Image.new("RGBA", (label_width, label_height), "black")
             label_draw = ImageDraw.Draw(label_image)
-            label_draw.text((0, 0), image_name, font=font)
+            label_draw.text((5, 2), legend, fill="white", font=font)
             image.paste(label_image, (0, 0))
-            output_name = image_name.split(".jpg")[0] + "_annot.jpg"
+            suffix = (
+                "_predictions_and_gt.png"
+                if have_ground_truth
+                else "_predictions.png"
+            )
+            output_name = f"{Path(image_name).stem}{suffix}"
             image.save(os.path.join(output_directory, output_name))
 
 
