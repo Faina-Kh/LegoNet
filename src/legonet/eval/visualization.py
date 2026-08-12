@@ -69,6 +69,7 @@ def save_detection_overview(
     """Save original-image overlays for points, GT boxes, and predictions."""
     image = Image.open(image_path)
     draw = ImageDraw.Draw(image)
+    image_stem = Path(image_name).stem
 
     if have_gt:
         for point in point_annotations:
@@ -98,11 +99,10 @@ def save_detection_overview(
                     outline="blue",
                     width=line_width,
                 )
-                image_stem = Path(image_name).stem
-                gt_image.save(Path(gt_path) / f"{image_stem}_gt_box_{index}.jpg")
+                gt_image.save(Path(gt_path) / f"{image_stem}_gt_box_{index}.png")
 
         if draw_gt_only:
-            image.save(Path(gt_path) / image_name)
+            image.save(Path(gt_path) / f"{image_stem}.png")
 
     if draw_detection_overview:
         for box in predicted_boxes:
@@ -112,7 +112,7 @@ def save_detection_overview(
                 outline="red",
                 width=line_width,
             )
-        image.save(Path(draw_path) / image_name)
+        image.save(Path(draw_path) / f"{image_stem}.png")
 
 
 def save_object_visualizations(
@@ -168,7 +168,7 @@ def save_object_visualizations(
 
     image_stem = Path(image_name).stem
     source_image.save(
-        Path(predicted_boxes_path) / f"{image_stem}_predicted_BBOX_{crop_index}.jpg"
+        Path(predicted_boxes_path) / f"{image_stem}_predicted_BBOX_{crop_index}.png"
     )
 
     crop_image = _crop_image(bbox_crop, unnormalize)
@@ -184,7 +184,7 @@ def save_object_visualizations(
             fill="black",
             width=line_width,
         )
-    crop_image.save(Path(crops_path) / f"{image_stem}_crop_{crop_index}.jpg")
+    crop_image.save(Path(crops_path) / f"{image_stem}_crop_{crop_index}.png")
     return crop_image.copy()
 
 

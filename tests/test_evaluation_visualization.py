@@ -53,9 +53,9 @@ class EvaluationVisualizationTests(TestCase):
 
             self.assertEqual(crop_image.size, (16, 16))
             self.assertTrue(
-                (output_path / "sample_predicted_BBOX_0.jpg").is_file()
+                (output_path / "sample_predicted_BBOX_0.png").is_file()
             )
-            self.assertTrue((output_path / "sample_crop_0.jpg").is_file())
+            self.assertTrue((output_path / "sample_crop_0.png").is_file())
 
     def test_roots_matched_box_uses_bbox_id_not_row_position(self) -> None:
         gt_boxes = np.asarray(
@@ -99,8 +99,9 @@ class EvaluationVisualizationTests(TestCase):
                 draw_gt_only=True,
             )
 
-            self.assertTrue((output_path / "sample.jpg").is_file())
-            self.assertTrue((gt_path / "sample.jpg").is_file())
+            self.assertTrue((output_path / "sample.png").is_file())
+            self.assertTrue((gt_path / "sample.png").is_file())
+            self.assertTrue((gt_path / "sample_gt_box_0.png").is_file())
 
     def test_detection_overview_does_not_require_gt_folder_when_disabled(self) -> None:
         with TemporaryDirectory() as temporary_directory:
@@ -124,7 +125,7 @@ class EvaluationVisualizationTests(TestCase):
                 draw_gt_only=False,
             )
 
-            self.assertTrue((output_path / "sample.jpg").is_file())
+            self.assertTrue((output_path / "sample.png").is_file())
             self.assertFalse((output_path / "not-created").exists())
 
     @patch("legonet.eval.visualization._visualize_keypoint_heatmaps")

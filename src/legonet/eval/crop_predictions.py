@@ -114,7 +114,7 @@ def prepare_crop_predictions(
                         original_detection_maps[4][crop_index],
                     ]
                 )
-                if sample_annotations is not None:
+                if sample_annotations is not None and have_ground_truth:
                     center_map = point_center_map_builder(
                         dataset.image_data_points_location[image_name],
                         original_crop_boxes[crop_index],
