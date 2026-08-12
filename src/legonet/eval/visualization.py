@@ -98,7 +98,7 @@ def save_detection_overview(
                     outline="blue",
                     width=line_width,
                 )
-                image_stem = image_name.split(".jpg")[0]
+                image_stem = Path(image_name).stem
                 gt_image.save(Path(gt_path) / f"{image_stem}_gt_box_{index}.jpg")
 
         if draw_gt_only:
@@ -166,7 +166,7 @@ def save_object_visualizations(
             width=line_width,
         )
 
-    image_stem = image_name.split(".jpg")[0]
+    image_stem = Path(image_name).stem
     source_image.save(
         Path(predicted_boxes_path) / f"{image_stem}_predicted_BBOX_{crop_index}.jpg"
     )
@@ -214,7 +214,7 @@ def save_keypoint_heatmap(
             if output_maps and hasattr(output_maps[heatmap_index], "cpu")
             else output_maps[heatmap_index] if output_maps else None
         )
-        image_stem = image_name.split(".jpg")[0]
+        image_stem = Path(image_name).stem
         map_name = f"{image_stem}_crop_{crop_index}_map_{heatmap_index + 1}"
         _visualize_keypoint_heatmaps(
             predicted_map,

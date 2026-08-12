@@ -1,6 +1,7 @@
 from __future__ import print_function, division
 import sys
 import os
+from pathlib import Path
 import torch
 import numpy as np
 import random
@@ -216,10 +217,10 @@ class csv_LCCDataset(Dataset):
 
             for im in rgb_images_names:
                 if 'CVPPP' in base_dir:
-                    if im.split('_')[-1] == 'rgb.png':
+                    if im.lower().endswith('_rgb.png'):
                         rgb_images_names_a.append(im)
                 else:
-                    if ".png" in im or ".jpg" in im:
+                    if Path(im).suffix.lower() in {".jpg", ".jpeg", ".png"}:
                         rgb_images_names_a.append(im)
             self.bgr_images_names = rgb_images_names_a
 
@@ -693,7 +694,7 @@ class KCSVDataset(Dataset):
             list_files = os.listdir(self.base_dir)
 
             for im in list_files:
-                if ".png" in im or ".jpg" in im:
+                if Path(im).suffix.lower() in {".jpg", ".jpeg", ".png"}:
                     image_names.append(im)
 
         self.image_ids = []

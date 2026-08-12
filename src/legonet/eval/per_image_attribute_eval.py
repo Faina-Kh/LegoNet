@@ -6,6 +6,7 @@ import torch
 import os
 import numpy as np
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Optional
 from legonet import config
 import csv
@@ -64,10 +65,7 @@ def evaluate(
 
             full_rgbImage_name = dataset.bgr_images_names[dataloader.batch_sampler.groups[iter_num][0]]
 
-            if full_rgbImage_name.lower().endswith((".jpg", ".jpeg")):
-                Image_name = full_rgbImage_name.split(".jpg")[0]
-            elif full_rgbImage_name.lower().endswith(".png"):
-                Image_name = full_rgbImage_name.split(".png")[0]
+            Image_name = Path(full_rgbImage_name).stem
 
             if args.network_type == "per_image_estimation_regression":
                 if args.have_GT:
