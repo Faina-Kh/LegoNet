@@ -101,6 +101,37 @@ class EvaluationVisualizationTests(TestCase):
 
         self.assertEqual(matched_box, (2.0, 3.0, 10.0, 12.0))
 
+    def test_crop_is_saved_when_individual_box_overlay_is_disabled(self) -> None:
+        with TemporaryDirectory() as temporary_directory:
+            output_path = Path(temporary_directory)
+            image_path = output_path / "source.png"
+            Image.new("RGB", (32, 32), "white").save(image_path)
+
+            save_object_visualizations(
+                image_path=str(image_path),
+                image_name="sample.png",
+                crop_index=0,
+                bbox_crop=np.ones((3, 16, 16), dtype=np.float32),
+                predicted_box=[4, 4, 24, 24],
+                scale=[1],
+                gt_boxes=np.empty((0, 6)),
+                gt_box_id=-1,
+                roots_attributes=False,
+                image_points=[],
+                crop_points=[],
+                has_positive_target=False,
+                predicted_boxes_path=str(output_path),
+                crops_path=str(output_path),
+                line_width=1,
+                unnormalize=lambda crop: crop,
+                save_predicted_box_overlay=False,
+            )
+
+            self.assertTrue((output_path / "sample_crop_0.png").is_file())
+            self.assertFalse(
+                (output_path / "sample_predicted_BBOX_0.png").exists()
+            )
+
     def test_detection_overview_saves_gt_and_prediction_images(self) -> None:
         with TemporaryDirectory() as temporary_directory:
             output_path = Path(temporary_directory)

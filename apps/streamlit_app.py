@@ -439,12 +439,13 @@ with st.sidebar:
                 individual_context
             )
         draw_individual_object_visualizations = st.checkbox(
-            "Draw separate visualization for each object",
+            "Draw separate box visualization for each object",
             key="runner_draw_individual_object_visualizations",
             help=(
-                "Save separate GT-box, predicted-box, crop, and keypoint "
-                "images. The dataset default is enabled for roots and "
-                "disabled for grapes."
+                "Save separate full-image GT-box and predicted-box views. "
+                "Predicted crops and keypoint heatmaps are always retained. "
+                "The dataset default is enabled for roots and disabled for "
+                "grapes."
             ),
         )
         draw_detection_overview = st.checkbox(

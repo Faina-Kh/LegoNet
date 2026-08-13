@@ -133,6 +133,7 @@ def save_object_visualizations(
     crops_path: str,
     line_width: int,
     unnormalize: Callable[[Any], Any],
+    save_predicted_box_overlay: bool = True,
 ) -> Image.Image:
     """Save the source-image overlay and annotated predicted crop."""
     source_image = Image.open(image_path)
@@ -168,9 +169,11 @@ def save_object_visualizations(
         )
 
     image_stem = Path(image_name).stem
-    source_image.save(
-        Path(predicted_boxes_path) / f"{image_stem}_predicted_BBOX_{crop_index}.png"
-    )
+    if save_predicted_box_overlay:
+        source_image.save(
+            Path(predicted_boxes_path)
+            / f"{image_stem}_predicted_BBOX_{crop_index}.png"
+        )
 
     clean_crop_image = _crop_image(bbox_crop, unnormalize)
     annotated_crop_image = clean_crop_image.copy()

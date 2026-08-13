@@ -193,8 +193,7 @@ def eval(
     if to_draw:
         visualization_root = Path(draw_path)
         crops_path = visualization_root / "Predicted crops"
-        if draw_individual_objects:
-            crops_path.mkdir(parents=True, exist_ok=True)
+        crops_path.mkdir(parents=True, exist_ok=True)
 
         gt_path = visualization_root / "GT only"
         if draw_gt_only:
@@ -521,7 +520,6 @@ def eval(
 
                     if (
                         to_draw
-                        and draw_individual_objects
                         and sample_anns is not None
                     ):
                         for i in range(len(adjusted_crops_orig_boxes)):
@@ -559,6 +557,9 @@ def eval(
                                 crops_path=crops_path,
                                 line_width=config.DrawProperties.LINE_WIDTH,
                                 unnormalize=unnormalize,
+                                save_predicted_box_overlay=(
+                                    draw_individual_objects
+                                ),
                             )
 
                             if (

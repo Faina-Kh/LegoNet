@@ -23,6 +23,7 @@ def finalize_text_results(args, execution_time: float) -> None:
 
         with open(args.txt_results, "a", encoding="utf-8") as results_file:
             results_file.write(
+                f"\n"
                 f"Execution time in minutes: {(execution_time / 60):.2f}\n"
             )
 
@@ -97,8 +98,9 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
         type=parse_bool,
         default=None,
         help=(
-            "Save separate per-object GT, predicted-box, crop, and keypoint "
-            "images. Defaults to true for roots and false for grapes."
+            "Save separate per-object GT and predicted-box images. Defaults "
+            "to true for roots and false for grapes. Predicted crops and "
+            "keypoint heatmaps are unaffected."
         ),
     )
     parser.add_argument("--save-from-model-file", "--save_from_model_file", type=parse_bool, default=None)
@@ -602,10 +604,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         args.txt_results = os.path.join(config.General.files_path,
                                         "with_Vis_results_"+ args.val_set +".txt" if config.General.to_draw else
                                         "without_Vis_results_"+ args.val_set +".txt")
-        if config.DrawProperties.DRAW_MAPS and (
-            args.network_type not in PER_OBJECT_NETWORKS
-            or args.draw_individual_object_visualizations
-        ):
+        if config.DrawProperties.DRAW_MAPS:
             config.DrawProperties.maps_path = os.path.join(config.DrawProperties.save_img_path, "KP heatmaps")
             os.makedirs(config.DrawProperties.maps_path, exist_ok=True)
 
