@@ -20,11 +20,13 @@ def extract_evaluation_summary(output: str) -> str:
         "Avg of per image absolute error of color:",
         "mAP:",
     )
-    lines = [
-        line.strip()
-        for line in output.splitlines()
-        if line.strip().startswith(summary_prefixes)
-    ]
+    lines = []
+    for line in output.splitlines():
+        stripped_line = line.strip()
+        if stripped_line == "Evaluation Summary - keypoint detection":
+            continue
+        if stripped_line.startswith(summary_prefixes):
+            lines.append(stripped_line)
     return "\n".join(lines)
 
 
