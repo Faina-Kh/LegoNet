@@ -722,7 +722,6 @@ if run_clicked:
             output_update_count += 1
             st.session_state.run_output = "".join(output_lines)
             line_summary = extract_evaluation_summary(line)
-            line_summary = without_keypoint_summary(line_summary)
             if line_summary:
                 summary_lines.append(line_summary)
                 st.session_state.evaluation_summary = "\n".join(summary_lines)
