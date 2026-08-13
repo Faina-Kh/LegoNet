@@ -759,8 +759,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     runner.run(args)
 
     execution_time = time.time() - start_time
-    print(f"Execution time in minutes: {execution_time / 60:.3f}")
     finalize_text_results(args, execution_time)
+    print(f"Execution time in minutes: {execution_time / 60:.3f}")
     return 0
 
 
