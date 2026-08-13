@@ -13,15 +13,6 @@ def rename_state_dict_keys(
     """Rename matching dot-separated components in state-dict keys."""
     if len(state_dict)>0:
         new_state_dict = {}
-
-        # for k, v in state_dict.items():
-        #     new_k = k
-        #     for old, new in rename_map.items():
-        #         if k.startswith(old):
-        #             new_k = k.replace(old, new, 1)
-        #             break
-        #     new_state_dict[new_k] = v
-
         for k, v in state_dict.items():
             parts = k.split(".")
             parts = [rename_map.get(p, p) for p in parts]

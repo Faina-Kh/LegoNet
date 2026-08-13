@@ -117,7 +117,7 @@ def format_keypoint_summary(
     """Format the aggregate keypoint-detection metrics."""
     return (
         f"{SEPARATOR}\n"
-        "Evaluation Summary - keypoint detection\n"
+        "Keypoint detection evaluation\n"
         f"mAP: {_metric_text(average_precision)} | "
         f"recall: {_metric_text(recall)} | "
         f"precision: {_metric_text(precision)}\n"
