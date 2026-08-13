@@ -186,18 +186,23 @@ def eval(
         args, "draw_detection_overview", True
     )
     draw_gt_only = getattr(args, "draw_gt_only", False)
+    draw_individual_objects = getattr(
+        args, "draw_individual_object_visualizations", True
+    )
 
     if to_draw:
         visualization_root = Path(draw_path)
         crops_path = visualization_root / "Predicted crops"
-        crops_path.mkdir(parents=True, exist_ok=True)
+        if draw_individual_objects:
+            crops_path.mkdir(parents=True, exist_ok=True)
 
         gt_path = visualization_root / "GT only"
         if draw_gt_only:
             gt_path.mkdir(parents=True, exist_ok=True)
 
         predicted_boxes_path = visualization_root / "Predicted boxes on image"
-        predicted_boxes_path.mkdir(parents=True, exist_ok=True)
+        if draw_detection_overview or draw_individual_objects:
+            predicted_boxes_path.mkdir(parents=True, exist_ok=True)
 
     # gather all annotations, per image, per label
     if args.have_GT:
@@ -350,6 +355,7 @@ def eval(
                     point_radius=config.DrawProperties.POINT_RADIUS,
                     draw_detection_overview=draw_detection_overview,
                     draw_gt_only=draw_gt_only,
+                    draw_individual_objects=draw_individual_objects,
                 )
 
             ############################################################################################################
@@ -513,7 +519,11 @@ def eval(
                                                 printf('max_overlap =   %.3f \n', max_overlap_array[i])
                             print()
 
-                    if to_draw and sample_anns is not None:
+                    if (
+                        to_draw
+                        and draw_individual_objects
+                        and sample_anns is not None
+                    ):
                         for i in range(len(adjusted_crops_orig_boxes)):
                             bbox_crop = sample_anns['img'][i].clone()
                             gt_box_id = -1

@@ -52,7 +52,7 @@ def format_counting_summary(
         f"orig_count_agreement: {exact_agreement:.3f} | "
         f"orig_MSE: {mean_squared_error:.3f} | "
         f"orig_avg_relative_error: {mean_relative_error:.3f} | "
-        f"orig_1-FVU: {one_minus_fvu:f}\n\n"
+        f"orig_1-FVU: {one_minus_fvu:.3f}\n\n"
         f"{SEPARATOR}\n"
         "Diagnostic - counting within positive predicted crops\n"
         f"positive_crops: {crop_metrics['num_positive']} | "

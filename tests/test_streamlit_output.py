@@ -7,6 +7,7 @@ from pathlib import Path
 from legonet.streamlit_output import (
     append_evaluation_summary,
     extract_evaluation_summary,
+    separate_execution_time,
 )
 
 
@@ -44,6 +45,14 @@ orig_avg_abs_count_diff: 0.500 | orig_count_agreement: 0.750 | orig_MSE: 0.400 |
 
     def test_returns_empty_text_before_metrics_are_available(self) -> None:
         self.assertEqual(extract_evaluation_summary("loading model\n"), "")
+
+    def test_separates_execution_time_from_streamed_output(self) -> None:
+        output, execution_time = separate_execution_time(
+            "metric output\nExecution time in minutes: 1.624\n"
+        )
+
+        self.assertEqual(output, "metric output\n")
+        self.assertEqual(execution_time, "Execution time in minutes: 1.624")
 
     def test_appends_consolidated_summary_to_text_results(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

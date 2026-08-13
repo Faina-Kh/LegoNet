@@ -8,7 +8,7 @@ import enum
 class DrawProperties:
     """Drawing options used by evaluation visualizations."""
 
-    POINT_RADIUS: int = 5
+    POINT_RADIUS: int = 4
     LINE_WIDTH: int = 5
     DRAW_MAPS: bool = False
     save_img_path: str = ''

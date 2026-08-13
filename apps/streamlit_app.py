@@ -15,7 +15,10 @@ SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src"
 if str(SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(SOURCE_ROOT))
 
-from legonet.streamlit_output import extract_evaluation_summary
+from legonet.streamlit_output import (
+    extract_evaluation_summary,
+    separate_execution_time,
+)
 
 
 DATASET_OPTIONS = ("roots", "grapes")
@@ -168,6 +171,7 @@ def build_command(
     to_draw: bool,
     draw_detection_overview: bool,
     draw_gt_only: bool,
+    draw_individual_object_visualizations: bool,
     evaluate_detection: bool,
     checkpoint_attribute: str,
     weights_mode: str,
@@ -206,6 +210,8 @@ def build_command(
         bool_arg(draw_detection_overview),
         "--draw-gt-only",
         bool_arg(draw_gt_only),
+        "--draw-individual-object-visualizations",
+        bool_arg(draw_individual_object_visualizations),
         "--evaluate-detection",
         bool_arg(evaluate_detection),
         "--weights-mode",
@@ -421,6 +427,26 @@ with st.sidebar:
         key="runner_draw_visualizations",
     )
     if to_draw and network_type in PER_OBJECT_NETWORKS:
+        individual_context = dataset_name
+        if (
+            st.session_state.get("runner_individual_visualizations_context")
+            != individual_context
+        ):
+            st.session_state.runner_draw_individual_object_visualizations = (
+                dataset_name == "roots"
+            )
+            st.session_state.runner_individual_visualizations_context = (
+                individual_context
+            )
+        draw_individual_object_visualizations = st.checkbox(
+            "Draw separate visualization for each object",
+            key="runner_draw_individual_object_visualizations",
+            help=(
+                "Save separate GT-box, predicted-box, crop, and keypoint "
+                "images. The dataset default is enabled for roots and "
+                "disabled for grapes."
+            ),
+        )
         draw_detection_overview = st.checkbox(
             "Draw detection overview",
             value=True,
@@ -437,6 +463,7 @@ with st.sidebar:
         else:
             draw_gt_only = False
     else:
+        draw_individual_object_visualizations = dataset_name == "roots"
         draw_detection_overview = False
         draw_gt_only = False
     if not have_gt:
@@ -597,6 +624,9 @@ command = build_command(
     to_draw=to_draw,
     draw_detection_overview=draw_detection_overview,
     draw_gt_only=draw_gt_only,
+    draw_individual_object_visualizations=(
+        draw_individual_object_visualizations
+    ),
     evaluate_detection=evaluate_detection,
     checkpoint_attribute=checkpoint_attribute,
     weights_mode=weights_mode,
@@ -645,6 +675,15 @@ if "run_status" not in st.session_state:
     st.session_state.run_status = None
 if "evaluation_summary" not in st.session_state:
     st.session_state.evaluation_summary = ""
+if "execution_time" not in st.session_state:
+    st.session_state.execution_time = ""
+
+# Migrate output retained by a Streamlit session from an earlier app version.
+st.session_state.run_output, retained_execution_time = separate_execution_time(
+    st.session_state.run_output
+)
+if retained_execution_time:
+    st.session_state.execution_time = retained_execution_time
 
 status_placeholder = st.empty()
 live_output_container = st.container(
@@ -674,6 +713,7 @@ if run_clicked:
     progress_label = None
     st.session_state.run_output = ""
     st.session_state.evaluation_summary = ""
+    st.session_state.execution_time = ""
     st.session_state.run_status = "running"
     output_placeholder.empty()
 
@@ -715,6 +755,10 @@ if run_clicked:
                         output_update_count + current,
                     )
                 continue
+            line, execution_time = separate_execution_time(line)
+            if execution_time:
+                st.session_state.execution_time = execution_time
+                continue
             output_lines.append(line)
             if output_placeholder is None:
                 output_placeholder = live_output_container.empty()
@@ -751,6 +795,8 @@ if st.session_state.evaluation_summary:
         language="text",
         wrap_lines=True,
     )
+if st.session_state.execution_time:
+    st.code(st.session_state.execution_time, language="text")
 
 st.divider()
 st.subheader("Recent Result Files")

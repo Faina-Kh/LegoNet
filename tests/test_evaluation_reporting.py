@@ -141,7 +141,7 @@ class EvaluationReportingTests(unittest.TestCase):
     def test_formats_and_writes_keypoint_summary(self) -> None:
         report = format_keypoint_summary(0.75, 0.6, 0.8)
 
-        self.assertIn("Summary - keypoint detection", report)
+        self.assertIn("Keypoint detection evaluation", report)
         self.assertIn("mAP: 0.750 | recall: 0.600 | precision: 0.800", report)
 
         with tempfile.TemporaryDirectory() as directory:

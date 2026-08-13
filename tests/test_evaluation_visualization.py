@@ -77,7 +77,11 @@ class EvaluationVisualizationTests(TestCase):
             self.assertTrue(
                 (output_path / "sample_predicted_BBOX_0.png").is_file()
             )
-            self.assertTrue((output_path / "sample_crop_0.png").is_file())
+            saved_crop_path = output_path / "sample_crop_0.png"
+            self.assertTrue(saved_crop_path.is_file())
+            saved_crop = Image.open(saved_crop_path)
+            self.assertEqual(saved_crop.getpixel((8, 8)), (0, 0, 0))
+            self.assertNotEqual(crop_image.getpixel((8, 8)), (0, 0, 0))
 
     def test_roots_matched_box_uses_bbox_id_not_row_position(self) -> None:
         gt_boxes = np.asarray(
@@ -122,7 +126,7 @@ class EvaluationVisualizationTests(TestCase):
             )
 
             self.assertTrue((output_path / "sample.png").is_file())
-            self.assertTrue((gt_path / "sample.png").is_file())
+            self.assertTrue((gt_path / "sample_all_Boxes.png").is_file())
             self.assertTrue((gt_path / "sample_gt_box_0.png").is_file())
 
     def test_detection_overview_does_not_require_gt_folder_when_disabled(self) -> None:
@@ -149,6 +153,34 @@ class EvaluationVisualizationTests(TestCase):
 
             self.assertTrue((output_path / "sample.png").is_file())
             self.assertFalse((output_path / "not-created").exists())
+
+    def test_gt_overview_can_skip_individual_box_images(self) -> None:
+        with TemporaryDirectory() as temporary_directory:
+            output_path = Path(temporary_directory)
+            gt_path = output_path / "gt"
+            gt_path.mkdir()
+            image_path = output_path / "source.png"
+            Image.new("RGB", (32, 32), "white").save(image_path)
+
+            save_detection_overview(
+                image_path=str(image_path),
+                image_name="sample.png",
+                predicted_boxes=[],
+                gt_boxes=np.asarray([[8, 8, 20, 20]], dtype=float),
+                point_annotations=[],
+                scale=[1],
+                have_gt=True,
+                draw_path=str(output_path),
+                gt_path=str(gt_path),
+                line_width=1,
+                point_radius=2,
+                draw_detection_overview=False,
+                draw_gt_only=True,
+                draw_individual_objects=False,
+            )
+
+            self.assertTrue((gt_path / "sample_all_Boxes.png").is_file())
+            self.assertFalse((gt_path / "sample_gt_box_0.png").exists())
 
     @patch("legonet.eval.visualization._visualize_keypoint_heatmaps")
     def test_keypoint_heatmap_uses_fifth_map_and_advances_index(

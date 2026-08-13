@@ -170,6 +170,8 @@ class MainEntryPointTests(unittest.TestCase):
                 "false",
                 "--draw-gt-only",
                 "true",
+                "--draw-individual-object-visualizations",
+                "false",
                 "--evaluate-detection",
                 "false",
                 "--load-weights",
@@ -185,6 +187,7 @@ class MainEntryPointTests(unittest.TestCase):
         self.assertFalse(result.to_draw)
         self.assertFalse(result.draw_detection_overview)
         self.assertTrue(result.draw_gt_only)
+        self.assertFalse(result.draw_individual_object_visualizations)
         self.assertFalse(result.evaluate_detection)
         self.assertFalse(result.load_weights)
         self.assertFalse(result.save_from_model_file)
@@ -202,16 +205,24 @@ class MainEntryPointTests(unittest.TestCase):
     def test_boolean_defaults_preserve_legacy_run_mode(self) -> None:
         """Omitted options still default to GT evaluation and weight loading."""
         result = self.main_module.resolve_boolean_options(
-            self.main_module.parse_args([])
+            self.main_module.parse_args(["--dataset-name", "roots"])
         )
 
         self.assertTrue(result.have_GT)
         self.assertFalse(result.to_draw)
         self.assertTrue(result.draw_detection_overview)
         self.assertFalse(result.draw_gt_only)
+        self.assertTrue(result.draw_individual_object_visualizations)
         self.assertTrue(result.evaluate_detection)
         self.assertTrue(result.load_weights)
         self.assertFalse(result.save_from_model_file)
+
+    def test_grapes_disable_individual_visualizations_by_default(self) -> None:
+        result = self.main_module.resolve_boolean_options(
+            self.main_module.parse_args(["--dataset-name", "grapes"])
+        )
+
+        self.assertFalse(result.draw_individual_object_visualizations)
 
     def test_legacy_export_can_be_selected_explicitly(self) -> None:
         """Disabling loading permits explicit legacy weight export."""

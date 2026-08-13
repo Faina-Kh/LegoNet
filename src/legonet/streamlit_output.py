@@ -4,6 +4,19 @@ from pathlib import Path
 
 
 SUMMARY_SEPARATOR = "=" * 100
+EXECUTION_TIME_PREFIX = "Execution time in minutes:"
+
+
+def separate_execution_time(output: str) -> tuple[str, str]:
+    """Separate execution-time metadata from ordinary streamed output."""
+    retained_lines = []
+    execution_time = ""
+    for line in output.splitlines(keepends=True):
+        if line.strip().startswith(EXECUTION_TIME_PREFIX):
+            execution_time = line.strip()
+        else:
+            retained_lines.append(line)
+    return "".join(retained_lines), execution_time
 
 
 def extract_evaluation_summary(output: str) -> str:

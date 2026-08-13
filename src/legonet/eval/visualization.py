@@ -65,6 +65,7 @@ def save_detection_overview(
     point_radius: int,
     draw_detection_overview: bool = True,
     draw_gt_only: bool = False,
+    draw_individual_objects: bool = True,
 ) -> None:
     """Save original-image overlays for points, GT boxes, and predictions."""
     image = Image.open(image_path)
@@ -91,7 +92,7 @@ def save_detection_overview(
                 outline="blue",
                 width=line_width,
             )
-            if draw_gt_only:
+            if draw_gt_only and draw_individual_objects:
                 gt_image = Image.open(image_path)
                 gt_draw = ImageDraw.Draw(gt_image)
                 gt_draw.rectangle(
@@ -102,7 +103,7 @@ def save_detection_overview(
                 gt_image.save(Path(gt_path) / f"{image_stem}_gt_box_{index}.png")
 
         if draw_gt_only:
-            image.save(Path(gt_path) / f"{image_stem}.png")
+            image.save(Path(gt_path) / f"{image_stem}_all_Boxes.png")
 
     if draw_detection_overview:
         for box in predicted_boxes:
@@ -171,8 +172,9 @@ def save_object_visualizations(
         Path(predicted_boxes_path) / f"{image_stem}_predicted_BBOX_{crop_index}.png"
     )
 
-    crop_image = _crop_image(bbox_crop, unnormalize)
-    crop_draw = ImageDraw.Draw(crop_image)
+    clean_crop_image = _crop_image(bbox_crop, unnormalize)
+    annotated_crop_image = clean_crop_image.copy()
+    crop_draw = ImageDraw.Draw(annotated_crop_image)
     for point in crop_points:
         x_coordinate = int(point["x"])
         y_coordinate = int(point["y"])
@@ -184,8 +186,10 @@ def save_object_visualizations(
             fill="black",
             width=line_width,
         )
-    crop_image.save(Path(crops_path) / f"{image_stem}_crop_{crop_index}.png")
-    return crop_image.copy()
+    annotated_crop_image.save(
+        Path(crops_path) / f"{image_stem}_crop_{crop_index}.png"
+    )
+    return clean_crop_image
 
 
 def save_keypoint_heatmap(
