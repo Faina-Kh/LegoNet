@@ -6,8 +6,9 @@ from unittest import TestCase
 from unittest.mock import patch
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFont
 
+from legonet.eval.KP_detection_eval import visualize_KeyPointsHeatmaps
 from legonet.eval.visualization import (
     _matched_gt_box,
     save_detection_overview,
@@ -25,6 +26,27 @@ class EvaluationVisualizationTests(TestCase):
             scaled_box([10, 20, 30, 40], [2]),
             (5.0, 10.0, 15.0, 20.0),
         )
+
+    @patch(
+        "legonet.eval.KP_detection_eval.ImageFont.truetype",
+        return_value=ImageFont.load_default(),
+    )
+    def test_prediction_heatmap_is_not_deleted(self, _font) -> None:
+        with TemporaryDirectory() as temporary_directory:
+            visualize_KeyPointsHeatmaps(
+                np.ones((4, 4), dtype=float),
+                None,
+                "sample",
+                "sample_map_5",
+                Image.new("RGB", (16, 16), "white"),
+                temporary_directory,
+            )
+
+            output = Path(temporary_directory)
+            self.assertTrue((output / "sample_map_5_Predicted.png").is_file())
+            self.assertFalse(
+                (output / "sample_map_5_predicted_map_tmp.png").exists()
+            )
 
     def test_object_visualizations_save_overlay_and_crop(self) -> None:
         with TemporaryDirectory() as temporary_directory:

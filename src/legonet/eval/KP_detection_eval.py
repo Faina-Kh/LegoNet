@@ -169,11 +169,16 @@ def visualize_KeyPointsHeatmaps(predicted_map, gt_map, image_name, map_name, img
 
     # Predicted map #######################################################################################################
     if predicted_map is not None:
-        plt.imsave(draw_path + '/' + map_name+ '_Predicted.png', predicted_map)
-        relu_pred = Image.open(draw_path + '/' + map_name+ '_Predicted.png')
+        predicted_map_path = os.path.join(
+            draw_path, map_name + "_predicted_map_tmp.png"
+        )
+        predicted_heatmap_path = os.path.join(
+            draw_path, map_name + "_Predicted.png"
+        )
+        plt.imsave(predicted_map_path, predicted_map)
+        relu_pred = Image.open(predicted_map_path)
 
         relu_pred = relu_pred.resize((BG_w, BG_h))
-        relu_pred.save(draw_path + '/' + map_name+ '_Predicted.png')
 
         alphaBlended_relu = Image.blend(relu_pred, background_2.convert('RGBA'), 0.7)
 
@@ -182,9 +187,9 @@ def visualize_KeyPointsHeatmaps(predicted_map, gt_map, image_name, map_name, img
             draw.text((50, 50), "Pred "+ attribute_name+ " = " + str(np.round(count_pred, 2)),
                       (255, 255, 255), font=font)
 
-        alphaBlended_relu.save(draw_path + '/' + map_name+ '_Predicted.png')
+        alphaBlended_relu.save(predicted_heatmap_path)
 
-        os.remove(draw_path + '/' + map_name + '_Predicted.png')
+        os.remove(predicted_map_path)
 
     if gt_map is not None:
          os.remove(draw_path + '/' + map_name+ '_anno.png')
