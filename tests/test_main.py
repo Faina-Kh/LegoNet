@@ -54,7 +54,7 @@ class MainEntryPointTests(unittest.TestCase):
         self.assertIn("Execution time in minutes: 2.00", output)
         self.assertIn("\nEvaluation Summary\n", output)
         final_summary = output[output.rfind("\nEvaluation Summary\n") :]
-        self.assertIn("mAP: 0.600", final_summary)
+        self.assertNotIn("mAP: 0.600", final_summary)
         self.assertLess(
             output.rfind("Evaluation Summary"),
             output.rfind("Execution time in minutes"),

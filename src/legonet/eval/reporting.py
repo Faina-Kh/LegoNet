@@ -83,11 +83,11 @@ def format_attribute_summary(
         f"orig_avg_abs_TRL_diff: {trl_mean_absolute_error:.3f} | "
         f"orig_MSE_TRL: {trl_mean_squared_error:.3f} | "
         f"orig_avg_relative_error_TRL: {trl_mean_relative_error:.3f} | "
-        f"orig_1-FVU_TRL: {trl_one_minus_fvu:f}\n"
+        f"orig_1-FVU_TRL: {trl_one_minus_fvu:.3f}\n"
         f"orig_avg_abs_dia_diff: {diameter_mean_absolute_error:.3f} | "
         f"orig_MSE_dia: {diameter_mean_squared_error:.3f} | "
         f"orig_avg_relative_error_dia: {diameter_mean_relative_error:.3f} | "
-        f"orig_1-FVU_dia: {diameter_one_minus_fvu:f}\n"
+        f"orig_1-FVU_dia: {diameter_one_minus_fvu:.3f}\n"
     )
     if color_metrics is not None:
         report += (
@@ -173,7 +173,7 @@ def format_counting_per_image(
             f"{image_name}: avg_gt: {target:.2f}, avg_pred: {prediction:.2f}, "
             f"rel_error: {error:.2f}"
         )
-    lines.append(f"Avg of per image rel_error:{np.mean(errors):.4f}")
+    lines.append(f"Avg of per image rel_error:{np.mean(errors):.3f}")
     return "\n".join(lines) + "\n"
 
 
@@ -233,8 +233,8 @@ def format_roots_per_image(
     lines.extend(
         [
             "Avg of per image rel_error of TRL:"
-            f"{np.mean(valid_trl_errors):.4f} | 1-FVU: "
-            f"{_metric_text(per_image_metrics.trl.one_minus_fvu, 4)}",
+            f"{np.mean(valid_trl_errors):.3f} | 1-FVU: "
+            f"{_metric_text(per_image_metrics.trl.one_minus_fvu, 3)}",
             "",
         ]
     )
@@ -254,9 +254,9 @@ def format_roots_per_image(
     lines.extend(
         [
             "Avg of per image rel_error of diameter:"
-            f"{np.mean(diameter_errors):.4f} | 1-FVU: "
-            f"{_metric_text(per_image_metrics.diameter.one_minus_fvu, 4)} |"
-            f"abs difference:{np.mean(diameter_differences):.4f}",
+            f"{np.mean(diameter_errors):.3f} | 1-FVU: "
+            f"{_metric_text(per_image_metrics.diameter.one_minus_fvu, 3)} |"
+            f"abs difference:{np.mean(diameter_differences):.3f}",
             "",
             "Per image average GT and predicted color",
         ]
@@ -274,8 +274,8 @@ def format_roots_per_image(
         )
     lines.append(
         "Avg of per image absolute error of color: "
-        f"{_metric_text(float(np.mean(color_differences)) if color_differences else None, 4)} "
-        f"| 1-FVU: {_metric_text(per_image_metrics.color.one_minus_fvu, 4)}"
+        f"{_metric_text(float(np.mean(color_differences)) if color_differences else None, 3)} "
+        f"| 1-FVU: {_metric_text(per_image_metrics.color.one_minus_fvu, 3)}"
     )
     return "\n".join(lines) + "\n"
 
