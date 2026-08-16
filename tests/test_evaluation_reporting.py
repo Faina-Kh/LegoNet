@@ -196,6 +196,10 @@ class EvaluationReportingTests(unittest.TestCase):
         self.assertIn("orig_avg_relative_error_TRL: 0.100", report)
         self.assertIn("color_error_rate: n/a", report)
         self.assertIn("color_1-FVU: n/a", report)
+        self.assertIn(
+            "color_error_rate: n/a | color_1-FVU: n/a\n",
+            report,
+        )
 
     def test_roots_per_image_places_fvu_beside_each_error(self) -> None:
         trl_gt = {"a.jpg": 10.0, "b.jpg": 20.0}

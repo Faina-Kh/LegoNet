@@ -91,12 +91,11 @@ def format_attribute_summary(
     )
     if color_metrics is not None:
         report += (
-            f"color_classes: {color_metrics.class_names} | "
             #f"color_correct: {color_metrics.correct_predictions} | "
             #f"color_evaluated: {color_metrics.evaluated_samples} | "
             #f"color_accuracy: {_metric_text(color_metrics.accuracy)} | "
             f"color_error_rate: {_metric_text(color_metrics.error_rate)} | "
-            f"color_1-FVU: {_metric_text(color_metrics.one_minus_fvu)} | "
+            f"color_1-FVU: {_metric_text(color_metrics.one_minus_fvu)}\n"
             #"color_balanced_accuracy: "
             #f"{_metric_text(color_metrics.balanced_accuracy)} | "
             #f"color_macro_F1: {_metric_text(color_metrics.macro_f1)} | "
@@ -104,6 +103,7 @@ def format_attribute_summary(
             #"color_macro_precision: "
             #f"{_metric_text(color_metrics.macro_precision)} | "
             #f"color_macro_recall: {_metric_text(color_metrics.macro_recall)} | "
+            f"color_classes: {color_metrics.class_names} | "
             f"color_confusion_matrix: {color_metrics.confusion_matrix}\n"
         )
     return report + "\n"

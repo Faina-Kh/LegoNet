@@ -9,6 +9,10 @@ The repository is being prepared for a public research release. The cleanup
 aims to improve reproducibility and usability without changing established
 model behavior.
 
+The experiment scope, distinction between direct per-image estimation and
+per-root aggregation, and staged verification plan are documented in
+[`docs/reproduction.md`](docs/reproduction.md).
+
 ## Status
 
 Available now:
