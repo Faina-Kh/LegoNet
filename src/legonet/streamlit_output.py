@@ -1,5 +1,7 @@
 """Presentation helpers for the local Streamlit runner."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 
@@ -36,6 +38,16 @@ def extract_evaluation_summary(output: str) -> str:
     for line in output.splitlines():
         stripped_line = line.strip()
         if stripped_line == "Evaluation Summary - keypoint detection":
+            continue
+        color_metrics = [
+            part.strip()
+            for part in stripped_line.split("|")
+            if part.strip().startswith(
+                ("color_error_rate:", "color_1-FVU:")
+            )
+        ]
+        if color_metrics:
+            lines.append(" | ".join(color_metrics))
             continue
         if stripped_line.startswith(summary_prefixes):
             lines.append(stripped_line)

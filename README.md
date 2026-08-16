@@ -53,8 +53,54 @@ CITATION.cff                Software and preferred-paper citation metadata
 
 ## Environment setup
 
-The supplied environment targets Python 3.12, PyTorch 2.5.1, and CUDA 12.1.
-Create it with Conda or Mamba:
+LegoNet provides separate setup paths for lightweight CPU development and
+CUDA research runs. The CPU environment is sufficient for package validation,
+the public CLI, and the default automated test suite. Full training and
+research inference use the CUDA environment below.
+
+### CPU development and tests
+
+Create a fresh Python 3.12 virtual environment and install the official CPU
+builds of PyTorch and torchvision before installing LegoNet:
+
+```bash
+python -m venv .venv
+```
+
+On Linux or macOS, activate it with:
+
+```bash
+source .venv/bin/activate
+```
+
+On Windows PowerShell, activate it with:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+Then install and validate the project:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install torch==2.5.1 torchvision==0.20.1 \
+  --index-url https://download.pytorch.org/whl/cpu
+python -m pip install -e ".[test]"
+python -c "import legonet"
+legonet --help
+python -m pytest -m "not slow and not gpu"
+```
+
+These tests use generated tensors, temporary files, and mocked runtime
+components. They do not require CUDA, research datasets, pretrained weights,
+or network access after installation. Passing CPU CI verifies the software
+baseline; it does not reproduce the papers' experimental results or validate
+CUDA performance.
+
+### CUDA research environment
+
+The supplied Conda environment targets Python 3.12, PyTorch 2.5.1, and CUDA
+12.1. Create it with Conda or Mamba:
 
 ```bash
 conda env create -f environment.yml
@@ -392,20 +438,26 @@ to the experiment directory under `ExpResults`.
 
 ## Tests
 
-Run the test suite with:
+Run the default fast CPU suite with:
 
 ```bash
-python -m unittest discover -s tests
+python -m pytest -m "not slow and not gpu"
 ```
 
 The public-entry-point smoke tests can be run independently:
 
 ```bash
-python -m unittest tests.test_public_entrypoint
+python -m pytest tests/test_public_entrypoint.py
 ```
 
 These smoke tests verify public help output and clean failures for missing or
 unsupported configuration without requiring model construction.
+
+Tests marked `slow` or `gpu` are intentionally excluded from the default CPU
+command. GitHub Actions installs CPU-only PyTorch, verifies the installed
+package and `legonet` command, collects and runs the CPU suite with coverage,
+and builds the distribution artifacts. Full dataset and checkpoint
+reproduction remains a separate research validation step.
 
 ## Citation
 
