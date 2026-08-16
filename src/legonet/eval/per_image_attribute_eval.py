@@ -20,6 +20,7 @@ from legonet.eval.numeric_metrics import (
     sum_of_absolute_differences,
     sum_of_differences,
 )
+from legonet.eval.regression_metrics import compute_regression_metrics
 
 @dataclass(frozen=True)
 class PerImageCheckpointMetrics:
@@ -215,14 +216,23 @@ def evaluate(
             num_of_images = len(all_GT_values)
             valueDiff = sum_of_differences(all_GT_values, all_predicted_values) / num_of_images
             AbsvalueDiff = sum_of_absolute_differences(all_GT_values, all_predicted_values) / num_of_images
+            one_minus_fvu = compute_regression_metrics(
+                all_GT_values,
+                all_predicted_values,
+            ).one_minus_fvu
         else:
             print(f"Predictions generated: {len(all_predicted_values)}")
 
         #if args.dataset_name == "roots":
         if args.have_GT:
             if  model.estimator.binary_model:
-                print('AbsvalueDiff: {:.3f} | accuracy {:.3f} \n'.format(
-                    AbsvalueDiff, 1-AbsvalueDiff))
+                print(
+                    'AbsvalueDiff: {:.3f} | accuracy {:.3f} | 1-FVU: {:.3f} \n'.format(
+                        AbsvalueDiff,
+                        1-AbsvalueDiff,
+                        one_minus_fvu,
+                    )
+                )
 
             else:
                 mean_rel_error = np.mean(all_rel_error)
@@ -237,8 +247,14 @@ def evaluate(
                 else:
                     MSE = None
 
-                print('AbsvalueDiff: {:.3f} | MSE {:.3f} | RelError (gt>0): {:.3f} \n'.format(AbsvalueDiff, MSE,
-                                                                                              mean_rel_error))
+                print(
+                    'AbsvalueDiff: {:.3f} | MSE {:.3f} | RelError (gt>0): {:.3f} | 1-FVU: {:.3f} \n'.format(
+                        AbsvalueDiff,
+                        MSE,
+                        mean_rel_error,
+                        one_minus_fvu,
+                    )
+                )
             if config.AttributeEstimation.calc_det_performance and config.General.experiment_path != "" and args.have_GT and config.AttributeEstimation.estimate_type == 'withKeyPoints':
                 recall, precision, ap = calc_points_recall_precision_ap(T, P)
                 plot_PR_curve(recall, precision, ap,

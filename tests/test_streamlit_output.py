@@ -50,6 +50,16 @@ orig_avg_abs_count_diff: 0.500 | orig_count_agreement: 0.750 | orig_MSE: 0.400 |
         self.assertIn("Evaluation Summary - per-object counting", summary)
         self.assertIn("orig_avg_abs_count_diff: 0.500", summary)
 
+    def test_extracts_per_image_attribute_one_minus_fvu(self) -> None:
+        output = (
+            "AbsvalueDiff: 0.250 | MSE 0.125 | "
+            "RelError (gt>0): 0.100 | 1-FVU: 0.750\n"
+        )
+
+        summary = extract_evaluation_summary(output)
+
+        self.assertEqual(summary, output.strip())
+
     def test_returns_empty_text_before_metrics_are_available(self) -> None:
         self.assertEqual(extract_evaluation_summary("loading model\n"), "")
 

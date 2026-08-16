@@ -28,6 +28,7 @@ def extract_evaluation_summary(output: str) -> str:
         "orig_avg_abs_count_diff:",
         "orig_avg_abs_TRL_diff:",
         "orig_avg_abs_dia_diff:",
+        "AbsvalueDiff:",
         "color_correct:",
         "color_macro_precision:",
         "Avg of per image rel_error of TRL:",
