@@ -19,6 +19,11 @@ from legonet.streamlit_output import (
     extract_evaluation_summary,
     separate_execution_time,
 )
+from legonet.pretrained import (
+    ZENODO_RECORD_URL,
+    checkpoint_cache_dir,
+    select_published_checkpoint,
+)
 
 
 DATASET_OPTIONS = ("roots", "grapes")
@@ -57,6 +62,7 @@ DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
 WEIGHTS_TYPES = ('full_model_weights', 'partial_weights')
 STORAGE_PATH_STATE_KEY = "runner_storage_path"
 WEIGHTS_MODE_LABELS = {
+    "auto": "Automatic pretrained weights (recommended)",
     "none": "Do not load weights",
     "full": "Full model checkpoint",
     "partial": "Partial task checkpoints",
@@ -498,7 +504,14 @@ with st.sidebar:
     can_load_only_bbox = (
         run_script == "Training" and network_type in PER_OBJECT_NETWORKS
     )
-    if can_load_only_bbox:
+    if run_script == "Inference":
+        if network_type == "bbox_detection" or network_type.startswith(
+            "per_image_"
+        ):
+            available_weights_modes = ("auto", "full", "none")
+        else:
+            available_weights_modes = ("auto", "partial", "full", "none")
+    elif can_load_only_bbox:
         available_weights_modes = ("detector_only", "full", "partial", "none")
     elif network_type == "bbox_detection":
         available_weights_modes = ("full", "none")
@@ -537,6 +550,30 @@ with st.sidebar:
             "The pretrained detector is frozen and the per-object estimation "
             "head is initialized from scratch."
         )
+    elif weights_mode == "auto":
+        try:
+            automatic_checkpoint = select_published_checkpoint(
+                dataset_name,
+                network_type,
+                estimate_type,
+                "full",
+            )
+            automatic_path = (
+                checkpoint_cache_dir(storage_path) / automatic_checkpoint.filename
+            )
+            cache_status = (
+                "cached"
+                if automatic_path.is_file()
+                else "downloaded when the run starts"
+            )
+            st.info(
+                f"{automatic_checkpoint.filename} "
+                f"({automatic_checkpoint.size / (1024 * 1024):.1f} MiB) will be "
+                f"{cache_status}."
+            )
+            st.markdown(f"[Published checkpoint and license]({ZENODO_RECORD_URL})")
+        except ValueError as error:
+            st.warning(str(error))
 
     full_weights_file = ""
     bbox_weights_file = ""

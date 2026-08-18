@@ -195,25 +195,53 @@ per-dataset layout.
 Training requires ground-truth annotations and uses the `Val` validation split.
 Unsupported combinations fail before model or dataset construction.
 
-## Command-line use
+## Quick inference
 
-Example roots inference configuration:
+After installing LegoNet and arranging the dataset under the storage directory,
+run grape counting with:
 
 ```bash
-python scripts/run_legonet.py \
+legonet \
   --storage-path /path/to/legonet-storage \
-  --dataset-name roots \
-  --network-type per_object_attributes \
+  --dataset-name grapes \
+  --network-type per_object_counting \
   --estimate-type withKeyPoints \
   --run-script Inference \
   --val-set Test \
-  --have-gt true \
-  --weights-mode full \
-  --full-weights-file /path/to/per_object_attributes.pt
+  --have-gt true
 ```
 
-Example grapes training configuration with a pretrained detector and a newly
-initialized counting head:
+Run per-root length, diameter, and color estimation with:
+
+```bash
+legonet \
+  --storage-path /path/to/legonet-storage \
+  --dataset-name roots \
+  --network-type per_object_attributes_multibranch \
+  --estimate-type withKeyPoints \
+  --run-script Inference \
+  --val-set Test \
+  --have-gt true
+```
+
+When an inference checkpoint is not supplied, LegoNet announces and downloads
+the matching pretrained checkpoint from the
+[LegoNet Zenodo record](https://doi.org/10.5281/zenodo.21966953). Downloads are
+checksum-verified and cached in
+`<storage-path>/checkpoints/zenodo-21966953/`; later runs reuse the cached file.
+Pass `--full-weights-file /path/to/model.pt` to use your own full checkpoint,
+or `--weights-mode none` to run without pretrained weights. Explicit local
+paths always take precedence over automatic downloads.
+
+The source-checkout equivalent of `legonet` is
+`python scripts/run_legonet.py`.
+
+## Command-line use
+
+Use `--weights-mode auto` (the inference default) for the matching published
+full checkpoint. `full`, `partial`, and `detector_only` accept local paths but
+download any required path that was omitted. `none` disables all checkpoint
+loading. For example, this training command supplies its detector explicitly:
 
 ```bash
 python scripts/run_legonet.py \
@@ -436,6 +464,23 @@ server-side directory before the LegoNet subprocess starts. This works both
 locally and when the browser connects to a remote Streamlit server. Manual path
 entry remains useful when the checkpoint already exists on the machine running
 Streamlit.
+
+For a typical inference run:
+
+1. Select the storage directory containing `Datasets`.
+2. Choose `grapes` or `roots`, then choose the network and estimate type.
+3. Leave **Weights loading** set to **Automatic pretrained weights
+   (recommended)**. The GUI shows the selected filename, download size, cache
+   status, and Zenodo record before the run starts.
+4. Choose `Test` or `Val`, enable visualizations if required, inspect the
+   command preview, and select **Run LegoNet**.
+
+The subprocess output reports when a checkpoint download begins and when its
+checksum has been verified. The first run may download approximately 125–401
+MiB depending on the selected model. Later runs use the cached checkpoint.
+Select **Full model checkpoint** or **Partial task checkpoints** to override
+automatic selection with paths or uploaded `.pt`/`.pth` files. Select **Do not
+load weights** to disable both local and downloaded checkpoints.
 
 The GUI previews the exact CLI command before launching it and writes output
 to the experiment directory under `ExpResults`.

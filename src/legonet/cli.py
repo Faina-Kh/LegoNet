@@ -9,6 +9,7 @@ from pathlib import Path
 
 from legonet import config, paths
 from legonet.streamlit_output import append_evaluation_summary
+from legonet.pretrained import resolve_pretrained_weights
 from datetime import datetime
 
 import warnings
@@ -117,9 +118,10 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--weights-mode",
         "--weights_mode",
-        choices=["none", "full", "partial", "detector_only"],
+        choices=["auto", "none", "full", "partial", "detector_only"],
         default=None,
-        help="Select which explicitly supplied checkpoint files to load.",
+        help=("Select checkpoint loading. 'auto' downloads the matching published "
+              "checkpoint when it is not already cached."),
     )
     parser.add_argument("--full-weights-file", "--full_weights_file", default=None)
     parser.add_argument("--bbox-weights-file", "--bbox_weights_file", default=None)
@@ -165,7 +167,9 @@ def configure_weights_mode(args: argparse.Namespace) -> argparse.Namespace:
     """Normalize legacy loading flags into one explicit weights mode."""
     mode = args.weights_mode
     if mode is None:
-        if args.load_only_bbox_weights is True:
+        if args.run_script == "Inference":
+            mode = "auto"
+        elif args.load_only_bbox_weights is True:
             mode = "detector_only"
         elif (
             args.load_only_bbox_weights is None
@@ -364,6 +368,11 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     args.val_set = args.val_set or "Test" #"Test" #"Val"
 
     args.num_of_epochs = args.num_of_epochs or 300
+    configure_weights_mode(args)
+    # Reject unsupported experiment combinations before any network access.
+    validate_configuration(args)
+    resolve_pretrained_weights(args)
+    # Automatic resolution converts ``auto`` into a concrete loading mode.
     configure_weights_mode(args)
     validate_configuration(args)
     type_name = '_KP_' if args.estimate_type == "withKeyPoints" else "_Reg_"
