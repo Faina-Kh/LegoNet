@@ -120,10 +120,12 @@ def download_checkpoint(
     if destination.exists():
         destination.unlink()
     size_mib = checkpoint.size / (1024 * 1024)
-    print("No local checkpoint was provided.")
+    print("Automatic pretrained weights selected; no user checkpoint is required.")
     print(f"Downloading pretrained checkpoint {checkpoint.filename} ({size_mib:.1f} MiB)")
     print(f"  from {ZENODO_RECORD_URL}")
     print(f"  to {destination}")
+    print("Download in progress; large checkpoints may take several minutes.")
+    sys.stdout.flush()
 
     temporary_path: Path | None = None
     try:

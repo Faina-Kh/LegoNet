@@ -65,6 +65,24 @@ def test_download_rejects_bad_checksum(tmp_path: Path) -> None:
     assert not list(tmp_path.glob("*.part"))
 
 
+def test_download_message_describes_automatic_selection(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    contents = b"model"
+    checkpoint = pretrained.PublishedCheckpoint(
+        filename="model.pt",
+        size=len(contents),
+        md5=hashlib.md5(contents).hexdigest(),  # noqa: S324
+    )
+    response = __import__("io").BytesIO(contents)
+    with patch.object(pretrained, "urlopen", return_value=response):
+        pretrained.download_checkpoint(checkpoint, tmp_path)
+
+    output = capsys.readouterr().out
+    assert "Automatic pretrained weights selected" in output
+    assert "No local checkpoint was provided" not in output
+
+
 def test_explicit_full_checkpoint_takes_precedence(tmp_path: Path) -> None:
     supplied = tmp_path / "mine.pt"
     supplied.write_bytes(b"mine")
