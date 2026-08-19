@@ -449,7 +449,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     # Check if GPU is available
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
-        print(f'Running on physical GPU {args.gpu_num}/n')
+        print(f'Running on physical GPU {args.gpu_num}\n')
     else:
         device = torch.device("cpu")
 
