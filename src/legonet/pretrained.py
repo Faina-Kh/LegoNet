@@ -123,8 +123,8 @@ def download_checkpoint(
     print("Automatic pretrained weights selected; no user checkpoint is required.")
     print(f"Downloading pretrained checkpoint {checkpoint.filename} ({size_mib:.1f} MiB)")
     print(f"  from {ZENODO_RECORD_URL}")
-    print(f"  to {destination} /n")
-    print("Download in progress; large checkpoints may take several minutes./n")
+    print(f"  to {destination} \n")
+    print("Download in progress; large checkpoints may take several minutes.\n")
     sys.stdout.flush()
 
     temporary_path: Path | None = None
@@ -155,7 +155,7 @@ def download_checkpoint(
             f"{error}"
         ) from error
 
-    print(f"Download complete; checksum verified: {destination}/n")
+    print(f"Download complete; checksum verified: {destination}\n")
     sys.stdout.flush()
     return destination.resolve()
 
