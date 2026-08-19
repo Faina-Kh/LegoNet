@@ -25,6 +25,22 @@ def _write_grape_annotations(directory: Path) -> None:
     (directory / "classes.txt").write_text("grapes,0\n", encoding="utf-8")
 
 
+def test_code_checkout_uses_parent_as_storage(tmp_path: Path) -> None:
+    code = tmp_path / "Code"
+    (code / "scripts").mkdir(parents=True)
+    (code / "scripts" / "run_legonet.py").touch()
+    (code / "pyproject.toml").touch()
+    assert datasets.default_storage_root(code) == tmp_path.resolve()
+
+
+def test_named_checkout_retains_repository_storage_default(tmp_path: Path) -> None:
+    checkout = tmp_path / "LegoNet2_Clean"
+    (checkout / "scripts").mkdir(parents=True)
+    (checkout / "scripts" / "run_legonet.py").touch()
+    (checkout / "pyproject.toml").touch()
+    assert datasets.default_storage_root(checkout) == checkout.resolve()
+
+
 def test_expected_grape_images_are_unique(tmp_path: Path) -> None:
     _write_grape_annotations(tmp_path)
     assert datasets.expected_grape_images(tmp_path) == ("A.jpg", "B.jpg")

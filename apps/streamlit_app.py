@@ -24,6 +24,7 @@ from legonet.pretrained import (
     checkpoint_cache_dir,
     select_published_checkpoint,
 )
+from legonet.datasets import default_storage_root
 
 
 DATASET_OPTIONS = ("roots", "grapes")
@@ -294,6 +295,7 @@ def find_recent_artifacts(experiment_root: Path, limit: int = 12) -> list[Path]:
 PROJECT_ROOT = find_project_root(Path(__file__).resolve())
 MAIN_SCRIPT = PROJECT_ROOT / "scripts" / "run_legonet.py"
 GPU_AVAILABLE = has_cuda_gpu()
+DEFAULT_STORAGE_ROOT = default_storage_root(PROJECT_ROOT) or PROJECT_ROOT
 
 st.set_page_config(page_title="LegoNet Runner", page_icon="L", layout="wide")
 
@@ -306,7 +308,7 @@ with st.sidebar:
             "storage_path",
             os.environ.get(
                 "LEGONET_STORAGE_PATH",
-                str(PROJECT_ROOT),
+                str(DEFAULT_STORAGE_ROOT),
             ),
         )
 
@@ -315,7 +317,9 @@ with st.sidebar:
         key=STORAGE_PATH_STATE_KEY,
         help=(
             "Select the LegoNet project folder or another storage folder. "
-            "LegoNet stores Datasets, ExpResults, and downloaded checkpoints inside the selected folder."
+            "LegoNet stores Datasets, ExpResults, and downloaded checkpoints "
+            "inside the selected folder. For the recommended layout, select "
+            "the outer LegoNet folder that contains Code."
         ),
     )
     st.button(

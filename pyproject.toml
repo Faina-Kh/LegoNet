@@ -48,6 +48,12 @@ where = ["src"]
 include = ["legonet*"]
 namespaces = false
 
+[tool.setuptools.package-data]
+legonet = [
+    "resources/datasets/Embrapa WGISD/*",
+    "resources/datasets/Grapevines data/*",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = [

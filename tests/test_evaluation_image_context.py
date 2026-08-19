@@ -1,5 +1,6 @@
 """Tests for per-image evaluation input preparation."""
 
+import os
 import unittest
 from types import SimpleNamespace
 
@@ -34,7 +35,9 @@ class EvaluationImageContextTests(unittest.TestCase):
 
         self.assertEqual(context.image_id, 4)
         self.assertEqual(context.image_name, "sample.jpg")
-        self.assertTrue(context.image_path.endswith("dataset\\sample.jpg"))
+        self.assertTrue(
+            context.image_path.endswith(os.path.join("dataset", "sample.jpg"))
+        )
         self.assertEqual(context.box_annotations, "boxes")
         self.assertEqual(context.count_annotations, "counts")
         self.assertIsNot(context.image, self.data["img"])

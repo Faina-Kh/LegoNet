@@ -11,9 +11,10 @@ minirhizotron images with root-object locations and three attributes:
 The dataset files are not redistributed in this repository. LegoNet can
 download `Grapevines data.zip` from the
 [Zenodo dataset record](https://doi.org/10.5281/zenodo.8084106), verify its
-published MD5 checksum, and safely extract it into this directory. Run
-`legonet-data download roots`, or allow the normal CLI/GUI workflow to prepare
-the dataset when it is first needed.
+published MD5 checksum, and safely extract it into the runtime
+`Datasets/Grapevines data/` directory. Run `legonet-data download roots`, or
+allow the normal CLI/GUI workflow to prepare the dataset when it is first
+needed.
 
 ## License and citation
 

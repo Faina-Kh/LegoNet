@@ -10,7 +10,7 @@ from pathlib import Path
 from legonet import config, paths
 from legonet.streamlit_output import append_evaluation_summary
 from legonet.pretrained import resolve_pretrained_weights
-from legonet.datasets import ensure_dataset_available, source_checkout_root
+from legonet.datasets import default_storage_root, ensure_dataset_available
 from datetime import datetime
 
 import warnings
@@ -210,13 +210,13 @@ def resolve_storage_path(
     raw_path = cli_value or environment.get("LEGONET_STORAGE_PATH")
 
     if not raw_path:
-        checkout_root = source_checkout_root()
-        if checkout_root is None:
+        default_root = default_storage_root()
+        if default_root is None:
             raise ValueError(
                 "LegoNet storage path is required outside a source checkout. "
                 "Pass --storage-path PATH or set LEGONET_STORAGE_PATH."
             )
-        return str(checkout_root)
+        return str(default_root)
 
     storage_path = Path(raw_path).expanduser()
     if storage_path.exists() and not storage_path.is_dir():
@@ -449,7 +449,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     # Check if GPU is available
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
-        print(f'Running on physical GPU {args.gpu_num}')
+        print(f'Running on physical GPU {args.gpu_num}/n')
     else:
         device = torch.device("cpu")
 

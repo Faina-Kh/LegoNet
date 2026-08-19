@@ -39,19 +39,22 @@ class PublicEntryPointSmokeTests(unittest.TestCase):
         self.assertIn("--storage-path", result.stdout)
         self.assertIn("--network-type", result.stdout)
 
-    def test_source_checkout_storage_defaults_without_network(self) -> None:
-        """The public script uses the checkout and can keep setup offline."""
-        result = run_public_script(
-            "--weights-mode",
-            "none",
-            "--download-missing-data",
-            "false",
-        )
+    def test_missing_dataset_fails_cleanly_without_network(self) -> None:
+        """The public script reports incomplete offline dataset setup."""
+        with TemporaryDirectory() as storage_path:
+            result = run_public_script(
+                "--storage-path",
+                storage_path,
+                "--weights-mode",
+                "none",
+                "--download-missing-data",
+                "false",
+            )
 
         self.assertEqual(result.returncode, 2)
         self.assertIn("Configuration error", result.stderr)
         self.assertIn("dataset is incomplete", result.stderr)
-        self.assertIn(str(PROJECT_ROOT / "Datasets"), result.stderr)
+        self.assertIn("Datasets", result.stderr)
 
     def test_invalid_dataset_network_combination_fails_cleanly(self) -> None:
         """The public script rejects unsupported combinations before ML setup."""
