@@ -12,7 +12,7 @@ import matplotlib
 import numpy as np
 import torch
 
-matplotlib.use("TkAgg")
+matplotlib.use("Agg")
 from thop import profile, clever_format
 
 from legonet import config
