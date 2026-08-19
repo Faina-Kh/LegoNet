@@ -52,6 +52,39 @@ def source_checkout_root(start: Path | None = None) -> Path | None:
     return None
 
 
+def default_storage_root(start: Path | None = None) -> Path | None:
+    """Return the four-folder workspace root for a detectable source checkout.
+
+    A repository cloned as ``Code`` uses its parent, producing sibling
+    ``Code``, ``Datasets``, ``ExpResults``, and ``checkpoints`` directories.
+    Existing checkouts with another name retain the repository-root default.
+    """
+    checkout = source_checkout_root(start)
+    if checkout is None:
+        return None
+    return checkout.parent if checkout.name.casefold() == "code" else checkout
+
+
+def bundled_dataset_resources(dataset_name: str) -> Path:
+    """Return the packaged metadata directory for one public dataset."""
+    folder = "Embrapa WGISD" if dataset_name == "grapes" else "Grapevines data"
+    return Path(__file__).resolve().parent / "resources" / "datasets" / folder
+
+
+def seed_dataset_metadata(dataset_name: str, dataset_dir: str | Path) -> Path:
+    """Copy missing tracked annotations, licenses, and documentation to storage."""
+    source = bundled_dataset_resources(dataset_name)
+    if not source.is_dir():
+        raise ValueError(f"Bundled dataset resources are missing: {source}")
+    destination = Path(dataset_dir)
+    destination.mkdir(parents=True, exist_ok=True)
+    for resource in source.iterdir():
+        target = destination / resource.name
+        if resource.is_file() and not target.exists():
+            shutil.copy2(resource, target)
+    return destination
+
+
 def _md5(path: Path) -> str:
     digest = hashlib.md5()  # noqa: S324 - verifies the publisher's MD5 checksum.
     with path.open("rb") as input_file:
@@ -197,7 +230,7 @@ def download_roots(dataset_dir: str | Path) -> Path:
 
     directory.parent.mkdir(parents=True, exist_ok=True)
     size_mib = ROOTS_ARCHIVE_SIZE / (1024 * 1024)
-    print(f"The roots dataset is incomplete: {directory}")
+    print(f"The roots dataset is incomplete: {directory}/n")
     print(f"Downloading Grapevines data.zip ({size_mib:.1f} MiB) from {ROOTS_RECORD_URL}")
     print("License: Creative Commons Attribution 4.0 International")
     sys.stdout.flush()
@@ -222,9 +255,9 @@ def download_roots(dataset_dir: str | Path) -> Path:
 
     if not roots_dataset_complete(directory):
         raise ValueError(
-            f"The extracted roots dataset is missing required files in {directory}."
+            f"The extracted roots dataset is missing required files in {directory}./n"
         )
-    print(f"Roots dataset download complete; checksum and layout verified: {directory}")
+    print(f"Roots dataset download complete; checksum and layout verified: {directory}/n")
     return directory
 
 
@@ -234,7 +267,7 @@ def ensure_dataset_available(
     download_missing: bool = True,
 ) -> Path:
     """Validate one dataset and optionally download missing public files."""
-    directory = Path(dataset_dir)
+    directory = seed_dataset_metadata(dataset_name, dataset_dir)
     complete = (
         grape_dataset_complete(directory)
         if dataset_name == "grapes"
@@ -245,7 +278,7 @@ def ensure_dataset_available(
     if not download_missing:
         raise ValueError(
             f"The {dataset_name} dataset is incomplete at {directory}. "
-            "Allow automatic setup or download it before running LegoNet."
+            "Allow automatic setup or download it before running LegoNet./n"
         )
     return download_grapes(directory) if dataset_name == "grapes" else download_roots(directory)
 
@@ -257,7 +290,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("dataset", choices=("grapes", "roots", "all"))
     parser.add_argument("--storage-path", default=None)
     args = parser.parse_args(argv)
-    storage = Path(args.storage_path).expanduser() if args.storage_path else source_checkout_root()
+    storage = Path(args.storage_path).expanduser() if args.storage_path else default_storage_root()
     if storage is None:
         parser.error("--storage-path is required outside a LegoNet source checkout.")
     storage.mkdir(parents=True, exist_ok=True)
@@ -273,7 +306,7 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as error:
             print(f"Dataset setup error: {error}", file=sys.stderr)
             return 2
-        print(f"{dataset_name.title()} dataset verified.")
+        print(f"{dataset_name.title()} dataset verified./n")
     return 0
 
 

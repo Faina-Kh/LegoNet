@@ -121,7 +121,7 @@ class MainEntryPointTests(unittest.TestCase):
 
     def test_missing_storage_path_is_rejected(self) -> None:
         """Installed-package use still requires an explicit storage path."""
-        with mock.patch.object(self.main_module, "source_checkout_root", return_value=None):
+        with mock.patch.object(self.main_module, "default_storage_root", return_value=None):
             with self.assertRaisesRegex(ValueError, "--storage-path"):
                 self.main_module.resolve_storage_path(None, {})
 
@@ -130,7 +130,7 @@ class MainEntryPointTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             checkout = Path(directory)
             with mock.patch.object(
-                self.main_module, "source_checkout_root", return_value=checkout
+                self.main_module, "default_storage_root", return_value=checkout
             ):
                 result = self.main_module.resolve_storage_path(None, {})
         self.assertEqual(result, str(checkout))

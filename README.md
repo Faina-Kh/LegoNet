@@ -39,6 +39,7 @@ src/
         config.py           Shared runtime configuration
         manage_weights.py   Checkpoint conversion and modular weight tools
         paths.py            Dataset and result-root construction
+        resources/          Packaged annotations, licenses, and dataset notes
         runner.py           Training/inference dispatch
         models/             Model variants
         eval/               Evaluation code
@@ -47,9 +48,6 @@ scripts/
     run_legonet.py          Thin public command-line entry point
 notebooks/                  Demonstrations and experiments
 tests/                      Unit, characterization, and smoke tests
-Datasets/
-    Embrapa WGISD/           Processed grape annotations and data license
-    Grapevines data/         Roots data documentation; downloaded files ignored
 environment.yml             Reproducible Conda environment
 pyproject.toml              Python package and CLI metadata
 LICENSE                     BSD-3-Clause source-code license
@@ -62,6 +60,25 @@ LegoNet provides separate setup paths for lightweight CPU development and
 CUDA research runs. The CPU environment is sufficient for package validation,
 the public CLI, and the default automated test suite. Full training and
 research inference use the CUDA environment below.
+
+For the recommended four-folder workspace, clone the repository as `Code`:
+
+```bash
+mkdir LegoNet
+cd LegoNet
+git clone <repository-url> Code
+cd Code
+```
+
+LegoNet then keeps source files and runtime files separate:
+
+```text
+LegoNet/
+├── Code/          Git repository and installed project source
+├── Datasets/      Downloaded datasets and copied annotation metadata
+├── ExpResults/    Training and inference results
+└── checkpoints/   Downloaded pretrained weights
+```
 
 ### CPU development and tests
 
@@ -128,10 +145,16 @@ running directly from a source checkout.
 
 ## Storage directory
 
-When running from a source checkout, LegoNet uses the repository root as its
-default storage directory. It creates `Datasets/`, `ExpResults/`, and the
-checkpoint cache there as needed. You can therefore run the quick-inference
-commands below without `--storage-path`.
+When the source checkout directory is named `Code`, LegoNet uses its parent as
+the default storage directory. This produces the four-folder `LegoNet/`
+workspace shown above. The small grape annotations, licenses, and dataset notes
+are packaged with the code and copied into `Datasets/` during first-time setup.
+You can therefore run the quick-inference commands below from `Code/` without
+`--storage-path`.
+
+For compatibility, a checkout with another directory name continues to use
+its repository root as storage. Clone or rename it as `Code`, or pass
+`--storage-path` explicitly, to use the sibling-folder layout.
 
 To keep runtime files elsewhere, supply a storage root on each command:
 
@@ -162,10 +185,11 @@ Open a new terminal after setting a persistent variable.
 LegoNet creates a missing storage root and its nested runtime directories. A
 normal installed package cannot reliably locate a writable source checkout,
 so `--storage-path` or `LEGONET_STORAGE_PATH` remains required outside a cloned
-repository. The data loaders use this high-level layout:
+repository. The recommended source-checkout layout is:
 
 ```text
-legonet-storage/
+LegoNet/
+├── Code/
 ├── Datasets/
 │   ├── Embrapa WGISD/
 │   │   ├── train.txt
@@ -179,9 +203,11 @@ legonet-storage/
 │       │   └── Train_Dia_Length_Color.txt
 │       ├── sub_Val/
 │       └── sub_Test/
-└── ExpResults/
+├── ExpResults/
     ├── grapes/
     └── roots/
+└── checkpoints/
+    └── zenodo-21966953/
 ```
 
 Annotation files may reference additional image locations within their dataset
@@ -564,8 +590,9 @@ dataset is distributed under the
 dataset associated with the preferred 2024 *Computers and Electronics in
 Agriculture* citation above.
 
-See the [roots dataset README](Datasets/Grapevines%20data/README.md) for the expected runtime
-layout, attribute encoding, and object-level and image-level evaluation rules.
+See the [roots dataset README](src/legonet/resources/datasets/Grapevines%20data/README.md)
+for the expected runtime layout, attribute encoding, and object-level and
+image-level evaluation rules.
 
 An earlier, related collection is the [Dataset for "Root Length Estimation:
 Automated Minirhizotron Image Analysis with Convolutional Networks without
@@ -603,7 +630,7 @@ image.jpg,grapes,x,y          # contributed berry-point annotation
 
 Release copies of these inputs, their class mapping, and dataset-specific
 documentation are included in
-[`Datasets/Embrapa WGISD/`](Datasets/Embrapa%20WGISD/).
+[`src/legonet/resources/datasets/Embrapa WGISD/`](src/legonet/resources/datasets/Embrapa%20WGISD/).
 
 The combined files retain all 300 WGISD images across the three splits, while
 berry-point rows are available for a subset of 111 images. These files are not
