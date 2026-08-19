@@ -230,7 +230,7 @@ def download_roots(dataset_dir: str | Path) -> Path:
 
     directory.parent.mkdir(parents=True, exist_ok=True)
     size_mib = ROOTS_ARCHIVE_SIZE / (1024 * 1024)
-    print(f"The roots dataset is incomplete: {directory}/n")
+    print(f"The roots dataset is incomplete: {directory}\n")
     print(f"Downloading Grapevines data.zip ({size_mib:.1f} MiB) from {ROOTS_RECORD_URL}")
     print("License: Creative Commons Attribution 4.0 International")
     sys.stdout.flush()
@@ -255,9 +255,9 @@ def download_roots(dataset_dir: str | Path) -> Path:
 
     if not roots_dataset_complete(directory):
         raise ValueError(
-            f"The extracted roots dataset is missing required files in {directory}./n"
+            f"The extracted roots dataset is missing required files in {directory}.\n"
         )
-    print(f"Roots dataset download complete; checksum and layout verified: {directory}/n")
+    print(f"Roots dataset download complete; checksum and layout verified: {directory}\n")
     return directory
 
 
@@ -278,7 +278,7 @@ def ensure_dataset_available(
     if not download_missing:
         raise ValueError(
             f"The {dataset_name} dataset is incomplete at {directory}. "
-            "Allow automatic setup or download it before running LegoNet./n"
+            "Allow automatic setup or download it before running LegoNet.\n"
         )
     return download_grapes(directory) if dataset_name == "grapes" else download_roots(directory)
 
@@ -306,7 +306,7 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError as error:
             print(f"Dataset setup error: {error}", file=sys.stderr)
             return 2
-        print(f"{dataset_name.title()} dataset verified./n")
+        print(f"{dataset_name.title()} dataset verified.\n")
     return 0
 
 
