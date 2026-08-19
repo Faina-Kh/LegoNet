@@ -33,6 +33,6 @@ def get_paths(storage_path: str, dataset_name: str) -> dict[str, str]:
     paths["EXP_RESULTS_PATH"] = experiment_results_path
 
     for directory in paths.values():
-        Path(directory).mkdir(exist_ok=True)
+        Path(directory).mkdir(parents=True, exist_ok=True)
 
     return paths

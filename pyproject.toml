@@ -38,6 +38,7 @@ test = [
 
 [project.scripts]
 legonet = "legonet.cli:main"
+legonet-data = "legonet.datasets:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

@@ -181,6 +181,7 @@ def build_command(
     evaluate_detection: bool,
     checkpoint_attribute: str,
     weights_mode: str,
+    download_missing_data: bool = True,
     full_weights_file: str = "",
     bbox_weights_file: str = "",
     per_object_weights_file: str = "",
@@ -222,6 +223,8 @@ def build_command(
         bool_arg(evaluate_detection),
         "--weights-mode",
         weights_mode,
+        "--download-missing-data",
+        bool_arg(download_missing_data),
     ]
     if checkpoint_attribute:
         command.extend(["--checkpoint-attribute", checkpoint_attribute])
@@ -303,7 +306,7 @@ with st.sidebar:
             "storage_path",
             os.environ.get(
                 "LEGONET_STORAGE_PATH",
-                "",
+                str(PROJECT_ROOT),
             ),
         )
 
@@ -426,6 +429,16 @@ with st.sidebar:
         "Have ground truth",
         value=True,
         key="runner_have_gt",
+    )
+    download_missing_data = st.checkbox(
+        "Download missing public dataset files automatically",
+        value=True,
+        key="runner_download_missing_data",
+        help=(
+            "For grapes, downloads only the JPEG images referenced by the "
+            "tracked annotations. For roots, downloads and verifies the "
+            "published Zenodo archive."
+        ),
     )
     to_draw = st.checkbox(
         "Draw visualizations",
@@ -668,6 +681,7 @@ command = build_command(
     evaluate_detection=evaluate_detection,
     checkpoint_attribute=checkpoint_attribute,
     weights_mode=weights_mode,
+    download_missing_data=download_missing_data,
     full_weights_file=full_weights_file,
     bbox_weights_file=bbox_weights_file,
     per_object_weights_file=per_object_weights_file,

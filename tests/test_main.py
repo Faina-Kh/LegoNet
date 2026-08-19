@@ -120,16 +120,28 @@ class MainEntryPointTests(unittest.TestCase):
         self.assertEqual(result, str(Path(storage_dir)))
 
     def test_missing_storage_path_is_rejected(self) -> None:
-        """Missing CLI and environment values produce an actionable error."""
-        with self.assertRaisesRegex(ValueError, "--storage-path"):
-            self.main_module.resolve_storage_path(None, {})
+        """Installed-package use still requires an explicit storage path."""
+        with mock.patch.object(self.main_module, "source_checkout_root", return_value=None):
+            with self.assertRaisesRegex(ValueError, "--storage-path"):
+                self.main_module.resolve_storage_path(None, {})
 
-    def test_nonexistent_storage_path_is_rejected(self) -> None:
-        """The configured root must already exist as a directory."""
+    def test_source_checkout_defaults_to_project_root(self) -> None:
+        """A checkout can keep Datasets and ExpResults beside the source."""
+        with TemporaryDirectory() as directory:
+            checkout = Path(directory)
+            with mock.patch.object(
+                self.main_module, "source_checkout_root", return_value=checkout
+            ):
+                result = self.main_module.resolve_storage_path(None, {})
+        self.assertEqual(result, str(checkout))
+
+    def test_nonexistent_storage_path_is_created(self) -> None:
+        """A configured storage root is created for a new user."""
         with TemporaryDirectory() as parent:
             missing_path = Path(parent) / "missing"
-            with self.assertRaisesRegex(ValueError, "does not exist"):
-                self.main_module.resolve_storage_path(str(missing_path), {})
+            result = self.main_module.resolve_storage_path(str(missing_path), {})
+            self.assertTrue(missing_path.is_dir())
+            self.assertEqual(result, str(missing_path))
 
     def test_main_reports_configuration_error_without_running(self) -> None:
         """Invalid public input fails cleanly before runner dispatch."""

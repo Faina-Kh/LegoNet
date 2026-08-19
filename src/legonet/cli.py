@@ -10,6 +10,7 @@ from pathlib import Path
 from legonet import config, paths
 from legonet.streamlit_output import append_evaluation_summary
 from legonet.pretrained import resolve_pretrained_weights
+from legonet.datasets import ensure_dataset_available, source_checkout_root
 from datetime import datetime
 
 import warnings
@@ -127,6 +128,13 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--bbox-weights-file", "--bbox_weights_file", default=None)
     parser.add_argument("--per-object-weights-file", "--per_object_weights_file", default=None)
     parser.add_argument(
+        "--download-missing-data",
+        "--download_missing_data",
+        type=parse_bool,
+        default=None,
+        help="Automatically download and prepare a missing public dataset (default: true).",
+    )
+    parser.add_argument(
         "--checkpoint-attribute",
         "--checkpoint_attribute",
         choices=["length", "diameter", "color"],
@@ -202,17 +210,21 @@ def resolve_storage_path(
     raw_path = cli_value or environment.get("LEGONET_STORAGE_PATH")
 
     if not raw_path:
-        raise ValueError(
-            "LegoNet storage path is required. Pass --storage-path PATH "
-            "or set the LEGONET_STORAGE_PATH environment variable."
-        )
+        checkout_root = source_checkout_root()
+        if checkout_root is None:
+            raise ValueError(
+                "LegoNet storage path is required outside a source checkout. "
+                "Pass --storage-path PATH or set LEGONET_STORAGE_PATH."
+            )
+        return str(checkout_root)
 
     storage_path = Path(raw_path).expanduser()
-    if not storage_path.is_dir():
+    if storage_path.exists() and not storage_path.is_dir():
         raise ValueError(
-            "LegoNet storage path does not exist or is not a directory: "
+            "LegoNet storage path is not a directory: "
             f"{storage_path}"
         )
+    storage_path.mkdir(parents=True, exist_ok=True)
 
     return str(storage_path)
 
@@ -242,6 +254,11 @@ def resolve_boolean_options(args: argparse.Namespace) -> argparse.Namespace:
         False
         if args.save_from_model_file is None
         else args.save_from_model_file
+    )
+    args.download_missing_data = (
+        True
+        if args.download_missing_data is None
+        else args.download_missing_data
     )
 
     if args.load_weights and args.save_from_model_file:
@@ -445,6 +462,11 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     myPaths = paths.get_paths(args.STORAGE_PATH, args.dataset_name)
     myDatasetsPath = myPaths["DATASETS_PATH"]
     args.myExpPath = myPaths["EXP_RESULTS_PATH"]
+    ensure_dataset_available(
+        args.dataset_name,
+        myDatasetsPath,
+        download_missing=args.download_missing_data,
+    )
 
     config.General.experiment_path = os.path.join(args.myExpPath, 'Results', args.current_results_dir)
     os.makedirs(config.General.experiment_path, exist_ok=True)

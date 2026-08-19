@@ -39,13 +39,19 @@ class PublicEntryPointSmokeTests(unittest.TestCase):
         self.assertIn("--storage-path", result.stdout)
         self.assertIn("--network-type", result.stdout)
 
-    def test_missing_storage_path_fails_cleanly(self) -> None:
-        """Missing public storage configuration returns an actionable error."""
-        result = run_public_script()
+    def test_source_checkout_storage_defaults_without_network(self) -> None:
+        """The public script uses the checkout and can keep setup offline."""
+        result = run_public_script(
+            "--weights-mode",
+            "none",
+            "--download-missing-data",
+            "false",
+        )
 
         self.assertEqual(result.returncode, 2)
         self.assertIn("Configuration error", result.stderr)
-        self.assertIn("LEGONET_STORAGE_PATH", result.stderr)
+        self.assertIn("dataset is incomplete", result.stderr)
+        self.assertIn(str(PROJECT_ROOT / "Datasets"), result.stderr)
 
     def test_invalid_dataset_network_combination_fails_cleanly(self) -> None:
         """The public script rejects unsupported combinations before ML setup."""

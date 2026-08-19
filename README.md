@@ -47,8 +47,9 @@ scripts/
     run_legonet.py          Thin public command-line entry point
 notebooks/                  Demonstrations and experiments
 tests/                      Unit, characterization, and smoke tests
-data/
+Datasets/
     Embrapa WGISD/           Processed grape annotations and data license
+    Grapevines data/         Roots data documentation; downloaded files ignored
 environment.yml             Reproducible Conda environment
 pyproject.toml              Python package and CLI metadata
 LICENSE                     BSD-3-Clause source-code license
@@ -127,7 +128,12 @@ running directly from a source checkout.
 
 ## Storage directory
 
-LegoNet requires an explicit storage root. Supply it on each command:
+When running from a source checkout, LegoNet uses the repository root as its
+default storage directory. It creates `Datasets/`, `ExpResults/`, and the
+checkpoint cache there as needed. You can therefore run the quick-inference
+commands below without `--storage-path`.
+
+To keep runtime files elsewhere, supply a storage root on each command:
 
 ```bash
 python scripts/run_legonet.py --storage-path /path/to/legonet-storage --help
@@ -153,8 +159,10 @@ PowerShell, persistent for the current Windows user:
 
 Open a new terminal after setting a persistent variable.
 
-The storage root must already exist. The current data loaders expect this
-high-level layout:
+LegoNet creates a missing storage root and its nested runtime directories. A
+normal installed package cannot reliably locate a writable source checkout,
+so `--storage-path` or `LEGONET_STORAGE_PATH` remains required outside a cloned
+repository. The data loaders use this high-level layout:
 
 ```text
 legonet-storage/
@@ -197,12 +205,10 @@ Unsupported combinations fail before model or dataset construction.
 
 ## Quick inference
 
-After installing LegoNet and arranging the dataset under the storage directory,
-run grape counting with:
+After installing LegoNet, run grape counting with:
 
 ```bash
 legonet \
-  --storage-path /path/to/legonet-storage \
   --dataset-name grapes \
   --network-type per_object_counting \
   --estimate-type withKeyPoints \
@@ -215,7 +221,6 @@ Run per-root length, diameter, and color estimation with:
 
 ```bash
 legonet \
-  --storage-path /path/to/legonet-storage \
   --dataset-name roots \
   --network-type per_object_attributes_multibranch \
   --estimate-type withKeyPoints \
@@ -232,6 +237,26 @@ checksum-verified and cached in
 Pass `--full-weights-file /path/to/model.pt` to use your own full checkpoint,
 or `--weights-mode none` to run without pretrained weights. Explicit local
 paths always take precedence over automatic downloads.
+
+The selected public dataset is prepared in the same way. If it is incomplete,
+LegoNet announces the source and destination before downloading it. For grapes,
+only the 300 resized `.jpg` files referenced by the tracked LegoNet split
+annotations are downloaded from WGISD; upstream `.txt` and `.npz` files are
+skipped. For roots, the published ZIP is downloaded from Zenodo, checksum
+verified, safely extracted, and checked for the expected split files. Pass
+`--download-missing-data false` to disable network-based dataset setup.
+
+Datasets can also be prepared or checked without starting inference:
+
+```bash
+legonet-data download grapes
+legonet-data download roots
+legonet-data download all
+legonet-data verify all
+```
+
+From a source checkout, the equivalent entry point is
+`python scripts/download_datasets.py download grapes`.
 
 The source-checkout equivalent of `legonet` is
 `python scripts/run_legonet.py`.
@@ -452,7 +477,8 @@ streamlit run apps/streamlit_app.py
 ```
 
 The Storage path field starts with `LEGONET_STORAGE_PATH` when the environment
-variable is set. It remains editable and includes a **Browse local machine…**
+variable is set and otherwise uses the source-checkout root. It remains
+editable and includes a **Browse local machine…**
 button. The native folder picker is a local convenience: it opens on the
 machine running Streamlit and may be unavailable for remote or headless
 deployments. Manual path entry remains available in those environments.
@@ -467,13 +493,18 @@ Streamlit.
 
 For a typical inference run:
 
-1. Select the storage directory containing `Datasets`.
+1. Keep the source-checkout storage directory or select another location.
 2. Choose `grapes` or `roots`, then choose the network and estimate type.
 3. Leave **Weights loading** set to **Automatic pretrained weights
    (recommended)**. The GUI shows the selected filename, download size, cache
    status, and Zenodo record before the run starts.
 4. Choose `Test` or `Val`, enable visualizations if required, inspect the
    command preview, and select **Run LegoNet**.
+
+Leave **Download missing public dataset files automatically** enabled for the
+first run. The live output reports JPEG progress for grapes and archive
+verification for roots. Disable it when working offline or with a manually
+prepared dataset.
 
 The subprocess output reports when a checkpoint download begins and when its
 checksum has been verified. The first run may download approximately 125–401
@@ -533,7 +564,7 @@ dataset is distributed under the
 dataset associated with the preferred 2024 *Computers and Electronics in
 Agriculture* citation above.
 
-See the [roots dataset README](data/roots/README.md) for the expected runtime
+See the [roots dataset README](Datasets/Grapevines%20data/README.md) for the expected runtime
 layout, attribute encoding, and object-level and image-level evaluation rules.
 
 An earlier, related collection is the [Dataset for "Root Length Estimation:
@@ -572,7 +603,7 @@ image.jpg,grapes,x,y          # contributed berry-point annotation
 
 Release copies of these inputs, their class mapping, and dataset-specific
 documentation are included in
-[`data/Embrapa WGISD/`](data/Embrapa%20WGISD/).
+[`Datasets/Embrapa WGISD/`](Datasets/Embrapa%20WGISD/).
 
 The combined files retain all 300 WGISD images across the three splits, while
 berry-point rows are available for a subset of 111 images. These files are not
