@@ -102,6 +102,14 @@ threshold, plausibly due to numerical or NMS differences between the historical
 and current package versions. The documented evaluation threshold remains
 `0.7`; the `0.713` result is reported only as a reproducibility diagnostic.
 
+## Known limitations
+
+- Exact reproduction of the roots paper's five-fold results is not currently
+  possible because the historical fold definitions and complete fold-specific
+  checkpoint set are unavailable.
+- The grape architecture-ablation code and checkpoints are not included in the
+  current release.
+
 ## License and citation
 
 The annotation files in this directory are distributed under the
