@@ -314,8 +314,8 @@ with st.sidebar:
         "Storage path",
         key=STORAGE_PATH_STATE_KEY,
         help=(
-            "Select the folder that contains the Datasets directory. LegoNet "
-            "will also create its ExpResults directory inside this folder."
+            "Select the LegoNet project folder or another storage folder. "
+            "LegoNet stores Datasets, ExpResults, and downloaded checkpoints inside the selected folder."
         ),
     )
     st.button(
