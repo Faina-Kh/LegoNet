@@ -45,4 +45,5 @@ dist/
 .ipynb_checkpoints/
 
 .pytest-temp/
-.pytest-temp/
+
+AGENTS.md
