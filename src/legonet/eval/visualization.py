@@ -81,7 +81,7 @@ def save_detection_overview(
                     point["x"] + point_radius,
                     point["y"] + point_radius,
                 ),
-                fill="black",
+                fill="blue",
                 width=line_width,
             )
 
