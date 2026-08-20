@@ -415,9 +415,10 @@ with st.sidebar:
         num_of_epochs = 0
 
     results_dir_context = (selected_network_type, val_set)
+    type_name = '_KP_' if estimate_type == "withKeyPoints" else "_Reg_"
     if st.session_state.get("runner_results_dir_context") != results_dir_context:
         st.session_state.runner_results_dir = (
-            selected_network_type + "_" + val_set + "_Results"
+            selected_network_type + type_name + val_set
         )
         st.session_state.runner_results_dir_context = results_dir_context
     current_results_dir = st.text_input(
