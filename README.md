@@ -17,22 +17,25 @@ The underlying methods have been published in
 [*Plant Phenomics*](https://doi.org/10.34133/plantphenomics.0132), and
 [*Remote Sensing*](https://doi.org/10.3390/rs13132496).
 
+### Grape berry counting
 
 ![Raw grapes image, detected cluster crop, ground-truth keypoint heatmap, and LegoNet-predicted keypoint heatmap](docs/images/per-object-counting-keypoint-example.jpg)
-*Per-object berry counting. The full image (`CFR_1667.jpg`in the [*Embrapa WGISD dataset*](https://github.com/thsant/wgisd)) shows countable grape-cluster
-annotations in blue and predicted bounding boxes in red. A detected cluster is
-then cropped for comparison of its ground-truth and predicted keypoint
-heatmaps.*
 
+*Per-object berry counting. The full image (`CFR_1667.jpg` in the
+[Embrapa WGISD dataset](https://github.com/thsant/wgisd)) shows countable
+grape-cluster annotations in blue and predicted bounding boxes in red. A
+detected cluster is then cropped for comparison of its ground-truth and
+predicted keypoint heatmaps.*
 
-
-
+### Root-length estimation
 
 ![Raw underground image, ground-truth root keypoint heatmap, and LegoNet-predicted keypoint heatmap](docs/images/trl-keypoint-heatmaps-example.jpg)
+
 *Total root length (TRL) estimation from the underground image
-`T025_L084_2012.10.10_115421_002.jpg` in the [*grapevine-root dataset*](https://doi.org/10.5281/zenodo.8084106). From left
-to right: raw input, ground-truth Gaussian keypoint heatmap (TRL 124.09 mm),
-and predicted keypoint heatmap (TRL 110.03 mm).*
+`T025_L084_2012.10.10_115421_002.jpg` in the
+[grapevine-root dataset](https://doi.org/10.5281/zenodo.8084106). From left to
+right: raw input, ground-truth Gaussian keypoint heatmap (TRL 124.09 mm), and
+predicted keypoint heatmap (TRL 110.03 mm).*
 
 ## Highlights
 
