@@ -27,7 +27,7 @@ keypoint heatmap (TRL 110.03 mm).*
 
 - End-to-end training, inference, and evaluation in PyTorch.
 - Object and keypoint detection plus per-image and per-object estimation.
-- Counting parts per object, such as berries within each grape cluster.
+- Counting parts per object (berries within each countable grape cluster).
 - Multi-task attribute prediction (root length, diameter, and color).
 - Automated, checksum-verified dataset and checkpoint downloads.
 - Validated command-line tools and a local Streamlit interface.
