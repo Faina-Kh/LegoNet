@@ -26,9 +26,11 @@ heatmaps.*
 
 
 
+
+
 ![Raw underground image, ground-truth root keypoint heatmap, and LegoNet-predicted keypoint heatmap](docs/images/trl-keypoint-heatmaps-example.jpg)
 *Total root length (TRL) estimation from the underground image
-`T025_L084_2012.10.10_115421_002.jpg` in the [*grapevine-root dataset](https://doi.org/10.5281/zenodo.8084106). From left
+`T025_L084_2012.10.10_115421_002.jpg` in the [*grapevine-root dataset*](https://doi.org/10.5281/zenodo.8084106). From left
 to right: raw input, ground-truth Gaussian keypoint heatmap (TRL 124.09 mm),
 and predicted keypoint heatmap (TRL 110.03 mm).*
 
