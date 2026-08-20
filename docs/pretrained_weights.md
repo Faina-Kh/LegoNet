@@ -8,7 +8,7 @@ evaluation checks against the public code and datasets.
 No claim of exact paper-result reproduction should be inferred unless a
 checkpoint is explicitly marked as verified in a future release.
 
-## Grapes
+## Grapes (Embrapa WGISD)
 
 The grape detection and keypoint-based per-object counting checkpoints are
 believed to be the checkpoints used for the reported experiments, or to produce
@@ -51,9 +51,9 @@ checkpoint may differ from the paper's aggregated results.
 | Per-object attributes, regression | `legonet_AttrWithReg.pt` | 143.62 | `d8d38bb163e8e1d5b09c5e99ecf03847ccf96c4f5ceb188529a29bb85e5f903e` | Relevant checkpoint; five-fold reproduction unavailable |
 | Per-object attributes, multibranch keypoints | `legonet_AttrWith2B2F.pt` | 261.53 | `132aeeb0c5341a6c73c936aaf29364b87ecc0c6ae55220ea76e028bf8953243a` | Relevant checkpoint; five-fold reproduction unavailable |
 
-## Planned release process
+## Checkpoint verification
 
-Before any checkpoint is published as a supported download:
+Before a checkpoint is described as a verified, supported download:
 
 1. Test that it loads into the matching model configuration in the public code.
 2. Run inference on the documented public dataset setup.
@@ -61,5 +61,5 @@ Before any checkpoint is published as a supported download:
 4. Upload the verified file to a versioned research archive such as Zenodo.
 5. Add its permanent URL and checksum to a machine-readable download manifest.
 
-Until those checks are complete, these files are an inventory of candidate
-research artifacts rather than a reproducibility guarantee.
+Until those checks are complete, files marked as candidates are an inventory
+of research artifacts rather than a guarantee of exact result reproduction.

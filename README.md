@@ -1,58 +1,37 @@
 # LegoNet
 
-LegoNet is a research codebase for object detection and image- or object-level
-estimation in plant phenotyping. It contains the training, inference,
-evaluation, data-loading, and checkpoint utilities used for grape and
-grapevine-root experiments.
+**Modular deep-learning tools for plant phenotyping from field imagery**
 
-The repository is being prepared for a public research release. The cleanup
-aims to improve reproducibility and usability without changing established
-model behavior.
+LegoNet detects agricultural objects and estimates biologically meaningful
+properties directly from images—such as grape berries per cluster and
+grapevine-root length, diameter, and color.
 
-The experiment scope, distinction between direct per-image estimation and
-per-root aggregation, and staged verification plan are documented in
-[`docs/reproduction.md`](docs/reproduction.md).
+The project combines object detection, keypoint estimation, regression, and
+multi-branch attribute prediction in a reproducible PyTorch pipeline. It
+includes automated dataset and checkpoint downloads, CPU-tested command-line
+tools, training, inference, evaluation, visualization, and a Streamlit
+interface.
 
-## Status
+The underlying methods have been published in
+[*Computers and Electronics in Agriculture*](https://doi.org/10.1016/j.compag.2024.109457),
+[*Plant Phenomics*](https://doi.org/10.34133/plantphenomics.0132), and
+[*Remote Sensing*](https://doi.org/10.3390/rs13132496).
 
-Available now:
+![Raw underground image, ground-truth root keypoint heatmap, and LegoNet-predicted keypoint heatmap](docs/images/trl-keypoint-heatmaps-example.jpg)
 
-- Detection, per-image estimation, and per-object estimation models.
-- Training and inference through a validated command-line interface.
-- A local Streamlit runner.
-- Characterization and smoke tests for the active execution paths.
-- Utilities for full-model and modular checkpoints.
+*Total root length (TRL) estimation from an underground image (T025_L084_2012.10.10_115421_002.jpg from the grapevine-root test set). From left to
+right: raw input, ground-truth keypoint heatmap (TRL 124.09 mm), and predicted
+keypoint heatmap (TRL 110.03 mm).*
 
-Still being prepared:
+## Highlights
 
-- Curated pretrained checkpoints.
-- Final release metadata.
-
-## Repository layout
-
-```text
-apps/
-    streamlit_app.py        Local graphical runner
-src/
-    legonet/
-        cli.py              CLI parsing and runtime configuration
-        config.py           Shared runtime configuration
-        manage_weights.py   Checkpoint conversion and modular weight tools
-        paths.py            Dataset and result-root construction
-        resources/          Packaged annotations, licenses, and dataset notes
-        runner.py           Training/inference dispatch
-        models/             Model variants
-        eval/               Evaluation code
-scripts/
-    debug_legonet.py        Editable same-process IDE debug entry point
-    run_legonet.py          Thin public command-line entry point
-notebooks/                  Demonstrations and experiments
-tests/                      Unit, characterization, and smoke tests
-environment.yml             Reproducible Conda environment
-pyproject.toml              Python package and CLI metadata
-LICENSE                     BSD-3-Clause source-code license
-CITATION.cff                Software and preferred-paper citation metadata
-```
+- End-to-end training, inference, and evaluation in PyTorch.
+- Object detection plus per-image and per-object estimation.
+- Multi-task prediction of root length, diameter, and color.
+- Automated, checksum-verified dataset and checkpoint downloads.
+- Validated command-line tools and a local Streamlit interface.
+- Modular checkpoint splitting, composition, and inspection utilities.
+- CPU test coverage and continuous integration through GitHub Actions.
 
 ## Environment setup
 
@@ -66,7 +45,7 @@ For the recommended four-folder workspace, clone the repository as `Code`:
 ```bash
 mkdir LegoNet
 cd LegoNet
-git clone <repository-url> Code
+git clone https://github.com/Faina-Kh/LegoNet.git Code
 cd Code
 ```
 
@@ -287,6 +266,32 @@ From a source checkout, the equivalent entry point is
 The source-checkout equivalent of `legonet` is
 `python scripts/run_legonet.py`.
 
+## Repository layout
+
+```text
+apps/
+    streamlit_app.py        Local graphical runner
+src/
+    legonet/
+        cli.py              CLI parsing and runtime configuration
+        config.py           Shared runtime configuration
+        manage_weights.py   Checkpoint conversion and modular weight tools
+        paths.py            Dataset and result-root construction
+        resources/          Packaged annotations, licenses, and dataset notes
+        runner.py           Training/inference dispatch
+        models/             Model variants
+        eval/               Evaluation code
+scripts/
+    debug_legonet.py        Editable same-process IDE debug entry point
+    run_legonet.py          Thin public command-line entry point
+notebooks/                  Demonstrations and experiments
+tests/                      Unit, characterization, and smoke tests
+environment.yml             Reproducible Conda environment
+pyproject.toml              Python package and CLI metadata
+LICENSE                     BSD-3-Clause source-code license
+CITATION.cff                Software and preferred-paper citation metadata
+```
+
 ## Command-line use
 
 Use `--weights-mode auto` (the inference default) for the matching published
@@ -311,6 +316,11 @@ python scripts/run_legonet.py \
 For grapes per-object counting, each IoU-matched predicted crop is trained
 against the full count stored for its matched GT box. Validation, checkpoint
 selection, and test evaluation use the same original matched-GT count.
+
+
+The experiment scope, distinction between direct per-image estimation and
+per-root aggregation, and staged verification plan are documented in
+[`docs/reproduction.md`](docs/reproduction.md).
 
 ### Best-epoch metric
 
@@ -567,16 +577,10 @@ reproduction remains a separate research validation step.
 
 ## Citation
 
-The preferred citation for the current root-length, diameter, and color models
-is:
-
-> F. Khoroshevsky, K. Zhou, A. Bar-Hillel, O. Hadar, S. Rachmilevitch,
-> J. E. Ephrath, N. Lazarovitch, and Y. Edan, "A CNN-based framework for
-> estimation of root length, diameter, and color from in situ minirhizotron
-> images," *Computers and Electronics in Agriculture*, vol. 227, article
-> 109457, 2024. <https://doi.org/10.1016/j.compag.2024.109457>
-
-Machine-readable citation metadata is available in [`CITATION.cff`](CITATION.cff).
+If you use LegoNet, cite the paper associated with the model or dataset used in
+your work. Machine-readable software and preferred-paper citation metadata is
+available in [`CITATION.cff`](CITATION.cff). The relevant publications are
+listed with each dataset below.
 
 ## Data and licensing
 
@@ -593,6 +597,13 @@ Agriculture* citation above.
 See the [roots dataset README](src/legonet/resources/datasets/Grapevines%20data/README.md)
 for the expected runtime layout, attribute encoding, and object-level and
 image-level evaluation rules.
+
+Cite the associated work as:
+> F. Khoroshevsky, K. Zhou, A. Bar-Hillel, O. Hadar, S. Rachmilevitch,
+> J. E. Ephrath, N. Lazarovitch, and Y. Edan, "A CNN-based framework for
+> estimation of root length, diameter, and color from in situ minirhizotron
+> images," *Computers and Electronics in Agriculture*, vol. 227, article
+> 109457, 2024. <https://doi.org/10.1016/j.compag.2024.109457>
 
 An earlier, related collection is the [Dataset for "Root Length Estimation:
 Automated Minirhizotron Image Analysis with Convolutional Networks without
@@ -659,27 +670,9 @@ license.
 
 ## Pretrained weights
 
-Curated pretrained weights are not yet part of the public release. The current
-runtime supports full-model and modular checkpoint loading, but commands using
-`--load-weights true` require the expected local checkpoint files under the
-experiment storage hierarchy.
-
+The current runtime supports full-model and modular checkpoint loading.
 Available candidate checkpoints do not cover every reported scenario, and
 some cannot reproduce paper results exactly because historical fold splits or
 original training checkpoints are unavailable. See
 [`docs/pretrained_weights.md`](docs/pretrained_weights.md) for the per-model
-status, limitations, and planned verification process.
-
-## Before public release
-
-- Publish and document curated checkpoints.
-- Verify a clean environment setup on a second machine.
-- Decide how partial checkpoint export should group and save shared and
-  branch-specific module weights for the multibranch network.
-- Generalize dataset and model configuration so the existing network
-  architectures can be trained on other datasets, including support for a
-  configurable number and list of attribute estimators rather than the three
-  root-specific estimators for length, diameter, and color.
-- Complete and validate the existing partial COCO-style dataloader support,
-  and demonstrate it using the grape dataset's repository-provided JSON
-  annotations.
+status, limitations, and verification process.

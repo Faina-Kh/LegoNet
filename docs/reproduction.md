@@ -23,7 +23,7 @@ against rounded values transcribed from a paper.
 ## Roots estimation scopes
 
 The roots experiments contain two different ways to obtain image-level trait
-estimates. They must not be combined in one result category.
+estimates. They must not be combined into a single result category.
 
 ### Direct per-image estimation
 
@@ -107,7 +107,7 @@ its caption must identify the source and the repository must have permission
 to redistribute it under the figure's applicable license. A paper citation by
 itself does not necessarily grant image redistribution rights.
 
-Recommended examples include:
+Examples include:
 
 - direct per-image keypoint maps with the predicted and ground-truth TRL;
 - matched root boxes with length, diameter, and color predictions;
@@ -138,4 +138,3 @@ rather than chosen only because they look favorable.
    and checksums to the manifests.
 10. Add regenerated visual examples after the numerical reproduction path is
     verified.
-
