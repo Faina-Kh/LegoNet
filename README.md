@@ -12,12 +12,10 @@ includes automated dataset and checkpoint downloads, CPU-tested command-line
 tools, training, inference, evaluation, visualization, and a Streamlit
 interface.
 
-
 The underlying methods have been published in
 [*Computers and Electronics in Agriculture*](https://doi.org/10.1016/j.compag.2024.109457),
 [*Plant Phenomics*](https://doi.org/10.34133/plantphenomics.0132), and
 [*Remote Sensing*](https://doi.org/10.3390/rs13132496).
-
 
 ## Highlights
 
@@ -31,6 +29,7 @@ The underlying methods have been published in
 - Modular checkpoint splitting, composition, and inspection utilities.
 - CPU test coverage and continuous integration through GitHub Actions.
 
+## Visual examples
 
 ### Grape berry counting
 
@@ -39,7 +38,8 @@ The underlying methods have been published in
 *Per-object berry counting. The full image (`CFR_1667.jpg` in the
 [Embrapa WGISD dataset](https://github.com/thsant/wgisd)) shows countable
 grape-cluster annotations in blue and predicted bounding boxes in red. A
-detected cluster is then cropped and passed to for berry counting prediction using the keypoint heatmaps.*
+detected cluster is then cropped and passed to the keypoint-based berry-counting
+estimator.*
 
 ### Root-length estimation
 
@@ -51,6 +51,35 @@ detected cluster is then cropped and passed to for berry counting prediction usi
 right: raw input, ground-truth Gaussian keypoint heatmap (TRL 124.09 mm), and
 predicted keypoint heatmap (TRL 110.03 mm).*
 
+## Quick start
+
+In a fresh Python 3.12 environment, clone the repository and install the CPU
+build of PyTorch followed by LegoNet:
+
+```bash
+git clone https://github.com/Faina-Kh/LegoNet.git Code
+cd Code
+python -m pip install torch==2.5.1 torchvision==0.20.1 \
+  --index-url https://download.pytorch.org/whl/cpu
+python -m pip install -e .
+```
+
+Run keypoint-based grape counting on the public test set:
+
+```bash
+legonet \
+  --dataset-name grapes \
+  --network-type per_object_counting \
+  --estimate-type withKeyPoints \
+  --run-script Inference \
+  --val-set Test \
+  --have-gt true
+```
+
+On the first run, LegoNet downloads the required public dataset files and
+matching pretrained checkpoint, verifies them, and caches them in the storage
+directory. See the detailed environment and storage sections below for CUDA,
+custom paths, and development setup.
 
 ## Environment setup
 
@@ -227,19 +256,7 @@ per-dataset layout.
 Training requires ground-truth annotations and uses the `Val` validation split.
 Unsupported combinations fail before model or dataset construction.
 
-## Quick inference
-
-After installing LegoNet, run grape counting with:
-
-```bash
-legonet \
-  --dataset-name grapes \
-  --network-type per_object_counting \
-  --estimate-type withKeyPoints \
-  --run-script Inference \
-  --val-set Test \
-  --have-gt true
-```
+## Additional inference options
 
 Run per-root length, diameter, and color estimation with:
 
