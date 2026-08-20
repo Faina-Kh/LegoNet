@@ -17,10 +17,13 @@ The underlying methods have been published in
 [*Plant Phenomics*](https://doi.org/10.34133/plantphenomics.0132), and
 [*Remote Sensing*](https://doi.org/10.3390/rs13132496).
 
+
+![Raw grapes image, detected cluster crop, ground-truth keypoint heatmap, and LegoNet-predicted keypoint heatmap](docs/images/per-object-counting-keypoint-example.jpg)
+
 ![Raw underground image, ground-truth root keypoint heatmap, and LegoNet-predicted keypoint heatmap](docs/images/trl-keypoint-heatmaps-example.jpg)
 
 *Total root length (TRL) estimation from an underground image (T025_L084_2012.10.10_115421_002.jpg from the grapevine-root test set). From left to
-right: raw input, ground-truth keypoint heatmap (TRL 124.09 mm), and predicted
+right: raw input, ground-truth Gaussisan keypoint heatmap (TRL 124.09 mm), and the predicted
 keypoint heatmap (TRL 110.03 mm).*
 
 ## Highlights
