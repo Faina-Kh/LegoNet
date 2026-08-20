@@ -18,6 +18,20 @@ The underlying methods have been published in
 [*Plant Phenomics*](https://doi.org/10.34133/plantphenomics.0132), and
 [*Remote Sensing*](https://doi.org/10.3390/rs13132496).
 
+
+## Highlights
+
+- End-to-end training, inference, and evaluation in PyTorch.
+- Direct per-image estimation, or object detection followed by per-object prediction.
+- Regression- and keypoint-based architectures for counting and attribute estimation.
+- Demonstrated on two public datasets: berry counting for countable grape clusters,
+  and multi-task estimation of root length, diameter, and color.
+- Automated, checksum-verified dataset and checkpoint downloads.
+- Validated command-line tools and a local Streamlit interface.
+- Modular checkpoint splitting, composition, and inspection utilities.
+- CPU test coverage and continuous integration through GitHub Actions.
+
+
 ### Grape berry counting
 
 ![Raw grapes image, detected cluster crop, ground-truth keypoint heatmap, and LegoNet-predicted keypoint heatmap](docs/images/per-object-counting-keypoint-example.jpg)
@@ -37,17 +51,6 @@ detected cluster is then cropped and passed to for berry counting prediction usi
 right: raw input, ground-truth Gaussian keypoint heatmap (TRL 124.09 mm), and
 predicted keypoint heatmap (TRL 110.03 mm).*
 
-## Highlights
-
-- End-to-end training, inference, and evaluation in PyTorch.
-- Direct per-image estimation, or object detection followed by per-object prediction.
-- Regression- and keypoint-based architectures for counting and attribute estimation.
-- Demonstrated on two public datasets: berry counting for countable grape clusters,
-  and multi-task estimation of root length, diameter, and color.
-- Automated, checksum-verified dataset and checkpoint downloads.
-- Validated command-line tools and a local Streamlit interface.
-- Modular checkpoint splitting, composition, and inspection utilities.
-- CPU test coverage and continuous integration through GitHub Actions.
 
 ## Environment setup
 
