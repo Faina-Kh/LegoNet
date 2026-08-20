@@ -174,7 +174,7 @@ running directly from a source checkout.
 
 When the source checkout directory is named `Code`, LegoNet uses its parent as
 the default storage directory. This produces the four-folder `LegoNet/`
-workspace shown above. The small grape annotations, licenses, and dataset notes
+workspace shown above. The small grape annotation files, licenses, and dataset notes
 are packaged with the code and copied into `Datasets/` during first-time setup.
 You can therefore run the quick-inference commands below from `Code/` without
 `--storage-path`.
