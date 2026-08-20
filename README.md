@@ -12,6 +12,7 @@ includes automated dataset and checkpoint downloads, CPU-tested command-line
 tools, training, inference, evaluation, visualization, and a Streamlit
 interface.
 
+
 The underlying methods have been published in
 [*Computers and Electronics in Agriculture*](https://doi.org/10.1016/j.compag.2024.109457),
 [*Plant Phenomics*](https://doi.org/10.34133/plantphenomics.0132), and
@@ -24,8 +25,7 @@ The underlying methods have been published in
 *Per-object berry counting. The full image (`CFR_1667.jpg` in the
 [Embrapa WGISD dataset](https://github.com/thsant/wgisd)) shows countable
 grape-cluster annotations in blue and predicted bounding boxes in red. A
-detected cluster is then cropped for comparison of its ground-truth and
-predicted keypoint heatmaps.*
+detected cluster is then cropped and passed to for berry counting prediction using the keypoint heatmaps.*
 
 ### Root-length estimation
 
@@ -40,9 +40,10 @@ predicted keypoint heatmap (TRL 110.03 mm).*
 ## Highlights
 
 - End-to-end training, inference, and evaluation in PyTorch.
-- Object and keypoint detection plus per-image and per-object estimation.
-- Counting parts per object (berries within each countable grape cluster).
-- Multi-task attribute prediction (root length, diameter, and color).
+- Direct per-image estimation, or object detection followed by per-object prediction.
+- Regression- and keypoint-based architectures for counting and attribute estimation.
+- Demonstrated on two public datasets: berry counting for countable grape clusters,
+  and multi-task estimation of root length, diameter, and color.
 - Automated, checksum-verified dataset and checkpoint downloads.
 - Validated command-line tools and a local Streamlit interface.
 - Modular checkpoint splitting, composition, and inspection utilities.
