@@ -70,7 +70,7 @@ Run keypoint-based grape counting on the public test set:
 legonet \
   --dataset-name grapes \
   --network-type per_object_counting \
-  --estimate-type withKeyPoints \
+  --estimate-type keypoints \
   --run-script Inference \
   --val-set Test \
   --have-gt true
@@ -175,7 +175,7 @@ running directly from a source checkout.
 When the source checkout directory is named `Code`, LegoNet uses its parent as
 the default storage directory. This produces the four-folder `LegoNet/`
 workspace shown above. The small grape annotation files, licenses, and dataset notes
-are packaged with the code and copied into `Datasets/` during first-time setup.
+are packaged with the code (`src/legonet/resources/datasets`) and copied into `Datasets/` during first-time setup.
 You can therefore run the quick-inference commands below from `Code/` without
 `--storage-path`.
 
@@ -209,10 +209,17 @@ PowerShell, persistent for the current Windows user:
 
 Open a new terminal after setting a persistent variable.
 
-LegoNet creates a missing storage root and its nested runtime directories. A
-normal installed package cannot reliably locate a writable source checkout,
-so `--storage-path` or `LEGONET_STORAGE_PATH` remains required outside a cloned
-repository. The recommended source-checkout layout is:
+LegoNet uses a fixed directory structure beneath the selected storage root
+because dataset, result, and checkpoint paths are constructed from these
+directory names. Missing directories are created automatically.
+
+When the source checkout is named `Code`, its parent is used as the default
+storage root, producing the four-folder workspace shown below. For checkouts
+with another name, the repository root is used instead. Outside a detectable
+source checkout, specify the storage root with `--storage-path` or
+`LEGONET_STORAGE_PATH`.
+
+The default layout for a checkout named `Code` is:
 
 ```text
 LegoNet/
@@ -237,21 +244,36 @@ LegoNet/
     └── zenodo-21966953/
 ```
 
-Annotation files may reference additional image locations within their dataset
-directory. The final data release documentation will describe the complete
-per-dataset layout.
+See the dataset-specific documentation for complete runtime layouts and
+annotation details:
+
+- [Grape annotations and images](src/legonet/resources/datasets/Embrapa%20WGISD/README.md)
+- [Grapevine-root images and annotations](src/legonet/resources/datasets/Grapevines%20data/README.md)
 
 ## Supported configurations
 
 | Dataset | Network type | Estimate type |
 |---|---|---|
 | `grapes` | `bbox_detection` | Not used by the detector |
-| `grapes` | `per_object_counting` | `withKeyPoints` or `reg_fpn_p3_p7_min_sig` |
+| `grapes` | `per_object_counting` | `keypoints` or `regression` |
 | `roots` | `bbox_detection` | Not used by the detector |
-| `roots` | `per_image_estimation_keypoints` | `withKeyPoints` |
-| `roots` | `per_image_estimation_regression` | `reg_fpn_p3_p7_min_sig` |
-| `roots` | `per_object_attributes` | `withKeyPoints` or `reg_fpn_p3_p7_min_sig` |
-| `roots` | `per_object_attributes_multibranch` | `withKeyPoints` |
+| `roots` | `per_image_estimation_keypoints` | `keypoints` |
+| `roots` | `per_image_estimation_regression` | `regression` |
+| `roots` | `per_object_attributes` | `keypoints` or `regression` |
+| `roots` | `per_object_attributes_multibranch` | `keypoints` |
+
+The `--estimate-type` option selects one of two estimator architectures:
+
+- `keypoints` uses explicit keypoint detection. The model predicts
+  keypoint heatmaps and derives the requested count or attribute from those
+  intermediate predictions.
+- `regression` uses direct regression from feature-pyramid
+  representations, without producing keypoint heatmaps. The long identifier
+  previously used for this option reflected implementation details of the
+  original research code.
+
+The legacy values `withKeyPoints` and `reg_fpn_p3_p7_min_sig` remain accepted
+for compatibility with existing commands and experiment records.
 
 Training requires ground-truth annotations and uses the `Val` validation split.
 Unsupported combinations fail before model or dataset construction.
@@ -264,7 +286,7 @@ Run per-root length, diameter, and color estimation with:
 legonet \
   --dataset-name roots \
   --network-type per_object_attributes_multibranch \
-  --estimate-type withKeyPoints \
+  --estimate-type keypoints \
   --run-script Inference \
   --val-set Test \
   --have-gt true
@@ -340,7 +362,7 @@ python scripts/run_legonet.py \
   --storage-path /path/to/legonet-storage \
   --dataset-name grapes \
   --network-type per_object_counting \
-  --estimate-type reg_fpn_p3_p7_min_sig \
+  --estimate-type regression \
   --run-script Training \
   --val-set Val \
   --have-gt true \
@@ -438,7 +460,7 @@ and per-object head checkpoints:
 python scripts/split_full_checkpoint.py `
   --full-weights-file "C:\weights\legonet_epoch=120.pt" `
   --network-type per_object_counting `
-  --estimate-type reg_fpn_p3_p7_min_sig `
+  --estimate-type regression `
   --detector-output-file "C:\weights\legonet_bbox_grapes.pt" `
   --per-object-output-file "C:\weights\legonet_counting_reg.pt"
 ```
@@ -450,7 +472,7 @@ For an attributes head, pass its attribute names. Each name maps to an
 python scripts/split_full_checkpoint.py `
   --full-weights-file "C:\weights\legonet_epoch=90.pt" `
   --network-type per_object_attributes `
-  --estimate-type withKeyPoints `
+  --estimate-type keypoints `
   --attribute-names length diameter color `
   --detector-output-file "C:\weights\legonet_bbox_roots.pt" `
   --per-object-output-file "C:\weights\legonet_attributes_kp.pt"
@@ -480,7 +502,7 @@ python scripts/combine_partial_checkpoints.py `
   --detector-weights-file "C:\weights\legonet_bbox_grapes.pt" `
   --per-object-weights-file "C:\weights\legonet_counting_reg.pt" `
   --network-type per_object_counting `
-  --estimate-type reg_fpn_p3_p7_min_sig `
+  --estimate-type regression `
   --full-output-file "C:\weights\legonet_counting_reg_full.pt"
 ```
 

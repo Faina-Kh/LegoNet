@@ -17,7 +17,7 @@ if str(SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(SOURCE_ROOT))
 
 from legonet.checkpoint_conversion import (
-    ESTIMATE_TYPES,
+    PUBLIC_ESTIMATE_TYPES,
     PER_OBJECT_NETWORKS,
     combine_partial_checkpoints,
 )
@@ -127,7 +127,7 @@ st.write(
 )
 
 network_type = st.selectbox("Network type", PER_OBJECT_NETWORKS)
-estimate_type = st.selectbox("Estimate type", ESTIMATE_TYPES)
+estimate_type = st.selectbox("Estimate type", PUBLIC_ESTIMATE_TYPES)
 default_attribute_names = (
     "length diameter color"
     if network_type in (

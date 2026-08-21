@@ -11,6 +11,8 @@ from legonet.checkpoint_conversion import (
     combine_partial_state_dicts,
     convert_full_checkpoint,
     estimator_module_names,
+    normalize_estimate_type,
+    per_object_module_names,
     remove_checkpoint_module,
     remove_checkpoint_module_from_state_dict,
     split_full_state_dict,
@@ -37,6 +39,20 @@ def _regression_module_state(*module_names):
 
 class CheckpointConversionTests(unittest.TestCase):
     """Verify generic module naming and architecture-safe extraction."""
+
+    def test_public_estimate_type_names_normalize_to_legacy_identifiers(self):
+        """Friendly CLI names preserve the established internal identifiers."""
+        self.assertEqual(normalize_estimate_type("keypoints"), "withKeyPoints")
+        self.assertEqual(
+            normalize_estimate_type("regression"),
+            "reg_fpn_p3_p7_min_sig",
+        )
+        self.assertEqual(normalize_estimate_type("withKeyPoints"), "withKeyPoints")
+
+    def test_public_estimate_type_alias_selects_expected_modules(self):
+        """Checkpoint conversion accepts the preferred public alias."""
+        modules = per_object_module_names("per_object_counting", "keypoints", [])
+        self.assertEqual(modules, ["backbone_2", "find_2", "estimator"])
 
     def test_empty_attribute_names_use_single_estimator(self):
         self.assertEqual(estimator_module_names([]), ["estimator"])

@@ -10,6 +10,8 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+
+from legonet.checkpoint_conversion import normalize_estimate_type
 from urllib.parse import quote
 from urllib.request import urlopen
 
@@ -67,6 +69,7 @@ def select_published_checkpoint(
     component: str = "full",
 ) -> PublishedCheckpoint:
     """Select the published checkpoint for one supported model component."""
+    estimate_type = normalize_estimate_type(estimate_type)
     estimate = "keypoints" if estimate_type == "withKeyPoints" else "regression"
     if component == "bbox":
         key = f"bbox_{dataset_name}"

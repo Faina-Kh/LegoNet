@@ -14,7 +14,7 @@ from legonet import pretrained
 
 def test_selects_grapes_keypoint_full_checkpoint() -> None:
     checkpoint = pretrained.select_published_checkpoint(
-        "grapes", "per_object_counting", "withKeyPoints", "full"
+        "grapes", "per_object_counting", "keypoints", "full"
     )
     assert checkpoint.filename == "legonet_full_counting_keypoints_grapes.pt"
 
@@ -23,7 +23,7 @@ def test_selects_roots_direct_regression_checkpoint() -> None:
     checkpoint = pretrained.select_published_checkpoint(
         "roots",
         "per_image_estimation_regression",
-        "reg_fpn_p3_p7_min_sig",
+        "regression",
         "full",
     )
     assert checkpoint.filename == "legonet_direct_TRL_regression_roots.pt"

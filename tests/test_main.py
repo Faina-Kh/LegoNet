@@ -214,6 +214,14 @@ class MainEntryPointTests(unittest.TestCase):
             "diameter",
         )
 
+    def test_public_estimate_type_names_are_accepted(self) -> None:
+        """The CLI accepts the concise public estimator names."""
+        keypoints = self.main_module.parse_args(["--estimate-type", "keypoints"])
+        regression = self.main_module.parse_args(["--estimate-type", "regression"])
+
+        self.assertEqual(keypoints.estimate_type, "keypoints")
+        self.assertEqual(regression.estimate_type, "regression")
+
     def test_boolean_defaults_preserve_legacy_run_mode(self) -> None:
         """Omitted options still default to GT evaluation and weight loading."""
         result = self.main_module.resolve_boolean_options(

@@ -11,6 +11,10 @@ from legonet import config, paths
 from legonet.streamlit_output import append_evaluation_summary
 from legonet.pretrained import resolve_pretrained_weights
 from legonet.datasets import default_storage_root, ensure_dataset_available
+from legonet.checkpoint_conversion import (
+    ESTIMATE_TYPE_CHOICES,
+    normalize_estimate_type,
+)
 from datetime import datetime
 
 import warnings
@@ -74,8 +78,12 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--estimate-type",
         "--estimate_type",
-        choices=["withKeyPoints", "reg_fpn_p3_p7_min_sig"],
+        choices=ESTIMATE_TYPE_CHOICES,
         default=None,
+        help=(
+            "Estimator architecture: keypoints or regression. Legacy names "
+            "withKeyPoints and reg_fpn_p3_p7_min_sig remain accepted."
+        ),
     )
     parser.add_argument("--run-script", "--run_script", choices=["Training", "Inference"], default=None)
     parser.add_argument("--val-set", "--val_set", choices=["Val", "Test"], default=None)
@@ -300,6 +308,7 @@ SUPPORTED_ESTIMATE_TYPES_BY_NETWORK = {
 
 def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
     """Validate supported public experiment-option combinations."""
+    args.estimate_type = normalize_estimate_type(args.estimate_type)
     supported_networks = NETWORKS_OPTIONS_BY_DATASETS.get(args.dataset_name)
     if supported_networks is None:
         raise ValueError(f"Unsupported dataset: {args.dataset_name!r}.")
@@ -378,7 +387,11 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     args.STORAGE_PATH = resolve_storage_path(args.storage_path)
     args.dataset_name = args.dataset_name or "roots" #"grapes" #"roots"
     args.network_type = args.network_type or "per_object_attributes_multibranch"
-    args.estimate_type = args.estimate_type or  DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(args.network_type, "withKeyPoints") #"reg_fpn_p3_p7_min_sig")
+    selected_estimate_type = args.estimate_type or DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(
+        args.network_type,
+        "withKeyPoints",
+    )
+    args.estimate_type = normalize_estimate_type(selected_estimate_type)
     resolve_boolean_options(args)
 
     args.run_script = args.run_script or 'Inference' #'Training' #'Inference'

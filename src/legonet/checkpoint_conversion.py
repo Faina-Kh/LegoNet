@@ -22,7 +22,24 @@ PER_OBJECT_NETWORKS = (
     "per_object_attributes_multibranch",
 )
 ESTIMATE_TYPES = ("withKeyPoints", "reg_fpn_p3_p7_min_sig")
+ESTIMATE_TYPE_ALIASES = {
+    "keypoints": "withKeyPoints",
+    "regression": "reg_fpn_p3_p7_min_sig",
+}
+PUBLIC_ESTIMATE_TYPES = tuple(ESTIMATE_TYPE_ALIASES)
+ESTIMATE_TYPE_CHOICES = (*PUBLIC_ESTIMATE_TYPES, *ESTIMATE_TYPES)
 _ATTRIBUTE_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def normalize_estimate_type(estimate_type: str) -> str:
+    """Return the legacy internal identifier for a public estimate-type name."""
+    normalized = ESTIMATE_TYPE_ALIASES.get(estimate_type, estimate_type)
+    if normalized not in ESTIMATE_TYPES:
+        choices = ", ".join(ESTIMATE_TYPE_CHOICES)
+        raise ValueError(
+            f"Unsupported estimate type: {estimate_type!r}. Choose one of: {choices}."
+        )
+    return normalized
 
 
 def estimator_module_names(attribute_names: Sequence[str]) -> list[str]:
@@ -49,8 +66,7 @@ def per_object_module_names(
     """Return the expected modules for a selected per-object architecture."""
     if network_type not in PER_OBJECT_NETWORKS:
         raise ValueError(f"{network_type!r} is not a per-object network.")
-    if estimate_type not in ESTIMATE_TYPES:
-        raise ValueError(f"Unsupported estimate type: {estimate_type!r}.")
+    estimate_type = normalize_estimate_type(estimate_type)
 
     effective_attribute_names = list(attribute_names)
     if (
@@ -132,6 +148,7 @@ def validate_estimator_type_against_checkpoint(
     checkpoint_description: str,
 ) -> None:
     """Reject checkpoints whose estimator internals use another architecture."""
+    estimate_type = normalize_estimate_type(estimate_type)
     for module in estimator_modules:
         prefix = module + "."
         module_keys = [

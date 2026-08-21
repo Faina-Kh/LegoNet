@@ -13,7 +13,7 @@ if str(SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(SOURCE_ROOT))
 
 from legonet.checkpoint_conversion import (
-    ESTIMATE_TYPES,
+    ESTIMATE_TYPE_CHOICES,
     PER_OBJECT_NETWORKS,
     combine_partial_checkpoints,
 )
@@ -38,7 +38,7 @@ def parse_args(arguments: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--estimate-type",
         required=True,
-        choices=ESTIMATE_TYPES,
+        choices=ESTIMATE_TYPE_CHOICES,
     )
     parser.add_argument(
         "--attribute-names",

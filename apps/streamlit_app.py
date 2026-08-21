@@ -41,10 +41,10 @@ NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_attribute
                                 }
 RUN_MODES = ("Inference", "Training")
 VAL_SETS = ("Test", "Val")
-ESTIMATE_TYPES = ("keyPoints_based_estimate", "regression_based_estimate")
+ESTIMATE_TYPES = ("keypoints", "regression")
 ESTIMATE_TYPE_VALUES = {
-    "keyPoints_based_estimate": "withKeyPoints",
-    "regression_based_estimate": "reg_fpn_p3_p7_min_sig",
+    "keypoints": "keypoints",
+    "regression": "regression",
 }
 OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS = ("per_object_counting", "per_object_attributes", "per_object_attributes_multibranch")
 PER_OBJECT_NETWORKS = OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS
@@ -56,9 +56,9 @@ ESTIMATE_SELECT_NETWORK_OPTIONS = (
     "per_object_attributes",
 )
 DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
-    "per_image_estimation_keypoints": "withKeyPoints",
-    "per_image_estimation_regression": "reg_fpn_p3_p7_min_sig",
-    "per_object_attributes_multibranch": "withKeyPoints"
+    "per_image_estimation_keypoints": "keypoints",
+    "per_image_estimation_regression": "regression",
+    "per_object_attributes_multibranch": "keypoints"
 }
 WEIGHTS_TYPES = ('full_model_weights', 'partial_weights')
 STORAGE_PATH_STATE_KEY = "runner_storage_path"
@@ -391,13 +391,13 @@ with st.sidebar:
     else:
         estimate_type = DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(
             selected_network_type,
-            "reg_fpn_p3_p7_min_sig",
+            "regression",
         )
 
     if selected_network_type == "per_image_attributes":
         network_type = (
             "per_image_estimation_keypoints"
-            if selected_estimate_type == "keyPoints_based_estimate"
+            if selected_estimate_type == "keypoints"
             else "per_image_estimation_regression"
         )
     else:
@@ -415,7 +415,7 @@ with st.sidebar:
         num_of_epochs = 0
 
     results_dir_context = (selected_network_type, val_set)
-    type_name = '_KP_' if estimate_type == "withKeyPoints" else "_Reg_"
+    type_name = '_KP_' if estimate_type == "keypoints" else "_Reg_"
     if st.session_state.get("runner_results_dir_context") != results_dir_context:
         st.session_state.runner_results_dir = (
             selected_network_type + type_name + val_set
