@@ -1,13 +1,11 @@
 # Reproducing LegoNet experiments
 
 This document defines the experiment scope and scientific claims for the
-public reproduction workflow. The workflow is being implemented incrementally;
-the commands and machine-readable reference files will be added after the
-experiment inventory is fixed.
+public reproduction workflow. 
 
 ## Verification levels
 
-LegoNet will provide two distinct verification levels:
+LegoNet provides two distinct verification levels:
 
 1. **CPU smoke reproduction** checks installation, configuration, fixture-data
    parsing, evaluation bookkeeping, and structured result generation. It does
