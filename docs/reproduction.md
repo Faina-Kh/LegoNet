@@ -70,6 +70,12 @@ The standalone keypoint Test result includes a mean-diameter relative error of
 20.6% and a mean-diameter absolute difference of `0.076`. The absolute
 difference is not a percentage.
 
+## Grapes per-object counting
+
+Each IoU-matched predicted crop is trained against the full berry count stored
+for its matched ground-truth box. Validation, checkpoint selection, and test
+evaluation use that same original matched-ground-truth count.
+
 ## Experiment identity and split policy
 
 Every reproducible run will have a stable identifier that includes its

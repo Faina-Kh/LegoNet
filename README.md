@@ -366,11 +366,6 @@ python scripts/run_legonet.py \
   --num-of-epochs 300
 ```
 
-For grapes per-object counting, each IoU-matched predicted crop is trained
-against the full count stored for its matched GT box. Validation, checkpoint
-selection, and test evaluation use the same original matched-GT count.
-
-
 The experiment scope, distinction between direct per-image estimation and
 per-root aggregation, and staged verification plan are documented in
 [`docs/reproduction.md`](docs/reproduction.md).
