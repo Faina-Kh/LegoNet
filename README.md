@@ -17,6 +17,10 @@ The underlying methods have been published in
 [*Plant Phenomics*](https://doi.org/10.34133/plantphenomics.0132), and
 [*Remote Sensing*](https://doi.org/10.3390/rs13132496).
 
+The experiment scope, distinction between direct per-image estimation and
+per-root aggregation, and staged verification plan are documented in
+[`docs/reproduction.md`](docs/reproduction.md).
+
 ## Highlights
 
 - End-to-end training, inference, and evaluation in PyTorch.
@@ -365,10 +369,6 @@ python scripts/run_legonet.py \
   --bbox-weights-file /path/to/legonet_bbox_grapes.pt \
   --num-of-epochs 300
 ```
-
-The experiment scope, distinction between direct per-image estimation and
-per-root aggregation, and staged verification plan are documented in
-[`docs/reproduction.md`](docs/reproduction.md).
 
 ### Best-epoch metric
 
