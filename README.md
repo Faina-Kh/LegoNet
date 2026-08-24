@@ -20,8 +20,8 @@ The underlying methods have been published in
 ## Highlights
 
 - End-to-end training, inference, and evaluation in PyTorch.
-- Direct per-image estimation, or object detection followed by per-object prediction.
-- Regression- and keypoint-based architectures for counting and attribute estimation.
+- Direct per-image estimation, or object detection followed by per-object counting\attribute estimation.
+- Regression- and keypoint-based architectures.
 - Demonstrated on two public datasets: berry counting for countable grape clusters,
   and multi-task estimation of root length, diameter, and color.
 - Automated, checksum-verified dataset and checkpoint downloads.
@@ -31,25 +31,26 @@ The underlying methods have been published in
 
 ## Visual examples
 
-### Grape berry counting
+### Per-object estimation - Grape berry counting
 
 ![Raw grapes image, detected cluster crop, ground-truth keypoint heatmap, and LegoNet-predicted keypoint heatmap](docs/images/per-object-counting-keypoint-example.jpg)
 
-*Per-object berry counting. The full image (`CFR_1667.jpg` in the
-[Embrapa WGISD dataset](https://github.com/thsant/wgisd)) shows countable
-grape-cluster annotations in blue and predicted bounding boxes in red. A
-detected cluster is then cropped and passed to the keypoint-based berry-counting
-estimator.*
+*Per-object grape berry counting. The full image (`CFR_1667.jpg` from the
+[Embrapa WGISD dataset](https://github.com/thsant/wgisd)) shows (a) countable
+grape-cluster annotations in blue and predicted bounding boxes in red; (b) a
+detected cluster, which is cropped and passed to the keypoint-based berry-counting
+estimator; and (c) and (d) the ground-truth and predicted keypoint heatmaps,
+respectively.*
 
-### Root-length estimation
+### Per-image estimation - Total root length 
 
 ![Raw underground image, ground-truth root keypoint heatmap, and LegoNet-predicted keypoint heatmap](docs/images/trl-keypoint-heatmaps-example.jpg)
 
 *Total root length (TRL) estimation from the underground image
-`T025_L084_2012.10.10_115421_002.jpg` in the
-[grapevine-root dataset](https://doi.org/10.5281/zenodo.8084106). From left to
-right: raw input, ground-truth Gaussian keypoint heatmap (TRL 124.09 mm), and
-predicted keypoint heatmap (TRL 110.03 mm).*
+`T025_L084_2012.10.10_115421_002.jpg` from the
+[grapevine-root dataset](https://doi.org/10.5281/zenodo.8084106): ((a) raw input;
+(b) ground-truth keypoint heatmap (TRL: 124.09 mm); and
+(c) predicted keypoint heatmap (TRL: 110.03 mm).*
 
 ## Quick start
 
