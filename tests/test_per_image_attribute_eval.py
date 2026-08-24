@@ -10,7 +10,10 @@ from legonet.eval import per_image_attribute_eval
 class PerImageAttributeEvaluationTests(unittest.TestCase):
     def test_continuous_attribute_returns_named_lower_is_better_metric(self) -> None:
         model = SimpleNamespace(estimator=SimpleNamespace(binary_model=False))
-        args = SimpleNamespace(network_type="per_image_estimation_regression")
+        args = SimpleNamespace(
+            network_type="per_image_estimation",
+            estimate_type="reg_fpn_p3_p7_min_sig",
+        )
 
         with mock.patch.object(
             per_image_attribute_eval,
@@ -26,7 +29,10 @@ class PerImageAttributeEvaluationTests(unittest.TestCase):
 
     def test_binary_attribute_is_reported_as_classification_error(self) -> None:
         model = SimpleNamespace(estimator=SimpleNamespace(binary_model=True))
-        args = SimpleNamespace(network_type="per_image_estimation_keypoints")
+        args = SimpleNamespace(
+            network_type="per_image_estimation",
+            estimate_type="withKeyPoints",
+        )
 
         with mock.patch.object(
             per_image_attribute_eval,

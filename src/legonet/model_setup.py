@@ -26,8 +26,7 @@ def _validate_estimator_weights(
 ) -> None:
     """Reject estimator weights built for a different estimation architecture."""
     if args.network_type in (
-        "per_image_estimation_keypoints",
-        "per_image_estimation_regression",
+        "per_image_estimation",
         "per_object_counting",
     ):
         estimator_modules = estimator_module_names(())
@@ -208,10 +207,10 @@ def _load_full_weights(model: Any, args: Any) -> None:
     _validate_estimator_weights(model_state, args, "Full-model checkpoint")
 
     module_names = None
-    if args.network_type == "per_image_estimation_keypoints":
-        module_names = ["backbone", "find", "estimator"]
-    elif args.network_type == "per_image_estimation_regression":
+    if args.network_type == "per_image_estimation":
         module_names = ["backbone", "estimator"]
+        if args.estimate_type == "withKeyPoints":
+            module_names.insert(1, "find")
     elif args.network_type == "per_object_counting":
         if args.estimate_type == "withKeyPoints":
             module_names = [
@@ -318,7 +317,7 @@ def export_legacy_weights(model: Any, args: Any) -> None:
             tasks=["bbox_detection", "per_object_attributes"],
             output_name=args.output_name,
         )
-    elif args.network_type in ("per_image_estimation_keypoints", "per_image_estimation_regression"):
+    elif args.network_type == "per_image_estimation":
         save_partial_weights(
             args,
             model,

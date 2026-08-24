@@ -236,33 +236,17 @@ class MainEntryPointTests(unittest.TestCase):
         self.assertEqual(args.network_type, "per_image_estimation")
         self.assertEqual(args.estimate_type, "regression")
 
-    def test_unified_per_image_network_maps_to_existing_runtime_variants(self) -> None:
-        """Step-one normalization preserves the established model dispatch."""
-        keypoints = self.main_module.resolve_per_image_network_type(
-            "per_image_estimation",
-            "withKeyPoints",
-        )
-        regression = self.main_module.resolve_per_image_network_type(
-            "per_image_estimation",
-            "reg_fpn_p3_p7_min_sig",
-        )
-
-        self.assertEqual(
-            keypoints,
-            ("per_image_estimation_keypoints", "withKeyPoints"),
-        )
-        self.assertEqual(
-            regression,
-            ("per_image_estimation_regression", "reg_fpn_p3_p7_min_sig"),
-        )
-
-    def test_legacy_per_image_network_rejects_conflicting_estimate_type(self) -> None:
-        """Legacy aliases cannot silently select the opposite architecture."""
-        with self.assertRaisesRegex(ValueError, "requires estimate type"):
-            self.main_module.resolve_per_image_network_type(
-                "per_image_estimation_keypoints",
-                "reg_fpn_p3_p7_min_sig",
+    def test_removed_per_image_network_names_are_rejected(self) -> None:
+        """Only the unified per-image network name is public."""
+        with self.assertRaises(SystemExit):
+            self.main_module.parse_args(
+                ["--network-type", "per_image_estimation_keypoints"]
             )
+
+    def test_internal_estimate_type_names_are_rejected_by_parser(self) -> None:
+        """Only concise estimate-type names are exposed by the CLI."""
+        with self.assertRaises(SystemExit):
+            self.main_module.parse_args(["--estimate-type", "withKeyPoints"])
 
     def test_boolean_defaults_preserve_legacy_run_mode(self) -> None:
         """Omitted options still default to GT evaluation and weight loading."""
@@ -333,7 +317,7 @@ class MainEntryPointTests(unittest.TestCase):
         """Per-image roots runs receive the dataset-wide inference flags."""
         args = SimpleNamespace(
             dataset_name="roots",
-            network_type="per_image_estimation_keypoints",
+            network_type="per_image_estimation",
         )
 
         result = self.main_module.initialize_dataset_runtime_flags(args)
@@ -428,19 +412,18 @@ class MainEntryPointTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not supported for dataset"):
             self.main_module.validate_configuration(args)
 
-    def test_network_rejects_an_incompatible_estimator(self) -> None:
-        """Fixed-estimator networks report their supported estimate type."""
+    def test_per_image_network_accepts_regression_estimator(self) -> None:
+        """The unified per-image network supports regression."""
         args = SimpleNamespace(
             dataset_name="roots",
-            network_type="per_image_estimation_keypoints",
+            network_type="per_image_estimation",
             estimate_type="reg_fpn_p3_p7_min_sig",
             run_script="Inference",
             val_set="Test",
             have_GT=True,
         )
 
-        with self.assertRaisesRegex(ValueError, "not supported for network"):
-            self.main_module.validate_configuration(args)
+        self.assertIs(self.main_module.validate_configuration(args), args)
 
     def test_multibranch_network_requires_keypoints(self) -> None:
         """The multibranch architecture remains keypoint-only."""

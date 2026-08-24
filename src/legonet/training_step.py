@@ -45,17 +45,16 @@ def combine_losses(raw_losses: Dict[str, Any], args: Any) -> LossResult:
         total = _detection_losses(raw_losses, values)
         return LossResult(total, values)
 
-    if network_type == "per_image_estimation_keypoints":
-        l1_loss = raw_losses.get("l1_estimation")
-        maps_loss = raw_losses.get("maps")
-        if l1_loss is None or maps_loss is None:
-            return LossResult(None, {"l1_estimation": -1, "maps": -1})
-        l1_loss = _mean_value(args.loss_weight * l1_loss)
-        maps_loss = _mean_value(maps_loss)
-        values.update(l1_estimation=l1_loss.item(), maps=maps_loss.item())
-        return LossResult(l1_loss + maps_loss, values)
-
-    if network_type == "per_image_estimation_regression":
+    if network_type == "per_image_estimation":
+        if args.estimate_type == "withKeyPoints":
+            l1_loss = raw_losses.get("l1_estimation")
+            maps_loss = raw_losses.get("maps")
+            if l1_loss is None or maps_loss is None:
+                return LossResult(None, {"l1_estimation": -1, "maps": -1})
+            l1_loss = _mean_value(args.loss_weight * l1_loss)
+            maps_loss = _mean_value(maps_loss)
+            values.update(l1_estimation=l1_loss.item(), maps=maps_loss.item())
+            return LossResult(l1_loss + maps_loss, values)
         regression = _mean_value(args.loss_weight * raw_losses["reg_estimation"])
         values["reg_estimation"] = regression.item()
         return LossResult(regression, values)
@@ -126,10 +125,10 @@ def forward_losses(
             [image, data["bbox_annot"].to(config.General.device)]
         )
         return {"classification": classification, "regression": regression}
-    if args.network_type == "per_image_estimation_keypoints":
-        l1_loss, maps = model([image, data["annot"]])
-        return {"l1_estimation": l1_loss, "maps": maps}
-    if args.network_type == "per_image_estimation_regression":
+    if args.network_type == "per_image_estimation":
+        if args.estimate_type == "withKeyPoints":
+            l1_loss, maps = model([image, data["annot"]])
+            return {"l1_estimation": l1_loss, "maps": maps}
         return {"reg_estimation": model([image, data["annot"]])}
     if not torch.cuda.is_available():
         raise RuntimeError(f"Network type {args.network_type} requires CUDA for training.")

@@ -43,14 +43,7 @@ MODEL_REGISTRY = {
         "module_path": "legonet.models.model_bbox_detection",
         "builder": _build_bbox_detection,
     },
-    "per_image_estimation_keypoints": {
-        "module_path": "legonet.models.model_estimator_withKP",
-        "builder": _build_KP_estimator,
-    },
-    "per_image_estimation_regression": {
-        "module_path": "legonet.models.model_estimator_withReg",
-        "builder": _build_reg_estimator,
-    },
+    "per_image_estimation": {},
     "per_object_counting": {
         "module_path": "legonet.models.model_per_object_counting",
         "builder": _build_per_object_estimate,
@@ -75,6 +68,19 @@ def model_build(args, dataset_train, dataset_val):
     if args.network_type == "per_object_attributes_multibranch":
         assert config.AttributeEstimation.estimate_type == 'withKeyPoints'
 
-    model_config = MODEL_REGISTRY[args.network_type]
+    if args.network_type == "per_image_estimation":
+        model_config = (
+            {
+                "module_path": "legonet.models.model_estimator_withKP",
+                "builder": _build_KP_estimator,
+            }
+            if config.AttributeEstimation.estimate_type == "withKeyPoints"
+            else {
+                "module_path": "legonet.models.model_estimator_withReg",
+                "builder": _build_reg_estimator,
+            }
+        )
+    else:
+        model_config = MODEL_REGISTRY[args.network_type]
     model_module = import_module(model_config["module_path"])
     return model_config["builder"](model_module, args, dataset)

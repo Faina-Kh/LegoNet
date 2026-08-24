@@ -22,7 +22,7 @@ def test_selects_grapes_keypoint_full_checkpoint() -> None:
 def test_selects_roots_direct_regression_checkpoint() -> None:
     checkpoint = pretrained.select_published_checkpoint(
         "roots",
-        "per_image_estimation_regression",
+        "per_image_estimation",
         "regression",
         "full",
     )

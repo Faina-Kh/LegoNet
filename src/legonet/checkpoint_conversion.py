@@ -27,12 +27,12 @@ ESTIMATE_TYPE_ALIASES = {
     "regression": "reg_fpn_p3_p7_min_sig",
 }
 PUBLIC_ESTIMATE_TYPES = tuple(ESTIMATE_TYPE_ALIASES)
-ESTIMATE_TYPE_CHOICES = (*PUBLIC_ESTIMATE_TYPES, *ESTIMATE_TYPES)
+ESTIMATE_TYPE_CHOICES = PUBLIC_ESTIMATE_TYPES
 _ATTRIBUTE_NAME_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def normalize_estimate_type(estimate_type: str) -> str:
-    """Return the legacy internal identifier for a public estimate-type name."""
+    """Return the internal identifier for a public estimate-type name."""
     normalized = ESTIMATE_TYPE_ALIASES.get(estimate_type, estimate_type)
     if normalized not in ESTIMATE_TYPES:
         choices = ", ".join(ESTIMATE_TYPE_CHOICES)

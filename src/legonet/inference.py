@@ -307,10 +307,7 @@ def run_inference(
         return
 
     utils.printf("------------------Attribute estimation evaluation:------------------\n")
-    if config.General.NETWORK_TYPE in (
-        config.NetworkType.per_image_estimation_regression,
-        config.NetworkType.per_image_estimation_keypoints,
-    ):
+    if config.General.NETWORK_TYPE == config.NetworkType.per_image_estimation:
         relative_error = per_image_attribute_eval.evaluate(
             dataloader_val,
             dataset_val,

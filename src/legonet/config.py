@@ -18,9 +18,8 @@ class NetworkType(enum.Enum):
     """Internal network families used for runtime dispatch."""
 
     detection = 1
-    per_image_estimation_keypoints = 2
+    per_image_estimation = 2
     detection_and_estimation = 3
-    per_image_estimation_regression = 4
 
 
 class General:

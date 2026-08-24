@@ -162,7 +162,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
             "load_full_model_weights": False,
             "save_from_model_file": False,
             "myExpPath": "experiment",
-            "network_type": "per_image_estimation_regression",
+            "network_type": "per_image_estimation",
             "estimate_type": "reg_fpn_p3_p7_min_sig",
             "freeze_detection": False,
         }
@@ -393,12 +393,12 @@ class RunnerCharacterizationTests(unittest.TestCase):
         }
         cases = (
             (
-                "per_image_estimation_keypoints",
+                "per_image_estimation",
                 "withKeyPoints",
                 regression_single,
             ),
             (
-                "per_image_estimation_regression",
+                "per_image_estimation",
                 "reg_fpn_p3_p7_min_sig",
                 keypoint_single,
             ),
@@ -549,7 +549,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
         args = SimpleNamespace(
             load_weights=False,
             save_from_model_file=False,
-            network_type="per_image_estimation_regression",
+            network_type="per_image_estimation",
             freeze_detection=False,
             run_script="Training",
         )

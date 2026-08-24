@@ -42,11 +42,6 @@ def evaluate(
     print("Start evaluation")
     model.eval()
 
-    # is_per_image_attribute_model = config.Detect_and_Estimate.type in {
-    #     "per_image_estimation_keypoints",
-    #     "per_image_estimation_regression"
-    # }
-
     with torch.no_grad():
 
         all_GT_values = []
@@ -68,7 +63,7 @@ def evaluate(
 
             Image_name = Path(full_rgbImage_name).stem
 
-            if args.network_type == "per_image_estimation_regression":
+            if args.estimate_type == "reg_fpn_p3_p7_min_sig":
                 if args.have_GT:
                     GT = first_scalar(data['annot'][0])
                     prediction = float(model([data['img'].to(config.General.device).float(), data['annot']])[0].squeeze().item())
@@ -78,14 +73,14 @@ def evaluate(
                 if prediction<0:
                     prediction=0
 
-            elif args.network_type == "per_image_estimation_keypoints":
+            else:
                 if args.have_GT:
                     GT = first_scalar(data['annot'][0])
                     count_outputs = model([data['img'].to(config.General.device).float(), data['annot']])
 
                     ###########################################################################################################
                     if iter_num == 0 and do_profile:
-                        print("Get FLOPS for per_image_estimation_keypoints:")
+                        print("Get FLOPS for per_image_estimation with keypoints:")
                         # Use thop to profile the model
                         input = [data['img'].to(config.General.device).float(), data['annot']]
                         flops, params = profile(model, inputs=(input,))
@@ -120,7 +115,7 @@ def evaluate(
 
                 # ---------------------------------------
 
-            if args.network_type == 'per_image_estimation_keypoints' and config.General.to_draw:
+            if args.estimate_type == "withKeyPoints" and config.General.to_draw:
                 img = Image.open(os.path.join(dataset.base_dir, full_rgbImage_name))
                 if args.have_GT and args.val_csv_leaf_location_file != "":
                     gt_maps = data['annot'][1:6]
@@ -314,10 +309,7 @@ def evaluate_checkpoint_metrics(
             metric_name="classification_error_rate",
             metric_value=metric_value,
         )
-    if args.network_type in {
-        "per_image_estimation_keypoints",
-        "per_image_estimation_regression",
-    }:
+    if args.network_type == "per_image_estimation":
         return PerImageCheckpointMetrics(
             metric_name="relative_error",
             metric_value=metric_value,

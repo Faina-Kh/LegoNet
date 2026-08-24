@@ -53,6 +53,7 @@ class TrainingStepTests(unittest.TestCase):
             "color_loss_weight": 100,
             "dia_loss_weight": 10,
             "maps_loss_weight": 1,
+            "estimate_type": "withKeyPoints",
         }
         values.update(overrides)
         return SimpleNamespace(**values)
@@ -68,14 +69,17 @@ class TrainingStepTests(unittest.TestCase):
     def test_counting_keypoint_loss(self):
         result = self.step.combine_losses(
             {"l1_estimation": FakeTensor(2), "maps": FakeTensor(1)},
-            self.args("per_image_estimation_keypoints"),
+            self.args("per_image_estimation"),
         )
         self.assertEqual(result.total.item(), 5)
 
     def test_per_image_regression_loss(self):
         result = self.step.combine_losses(
             {"reg_estimation": FakeTensor(3)},
-            self.args("per_image_estimation_regression"),
+            self.args(
+                "per_image_estimation",
+                estimate_type="reg_fpn_p3_p7_min_sig",
+            ),
         )
         self.assertEqual(result.total.item(), 6)
 

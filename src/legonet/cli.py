@@ -67,8 +67,6 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
         choices=[
             "bbox_detection",
             "per_image_estimation",
-            "per_image_estimation_keypoints",
-            "per_image_estimation_regression",
             "per_object_counting",
             "per_object_attributes",
             "per_object_attributes_multibranch",
@@ -82,8 +80,7 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
         choices=ESTIMATE_TYPE_CHOICES,
         default=None,
         help=(
-            "Estimator architecture: keypoints or regression. Legacy names "
-            "withKeyPoints and reg_fpn_p3_p7_min_sig remain accepted."
+            "Estimator architecture: keypoints or regression."
         ),
     )
     parser.add_argument("--run-script", "--run_script", choices=["Training", "Inference"], default=None)
@@ -280,46 +277,9 @@ def resolve_boolean_options(args: argparse.Namespace) -> argparse.Namespace:
 
 DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
     "per_image_estimation": "withKeyPoints",
-    "per_image_estimation_keypoints": "withKeyPoints",
-    "per_image_estimation_regression": "reg_fpn_p3_p7_min_sig",
     "per_object_attributes_multibranch": "withKeyPoints",
     #"per_object_counting": "withKeyPoints" # dont have currently weights for "reg_fpn_p3_p7_min_sig"
 }
-
-PER_IMAGE_NETWORK_BY_ESTIMATE_TYPE = {
-    "withKeyPoints": "per_image_estimation_keypoints",
-    "reg_fpn_p3_p7_min_sig": "per_image_estimation_regression",
-}
-LEGACY_PER_IMAGE_ESTIMATE_TYPE = {
-    network_type: estimate_type
-    for estimate_type, network_type in PER_IMAGE_NETWORK_BY_ESTIMATE_TYPE.items()
-}
-
-
-def resolve_per_image_network_type(
-    network_type: str,
-    estimate_type: str,
-) -> tuple[str, str]:
-    """Map the unified per-image option to the existing runtime network name.
-
-    Legacy per-image network names remain valid, but their implied estimator
-    must agree with an explicitly selected estimate type.
-    """
-    if network_type == "per_image_estimation":
-        return PER_IMAGE_NETWORK_BY_ESTIMATE_TYPE[estimate_type], estimate_type
-
-    implied_estimate_type = LEGACY_PER_IMAGE_ESTIMATE_TYPE.get(network_type)
-    if (
-        implied_estimate_type is not None
-        and estimate_type != implied_estimate_type
-    ):
-        raise ValueError(
-            f"Legacy network type {network_type!r} requires estimate type "
-            f"{implied_estimate_type!r}, received {estimate_type!r}. Use "
-            "--network-type per_image_estimation to select the architecture "
-            "with --estimate-type."
-        )
-    return network_type, estimate_type
 
 MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection")
 
@@ -328,15 +288,14 @@ PER_OBJECT_NETWORKS = ("per_object_counting", "per_object_attributes", "per_obje
 INCLUDE_BBOX_DETECTION = ("bbox_detection", "per_object_counting", "per_object_attributes", "per_object_attributes_multibranch")
 
 
-NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_estimation_keypoints", "per_image_estimation_regression", "per_object_attributes",
+NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_estimation", "per_object_attributes",
                                           "per_object_attributes_multibranch"),
                                 'grapes': ("bbox_detection", "per_object_counting")
                                 }
 
 SUPPORTED_ESTIMATE_TYPES_BY_NETWORK = {
     "bbox_detection": ("withKeyPoints", "reg_fpn_p3_p7_min_sig"),
-    "per_image_estimation_keypoints": ("withKeyPoints",),
-    "per_image_estimation_regression": ("reg_fpn_p3_p7_min_sig",),
+    "per_image_estimation": ("withKeyPoints", "reg_fpn_p3_p7_min_sig"),
     "per_object_counting": ("withKeyPoints", "reg_fpn_p3_p7_min_sig"),
     "per_object_attributes": ("withKeyPoints", "reg_fpn_p3_p7_min_sig"),
     "per_object_attributes_multibranch": ("withKeyPoints",),
@@ -393,7 +352,7 @@ def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
     if (
         getattr(args, "weights_mode", None) == "partial"
         and args.network_type
-        in ("per_image_estimation_keypoints", "per_image_estimation_regression")
+        == "per_image_estimation"
     ):
         raise ValueError(
             "Per-image estimation networks require --weights-mode full or none."
@@ -429,10 +388,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         "withKeyPoints",
     )
     args.estimate_type = normalize_estimate_type(selected_estimate_type)
-    args.network_type, args.estimate_type = resolve_per_image_network_type(
-        args.network_type,
-        args.estimate_type,
-    )
     resolve_boolean_options(args)
 
     args.run_script = args.run_script or 'Inference' #'Training' #'Inference'
@@ -615,17 +570,15 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         args.dataset_type = "kcsv"
 
     elif args.dataset_name == "roots":
-        if args.network_type == "per_image_estimation_keypoints" or args.network_type == "per_image_estimation_regression":
+        if args.network_type == "per_image_estimation":
             args.dataset_type = 'csv_LCC'
         else:
             args.dataset_type = "roots_json"
 
     if args.network_type == "bbox_detection":
         config.General.NETWORK_TYPE = config.NetworkType.detection
-    elif args.network_type == "per_image_estimation_keypoints":
-        config.General.NETWORK_TYPE = config.NetworkType.per_image_estimation_keypoints
-    elif args.network_type == "per_image_estimation_regression":
-        config.General.NETWORK_TYPE = config.NetworkType.per_image_estimation_regression
+    elif args.network_type == "per_image_estimation":
+        config.General.NETWORK_TYPE = config.NetworkType.per_image_estimation
     elif args.network_type == "per_object_counting" or args.network_type == "per_object_attributes" or args.network_type == "per_object_attributes_multibranch":
         config.General.NETWORK_TYPE = config.NetworkType.detection_and_estimation
 
@@ -742,8 +695,8 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
 
             os.makedirs(args.per_object_weights_dir, exist_ok=True)
 
-    if args.network_type == "per_image_estimation_keypoints" or args.network_type == "per_image_estimation_regression":
-        if args.network_type == "per_image_estimation_keypoints":
+    if args.network_type == "per_image_estimation":
+        if args.estimate_type == "withKeyPoints":
             args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_KP") # args.myExpPath, "Weights",
         else:
             args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_Reg") #args.myExpPath, "Weights", #os.path.join(args.myExpPath, 'TRL_estimator_reg\\Weights\\2026-05-21_121532') #os.path.join(args.myExpPath, "Weights", "per_image_attributes", "TRL_Reg")
@@ -772,11 +725,11 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     if args.save_from_model_file:
         file_path = "Prev_model_files\\"
         if args.dataset_name == "roots":
-            if args.network_type == "per_image_estimation_keypoints":
+            if args.network_type == "per_image_estimation" and args.estimate_type == "withKeyPoints":
                 file_path += "keyPoints_based_models\\TRL_only\\2023-01-23_132447"
                 args.output_name = 'TRLwithKeyPoints'
 
-            elif args.network_type == "per_image_estimation_regression":
+            elif args.network_type == "per_image_estimation":
                 file_path += "Reg_based_models", "reg_TRL_only\\2023-06-04_175138"
                 args.output_name = 'TRLwithReg'
 

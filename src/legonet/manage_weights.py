@@ -84,14 +84,14 @@ def save_partial_weights(
             #                                              'legonet_per_object_count_epoch=249.pt'))
 
         if task == "per_image_attributes":
-            if args.network_type == "per_image_estimation_keypoints":
+            if args.estimate_type == "withKeyPoints":
                 submodules = ['backbone_1', 'find_2', 'LeanCountingModule']
 
                 rename_map = {'backbone_1': 'backbone',
                               'find_2': 'find',
                               'LeanCountingModule': 'estimator'}
 
-            elif args.network_type == "per_image_estimation_regression":
+            else:
                 submodules = ['backbone_1', 'CountWithRegModule', 'CountRegSubmodel']
 
                 rename_map = {'backbone_1': 'backbone',

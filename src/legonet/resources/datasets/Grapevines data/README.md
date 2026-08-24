@@ -194,7 +194,7 @@ python scripts/run_legonet.py \
   --storage-path /path/to/legonet-storage \
   --dataset-name roots \
   --network-type per_object_attributes \
-  --estimate-type withKeyPoints \
+  --estimate-type keypoints \
   --run-script Inference \
   --val-set Test \
   --have-gt true \

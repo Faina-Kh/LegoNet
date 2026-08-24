@@ -84,7 +84,7 @@ def select_published_checkpoint(
     elif network_type == "per_object_attributes_multibranch":
         prefix = "full_attributes" if component == "full" else "attributes"
         key = f"{prefix}_multibranch_{dataset_name}"
-    elif network_type in ("per_image_estimation_keypoints", "per_image_estimation_regression"):
+    elif network_type == "per_image_estimation":
         key = f"direct_trl_{estimate}_{dataset_name}"
     else:
         key = ""
@@ -176,10 +176,7 @@ def resolve_pretrained_weights(args: argparse.Namespace) -> argparse.Namespace:
             else "full"
         )
 
-    if args.weights_mode == "partial" and args.network_type in (
-        "per_image_estimation_keypoints",
-        "per_image_estimation_regression",
-    ):
+    if args.weights_mode == "partial" and args.network_type == "per_image_estimation":
         raise ValueError(
             "Per-image estimation networks require --weights-mode full, auto, or none."
         )

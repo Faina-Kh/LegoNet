@@ -35,7 +35,7 @@ NETWORK_OPTIONS = (
     "per_object_attributes",
     "per_object_attributes_multibranch",
 )
-NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_attributes", "per_object_attributes",
+NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_estimation", "per_object_attributes",
                                           "per_object_attributes_multibranch"),
                                 'grapes': ("bbox_detection", "per_object_counting")
                                 }
@@ -51,13 +51,12 @@ PER_OBJECT_NETWORKS = OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS
 ATTRIBUTE_CHECKPOINT_NAMES = ("length", "diameter", "color")
 MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection")
 ESTIMATE_SELECT_NETWORK_OPTIONS = (
-    "per_image_attributes",
+    "per_image_estimation",
     "per_object_counting",
     "per_object_attributes",
 )
 DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
-    "per_image_estimation_keypoints": "keypoints",
-    "per_image_estimation_regression": "regression",
+    "per_image_estimation": "keypoints",
     "per_object_attributes_multibranch": "keypoints"
 }
 WEIGHTS_TYPES = ('full_model_weights', 'partial_weights')
@@ -394,14 +393,7 @@ with st.sidebar:
             "regression",
         )
 
-    if selected_network_type == "per_image_attributes":
-        network_type = (
-            "per_image_estimation_keypoints"
-            if selected_estimate_type == "keypoints"
-            else "per_image_estimation_regression"
-        )
-    else:
-        network_type = selected_network_type
+    network_type = selected_network_type
 
     if run_script == "Training":
         num_of_epochs = st.number_input(
@@ -533,10 +525,7 @@ with st.sidebar:
         available_weights_modes = ("detector_only", "full", "partial", "none")
     elif network_type == "bbox_detection":
         available_weights_modes = ("full", "none")
-    elif network_type in (
-        "per_image_estimation_keypoints",
-        "per_image_estimation_regression",
-    ):
+    elif network_type == "per_image_estimation":
         available_weights_modes = ("full", "none")
     else:
         available_weights_modes = ("partial", "full", "none")
@@ -554,11 +543,7 @@ with st.sidebar:
             if network_type == "bbox_detection"
             else "For per-image models, load a checkpoint containing the entire "
             "model or start without saved weights."
-            if network_type
-            in (
-                "per_image_estimation_keypoints",
-                "per_image_estimation_regression",
-            )
+            if network_type == "per_image_estimation"
             else "Choose whether to load a full checkpoint, compatible "
             "task-specific checkpoints, or initialize without saved weights."
         ),
