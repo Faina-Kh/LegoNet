@@ -32,8 +32,8 @@ The direct models take a complete image as input and estimate total root length
 
 | Experiment | Network type | Estimate type | Released target |
 |---|---|---|---|
-| Direct TRL, keypoints | `per_image_estimation_keypoints` | `withKeyPoints` | TRL |
-| Direct TRL, regression | `per_image_estimation_regression` | `reg_fpn_p3_p7_min_sig` | TRL |
+| Direct TRL, keypoints | `per_image_estimation` | `keypoints` | TRL |
+| Direct TRL, regression | `per_image_estimation` | `regression` | TRL |
 
 Verified Test-set results:
 

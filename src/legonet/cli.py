@@ -66,6 +66,7 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
         "--network_type",
         choices=[
             "bbox_detection",
+            "per_image_estimation",
             "per_image_estimation_keypoints",
             "per_image_estimation_regression",
             "per_object_counting",
@@ -278,11 +279,47 @@ def resolve_boolean_options(args: argparse.Namespace) -> argparse.Namespace:
 
 
 DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
+    "per_image_estimation": "withKeyPoints",
     "per_image_estimation_keypoints": "withKeyPoints",
     "per_image_estimation_regression": "reg_fpn_p3_p7_min_sig",
     "per_object_attributes_multibranch": "withKeyPoints",
     #"per_object_counting": "withKeyPoints" # dont have currently weights for "reg_fpn_p3_p7_min_sig"
 }
+
+PER_IMAGE_NETWORK_BY_ESTIMATE_TYPE = {
+    "withKeyPoints": "per_image_estimation_keypoints",
+    "reg_fpn_p3_p7_min_sig": "per_image_estimation_regression",
+}
+LEGACY_PER_IMAGE_ESTIMATE_TYPE = {
+    network_type: estimate_type
+    for estimate_type, network_type in PER_IMAGE_NETWORK_BY_ESTIMATE_TYPE.items()
+}
+
+
+def resolve_per_image_network_type(
+    network_type: str,
+    estimate_type: str,
+) -> tuple[str, str]:
+    """Map the unified per-image option to the existing runtime network name.
+
+    Legacy per-image network names remain valid, but their implied estimator
+    must agree with an explicitly selected estimate type.
+    """
+    if network_type == "per_image_estimation":
+        return PER_IMAGE_NETWORK_BY_ESTIMATE_TYPE[estimate_type], estimate_type
+
+    implied_estimate_type = LEGACY_PER_IMAGE_ESTIMATE_TYPE.get(network_type)
+    if (
+        implied_estimate_type is not None
+        and estimate_type != implied_estimate_type
+    ):
+        raise ValueError(
+            f"Legacy network type {network_type!r} requires estimate type "
+            f"{implied_estimate_type!r}, received {estimate_type!r}. Use "
+            "--network-type per_image_estimation to select the architecture "
+            "with --estimate-type."
+        )
+    return network_type, estimate_type
 
 MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection")
 
@@ -392,6 +429,10 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         "withKeyPoints",
     )
     args.estimate_type = normalize_estimate_type(selected_estimate_type)
+    args.network_type, args.estimate_type = resolve_per_image_network_type(
+        args.network_type,
+        args.estimate_type,
+    )
     resolve_boolean_options(args)
 
     args.run_script = args.run_script or 'Inference' #'Training' #'Inference'

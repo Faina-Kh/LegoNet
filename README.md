@@ -258,8 +258,7 @@ annotation details:
 | `grapes` | `bbox_detection` | Not used by the detector |
 | `grapes` | `per_object_counting` | `keypoints` or `regression` |
 | `roots` | `bbox_detection` | Not used by the detector |
-| `roots` | `per_image_estimation_keypoints` | `keypoints` |
-| `roots` | `per_image_estimation_regression` | `regression` |
+| `roots` | `per_image_estimation` | `keypoints` or `regression` |
 | `roots` | `per_object_attributes` | `keypoints` or `regression` |
 | `roots` | `per_object_attributes_multibranch` | `keypoints` |
 
@@ -268,13 +267,8 @@ The `--estimate-type` option selects one of two estimator architectures:
 - `keypoints` uses explicit keypoint detection. The model predicts
   keypoint heatmaps and derives the requested count or attribute from those
   intermediate predictions.
-- `regression` uses direct regression from feature-pyramid
-  representations, without producing keypoint heatmaps. The long identifier
-  previously used for this option reflected implementation details of the
-  original research code.
-
-The legacy values `withKeyPoints` and `reg_fpn_p3_p7_min_sig` remain accepted
-for compatibility with existing commands and experiment records.
+- `regression` uses direct regression from feature-pyramid representations,
+  without producing keypoint heatmaps.
 
 Training requires ground-truth annotations and uses the `Val` validation split.
 Unsupported combinations fail before model or dataset construction.

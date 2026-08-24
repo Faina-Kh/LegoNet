@@ -222,6 +222,48 @@ class MainEntryPointTests(unittest.TestCase):
         self.assertEqual(keypoints.estimate_type, "keypoints")
         self.assertEqual(regression.estimate_type, "regression")
 
+    def test_unified_per_image_network_is_accepted_by_cli(self) -> None:
+        """The public CLI exposes one per-image network type."""
+        args = self.main_module.parse_args(
+            [
+                "--network-type",
+                "per_image_estimation",
+                "--estimate-type",
+                "regression",
+            ]
+        )
+
+        self.assertEqual(args.network_type, "per_image_estimation")
+        self.assertEqual(args.estimate_type, "regression")
+
+    def test_unified_per_image_network_maps_to_existing_runtime_variants(self) -> None:
+        """Step-one normalization preserves the established model dispatch."""
+        keypoints = self.main_module.resolve_per_image_network_type(
+            "per_image_estimation",
+            "withKeyPoints",
+        )
+        regression = self.main_module.resolve_per_image_network_type(
+            "per_image_estimation",
+            "reg_fpn_p3_p7_min_sig",
+        )
+
+        self.assertEqual(
+            keypoints,
+            ("per_image_estimation_keypoints", "withKeyPoints"),
+        )
+        self.assertEqual(
+            regression,
+            ("per_image_estimation_regression", "reg_fpn_p3_p7_min_sig"),
+        )
+
+    def test_legacy_per_image_network_rejects_conflicting_estimate_type(self) -> None:
+        """Legacy aliases cannot silently select the opposite architecture."""
+        with self.assertRaisesRegex(ValueError, "requires estimate type"):
+            self.main_module.resolve_per_image_network_type(
+                "per_image_estimation_keypoints",
+                "reg_fpn_p3_p7_min_sig",
+            )
+
     def test_boolean_defaults_preserve_legacy_run_mode(self) -> None:
         """Omitted options still default to GT evaluation and weight loading."""
         result = self.main_module.resolve_boolean_options(
