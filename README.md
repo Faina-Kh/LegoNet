@@ -39,7 +39,7 @@ The underlying methods have been published in
 [Embrapa WGISD dataset](https://github.com/thsant/wgisd)) shows (a) countable
 grape-cluster annotations in blue and predicted bounding boxes in red; (b) a
 detected cluster, which is cropped and passed to the keypoint-based berry-counting
-estimator; and (c) and (d) the ground-truth and predicted keypoint heatmaps,
+estimator; and (c) and (d) the ground-truth and predicted keypoint heatmaps corresponding to the cropped cluster,
 respectively.*
 
 ### Per-image estimation - Total root length 
