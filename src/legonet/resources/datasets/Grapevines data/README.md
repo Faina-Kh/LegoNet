@@ -4,29 +4,38 @@ LegoNet's `roots` configurations use the **Dataset of Grapevine Roots with
 Length, Diameter, and Color Annotations**. The dataset contains in-situ
 minirhizotron images with root-object locations and three attributes:
 
-- total root length (TRL), a regression target;
+- root length, a regression target;
 - root diameter, a regression target; and
 - root color, a binary classification target.
+
+These annotations support root detection, direct image-level estimation, and
+per-root attribute estimation.
+
+## Provenance and download
 
 The dataset files are not redistributed in this repository. LegoNet can
 download `Grapevines data.zip` from the
 [Zenodo dataset record](https://doi.org/10.5281/zenodo.8084106), verify its
 published MD5 checksum, and safely extract it into the runtime
-`Datasets/Grapevines data/` directory. Run `legonet-data download roots`, or
+`Datasets/Grapevines data/` directory.
+
+Run `legonet-data download roots`, or
 allow the normal CLI/GUI workflow to prepare the dataset when it is first
 needed.
 
-## License and citation
+## Files and annotation format
 
-The dataset is distributed under the [Creative Commons Attribution 4.0
-International license](https://creativecommons.org/licenses/by/4.0/). When
-using it, cite the dataset record and the associated publication:
+Each split contains three annotation files alongside the corresponding images:
 
-> F. Khoroshevsky, K. Zhou, A. Bar-Hillel, O. Hadar, S. Rachmilevitch,
-> J. E. Ephrath, N. Lazarovitch, and Y. Edan, "A CNN-based framework for
-> estimation of root length, diameter, and color from in situ minirhizotron
-> images," *Computers and Electronics in Agriculture*, vol. 227, article
-> 109457, 2024. <https://doi.org/10.1016/j.compag.2024.109457>
+- `*.csv` supplies image-level data used by direct estimation;
+- `*_pointsOutput.csv` supplies point annotations; and
+- `*_Dia_Length_Color.txt` supplies per-root locations, identifiers, lengths,
+  diameters, and colors.
+
+The JSON-like `*_Dia_Length_Color.txt` files provide per-root point locations
+together with `Root_Length`, `Root_Diameter`, and `Root_Color`. Bounding boxes
+are derived from each root's annotated points, enlarged by 10 pixels in each
+direction, and clipped to the image boundary.
 
 ## Runtime layout
 
@@ -50,11 +59,8 @@ Place the downloaded dataset under the configured LegoNet storage directory:
             `-- Test_Dia_Length_Color.txt
 ```
 
-Annotation files reference the corresponding image locations in the downloaded
-dataset. The JSON-like `*_Dia_Length_Color.txt` files provide per-root point
-locations together with `Root_Length`, `Root_Diameter`, and `Root_Color`.
-Bounding boxes are derived from each root's annotated points and enlarged by
-10 pixels in each direction, clipped to the image boundary.
+Annotation files reference the corresponding image locations within the
+downloaded dataset.
 
 ## Attribute encoding
 
@@ -70,6 +76,19 @@ Color is loaded as a binary classification target:
 | Missing color annotation | -1 (excluded from color metrics) |
 
 Reports refer to labels `1` and `0` as `white` and `non_white`, respectively.
+
+## Supported configurations
+
+| Network type | Estimate type | Output |
+|---|---|---|
+| `bbox_detection` | Not used | Root bounding boxes |
+| `per_image_estimation` | `keypoints` or `regression` | Attribute estimated directly from the complete image |
+| `per_object_attributes` | `keypoints` or `regression` | Length, diameter, and color for each matched root |
+| `per_object_attributes_multibranch` | `keypoints` | Per-root attributes using the multibranch keypoint architecture |
+
+The released direct per-image checkpoints estimate total root length (TRL).
+Per-root models estimate length, diameter, and color; their outputs can also be
+aggregated into image-level summaries as described below.
 
 ## Evaluation levels
 
@@ -148,12 +167,80 @@ means, and color means. If the GT image-level values have zero variance,
 beside that attribute's mean image-level error rather than in a separate
 combined summary.
 
-## Detection scope
+## Paper comparison
+
+The paper rows below report the published aggregate results. The current-code
+rows report evaluation of the corresponding released checkpoint. Because the
+historical folds and complete fold-specific checkpoint set are unavailable,
+the current-code rows are reference results rather than exact reproductions of
+the paper aggregates. Paper values are from the
+[grapevine-root attribute study](https://doi.org/10.1016/j.compag.2024.109457).
+
+### Direct per-image TRL
+
+These models estimate TRL directly from the complete image; their results are
+not obtained by aggregating detected-root predictions.
+
+| Estimate type | Source | Mean relative error | 1-FVU |
+|---|---|---:|---:|
+| Keypoints | Paper | 16.0% | 0.92 |
+| Keypoints | Current code | 14.4% | 0.93 |
+| Regression | Paper | 13.7% | 0.92 |
+| Regression | Current code | 16.7% | 0.93 |
+
+### Detection scope
 
 Bounding-box detection evaluates every image, including images with no
 ground-truth boxes; predictions on empty images count as false positives.
 Per-object attribute evaluation requires usable matched attribute annotations.
 The two evaluations therefore intentionally operate on different scopes.
+
+### Per-object attributes — regression
+
+Per-object results:
+
+| Source | Color error | Color 1-FVU | Length error | Length 1-FVU | Diameter error | Diameter 1-FVU | Diameter absolute difference |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Paper | 8.8% | 0.63 | 15.5% | 0.91 | 23.5% | 0.60 | 0.086 |
+| Current code | 7.7% | 0.67 | 17.2% | 0.89 | 22.5% | 0.59 | 0.086 |
+
+Per-image aggregation of those per-root predictions:
+
+| Source | White-fraction error | White-fraction 1-FVU | TRL error | TRL 1-FVU | Mean-diameter error | Mean-diameter 1-FVU | Mean-diameter absolute difference |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Paper | 11.5% | 0.69 | 38.9% | 0.40 | 17.6% | 0.42 | 0.070 |
+| Current code | 11.2% | 0.75 | 40.4% | 0.337 | 17.9% | 0.42 | 0.070 |
+
+### Per-object attributes — standalone keypoints
+
+No matching paper Test-set values are available for this standalone
+configuration.
+
+| Level | Source | Color error | Color 1-FVU | Length/TRL error | Length/TRL 1-FVU | Diameter error | Diameter 1-FVU | Diameter absolute difference |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| Per object | Current code | 61.0% | -1.565 | 15.4% | 0.91 | 27.6% | 0.52 | 0.097 |
+| Per-image aggregation | Current code | 45.14% | -1.5322 | 39.1% | 0.3915 | 20.6% | 0.358 | 0.076 |
+
+As reported in paper, the standalone keypoint checkpoint predicts every color output as white. This
+failed color behavior motivated the multibranch alternative; the negative
+color 1-FVU values indicate performance worse than predicting the mean target.
+
+### Per-object attributes — multibranch keypoints
+
+Per-object results:
+
+| Source | Color error | Color 1-FVU | Length error | Length 1-FVU | Diameter error | Diameter 1-FVU | Diameter absolute difference |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Paper | 9.1% | 0.62 | 14.9% | 0.92 | 25.0% | 0.52 | 0.095 |
+| Current code | 7.7% | 0.67 | 15.4% | 0.91 | 25.3% | 0.50 | 0.097 |
+
+Per-image aggregation of those per-root predictions:
+
+| Source | White-fraction error | White-fraction 1-FVU | TRL error | TRL 1-FVU | Mean-diameter error | Mean-diameter 1-FVU | Mean-diameter absolute difference |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Paper | 16.5% | 0.46 | 38.6% | 0.42 | 22.1% | 0.12 | 0.090 |
+| Current code | 16.4% | 0.46 | 39.1% | 0.39 | 22.1% | 0.12 | 0.090 |
+
 
 ## Visualization guidance
 
@@ -187,11 +274,11 @@ after invalid boxes are filtered.
 
 ## Example
 
-Run roots per-object attribute inference with:
+Run roots per-object attribute inference on the public test split with
+automatic dataset and checkpoint selection:
 
 ```bash
-python scripts/run_legonet.py \
-  --storage-path /path/to/legonet-storage \
+legonet \
   --dataset-name roots \
   --network-type per_object_attributes \
   --estimate-type keypoints \
@@ -201,6 +288,35 @@ python scripts/run_legonet.py \
   --to-draw true \
   --draw-detection-overview false \
   --draw-gt-only false \
-  --weights-mode full \
-  --full-weights-file /path/to/per_object_attributes.pt
+  --weights-mode auto
 ```
+
+On the first run, LegoNet downloads and verifies the dataset and matching
+checkpoint. Later runs reuse the cached files.
+
+## Known limitations
+
+- The associated paper reports five-fold results, but the historical fold
+  definitions and complete fold-specific checkpoint set are unavailable.
+  Consequently, the released individual checkpoints cannot reproduce the
+  paper's five-fold aggregates exactly.
+- Released direct per-image checkpoints cover TRL only.
+- The standalone per-root keypoint checkpoint's Test-set color output
+  collapses to the white class; the multibranch model is the effective
+  keypoint-based per-root alternative documented by the paper.
+
+## License and citation
+
+The dataset is distributed under the [Creative Commons Attribution 4.0
+International license](https://creativecommons.org/licenses/by/4.0/). When
+using it, cite the dataset record and the associated publication:
+
+> Faina Khoroshevsky, Kaining Zhou, and Naftali Lazarovitch. (2023).
+> *Dataset of Grapevine roots with length, diameter, and color annotations*
+> [Dataset]. Zenodo. <https://doi.org/10.5281/zenodo.8084106>
+>
+> F. Khoroshevsky, K. Zhou, A. Bar-Hillel, O. Hadar, S. Rachmilevitch,
+> J. E. Ephrath, N. Lazarovitch, and Y. Edan, "A CNN-based framework for
+> estimation of root length, diameter, and color from in situ minirhizotron
+> images," *Computers and Electronics in Agriculture*, vol. 227, article
+> 109457, 2024. <https://doi.org/10.1016/j.compag.2024.109457>

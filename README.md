@@ -20,14 +20,31 @@ The underlying methods have been published in
 ## Highlights
 
 - End-to-end training, inference, and evaluation in PyTorch.
-- Direct per-image estimation, or object detection followed by per-object counting\attribute estimation.
+- Direct per-image estimation, or object detection followed by per-object
+  counting or attribute estimation.
 - Regression- and keypoint-based architectures.
-- Demonstrated on two public datasets: berry counting for countable grape clusters,
-  and multi-task estimation of root length, diameter, and color.
+- Demonstrated on two public datasets: berry counting for countable grape
+  clusters, and multi-task estimation of root length, diameter, and color.
 - Automated, checksum-verified dataset and checkpoint downloads.
 - Validated command-line tools and a local Streamlit interface.
 - Modular checkpoint splitting, composition, and inspection utilities.
 - CPU test coverage and continuous integration through GitHub Actions.
+
+## Datasets
+
+- `roots` uses the [Dataset of Grapevine roots with length, diameter, and color
+  annotations](https://doi.org/10.5281/zenodo.8084106).
+- `grapes` uses the [Embrapa Wine Grape Instance Segmentation Dataset
+  (Embrapa WGISD)](https://github.com/thsant/wgisd).
+
+See the dataset-specific documentation for complete runtime layouts and
+annotation details:
+
+- [Grape annotations and images](src/legonet/resources/datasets/Embrapa%20WGISD/README.md)
+- [Grapevine-root images and annotations](src/legonet/resources/datasets/Grapevines%20data/README.md)
+
+When publishing results, cite both the relevant LegoNet method paper and the
+source dataset. See [Licensing and citation](#licensing-and-citation) below.
 
 ## Visual examples
 
@@ -39,18 +56,22 @@ The underlying methods have been published in
 [Embrapa WGISD dataset](https://github.com/thsant/wgisd)) shows (a) countable
 grape-cluster annotations in blue and predicted bounding boxes in red; (b) a
 detected cluster, which is cropped and passed to the keypoint-based berry-counting
-estimator; and (c) and (d) the ground-truth and predicted keypoint heatmaps corresponding to the cropped cluster,
-respectively.*
+estimator; and (c) and (d) the ground-truth and predicted keypoint heatmaps for
+the cropped cluster, respectively.*
 
-### Per-image estimation - Total root length 
+### Per-image estimation - Total root length
 
 ![Raw underground image, ground-truth root keypoint heatmap, and LegoNet-predicted keypoint heatmap](docs/images/trl-keypoint-heatmaps-example.jpg)
 
 *Total root length (TRL) estimation from the underground image
 `T025_L084_2012.10.10_115421_002.jpg` from the
-[grapevine-root dataset](https://doi.org/10.5281/zenodo.8084106): ((a) raw input;
+[grapevine-root dataset](https://doi.org/10.5281/zenodo.8084106): (a) raw input;
 (b) ground-truth keypoint heatmap (TRL: 124.09 mm); and
 (c) predicted keypoint heatmap (TRL: 110.03 mm).*
+
+The experiment scope, distinction between direct per-image estimation and
+per-root aggregation, and staged verification plan are documented in
+[`docs/reproduction.md`](docs/reproduction.md).
 
 ## Quick start
 
@@ -81,6 +102,73 @@ On the first run, LegoNet downloads the required public dataset files and
 matching pretrained checkpoint, verifies them, and caches them in the storage
 directory. See the detailed environment and storage sections below for CUDA,
 custom paths, and development setup.
+
+## Streamlit GUI
+
+For an interactive alternative to the command line, start the local GUI:
+
+```bash
+streamlit run apps/streamlit_app.py
+```
+
+The GUI exposes dataset, network, estimator, checkpoint, evaluation, and
+visualization settings while previewing the exact CLI command before each run.
+For a typical inference run:
+
+1. Keep the source-checkout storage directory or select another location.
+2. Choose `grapes` or `roots`, then choose the network and estimate type.
+3. Leave **Weights loading** set to **Automatic pretrained weights
+   (recommended)**.
+4. Choose `Test` or `Val`, enable visualizations if required, inspect the
+   command preview, and select **Run LegoNet**.
+
+The storage path can be entered manually or selected with the native folder
+picker when Streamlit is running locally. Checkpoints can likewise be selected
+by server path or uploaded through the browser. Uploaded files are copied to a
+temporary server-side directory before LegoNet starts, so uploads also work
+with a remote Streamlit server.
+
+Leave automatic dataset downloads enabled for the first public-dataset run.
+The live output reports dataset and checkpoint download progress, checksum
+verification, and the experiment output location. Later runs reuse the cached
+files.
+
+## Supported configurations
+
+`--network-type` selects the task and where estimation is performed:
+
+- `bbox_detection` detects objects but does not estimate their attributes.
+- `per_object_counting` detects objects and counts annotated parts within each
+  detected object.
+- `per_image_estimation` predicts an attribute directly from the complete
+  image without first detecting individual objects. The released direct
+  per-image examples and checkpoints estimate total root length (TRL).
+- `per_object_attributes` detects roots and estimates length, diameter, and
+  color for each detected root using the selected estimator architecture.
+- `per_object_attributes_multibranch` is the keypoint-only per-root variant
+  with an additional feature and keypoint-detection branch.
+
+The available combinations are:
+
+| Dataset | Network type | Estimate type |
+|---|---|---|
+| `grapes` | `bbox_detection` | Not used by the detector |
+| `grapes` | `per_object_counting` | `keypoints` or `regression` |
+| `roots` | `bbox_detection` | Not used by the detector |
+| `roots` | `per_image_estimation` | `keypoints` or `regression` |
+| `roots` | `per_object_attributes` | `keypoints` or `regression` |
+| `roots` | `per_object_attributes_multibranch` | `keypoints` |
+
+The `--estimate-type` option selects one of two estimator architectures:
+
+- `keypoints` uses explicit keypoint detection. The model predicts keypoint
+  heatmaps and derives the requested count or attribute from those intermediate
+  predictions.
+- `regression` predicts the count or attribute directly from feature-pyramid
+  representations, without producing keypoint heatmaps.
+
+Training requires ground-truth annotations and uses the `Val` validation split.
+Unsupported combinations fail before model or dataset construction.
 
 ## Environment setup
 
@@ -175,9 +263,10 @@ running directly from a source checkout.
 
 When the source checkout directory is named `Code`, LegoNet uses its parent as
 the default storage directory. This produces the four-folder `LegoNet/`
-workspace shown above. The small grape annotation files, licenses, and dataset notes
-are packaged with the code (`src/legonet/resources/datasets`) and copied into `Datasets/` during first-time setup.
-You can therefore run the quick-inference commands below from `Code/` without
+workspace shown above. The small grape annotation files, licenses, and dataset
+notes are packaged with the code (`src/legonet/resources/datasets`) and copied
+into `Datasets/` during first-time setup.
+You can therefore run the quick-start inference command above from `Code/` without
 `--storage-path`.
 
 For compatibility, a checkout with another directory name continues to use
@@ -214,12 +303,6 @@ LegoNet uses a fixed directory structure beneath the selected storage root
 because dataset, result, and checkpoint paths are constructed from these
 directory names. Missing directories are created automatically.
 
-When the source checkout is named `Code`, its parent is used as the default
-storage root, producing the four-folder workspace shown below. For checkouts
-with another name, the repository root is used instead. Outside a detectable
-source checkout, specify the storage root with `--storage-path` or
-`LEGONET_STORAGE_PATH`.
-
 The default layout for a checkout named `Code` is:
 
 ```text
@@ -245,64 +328,16 @@ LegoNet/
     └── zenodo-21966953/
 ```
 
-See the dataset-specific documentation for complete runtime layouts and
-annotation details:
 
-- [Grape annotations and images](src/legonet/resources/datasets/Embrapa%20WGISD/README.md)
-- [Grapevine-root images and annotations](src/legonet/resources/datasets/Grapevines%20data/README.md)
+## Dataset downloads
 
-## Supported configurations
-
-| Dataset | Network type | Estimate type |
-|---|---|---|
-| `grapes` | `bbox_detection` | Not used by the detector |
-| `grapes` | `per_object_counting` | `keypoints` or `regression` |
-| `roots` | `bbox_detection` | Not used by the detector |
-| `roots` | `per_image_estimation` | `keypoints` or `regression` |
-| `roots` | `per_object_attributes` | `keypoints` or `regression` |
-| `roots` | `per_object_attributes_multibranch` | `keypoints` |
-
-The `--estimate-type` option selects one of two estimator architectures:
-
-- `keypoints` uses explicit keypoint detection. The model predicts
-  keypoint heatmaps and derives the requested count or attribute from those
-  intermediate predictions.
-- `regression` uses direct regression from feature-pyramid representations,
-  without producing keypoint heatmaps.
-
-Training requires ground-truth annotations and uses the `Val` validation split.
-Unsupported combinations fail before model or dataset construction.
-
-## Additional inference options
-
-Run per-root length, diameter, and color estimation with:
-
-```bash
-legonet \
-  --dataset-name roots \
-  --network-type per_object_attributes_multibranch \
-  --estimate-type keypoints \
-  --run-script Inference \
-  --val-set Test \
-  --have-gt true
-```
-
-When an inference checkpoint is not supplied, LegoNet announces and downloads
-the matching pretrained checkpoint from the
-[LegoNet Zenodo record](https://doi.org/10.5281/zenodo.21966953). Downloads are
-checksum-verified and cached in
-`<storage-path>/checkpoints/zenodo-21966953/`; later runs reuse the cached file.
-Pass `--full-weights-file /path/to/model.pt` to use your own full checkpoint,
-or `--weights-mode none` to run without pretrained weights. Explicit local
-paths always take precedence over automatic downloads.
-
-The selected public dataset is prepared in the same way. If it is incomplete,
+If the selected public dataset is incomplete,
 LegoNet announces the source and destination before downloading it. For grapes,
 only the 300 resized `.jpg` files referenced by the tracked LegoNet split
 annotations are downloaded from WGISD; upstream `.txt` and `.npz` files are
 skipped. For roots, the published ZIP is downloaded from Zenodo, checksum
-verified, safely extracted, and checked for the expected split files. Pass
-`--download-missing-data false` to disable network-based dataset setup.
+verified, safely extracted, and checked for the expected split files.
+Pass `--download-missing-data false` to disable network-based dataset setup.
 
 Datasets can also be prepared or checked without starting inference:
 
@@ -313,44 +348,17 @@ legonet-data download all
 legonet-data verify all
 ```
 
-From a source checkout, the equivalent entry point is
-`python scripts/download_datasets.py download grapes`.
+From a source checkout, use
+`python scripts/download_datasets.py download grapes`; substitute `roots` or
+`all` as needed.
 
 The source-checkout equivalent of `legonet` is
 `python scripts/run_legonet.py`.
 
-## Repository layout
+## Training from the command line
 
-```text
-apps/
-    streamlit_app.py        Local graphical runner
-src/
-    legonet/
-        cli.py              CLI parsing and runtime configuration
-        config.py           Shared runtime configuration
-        manage_weights.py   Checkpoint conversion and modular weight tools
-        paths.py            Dataset and result-root construction
-        resources/          Packaged annotations, licenses, and dataset notes
-        runner.py           Training/inference dispatch
-        models/             Model variants
-        eval/               Evaluation code
-scripts/
-    debug_legonet.py        Editable same-process IDE debug entry point
-    run_legonet.py          Thin public command-line entry point
-notebooks/                  Demonstrations and experiments
-tests/                      Unit, characterization, and smoke tests
-environment.yml             Reproducible Conda environment
-pyproject.toml              Python package and CLI metadata
-LICENSE                     BSD-3-Clause source-code license
-CITATION.cff                Software and preferred-paper citation metadata
-```
-
-## Command-line use
-
-Use `--weights-mode auto` (the inference default) for the matching published
-full checkpoint. `full`, `partial`, and `detector_only` accept local paths but
-download any required path that was omitted. `none` disables all checkpoint
-loading. For example, this training command supplies its detector explicitly:
+This example trains the grape counting regression model while initializing its
+frozen detector from an explicitly supplied checkpoint:
 
 ```bash
 python scripts/run_legonet.py \
@@ -366,32 +374,9 @@ python scripts/run_legonet.py \
   --num-of-epochs 300
 ```
 
-The experiment scope, distinction between direct per-image estimation and
-per-root aggregation, and staged verification plan are documented in
-[`docs/reproduction.md`](docs/reproduction.md).
+Boolean CLI values accept `true`, `false`, `yes`, `no`, `1`, or `0`.
 
-### Best-epoch metric
-
-Per-object counting always minimizes count relative error when selecting the
-best checkpoint. Attribute training accepts `--checkpoint-attribute` with
-`length`, `diameter`, or `color`; it minimizes the corresponding relative
-error for continuous attributes and the classification error rate for color.
-Length is the default, preserving the published roots training behavior.
-1-FVU remains a reported metric and is not used for checkpoint selection. The
-Streamlit runner shows the attribute selector only for attribute networks.
-
-### Evaluation of empty images
-
-Bounding-box detection and per-object evaluation intentionally use different
-image sets:
-
-- Bounding-box detection evaluates every image, including images without
-  ground-truth boxes. Predictions on those images are false positives.
-- Per-object evaluation excludes images without usable per-object targets.
-  This includes both images without ground-truth boxes and images whose
-  ground-truth boxes contain no annotated points.
-
-### Evaluation visualizations
+## Evaluation visualizations
 
 Visualization output is controlled by the master `--to-draw` option. Two
 additional options control full-image artifacts independently:
@@ -424,112 +409,53 @@ visualizations is usually clearer.
 GT-only output is intended for annotation inspection rather than routine model
 evaluation. Its folder is not created unless `--draw-gt-only true` is passed.
 
-### Weight selection
+## Pretrained weights
 
-Checkpoint paths are supplied explicitly instead of inferred from a predefined
-directory. Select one loading mode:
+All checkpoints provided for the supported grape and grapevine-root example
+configurations are available from the
+[LegoNet Zenodo record](https://doi.org/10.5281/zenodo.21966953). With
+`--weights-mode auto`, the inference CLI and Streamlit GUI select the matching
+full-model checkpoint, verify its checksum, and cache it locally.
+
+Use another loading mode to override automatic selection:
 
 | Mode | Required path options | Intended use |
 |---|---|---|
-| `none` | None | Initialize the complete selected model without weights. |
+| `auto` | None | Download or reuse the matching published full-model checkpoint. This is the inference default. |
 | `full` | `--full-weights-file` | Resume or run a complete model checkpoint. |
 | `partial` | `--bbox-weights-file` and, for per-object networks, `--per-object-weights-file` | Assemble a model from task-specific checkpoints. |
 | `detector_only` | `--bbox-weights-file` | Train a new per-object head using a pretrained frozen detector. Available only for per-object training. |
+| `none` | None | Initialize the selected model without loading a checkpoint. |
 
-The legacy `--load-weights`, `--load-only-bbox-weights`, and `--weights-type`
-options remain accepted for compatibility, but new commands should use
-`--weights-mode` and explicit file paths.
+For the checkpoint inventory, experiment limitations, checksums, and utilities
+for splitting, combining, inspecting, or cleaning checkpoints, see
+[`docs/pretrained_weights.md`](docs/pretrained_weights.md).
 
-### Split a full checkpoint into partial weights
-
-Use the standalone converter for per-object checkpoints saved by the current
-code. It validates the selected architecture before creating separate detector
-and per-object head checkpoints:
-
-```powershell
-python scripts/split_full_checkpoint.py `
-  --full-weights-file "C:\weights\legonet_epoch=120.pt" `
-  --network-type per_object_counting `
-  --estimate-type regression `
-  --detector-output-file "C:\weights\legonet_bbox_grapes.pt" `
-  --per-object-output-file "C:\weights\legonet_counting_reg.pt"
-```
-
-For an attributes head, pass its attribute names. Each name maps to an
-`estimator_<name>` module:
-
-```powershell
-python scripts/split_full_checkpoint.py `
-  --full-weights-file "C:\weights\legonet_epoch=90.pt" `
-  --network-type per_object_attributes `
-  --estimate-type keypoints `
-  --attribute-names length diameter color `
-  --detector-output-file "C:\weights\legonet_bbox_roots.pt" `
-  --per-object-output-file "C:\weights\legonet_attributes_kp.pt"
-```
-
-Leave `--attribute-names` out when the head uses the single module name
-`estimator`. Existing files are preserved unless `--overwrite` is supplied.
-The converter refuses architecture mismatches and never overwrites its source
-checkpoint. `--detector-output-file` is optional; omit it when the detector
-weights have already been saved and only a new per-object head file is needed.
-
-The same operation is available in a separate Streamlit page:
-
-```powershell
-streamlit run apps/checkpoint_splitter.py
-```
-
-The converter page accepts an output directory separately from the detector
-and per-object `.pt` filenames. When Streamlit runs locally, the output
-directory can also be selected with the native folder browser.
-
-To perform the reverse operation, combine compatible detector and per-object
-partial checkpoints into one full checkpoint:
-
-```powershell
-python scripts/combine_partial_checkpoints.py `
-  --detector-weights-file "C:\weights\legonet_bbox_grapes.pt" `
-  --per-object-weights-file "C:\weights\legonet_counting_reg.pt" `
-  --network-type per_object_counting `
-  --estimate-type regression `
-  --full-output-file "C:\weights\legonet_counting_reg_full.pt"
-```
-
-The combiner validates both module sets, adds the `bbox_detection.` prefix to
-detector keys, verifies the saved checkpoint, and refuses to overwrite either
-source file. Named attributes use the same `--attribute-names` option as the
-split operation. Combination is rejected whenever either partial checkpoint's
-modules do not exactly match the modules defined by the selected network type,
-estimate type, and attribute names.
-
-The reverse operation also has a local Streamlit page:
-
-```powershell
-streamlit run apps/checkpoint_combiner.py
-```
-
-To remove one obsolete module, such as `find_2`, from a checkpoint through a
-local Streamlit page, run:
-
-```powershell
-streamlit run apps/checkpoint_module_remover.py
-```
-
-The page preserves the source checkpoint, displays the modules before and
-after removal, and writes the cleaned weights to a separate output file.
-
-Boolean values accept `true`, `false`, `yes`, `no`, `1`, or `0`. Explicit
-false values are preserved.
-
-Checkpoint loading and legacy checkpoint export are mutually exclusive:
+## Repository layout
 
 ```text
---load-weights true
---save-from-model-file true
+apps/
+    streamlit_app.py        Local graphical runner
+src/
+    legonet/
+        cli.py              CLI parsing and runtime configuration
+        config.py           Shared runtime configuration
+        manage_weights.py   Checkpoint conversion and modular weight tools
+        paths.py            Dataset and result-root construction
+        resources/          Packaged annotations, licenses, and dataset notes
+        runner.py           Training/inference dispatch
+        models/             Model variants
+        eval/               Evaluation code
+scripts/
+    debug_legonet.py        Editable same-process IDE debug entry point
+    run_legonet.py          Thin public command-line entry point
+notebooks/                  Demonstrations and experiments
+tests/                      Unit, characterization, and smoke tests
+environment.yml             Reproducible Conda environment
+pyproject.toml              Python package and CLI metadata
+LICENSE                     BSD-3-Clause source-code license
+CITATION.cff                Software and preferred-paper citation metadata
 ```
-
-cannot be used together.
 
 ## PyCharm debugging
 
@@ -551,54 +477,6 @@ local alternative, put the path directly in `DEBUG_SETTINGS`:
 The debug entry point calls `legonet.cli.main()` directly rather than starting
 a subprocess, so breakpoints inside the package remain active. Machine-specific
 paths should not be committed.
-
-## Streamlit GUI
-
-Start the local GUI with:
-
-```bash
-streamlit run apps/streamlit_app.py
-```
-
-The Storage path field starts with `LEGONET_STORAGE_PATH` when the environment
-variable is set and otherwise uses the source-checkout root. It remains
-editable and includes a **Browse local machine…**
-button. The native folder picker is a local convenience: it opens on the
-machine running Streamlit and may be unavailable for remote or headless
-deployments. Manual path entry remains available in those environments.
-
-Weight loading is selected by mode, and the GUI displays only the checkpoint
-paths required by that mode. Each checkpoint supports manual server-path entry
-or a browser-based file upload. Uploaded checkpoints are copied to a temporary
-server-side directory before the LegoNet subprocess starts. This works both
-locally and when the browser connects to a remote Streamlit server. Manual path
-entry remains useful when the checkpoint already exists on the machine running
-Streamlit.
-
-For a typical inference run:
-
-1. Keep the source-checkout storage directory or select another location.
-2. Choose `grapes` or `roots`, then choose the network and estimate type.
-3. Leave **Weights loading** set to **Automatic pretrained weights
-   (recommended)**. The GUI shows the selected filename, download size, cache
-   status, and Zenodo record before the run starts.
-4. Choose `Test` or `Val`, enable visualizations if required, inspect the
-   command preview, and select **Run LegoNet**.
-
-Leave **Download missing public dataset files automatically** enabled for the
-first run. The live output reports JPEG progress for grapes and archive
-verification for roots. Disable it when working offline or with a manually
-prepared dataset.
-
-The subprocess output reports when a checkpoint download begins and when its
-checksum has been verified. The first run may download approximately 125–401
-MiB depending on the selected model. Later runs use the cached checkpoint.
-Select **Full model checkpoint** or **Partial task checkpoints** to override
-automatic selection with paths or uploaded `.pt`/`.pth` files. Select **Do not
-load weights** to disable both local and downloaded checkpoints.
-
-The GUI previews the exact CLI command before launching it and writes output
-to the experiment directory under `ExpResults`.
 
 ## Tests
 
@@ -623,30 +501,29 @@ package and `legonet` command, collects and runs the CPU suite with coverage,
 and builds the distribution artifacts. Full dataset and checkpoint
 reproduction remains a separate research validation step.
 
-## Citation
+## Licensing and citation
 
-If you use LegoNet, cite the paper associated with the model or dataset used in
-your work. Machine-readable software and preferred-paper citation metadata is
-available in [`CITATION.cff`](CITATION.cff). The relevant publications are
-listed with each dataset below.
+If you use LegoNet, cite the relevant method paper and every source dataset
+used in your work. Machine-readable software and preferred-paper citation
+metadata is available in [`CITATION.cff`](CITATION.cff). Dataset records,
+licenses, and associated publications are listed below.
 
-## Data and licensing
-
-### Grapevine roots
+### Roots - Dataset of Grapevine Roots
 
 The active `roots` configurations use the [Dataset of Grapevine roots with
-length, diameter, and color annotations](https://doi.org/10.5281/zenodo.8084106),
-created by Faina Khoroshevsky, Kaining Zhou, and Naftali Lazarovitch. The
+length, diameter, and color annotations](https://doi.org/10.5281/zenodo.8084106). The
 dataset is distributed under the
 [CC BY 4.0 license](https://creativecommons.org/licenses/by/4.0/) and is the
-dataset associated with the preferred 2024 *Computers and Electronics in
+dataset associated with the *Computers and Electronics in
 Agriculture* citation above.
 
 See the [roots dataset README](src/legonet/resources/datasets/Grapevines%20data/README.md)
 for the expected runtime layout, attribute encoding, and object-level and
 image-level evaluation rules.
 
-Cite the associated work as:
+When using the root data, cite the
+[Zenodo dataset record](https://doi.org/10.5281/zenodo.8084106) and the
+associated work:
 > F. Khoroshevsky, K. Zhou, A. Bar-Hillel, O. Hadar, S. Rachmilevitch,
 > J. E. Ephrath, N. Lazarovitch, and Y. Edan, "A CNN-based framework for
 > estimation of root length, diameter, and color from in situ minirhizotron
@@ -665,27 +542,11 @@ CC BY 4.0. Its associated paper is:
 > *Plant Phenomics*, vol. 6, article 0132, 2024.
 > <https://doi.org/10.34133/plantphenomics.0132>
 
-### Grapes
+### Grapes - Embrapa WGISD
 
 The active `grapes` configurations use the [Embrapa Wine Grape Instance
-Segmentation Dataset (WGISD)](https://github.com/thsant/wgisd), accessed for
-the associated study on 23 June 2021. WGISD is distributed under the
+Segmentation Dataset (WGISD)](https://github.com/thsant/wgisd). WGISD is distributed under the
 [CC BY-NC 4.0 license](https://creativecommons.org/licenses/by-nc/4.0/).
-The grape experiments use berry point annotations contributed by Faina
-Khoroshevsky and Stanislav Khoroshevsky.
-
-LegoNet uses the resized JPEG images published in WGISD's
-[`data/` directory](https://github.com/thsant/wgisd/tree/master/data), not the
-images in
-[`original_resolution/`](https://github.com/thsant/wgisd/tree/master/original_resolution).
-The `train.txt`, `val.txt`, and `test.txt` files required by LegoNet are
-preprocessed, LegoNet-specific inputs. They were prepared separately by
-combining two annotation types:
-
-```text
-image.jpg,grapes,x1,y1,x2,y2  # grape-cluster bounding box
-image.jpg,grapes,x,y          # contributed berry-point annotation
-```
 
 Release copies of these inputs, their class mapping, and dataset-specific
 documentation are included in
@@ -698,7 +559,9 @@ not reproduce them. At runtime, the active grape configuration removes images
 without contributed berry points and removes bounding boxes containing no
 contributed berry points.
 
-Cite the associated work as:
+When using the grape data, cite the upstream WGISD dataset according to its
+[citation instructions and permanent dataset record](https://doi.org/10.5281/zenodo.3361736),
+as well as the associated LegoNet grape-counting work:
 
 > F. Khoroshevsky, S. Khoroshevsky, and A. Bar-Hillel, "Parts-per-Object Count
 > in Agricultural Images: Solving Phenotyping Problems via a Single Deep
@@ -715,12 +578,3 @@ The LegoNet source code is distributed under the
 [BSD 3-Clause License](LICENSE). Dataset files and derived annotations retain
 their respective licensing terms and are not covered by the source-code
 license.
-
-## Pretrained weights
-
-The current runtime supports full-model and modular checkpoint loading.
-Available candidate checkpoints do not cover every reported scenario, and
-some cannot reproduce paper results exactly because historical fold splits or
-original training checkpoints are unavailable. See
-[`docs/pretrained_weights.md`](docs/pretrained_weights.md) for the per-model
-status, limitations, and verification process.

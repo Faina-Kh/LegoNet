@@ -63,3 +63,45 @@ Before a checkpoint is described as a verified, supported download:
 
 Until those checks are complete, files marked as candidates are an inventory
 of research artifacts rather than a guarantee of exact result reproduction.
+
+## Checkpoint utilities
+
+LegoNet includes validated utilities for converting between full-model and
+modular checkpoints. Split a per-object full checkpoint with:
+
+```powershell
+python scripts/split_full_checkpoint.py `
+  --full-weights-file "C:\weights\legonet_epoch=120.pt" `
+  --network-type per_object_counting `
+  --estimate-type regression `
+  --detector-output-file "C:\weights\legonet_bbox_grapes.pt" `
+  --per-object-output-file "C:\weights\legonet_counting_reg.pt"
+```
+
+For an attributes checkpoint, add `--attribute-names length diameter color`.
+The detector output is optional when only the per-object head is required.
+Existing output files are preserved unless `--overwrite` is supplied, and the
+source checkpoint is never overwritten.
+
+Combine compatible partial checkpoints with:
+
+```powershell
+python scripts/combine_partial_checkpoints.py `
+  --detector-weights-file "C:\weights\legonet_bbox_grapes.pt" `
+  --per-object-weights-file "C:\weights\legonet_counting_reg.pt" `
+  --network-type per_object_counting `
+  --estimate-type regression `
+  --full-output-file "C:\weights\legonet_counting_reg_full.pt"
+```
+
+Both utilities validate that checkpoint modules match the selected network and
+estimator architectures. Equivalent local Streamlit tools are available with:
+
+```powershell
+streamlit run apps/checkpoint_splitter.py
+streamlit run apps/checkpoint_combiner.py
+streamlit run apps/checkpoint_module_remover.py
+```
+
+The module remover preserves its source and writes the cleaned checkpoint to a
+separate file.

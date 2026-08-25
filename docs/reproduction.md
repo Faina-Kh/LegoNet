@@ -15,9 +15,6 @@ LegoNet provides two distinct verification levels:
    result with a verified current-code reference. Where a matching paper value
    exists, it is shown separately for scientific comparison.
 
-Future runs will be checked against the verified current-code reference, not
-against rounded values transcribed from a paper.
-
 ## Roots estimation scopes
 
 The roots experiments contain two different ways to obtain image-level trait
@@ -35,12 +32,12 @@ The direct models take a complete image as input and estimate total root length
 
 Verified Test-set results:
 
-| Configuration | Source | Mean relative difference | 1-FVU |
-|---|---|---:|---:|
+| Configuration | Source | Mean relative error | 1-FVU |
+|---|---|---------------------|---|
 | Keypoints | Paper | 16.0% | 0.92 |
-| Keypoints | Current code | 14.40% | 0.93 |
-| Regression | Paper | 13.70% | 0.92 |
-| Regression | Current code | 16.70% | 0.935 |
+| Keypoints | Current code | 14.4% | 0.93 |
+| Regression | Paper | 13.7% | 0.92 |
+| Regression | Current code | 16.7%  | 0.93 |
 
 These values describe direct TRL inference and are not derived by aggregating
 per-root predictions.
@@ -58,6 +55,18 @@ outputs:
 Consequently, the image-level rows in the per-object regression, standalone
 keypoint, and multibranch tables are **per-root estimation aggregation**
 results. They are not direct per-image model results.
+
+Run multibranch per-root length, diameter, and color inference with:
+
+```bash
+legonet \
+  --dataset-name roots \
+  --network-type per_object_attributes_multibranch \
+  --estimate-type keypoints \
+  --run-script Inference \
+  --val-set Test \
+  --have-gt true
+```
 
 The standalone keypoint per-root Test result has no corresponding paper Test
 value. It is retained as a verified checkpoint benchmark and documented
@@ -93,6 +102,23 @@ roots-per-object-multibranch-test-v1
 A Test result must never be compared with a paper value reported only for the
 Validation split. Each manifest will also identify the training-data variant
 (`all_data`, `limit_5`, or mixed branch pretraining) and checkpoint provenance.
+
+## Checkpoint selection metrics
+
+Per-object counting minimizes count relative error when selecting the best
+checkpoint. Attribute training accepts `--checkpoint-attribute` with `length`,
+`diameter`, or `color`; it minimizes the corresponding relative error for
+continuous attributes and classification error rate for color. Length is the
+default. 1-FVU remains a reported metric and is not used for checkpoint
+selection.
+
+## Evaluation of empty images
+
+Bounding-box detection evaluates every image, including images without
+ground-truth boxes; predictions on those images are false positives.
+Per-object evaluation instead excludes images without usable per-object
+targets. This includes images without ground-truth boxes and images whose
+ground-truth boxes contain no annotated points.
 
 ## Result presentation and images
 
