@@ -143,6 +143,54 @@ Counting reports absolute and relative count errors for matched clusters. The
 same original matched-ground-truth count is used during validation, checkpoint
 selection, and test evaluation.
 
+### Bounding-box metrics
+
+Bounding-box detections are evaluated after confidence filtering and
+non-maximum suppression. A prediction is a true positive when it has at least
+the configured intersection over union (IoU) with an eligible ground-truth box
+and that ground-truth box has not already been matched to a higher-scoring
+prediction. An unmatched prediction or a duplicate prediction for an already
+matched box is a false positive. An eligible ground-truth box with no matching
+prediction is a false negative.
+
+```text
+precision = true positives / (true positives + false positives)
+recall    = true positives / (true positives + false negatives)
+```
+
+Precision therefore measures how many predicted grape-cluster boxes are
+correct, while recall measures how many eligible countable-cluster boxes are
+found. Boxes excluded during grape dataset construction are outside both
+denominators and do not participate in this evaluation.
+
+### Counting metrics
+
+For each matched countable cluster `i`, let `gt_i` be its annotated berry count
+and `prediction_i` the estimated count rounded to the nearest integer by the
+evaluator. Mean Relative Deviation (MRD) is the mean absolute error relative to
+the ground-truth count:
+
+```text
+MRD = mean(abs(gt_i - prediction_i) / gt_i)
+```
+
+MRD is reported as a percentage, and lower values are better. Because active
+countable clusters have positive berry counts, the denominator is nonzero for
+the evaluated grape samples.
+
+The 1-FVU score compares the mean squared count error with the variance of the
+ground-truth counts across the evaluated matched clusters:
+
+```text
+MSE   = mean((gt_i - prediction_i) ** 2)
+1-FVU = 1 - MSE / variance(gt)
+```
+
+A value of `1` indicates perfect predictions, `0` is equivalent to predicting
+the mean ground-truth count in terms of squared error, and a negative value is
+worse than that mean-prediction baseline. If all evaluated ground-truth counts
+are identical, their variance is zero and 1-FVU is undefined.
+
 ## Paper comparison
 
 The released detector and keypoint-based counting checkpoints are the original

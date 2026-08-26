@@ -96,6 +96,27 @@ aggregated into image-level summaries as described below.
 Attribute evaluation is reported at two distinct levels. They should not be
 mixed because they answer different questions.
 
+### Bounding-box metrics
+
+Bounding-box detections are evaluated after confidence filtering and
+non-maximum suppression. A prediction is a true positive when it has at least
+the configured intersection over union (IoU) with a ground-truth root box and
+that box has not already been matched to a higher-scoring prediction. An
+unmatched prediction or a duplicate prediction for an already matched box is a
+false positive. A ground-truth root box with no matching prediction is a false
+negative.
+
+```text
+precision = true positives / (true positives + false positives)
+recall    = true positives / (true positives + false negatives)
+```
+
+Precision therefore measures how many predicted root boxes are correct, while
+recall measures how many annotated roots are detected. Images without
+annotated roots remain in roots detection evaluation; every prediction on such
+an image is a false positive. The attribute metrics below use only predictions
+that are matched to usable per-root annotations.
+
 ### Per-object evaluation
 
 A predicted object is evaluated against an attribute target only after its
@@ -104,8 +125,9 @@ threshold. Predictions without a matched attribute annotation are excluded
 from attribute metrics and remain part of the separate detection evaluation.
 
 For TRL and diameter, LegoNet reports mean absolute error (MAE), mean squared
-error (MSE), mean relative error, and 1 minus the fraction of variance
-unexplained (1-FVU).
+error (MSE), Mean Relative Deviation (MRD), and 1 minus the fraction of
+variance unexplained (1-FVU). As in the grapes evaluation, MRD is the mean
+absolute error relative to the corresponding nonzero ground-truth value.
 
 For color, LegoNet reports classification accuracy and error rate:
 
@@ -135,13 +157,14 @@ classified as white. For example, a mean color of `0.75` means that 75% of the
 image's evaluated roots have label `white`.
 
 Error is calculated between corresponding image-level GT and predicted values.
-For TRL and diameter, the relative error for image `i` is:
+For TRL and diameter, the relative deviation for image `i` is:
 
 ```text
-relative_error_i = abs(gt_i - prediction_i) / gt_i
+relative_deviation_i = abs(gt_i - prediction_i) / gt_i
+MRD = mean(relative_deviation_i)
 ```
 
-Images whose GT aggregate is zero do not enter the mean relative-error value.
+Images whose GT aggregate is zero do not enter the MRD value.
 For diameter, the same summary line also reports the mean absolute difference
 between image-level GT and predicted mean diameters.
 
@@ -191,7 +214,7 @@ the paper aggregates. Paper values are from the
 These models estimate TRL directly from the complete image; their results are
 not obtained by aggregating detected-root predictions.
 
-| Estimate type | Source | Mean relative error | 1-FVU |
+| Estimate type | Source | TRL MRD | 1-FVU |
 |---|---|---:|---:|
 | Keypoints | Paper | 16.0% | 0.92 |
 | Keypoints | Current code | 14.4% | 0.93 |
@@ -202,14 +225,14 @@ not obtained by aggregating detected-root predictions.
 
 Per-object results:
 
-| Source | Color error | Color 1-FVU | Length error | Length 1-FVU | Diameter error | Diameter 1-FVU | Diameter absolute difference |
+| Source | Color error | Color 1-FVU | Length MRD | Length 1-FVU | Diameter MRD | Diameter 1-FVU | Diameter absolute difference |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Paper | 8.8% | 0.63 | 15.5% | 0.91 | 23.5% | 0.60 | 0.086 |
 | Current code | 7.7% | 0.67 | 17.2% | 0.89 | 22.5% | 0.59 | 0.086 |
 
 Per-image aggregation of those per-root predictions:
 
-| Source | White-fraction error | White-fraction 1-FVU | TRL error | TRL 1-FVU | Mean-diameter error | Mean-diameter 1-FVU | Mean-diameter absolute difference |
+| Source | White-fraction error | White-fraction 1-FVU | TRL MRD | TRL 1-FVU | Mean-diameter MRD | Mean-diameter 1-FVU | Mean-diameter absolute difference |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Paper | 11.5% | 0.69 | 38.9% | 0.40 | 17.6% | 0.42 | 0.070 |
 | Current code | 11.2% | 0.75 | 40.4% | 0.337 | 17.9% | 0.42 | 0.070 |
@@ -219,7 +242,7 @@ Per-image aggregation of those per-root predictions:
 No matching paper Test-set values are available for this standalone
 configuration.
 
-| Level | Source | Color error | Color 1-FVU | Length/TRL error | Length/TRL 1-FVU | Diameter error | Diameter 1-FVU | Diameter absolute difference |
+| Level | Source | Color error | Color 1-FVU | Length/TRL MRD | Length/TRL 1-FVU | Diameter MRD | Diameter 1-FVU | Diameter absolute difference |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | Per object | Current code | 61.0% | -1.565 | 15.4% | 0.91 | 27.6% | 0.52 | 0.097 |
 | Per-image aggregation | Current code | 45.14% | -1.5322 | 39.1% | 0.3915 | 20.6% | 0.358 | 0.076 |
@@ -233,14 +256,14 @@ mean target.
 
 Per-object results:
 
-| Source | Color error | Color 1-FVU | Length error | Length 1-FVU | Diameter error | Diameter 1-FVU | Diameter absolute difference |
+| Source | Color error | Color 1-FVU | Length MRD | Length 1-FVU | Diameter MRD | Diameter 1-FVU | Diameter absolute difference |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Paper | 9.1% | 0.62 | 14.9% | 0.92 | 25.0% | 0.52 | 0.095 |
 | Current code | 7.7% | 0.67 | 15.4% | 0.91 | 25.3% | 0.50 | 0.097 |
 
 Per-image aggregation of those per-root predictions:
 
-| Source | White-fraction error | White-fraction 1-FVU | TRL error | TRL 1-FVU | Mean-diameter error | Mean-diameter 1-FVU | Mean-diameter absolute difference |
+| Source | White-fraction error | White-fraction 1-FVU | TRL MRD | TRL 1-FVU | Mean-diameter MRD | Mean-diameter 1-FVU | Mean-diameter absolute difference |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Paper | 16.5% | 0.46 | 38.6% | 0.42 | 22.1% | 0.12 | 0.090 |
 | Current code | 16.4% | 0.46 | 39.1% | 0.39 | 22.1% | 0.12 | 0.090 |

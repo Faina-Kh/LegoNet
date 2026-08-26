@@ -39,6 +39,8 @@ def compute_regression_metrics(
     mean_absolute_error = float(np.mean(np.abs(errors)))
     mean_squared_error = float(np.mean(errors ** 2))
 
+    # ``relative error`` in the code is the per-sample quantity averaged to
+    # obtain MRD (Mean Relative Deviation), as defined in the LegoNet papers.
     if relative_errors is None:
         nonzero_targets = targets != 0
         relative_error_values = np.abs(
