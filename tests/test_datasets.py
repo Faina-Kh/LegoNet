@@ -46,6 +46,15 @@ def test_expected_grape_images_are_unique(tmp_path: Path) -> None:
     assert datasets.expected_grape_images(tmp_path) == ("A.jpg", "B.jpg")
 
 
+def test_roots_setup_does_not_require_bundled_documentation(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "Grapevines data"
+
+    assert datasets.seed_dataset_metadata("roots", destination) == destination
+    assert destination.is_dir()
+
+
 def test_grapes_downloads_only_missing_jpegs(tmp_path: Path) -> None:
     _write_grape_annotations(tmp_path)
     existing_jpeg = b"\xff\xd8existing\xff\xd9"

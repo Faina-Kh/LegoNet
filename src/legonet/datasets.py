@@ -66,18 +66,26 @@ def default_storage_root(start: Path | None = None) -> Path | None:
 
 
 def bundled_dataset_resources(dataset_name: str) -> Path:
-    """Return the packaged metadata directory for one public dataset."""
-    folder = "Embrapa WGISD" if dataset_name == "grapes" else "Grapevines data"
-    return Path(__file__).resolve().parent / "resources" / "datasets" / folder
+    """Return the packaged metadata directory for the grapes dataset."""
+    if dataset_name != "grapes":
+        raise ValueError(f"No bundled dataset resources exist for {dataset_name!r}.")
+    return (
+        Path(__file__).resolve().parent
+        / "resources"
+        / "datasets"
+        / "Embrapa WGISD"
+    )
 
 
 def seed_dataset_metadata(dataset_name: str, dataset_dir: str | Path) -> Path:
-    """Copy missing tracked annotations, licenses, and documentation to storage."""
+    """Copy missing packaged grape annotations and licensing to storage."""
+    destination = Path(dataset_dir)
+    destination.mkdir(parents=True, exist_ok=True)
+    if dataset_name == "roots":
+        return destination
     source = bundled_dataset_resources(dataset_name)
     if not source.is_dir():
         raise ValueError(f"Bundled dataset resources are missing: {source}")
-    destination = Path(dataset_dir)
-    destination.mkdir(parents=True, exist_ok=True)
     for resource in source.iterdir():
         target = destination / resource.name
         if resource.is_file() and not target.exists():

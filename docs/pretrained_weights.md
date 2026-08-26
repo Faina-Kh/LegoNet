@@ -1,12 +1,102 @@
 # Pretrained checkpoint status
 
 LegoNet does not currently provide checkpoints that reproduce every result or
-architecture ablation reported in the associated papers. The files listed here
-are candidate release checkpoints that still require compatibility and
-evaluation checks against the public code and datasets.
+architecture ablation reported in the associated papers. 
 
-No claim of exact paper-result reproduction should be inferred unless a
-checkpoint is explicitly marked as verified in a future release.
+### Split a full checkpoint into partial weights
+
+Use the standalone converter for per-object checkpoints saved by the current
+code. It validates the selected architecture before creating separate detector
+and per-object head checkpoints:
+
+```powershell
+python scripts/split_full_checkpoint.py `
+  --full-weights-file "C:\weights\legonet_epoch=120.pt" `
+  --network-type per_object_counting `
+  --estimate-type regression `
+  --detector-output-file "C:\weights\legonet_bbox_grapes.pt" `
+  --per-object-output-file "C:\weights\legonet_counting_reg.pt"
+```
+
+For an attributes head, pass its attribute names. Each name maps to an
+`estimator_<name>` module:
+
+```powershell
+python scripts/split_full_checkpoint.py `
+  --full-weights-file "C:\weights\legonet_epoch=90.pt" `
+  --network-type per_object_attributes `
+  --estimate-type keypoints `
+  --attribute-names length diameter color `
+  --detector-output-file "C:\weights\legonet_bbox_roots.pt" `
+  --per-object-output-file "C:\weights\legonet_attributes_kp.pt"
+```
+
+Leave `--attribute-names` out when the head uses the single module name
+`estimator`. Existing files are preserved unless `--overwrite` is supplied.
+The converter refuses architecture mismatches and never overwrites its source
+checkpoint. `--detector-output-file` is optional; omit it when the detector
+weights have already been saved and only a new per-object head file is needed.
+
+The same operation is available in a separate Streamlit page:
+
+```powershell
+streamlit run apps/checkpoint_splitter.py
+```
+
+The converter page accepts an output directory separately from the detector
+and per-object `.pt` filenames. When Streamlit runs locally, the output
+directory can also be selected with the native folder browser.
+
+To perform the reverse operation, combine compatible detector and per-object
+partial checkpoints into one full checkpoint:
+
+```powershell
+python scripts/combine_partial_checkpoints.py `
+  --detector-weights-file "C:\weights\legonet_bbox_grapes.pt" `
+  --per-object-weights-file "C:\weights\legonet_counting_reg.pt" `
+  --network-type per_object_counting `
+  --estimate-type regression `
+  --full-output-file "C:\weights\legonet_counting_reg_full.pt"
+```
+
+The combiner validates both module sets, adds the `bbox_detection.` prefix to
+detector keys, verifies the saved checkpoint, and refuses to overwrite either
+source file. Named attributes use the same `--attribute-names` option as the
+split operation. Combination is rejected whenever either partial checkpoint's
+modules do not exactly match the modules defined by the selected network type,
+estimate type, and attribute names.
+
+The reverse operation also has a local Streamlit page:
+
+```powershell
+streamlit run apps/checkpoint_combiner.py
+```
+
+To remove one obsolete module, such as `find_2`, from a checkpoint through a
+local Streamlit page, run:
+
+```powershell
+streamlit run apps/checkpoint_module_remover.py
+```
+
+The page preserves the source checkpoint, displays the modules before and
+after removal, and writes the cleaned weights to a separate output file.
+
+Boolean values accept `true`, `false`, `yes`, `no`, `1`, or `0`. Explicit
+false values are preserved.
+
+Checkpoint loading and legacy checkpoint export are mutually exclusive:
+
+```text
+--load-weights true
+--save-from-model-file true
+```
+
+cannot be used together.
+
+
+
+
 
 ## Grapes (Embrapa WGISD)
 

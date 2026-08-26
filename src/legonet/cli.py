@@ -497,7 +497,10 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     initialize_dataset_runtime_flags(args)
 
     if args.dataset_name == 'grapes':
-        #if args.network_type == "bbox_detection":
+        # ``filter_empty_bbox=True`` removes images without berry points and
+        # boxes without associated points from the dataset. In contrast,
+        # ``predict_empty_image=False`` prevents per-object counting if an
+        # empty annotated sample nevertheless reaches the model.
         args.filter_empty_bbox = True
         config.General.filter_empty_bbox = args.filter_empty_bbox
 
