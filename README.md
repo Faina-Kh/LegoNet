@@ -37,8 +37,11 @@ The underlying methods have been published in
 - `grapes` uses the [Embrapa Wine Grape Instance Segmentation Dataset
   (Embrapa WGISD)](https://github.com/thsant/wgisd).
 
-See the dataset-specific documentation for complete runtime layouts and
-annotation details in [`docs/datasets`](docs/datasets).
+See the dataset-specific guides for complete runtime layouts, annotation
+details, evaluation scope, and reference results:
+
+- [Embrapa WGISD grapes](docs/datasets/grapes_embrapa-wgisd.md)
+- [Grapevine roots](docs/datasets/roots_grapevine.md)
 
 ## Visual examples
 
@@ -49,17 +52,17 @@ annotation details in [`docs/datasets`](docs/datasets).
 *Per-object grape berry counting. The full image (`CFR_1667.jpg` from the
 [Embrapa WGISD dataset](https://github.com/thsant/wgisd)) shows (a) countable
 grape-cluster annotations in blue and predicted bounding boxes in red; (b) a
-detected cluster, which is cropped and passed to the keypoint-based berry-counting
-estimator; and (c) and (d) the ground-truth and predicted keypoint heatmaps corresponding to the cropped cluster,
-respectively.*
+detected cluster, which is cropped and passed to the keypoint-based
+berry-counting estimator; and (c) and (d) the corresponding ground-truth and
+predicted keypoint heatmaps, respectively.*
 
-### Per-image estimation - Total root length 
+### Per-image estimation - Total root length
 
 ![Raw underground image, ground-truth root keypoint heatmap, and LegoNet-predicted keypoint heatmap](docs/images/trl-keypoint-heatmaps-example.jpg)
 
 *Total root length (TRL) estimation from the underground image
 `T025_L084_2012.10.10_115421_002.jpg` from the
-[grapevine-root dataset](https://doi.org/10.5281/zenodo.8084106): ((a) raw input;
+[grapevine-root dataset](https://doi.org/10.5281/zenodo.8084106): (a) raw input;
 (b) ground-truth keypoint heatmap (TRL: 124.09 mm); and
 (c) predicted keypoint heatmap (TRL: 110.03 mm).*
 
@@ -67,7 +70,7 @@ The experiment scope, distinction between direct per-image estimation and
 per-object aggregation, and staged verification plan are documented in
 [`docs/reproduction.md`](docs/reproduction.md).
 
-## Quick start examples - command-line use
+## Quick start
 
 In a fresh Python 3.12 environment, clone the repository and install the CPU
 build of PyTorch followed by LegoNet:
@@ -113,9 +116,10 @@ Unsupported combinations fail before model or dataset construction.
 
 ## Streamlit GUI
 
-Start the local GUI with:
+Install the optional GUI dependencies, then start the local app:
 
 ```bash
+python -m pip install -e ".[gui]"
 streamlit run apps/streamlit_app.py
 ```
 
@@ -163,49 +167,10 @@ The GUI previews the exact CLI command before launching it.
 
 ## Environment setup
 
-LegoNet provides separate setup paths for lightweight CPU development and
-CUDA research runs. The CPU environment is sufficient for package validation,
-the public CLI, and the default automated test suite. These tests use generated
-tensors, temporary files, and mocked runtime components. They do not require
-CUDA, research datasets, pretrained weights, or network access after
-installation. Full training and research inference use the CUDA environment
-below.
-
-### CPU development and tests
-
-Passing CPU CI verifies the software baseline; it does not reproduce the papers' experimental results or validate
-CUDA performance.
-
-Create a fresh Python 3.12 virtual environment and install the official CPU
-builds of PyTorch and torchvision before installing LegoNet:
-
-```bash
-python -m venv .venv
-```
-
-On Linux or macOS, activate it with:
-
-```bash
-source .venv/bin/activate
-```
-
-On Windows PowerShell, activate it with:
-
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-Then install and validate the project:
-
-```bash
-python -m pip install --upgrade pip
-python -m pip install torch==2.5.1 torchvision==0.20.1 \
-  --index-url https://download.pytorch.org/whl/cpu
-python -m pip install -e ".[test]"
-python -c "import legonet"
-legonet --help
-python -m pytest -m "not slow and not gpu"
-```
+The Quick start above provides the lightweight CPU installation for normal
+inference. Contributors who need an editable test environment should follow
+[`CONTRIBUTING.md`](CONTRIBUTING.md). Full training and research inference use
+the CUDA environment below.
 
 ### CUDA research environment
 
@@ -325,32 +290,6 @@ Dataset, result, and checkpoint paths are constructed from these directory names
 Missing directories are created automatically.
 
 
-### Code repository layout
-
-```text
-apps/
-    streamlit_app.py        Local graphical runner
-src/
-    legonet/
-        cli.py              CLI parsing and runtime configuration
-        config.py           Shared runtime configuration
-        manage_weights.py   Checkpoint conversion and modular weight tools
-        paths.py            Dataset and result-root construction
-        resources/          Packaged annotations, licenses, and dataset notes
-        runner.py           Training/inference dispatch
-        models/             Model variants
-        eval/               Evaluation code
-scripts/
-    debug_legonet.py        Editable same-process IDE debug entry point
-    run_legonet.py          Thin public command-line entry point
-notebooks/                  Demonstrations and experiments
-tests/                      Unit, characterization, and smoke tests
-environment.yml             Reproducible Conda environment
-pyproject.toml              Python package and CLI metadata
-LICENSE                     BSD-3-Clause source-code license
-CITATION.cff                Software and preferred-paper citation metadata
-```
-
 ## Supported configurations
 
 | Dataset | Network type | Estimate type |
@@ -370,21 +309,13 @@ The `--estimate-type` option selects one of two estimator-based architectures:
 - `regression` uses direct regression from feature-pyramid representations,
   without producing keypoint heatmaps.
 
-### Training
+## Training
 
-Requires ground-truth annotations and uses the `Val` validation split.
+Training requires ground-truth annotations and uses the `Val` validation
+split. Select a supported dataset, network type, and estimate type from the
+table above, then use `--run-script Training`.
 
-#### Best-epoch metric
-
-During training, Per-object counting always minimizes count relative error when selecting the
-best checkpoint. Attribute training accepts `--checkpoint-attribute` with
-`length`, `diameter`, or `color`; it minimizes the corresponding relative
-error for continuous attributes and the classification error rate for color.
-Length is the default, preserving the published roots training behavior.
-The Streamlit runner shows the attribute selector only for attribute networks.
-
-
-### First time dataset and checkpoint downloads
+## Automatic dataset and checkpoint downloads
 
 When an inference checkpoint is not supplied, LegoNet announces and downloads
 the matching pretrained checkpoint from the
@@ -422,16 +353,18 @@ The source-checkout equivalent of `legonet` is
 `python scripts/run_legonet.py`.
 
 
-### Weight selection
+## Checkpoint loading
 
-Checkpoint paths are supplied explicitly and the current runtime supports full-model and modular checkpoint loading.
-See [`docs/pretrained_weights.md`](docs/pretrained_weights.md) for the per-model
-status, limitations, and verification process.
+The runtime supports full-model and modular checkpoint loading. See
+[`docs/pretrained_weights.md`](docs/pretrained_weights.md) for the published
+checkpoint inventory, provenance, limitations, checksums, and conversion
+utilities.
 
 Select one loading mode:
 
 | Mode | Required path options | Intended use |
 |---|---|---|
+| `auto` | None | Download or reuse the matching published full-model checkpoint. This is the inference default. |
 | `none` | None | Initialize the complete selected model without weights. |
 | `full` | `--full-weights-file` | Resume or run a complete model checkpoint. |
 | `partial` | `--bbox-weights-file` and, for per-object networks, `--per-object-weights-file` | Assemble a model from task-specific checkpoints. |
@@ -502,46 +435,20 @@ GT-only output is intended for annotation inspection rather than routine model
 evaluation. Its folder is not created unless `--draw-gt-only true` is passed.
 
 
-## PyCharm debugging
-
-For same-process debugging with normal PyCharm breakpoints, edit the
-`DEBUG_SETTINGS` mapping in `scripts/debug_legonet.py`, then run or debug that
-file with the `legonet` interpreter. The settings correspond to the public
-CLI options and the notebook settings. Set `LEGONET_STORAGE_PATH`, or replace
-the empty `storage_path` value locally, before starting an experiment.
-
-When launching the script from PyCharm, configure `LEGONET_STORAGE_PATH` in
-**Run → Edit Configurations → Environment variables**. A variable set in a
-separate PowerShell session is not automatically available to PyCharm. As a
-local alternative, put the path directly in `DEBUG_SETTINGS`:
-
-```python
-"storage_path": r"D:\LegoNet",
-```
-
-
 ## Tests
 
-Run the default fast CPU suite with:
+Run the default CPU test suite:
 
 ```bash
 python -m pytest -m "not slow and not gpu"
 ```
 
-The public-entry-point smoke tests can be run independently:
-
-```bash
-python -m pytest tests/test_public_entrypoint.py
-```
-
-These smoke tests verify public help output and clean failures for missing or
-unsupported configuration without requiring model construction.
-
-Tests marked `slow` or `gpu` are intentionally excluded from the default CPU
-command. GitHub Actions installs CPU-only PyTorch, verifies the installed
-package and `legonet` command, collects and runs the CPU suite with coverage,
-and builds the distribution artifacts. Full dataset and checkpoint
-reproduction remains a separate research validation step.
+The suite validates installation, CLI behavior, dataset handling, checkpoint
+utilities, and evaluation logic without requiring research datasets or a GPU.
+GPU experiments and scientific result reproduction are documented separately
+in [`docs/reproduction.md`](docs/reproduction.md). Development setup, focused
+test commands, and IDE debugging are documented in
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Citation
 

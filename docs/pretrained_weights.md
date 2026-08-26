@@ -1,158 +1,63 @@
-# Pretrained checkpoint status
+# Pretrained weights
 
-LegoNet does not currently provide checkpoints that reproduce every result or
-architecture ablation reported in the associated papers. 
+LegoNet publishes checkpoints for every configuration listed in the main
+README's supported-configuration table. The files are hosted in the
+[LegoNet Zenodo record](https://doi.org/10.5281/zenodo.21966953), selected by
+the CLI or Streamlit GUI, verified against the MD5 values recorded in
+`src/legonet/pretrained.py`, and cached under
+`<storage-path>/checkpoints/zenodo-21966953/`.
 
-### Split a full checkpoint into partial weights
+These checkpoints cover the supported public examples, but not every
+architecture ablation or historical fold reported in the associated papers.
+Paper comparisons and their limitations are documented in the
+[dataset guides](datasets/) and [reproduction guide](reproduction.md).
 
-Use the standalone converter for per-object checkpoints saved by the current
-code. It validates the selected architecture before creating separate detector
-and per-object head checkpoints:
+## Grapes — Embrapa WGISD
 
-```powershell
-python scripts/split_full_checkpoint.py `
-  --full-weights-file "C:\weights\legonet_epoch=120.pt" `
-  --network-type per_object_counting `
-  --estimate-type regression `
-  --detector-output-file "C:\weights\legonet_bbox_grapes.pt" `
-  --per-object-output-file "C:\weights\legonet_counting_reg.pt"
-```
+The detector and keypoint-based counter are the original checkpoints used for
+the published experiments. The regression counter was produced by a newer
+training run because the original MSR checkpoint was unavailable.
 
-For an attributes head, pass its attribute names. Each name maps to an
-`estimator_<name>` module:
-
-```powershell
-python scripts/split_full_checkpoint.py `
-  --full-weights-file "C:\weights\legonet_epoch=90.pt" `
-  --network-type per_object_attributes `
-  --estimate-type keypoints `
-  --attribute-names length diameter color `
-  --detector-output-file "C:\weights\legonet_bbox_roots.pt" `
-  --per-object-output-file "C:\weights\legonet_attributes_kp.pt"
-```
-
-Leave `--attribute-names` out when the head uses the single module name
-`estimator`. Existing files are preserved unless `--overwrite` is supplied.
-The converter refuses architecture mismatches and never overwrites its source
-checkpoint. `--detector-output-file` is optional; omit it when the detector
-weights have already been saved and only a new per-object head file is needed.
-
-The same operation is available in a separate Streamlit page:
-
-```powershell
-streamlit run apps/checkpoint_splitter.py
-```
-
-The converter page accepts an output directory separately from the detector
-and per-object `.pt` filenames. When Streamlit runs locally, the output
-directory can also be selected with the native folder browser.
-
-To perform the reverse operation, combine compatible detector and per-object
-partial checkpoints into one full checkpoint:
-
-```powershell
-python scripts/combine_partial_checkpoints.py `
-  --detector-weights-file "C:\weights\legonet_bbox_grapes.pt" `
-  --per-object-weights-file "C:\weights\legonet_counting_reg.pt" `
-  --network-type per_object_counting `
-  --estimate-type regression `
-  --full-output-file "C:\weights\legonet_counting_reg_full.pt"
-```
-
-The combiner validates both module sets, adds the `bbox_detection.` prefix to
-detector keys, verifies the saved checkpoint, and refuses to overwrite either
-source file. Named attributes use the same `--attribute-names` option as the
-split operation. Combination is rejected whenever either partial checkpoint's
-modules do not exactly match the modules defined by the selected network type,
-estimate type, and attribute names.
-
-The reverse operation also has a local Streamlit page:
-
-```powershell
-streamlit run apps/checkpoint_combiner.py
-```
-
-To remove one obsolete module, such as `find_2`, from a checkpoint through a
-local Streamlit page, run:
-
-```powershell
-streamlit run apps/checkpoint_module_remover.py
-```
-
-The page preserves the source checkpoint, displays the modules before and
-after removal, and writes the cleaned weights to a separate output file.
-
-Boolean values accept `true`, `false`, `yes`, `no`, `1`, or `0`. Explicit
-false values are preserved.
-
-Checkpoint loading and legacy checkpoint export are mutually exclusive:
-
-```text
---load-weights true
---save-from-model-file true
-```
-
-cannot be used together.
-
-
-
-
-
-## Grapes (Embrapa WGISD)
-
-The grape detection and keypoint-based per-object counting checkpoints are
-believed to be the checkpoints used for the reported experiments, or to produce
-very similar results. This has not yet been verified by rerunning the complete
-evaluation with the public repository.
-
-The available regression-based per-object counting checkpoint was produced by
-a later training run. It is not the original checkpoint used for the paper, and
-its results should not be presented as reproducing the reported regression
-results. The latest comparison results are currently stored on an unavailable
-remote machine and must be checked later.
-
-| Configuration | Candidate file | Size (MiB) | SHA-256 | Status |
+| Component | Published file | Size (MiB) | MD5 | Provenance |
 |---|---|---:|---|---|
-| Bounding-box detection | `legonet_bbox_grapes.pt` | 138.90 | `14586c6ff25938e4ceb29d06cab10701c1da0a80065adef83a5469fbf4c44837` | Believed paper-aligned; verification pending |
-| Per-object counting, keypoints | `legonet_CountWithKeyPoints.pt` | 129.60 | `94de002bf7d6e35aa2fc043bc3f1cf504b0856343df0a36c2a1bc37dd70ae183` | Believed paper-aligned; verification pending |
-| Per-object counting, regression | `legonet_epoch=59.pt` | 273.19 | `01cb7b39da761cd13fdb8a734ce17d2512ce22f34013f576c29d7c1bea26d777` | Later training; not the paper checkpoint |
+| Detector | `legonet_bbox_grapes.pt` | 138.90 | `ebd63a96df0cd4e39e3d70fe4d3f1601` | Original experiment checkpoint |
+| Keypoint counter, partial | `legonet_partial_counting_keypoints_grapes.pt` | 129.60 | `c95a3684ba321c23b0eb348b516d4406` | Original experiment checkpoint |
+| Keypoint counting model, full | `legonet_full_counting_keypoints_grapes.pt` | 268.52 | `af0a89b5371d5b1ea58389bf39b9ecd4` | Composed from the published detector and keypoint counter |
+| Regression counter, partial | `legonet_partial_counting_regression_grapes.pt` | 125.16 | `f2faab2f869bf1a1acd014bdd1b8923f` | Newer training run; not the paper checkpoint |
+| Regression counting model, full | `legonet_full_counting_regression_grapes.pt` | 264.08 | `e28aadac49fe027b4441564c65c5c688` | Composed using the newer regression counter |
 
-The architecture-ablation implementations and their checkpoints are not part
-of the current codebase. Reconstructing them may be possible from older code,
-but doing so requires additional development and validation and is outside the
-current release scope.
+The original paper also reports architecture ablations whose implementations
+and checkpoints are not part of the current release.
 
 ## Grapevine roots
 
-The available root checkpoints correspond to model configurations relevant to
-the later *Computers and Electronics in Agriculture* paper. However, the paper
-reports results aggregated over five-fold validation. The historical fold
-definitions and the complete set of fold-specific checkpoints are not
-available, so these files cannot reproduce the reported five-fold results
-exactly. Per-image and per-object outputs from an individual available
-checkpoint may differ from the paper's aggregated results.
+The roots paper reports results aggregated over five folds. The historical
+fold definitions and complete fold-specific checkpoint set are unavailable,
+so the published individual checkpoints cannot reproduce those five-fold
+aggregates exactly.
 
-| Configuration | Candidate file | Size (MiB) | SHA-256 | Status |
-|---|---|---:|---|---|
-| Bounding-box detection | `legonet_bbox_roots.pt` | 138.90 | `939054168e9f6746163c0c0b9905b3fa02889e8c9cf4333f7d38392501da9009` | Relevant checkpoint; five-fold reproduction unavailable |
-| Per-image estimation, keypoints | `legonet_TRLwithKeyPoints.pt` | 129.59 | `f8759c40712a7e7f0637b24513d1a0f2831d6cc579acf3c5732b4f730472d568` | Relevant checkpoint; five-fold reproduction unavailable |
-| Per-image estimation, regression | `legonet_TRLwithReg.pt` | 125.15 | `5b13f23b07c2f48ae8fbbc4f0048611d2c878d6f655e21e1f2e6495b16a9cb08` | Relevant checkpoint; five-fold reproduction unavailable |
-| Per-object attributes, keypoints | `legonet_AttrWithKeyPoints.pt` | 131.90 | `3e927fcd988d9f61205ea17e7046a1442802eb2e5b812d2dada56f66f4b2383f` | Relevant checkpoint; five-fold reproduction unavailable |
-| Per-object attributes, regression | `legonet_AttrWithReg.pt` | 143.62 | `d8d38bb163e8e1d5b09c5e99ecf03847ccf96c4f5ceb188529a29bb85e5f903e` | Relevant checkpoint; five-fold reproduction unavailable |
-| Per-object attributes, multibranch keypoints | `legonet_AttrWith2B2F.pt` | 261.53 | `132aeeb0c5341a6c73c936aaf29364b87ecc0c6ae55220ea76e028bf8953243a` | Relevant checkpoint; five-fold reproduction unavailable |
+| Component | Published file | Size (MiB) | MD5 |
+|---|---|---:|---|
+| Detector | `legonet_bbox_roots.pt` | 138.90 | `b2de6847c6e50d6026b80968ec9be52b` |
+| Direct TRL, keypoints | `legonet_direct_TRL_keypoints_roots.pt` | 129.59 | `ec846449ce1e45df3883b67b626ee269` |
+| Direct TRL, regression | `legonet_direct_TRL_regression_roots.pt` | 125.15 | `dc69814f45a31937ec78fe2752fd69f1` |
+| Per-root attributes, keypoints, partial | `legonet_partial_attributes_keypoints_roots.pt` | 131.90 | `4982c1004466612a7cd2c58418203ca8` |
+| Per-root attributes, keypoints, full | `legonet_full_attributes_keypoints_roots.pt` | 270.83 | `dea53894ba64d407b645609860490679` |
+| Per-root attributes, regression, partial | `legonet_partial_attributes_regression_roots.pt` | 134.52 | `24c66522ba0efbc8cf5b93446e613db5` |
+| Per-root attributes, regression, full | `legonet_full_attributes_regression_roots.pt` | 273.46 | `4d9c168757d4a5fc8f100571eeb6d08c` |
+| Multibranch attributes, keypoints, partial | `legonet_partial_attributes_multibranch_roots.pt` | 261.53 | `1ed96a108fb64ffed0f044ffd3ea26a5` |
+| Multibranch attributes, keypoints, full | `legonet_full_attributes_multibranch_roots.pt` | 400.50 | `b2dad2d63cafa451ab31d9d879c74303` |
 
-## Checkpoint verification
+## Automatic and manual loading
 
-Before a checkpoint is described as a verified, supported download:
+Inference defaults to `--weights-mode auto`, which downloads or reuses the
+matching full-model checkpoint. Use `--weights-mode full`, `partial`,
+`detector_only`, or `none` for explicit loading workflows; the required path
+options are summarized in the main README.
 
-1. Test that it loads into the matching model configuration in the public code.
-2. Run inference on the documented public dataset setup.
-3. Record the exact code version, configuration, and evaluation output.
-4. Upload the verified file to a versioned research archive such as Zenodo.
-5. Add its permanent URL and checksum to a machine-readable download manifest.
-
-Until those checks are complete, files marked as candidates are an inventory
-of research artifacts rather than a guarantee of exact result reproduction.
+Automatic selection is configuration-aware. If no published checkpoint exists
+for a requested combination, LegoNet fails with a clear message instead of
+silently loading an incompatible file.
 
 ## Checkpoint utilities
 
@@ -161,31 +66,32 @@ modular checkpoints. Split a per-object full checkpoint with:
 
 ```powershell
 python scripts/split_full_checkpoint.py `
-  --full-weights-file "C:\weights\legonet_epoch=120.pt" `
+  --full-weights-file "C:\weights\legonet_full_counting_regression_grapes.pt" `
   --network-type per_object_counting `
   --estimate-type regression `
   --detector-output-file "C:\weights\legonet_bbox_grapes.pt" `
-  --per-object-output-file "C:\weights\legonet_counting_reg.pt"
+  --per-object-output-file "C:\weights\legonet_partial_counting_regression_grapes.pt"
 ```
 
 For an attributes checkpoint, add `--attribute-names length diameter color`.
 The detector output is optional when only the per-object head is required.
-Existing output files are preserved unless `--overwrite` is supplied, and the
-source checkpoint is never overwritten.
+Existing files are preserved unless `--overwrite` is supplied, and the source
+checkpoint is never overwritten.
 
 Combine compatible partial checkpoints with:
 
 ```powershell
 python scripts/combine_partial_checkpoints.py `
   --detector-weights-file "C:\weights\legonet_bbox_grapes.pt" `
-  --per-object-weights-file "C:\weights\legonet_counting_reg.pt" `
+  --per-object-weights-file "C:\weights\legonet_partial_counting_regression_grapes.pt" `
   --network-type per_object_counting `
   --estimate-type regression `
-  --full-output-file "C:\weights\legonet_counting_reg_full.pt"
+  --full-output-file "C:\weights\legonet_full_counting_regression_grapes.pt"
 ```
 
-Both utilities validate that checkpoint modules match the selected network and
-estimator architectures. Equivalent local Streamlit tools are available with:
+Both utilities validate the checkpoint modules against the selected network
+and estimator architecture and refuse unsafe overwrites. Equivalent local
+Streamlit tools are available with:
 
 ```powershell
 streamlit run apps/checkpoint_splitter.py
@@ -193,5 +99,5 @@ streamlit run apps/checkpoint_combiner.py
 streamlit run apps/checkpoint_module_remover.py
 ```
 
-The module remover preserves its source and writes the cleaned checkpoint to a
-separate file.
+The module remover preserves its source checkpoint and writes the cleaned
+version to a separate file.
