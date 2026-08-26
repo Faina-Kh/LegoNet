@@ -17,10 +17,6 @@ The underlying methods have been published in
 [*Plant Phenomics*](https://doi.org/10.34133/plantphenomics.0132), and
 [*Remote Sensing*](https://doi.org/10.3390/rs13132496).
 
-The experiment scope, distinction between direct per-image estimation and
-per-root aggregation, and staged verification plan are documented in
-[`docs/reproduction.md`](docs/reproduction.md).
-
 ## Highlights
 
 - End-to-end training, inference, and evaluation in PyTorch.
@@ -72,6 +68,10 @@ respectively.*
 [grapevine-root dataset](https://doi.org/10.5281/zenodo.8084106): ((a) raw input;
 (b) ground-truth keypoint heatmap (TRL: 124.09 mm); and
 (c) predicted keypoint heatmap (TRL: 110.03 mm).*
+
+The experiment scope, distinction between direct per-image estimation and
+per-object aggregation, and staged verification plan are documented in
+[`docs/reproduction.md`](docs/reproduction.md).
 
 ## Quick start
 
