@@ -69,4 +69,7 @@ class ImageEstimatorWithKeypoints(nn.Module):
             return l1_loss, maps_loss
 
         sfms_lists, cls_output = self.find([p3])
-        return self.estimator((sfms_lists, cls_output))
+        outputs = self.estimator((sfms_lists, cls_output))
+        # Append, rather than replace, the processed map so the scalar output
+        # and historical raw-map outputs retain their existing positions.
+        return [*outputs, sfms_lists[0]['processed_find_map']]

@@ -48,6 +48,34 @@ class EvaluationVisualizationTests(TestCase):
                 (output / "sample_map_5_predicted_map_tmp.png").exists()
             )
 
+    @patch("legonet.eval.KP_detection_eval.plt.imsave")
+    @patch(
+        "legonet.eval.KP_detection_eval.ImageFont.truetype",
+        return_value=ImageFont.load_default(),
+    )
+    def test_prediction_heatmap_uses_fixed_activation_scale(
+        self, _font, imsave
+    ) -> None:
+        with TemporaryDirectory() as temporary_directory:
+            temporary_map = Path(temporary_directory) / "sample_map_5_predicted_map_tmp.png"
+            Image.new("RGBA", (4, 4), "black").save(temporary_map)
+
+            visualize_KeyPointsHeatmaps(
+                np.asarray([[0.001, 0.002]], dtype=float),
+                None,
+                "sample",
+                "sample_map_5",
+                Image.new("RGB", (16, 16), "white"),
+                temporary_directory,
+            )
+
+            predicted_call = next(
+                call for call in imsave.call_args_list
+                if str(call.args[0]).endswith("_predicted_map_tmp.png")
+            )
+            self.assertEqual(predicted_call.kwargs["vmin"], 0.0)
+            self.assertEqual(predicted_call.kwargs["vmax"], 1.0)
+
     def test_object_visualizations_save_overlay_and_crop(self) -> None:
         with TemporaryDirectory() as temporary_directory:
             output_path = Path(temporary_directory)

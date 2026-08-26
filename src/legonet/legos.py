@@ -600,6 +600,10 @@ class FindModule(nn.Module):
                 cls_output_Step_Function1 = self.SmoothStepFunction(classification_output)
                 cls_output_MaxPooled = self.LocalNMS(cls_output_Step_Function1)
                 cls_output_Step_Function2 = self.SmoothStepFunction1(cls_output_MaxPooled)
+                # Preserve the post-threshold, post-local-NMS map for
+                # visualization. The raw ReLU map remains in ``find_maps`` for
+                # checkpoint-compatible estimation and loss calculations.
+                SFMS['processed_find_map'] = cls_output_Step_Function2
 
                 if not self.Find_for_count: #(config.General.binary_model and not config.prev_color_model) or config.General.other
                     x1 = cls_output_Step_Function2.unsqueeze(dim=1)

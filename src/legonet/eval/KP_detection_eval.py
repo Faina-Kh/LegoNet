@@ -176,7 +176,9 @@ def visualize_KeyPointsHeatmaps(predicted_map, gt_map, image_name, map_name, img
         predicted_heatmap_path = os.path.join(
             draw_path, map_name + "_Predicted.png"
         )
-        plt.imsave(predicted_map_path, predicted_map)
+        # Use the activation's defined 0-1 range. Per-image autoscaling makes
+        # weak background responses on empty images look falsely confident.
+        plt.imsave(predicted_map_path, predicted_map, vmin=0.0, vmax=1.0)
         relu_pred = Image.open(predicted_map_path)
 
         relu_pred = relu_pred.resize((BG_w, BG_h))
