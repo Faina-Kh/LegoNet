@@ -56,6 +56,15 @@ detected cluster, which is cropped and passed to the keypoint-based
 berry-counting estimator; and (c) and (d) the corresponding ground-truth and
 predicted keypoint heatmaps, respectively.*
 
+#### Architecture options
+
+![LegoNet object-detection pipeline and keypoint- or regression-based architectures for per-object grape berry counting](docs/images/per-object-count-models.jpg)
+
+*Architecture options for per-object grape berry counting. A shared RetinaNet
+detector locates grape clusters and RoI Align extracts each predicted crop. The
+crop is then processed by either the keypoint-based or regression-based count
+estimator selected with `--estimate-type`.*
+
 ### Per-image estimation - Total root length
 
 ![Raw underground image, ground-truth root keypoint heatmap, and LegoNet-predicted keypoint heatmap](docs/images/trl-keypoint-heatmaps-example.jpg)
