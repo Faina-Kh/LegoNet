@@ -40,7 +40,7 @@ The underlying methods have been published in
 See the dataset-specific documentation for complete runtime layouts and
 annotation details:
 
-- [Grape annotations and images](src/legonet/resources/datasets/Embrapa%20WGISD/README.md)
+- [Grape images and annotations](src/legonet/resources/datasets/Embrapa%20WGISD/README.md)
 - [Grapevine-root images and annotations](src/legonet/resources/datasets/Grapevines%20data/README.md)
 
 When publishing results, cite both the relevant LegoNet method paper and the
