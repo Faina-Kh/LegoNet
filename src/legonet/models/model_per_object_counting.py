@@ -341,6 +341,9 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
                     count_input = SFMS_lists, cls_output
 
                     estimation_outputs = self.estimator(count_input)
+                    estimation_outputs.append(
+                        SFMS_lists[0]['processed_find_map']
+                    )
 
                 elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     counting_outputs = []

@@ -58,12 +58,13 @@ def prepare_crop_predictions(
     uses_keypoints = estimate_type == "withKeyPoints"
     original_detection_maps: list[Any] = []
     if uses_keypoints and estimation_outputs is not None:
+        final_map_index = 7 if len(estimation_outputs) > 7 else 6
         original_detection_maps = [
             estimation_outputs[1],
             estimation_outputs[2],
             estimation_outputs[3],
             estimation_outputs[4],
-            estimation_outputs[6],
+            estimation_outputs[final_map_index],
         ]
     if sample_annotations is not None:
         if "points_annot" not in sample_annotations:

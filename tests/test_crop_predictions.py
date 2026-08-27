@@ -115,6 +115,33 @@ class CropPredictionPreparationTests(unittest.TestCase):
         )
         self.assertEqual(len(result.predicted_maps_to_draw), 1)
         self.assertEqual(len(result.predicted_maps_to_draw[0]), 5)
+        torch.testing.assert_close(
+            result.predicted_maps_to_draw[0][4], maps[6][0]
+        )
+
+    def test_legacy_keypoint_outputs_fall_back_to_last_raw_map(self) -> None:
+        state = _state(attribute_mode=False)
+        maps = [torch.full((1, 2, 2), float(index)) for index in range(6)]
+
+        result = prepare_crop_predictions(
+            state=state,
+            dataset=SimpleNamespace(),
+            image_name="image.jpg",
+            predicted_boxes=np.zeros((1, 4)),
+            original_crop_boxes=[[1, 2, 3, 4]],
+            estimation_outputs=[torch.tensor([1.0]), *maps],
+            sample_annotations={},
+            scale=[1.0],
+            evaluates_attributes=False,
+            have_ground_truth=False,
+            estimate_type="withKeyPoints",
+            crop_size=(640, 640),
+            point_center_map_builder=lambda *args: np.zeros((2, 2)),
+        )
+
+        torch.testing.assert_close(
+            result.predicted_maps_to_draw[0][4], maps[5][0]
+        )
 
     def test_prepares_keypoint_predictions_without_ground_truth(self) -> None:
         """No-GT inference must not access point-annotation dataset fields."""
