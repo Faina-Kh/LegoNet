@@ -1,8 +1,9 @@
-# Contributing to LegoNet
+# LegoNet development guide
 
-Thank you for helping improve LegoNet. This guide covers local development,
-testing, and repository navigation. User-facing installation, datasets,
-training, and inference instructions remain in the [main README](README.md).
+This guide covers local development, testing, repository navigation, and IDE
+debugging for users who want to inspect or modify a local checkout of LegoNet.
+User-facing installation, datasets, training, and inference instructions remain
+in the [main README](../README.md).
 
 ## Development environment
 
@@ -52,7 +53,7 @@ The CPU suite uses generated tensors, temporary files, and mocked runtime
 components. It does not require CUDA, research datasets, pretrained weights,
 or network access after installation. Passing it verifies the software
 baseline; it does not reproduce paper results or validate CUDA behavior. See
-[`docs/reproduction.md`](docs/reproduction.md) for scientific comparisons.
+[`reproduction.md`](reproduction.md) for scientific comparisons.
 
 ## Repository layout
 
@@ -80,7 +81,8 @@ pyproject.toml              Package, CLI, test, and dependency metadata
 
 Keep reusable implementation under `src/legonet/`, command-line entry points
 thin, and notebooks limited to demonstrations or experiments. When changing
-behavior, add or update the closest relevant test and documentation.
+behavior locally, add or update the closest relevant test and documentation as
+appropriate.
 
 ## Running tests
 
@@ -97,9 +99,9 @@ python -m pytest tests/test_datasets.py
 ```
 
 Tests marked `slow` or `gpu` are intentionally excluded from the default CPU
-command. A change that affects CUDA execution or scientific output should also
-be checked in the appropriate research environment and documented with its
-dataset, split, checkpoint, and configuration.
+command. A local change that affects CUDA execution or scientific output should
+also be checked in the appropriate research environment with its dataset,
+split, checkpoint, and configuration recorded.
 
 ## PyCharm debugging
 
@@ -118,14 +120,3 @@ automatically available to PyCharm. As a local alternative, set the path in
 ```
 
 Do not commit machine-specific paths or credentials.
-
-## Before submitting a change
-
-- Keep the change focused and preserve model behavior unless the change is
-  explicitly intended and documented.
-- Add docstrings and type hints when editing public Python interfaces.
-- Run the relevant focused tests, followed by the default CPU suite when
-  practical.
-- Update user or scientific documentation when commands, outputs, evaluation
-  scope, or checkpoint behavior changes.
-- Check the final diff for unrelated files and whitespace errors.
