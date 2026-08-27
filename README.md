@@ -43,7 +43,7 @@ details, evaluation scope, and reference results:
 
 ## Visual examples
 
-### Per-object estimation - Grape berry counting
+### Per-object counting - Grape berries
 
 ![Raw grapes image, detected cluster crop, ground-truth keypoint heatmap, and LegoNet-predicted keypoint heatmap](docs/images/per-object-counting-keypoint-example.jpg)
 
@@ -73,25 +73,25 @@ estimator selected with `--estimate-type`.*
 (b) ground-truth keypoint heatmap (TRL: 124.09 mm); and
 (c) predicted keypoint heatmap (TRL: 110.03 mm).*
 
-#### Root model architectures
-
-##### Direct per-image TRL estimation
+#### Architecture options
 
 <p align="center">
   <img src="docs/images/per-image-TRL-models.jpg" width="75%" alt="Keypoint-based D+R and regression-based MSR architectures for direct per-image total root length estimation">
 </p>
 
 *Direct per-image TRL estimation. The complete image is processed without
-first detecting individual roots. The `keypoints` option uses the D+R
+first detecting individual roots. The `keypoints` option uses the Find + D+R
 architecture, while the `regression` option uses the MSR architecture.*
 
-##### Per-root attributes with standalone keypoint estimators
+### Per-object attribute estimation - Roots
+
+#### Per-root attributes with standalone keypoint estimators
 
 ![Detection, crop extraction, and standalone keypoint estimators for per-root length, diameter, and color](docs/images/per-object-keypoint-model-roots.jpg)
 
 *Standalone keypoint architecture for per-root attribute estimation. LegoNet
 detects roots, extracts each predicted crop with RoI Align, and estimates
-length, diameter, and color through separate D+R output modules.*
+length, diameter, and color through separate keypoint-based output modules (D+R).*
 
 ##### Per-root attributes with the multibranch keypoint estimator
 
@@ -99,8 +99,10 @@ length, diameter, and color through separate D+R output modules.*
 
 *Multibranch keypoint architecture for per-root attribute estimation. Length
 uses a dedicated branch, while diameter and color share a second backbone and
-keypoint-detection branch. Per-root predictions can subsequently be aggregated
-into image-level TRL, mean diameter, and white-root fraction.*
+keypoint-detection branch.* 
+
+Per-root predictions can subsequently be aggregated
+into image-level TRL, mean diameter, and white-root fraction.
 
 The supported configurations also include a regression-based per-root
 attribute estimator, which is not shown in these two per-root diagrams.
