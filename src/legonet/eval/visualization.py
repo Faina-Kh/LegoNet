@@ -215,8 +215,8 @@ def save_keypoint_heatmap(
         else [None] * 5
     )
     output_maps = []
-    if len(predicted_maps[crop_index]) > 1:
-        output_maps = [predicted_maps[maps_index][index] for index in range(5)]
+    if maps_index < len(predicted_maps):
+        output_maps = list(predicted_maps[maps_index])
 
     if draw_maps:
         heatmap_index = 4

@@ -170,15 +170,29 @@ def visualize_KeyPointsHeatmaps(predicted_map, gt_map, image_name, map_name, img
 
     # Predicted map #######################################################################################################
     if predicted_map is not None:
+        if hasattr(predicted_map, "detach"):
+            predicted_map = predicted_map.detach().cpu().numpy()
+        predicted_map = np.asarray(predicted_map, dtype=np.float32).squeeze()
+        predicted_map = np.nan_to_num(predicted_map, nan=0.0, posinf=0.0, neginf=0.0)
+        predicted_map = np.maximum(predicted_map, 0.0)
+        display_max = float(predicted_map.max())
+        if display_max <= 0.0:
+            display_max = 1.0
         predicted_map_path = os.path.join(
             draw_path, map_name + "_predicted_map_tmp.png"
         )
         predicted_heatmap_path = os.path.join(
             draw_path, map_name + "_Predicted.png"
         )
-        # Use the activation's defined 0-1 range. Per-image autoscaling makes
-        # weak background responses on empty images look falsely confident.
-        plt.imsave(predicted_map_path, predicted_map, vmin=0.0, vmax=1.0)
+        # Finder activations are not probabilities and can occupy only a small
+        # part of the 0-1 range. Scale non-empty maps by their observed maximum
+        # so genuine predictions remain visible; truly empty maps stay empty.
+        plt.imsave(
+            predicted_map_path,
+            predicted_map,
+            vmin=0.0,
+            vmax=display_max,
+        )
         relu_pred = Image.open(predicted_map_path)
 
         relu_pred = relu_pred.resize((BG_w, BG_h))
