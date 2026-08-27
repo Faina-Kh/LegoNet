@@ -93,7 +93,7 @@ architecture, while the `regression` option uses the MSR architecture.*
 detects roots, extracts each predicted crop with RoI Align, and estimates
 length, diameter, and color through separate keypoint-based output modules (D+R).*
 
-##### Per-root attributes with the multibranch keypoint estimator
+#### Per-root attributes with the multibranch keypoint estimator
 
 ![Detection, crop extraction, and multibranch keypoint architecture for per-root length, diameter, and color](docs/images/per-object-multi-branch-model-roots.jpg)
 
