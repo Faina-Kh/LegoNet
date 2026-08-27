@@ -180,9 +180,9 @@ headless use, checkpoint uploads, and automatic dataset-download behavior.
 ## Environment setup
 
 The Quick start above provides the lightweight CPU installation for normal
-inference. Contributors who need an editable test environment should follow
-[`CONTRIBUTING.md`](CONTRIBUTING.md). Full training and research inference use
-the CUDA environment below.
+inference. For an editable local environment, testing, repository navigation,
+and IDE debugging, see the [development guide](docs/development.md). Full
+training and research inference use the CUDA environment below.
 
 ### CUDA research environment
 
@@ -315,9 +315,9 @@ python -m pytest -m "not slow and not gpu"
 The suite validates installation, CLI behavior, dataset handling, checkpoint
 utilities, and evaluation logic without requiring research datasets or a GPU.
 GPU experiments and scientific result reproduction are documented separately
-in [`docs/reproduction.md`](docs/reproduction.md). Development setup, focused
-test commands, and IDE debugging are documented in
-[`CONTRIBUTING.md`](CONTRIBUTING.md).
+in [`docs/reproduction.md`](docs/reproduction.md). Local development setup,
+focused test commands, and IDE debugging are documented in the
+[development guide](docs/development.md).
 
 ## Citation
 
