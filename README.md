@@ -252,26 +252,20 @@ Training requires ground-truth annotations and uses the `Val` validation
 split. Select a supported dataset, network type, and estimate type from the
 table above, then use `--run-script Training`.
 
-## Automatic dataset and checkpoint downloads
+## Automatic dataset setup
 
-When an inference checkpoint is not supplied, LegoNet announces and downloads
-the matching pretrained checkpoint from the
-[LegoNet Zenodo record](https://doi.org/10.5281/zenodo.21966953). Downloads are
-checksum-verified and cached in
-`<storage-path>/checkpoints/zenodo-21966953/`; later runs reuse the cached file.
-Pass `--full-weights-file /path/to/model.pt` to use your own full checkpoint,
-or `--weights-mode none` to run without pretrained weights. Explicit local
-paths always take precedence over automatic downloads.
+If the selected public dataset is incomplete, LegoNet announces the source and
+destination before downloading the missing data. Existing complete datasets are
+reused without downloading them again.
 
-The selected public dataset is prepared in the same way. If it is incomplete,
-LegoNet announces the source and destination before downloading it.
-For grapes, only the 300 resized `.jpg` files referenced by the tracked LegoNet split
-annotations are downloaded from WGISD; upstream `.txt` and `.npz` files are
-skipped. The small grape annotation and license files are packaged with the
+For grapes, only the 300 resized `.jpg` files referenced by the tracked LegoNet
+split annotations are downloaded from WGISD; upstream `.txt` and `.npz` files
+are skipped. The small grape annotation and license files are packaged with the
 code (`src/legonet/resources/datasets`) and copied into `Datasets/` during
 first-time setup.
-For roots, the published ZIP is downloaded from Zenodo, checksum
-verified, safely extracted, and checked for the expected split files. Pass
+
+For roots, the published ZIP is downloaded from Zenodo, checksum verified,
+safely extracted, and checked for the expected split files. Pass
 `--download-missing-data false` to disable network-based dataset setup.
 
 Datasets can also be prepared or checked without starting inference:
@@ -286,15 +280,15 @@ legonet-data verify all
 From a source checkout, the equivalent entry point is
 `python scripts/download_datasets.py download grapes`.
 
-The source-checkout equivalent of `legonet` is
-`python scripts/run_legonet.py`.
-
 ## Checkpoint loading
 
-LegoNet supports automatic pretrained weights, full-model checkpoints, and
-modular loading of task-specific checkpoints. See
-[`docs/pretrained_weights.md`](docs/pretrained_weights.md) for loading modes,
-checkpoint provenance, limitations, checksums, and conversion utilities.
+For inference, LegoNet uses the matching published pretrained checkpoint by
+default, downloading and caching it when needed. You can instead supply your
+own full or task-specific checkpoints, or disable weight loading.
+
+See [`docs/pretrained_weights.md`](docs/pretrained_weights.md) for loading
+modes, checkpoint inventory and provenance, local-path options, checksums,
+limitations, and conversion utilities.
 
 ## Evaluation
 
