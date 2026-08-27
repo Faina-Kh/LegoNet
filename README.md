@@ -19,15 +19,13 @@ The underlying methods have been published in
 
 ## Highlights
 
-- End-to-end training, inference, and evaluation in PyTorch.
-- Direct per-image estimation, or object detection followed by per-object
-  counting or attribute estimation.
-- Regression- and keypoint-based architectures.
-- Demonstrated on two public datasets: berry counting for countable grape
-  clusters, and multi-task estimation of root length, diameter, and color.
-- Automated, checksum-verified dataset and checkpoint downloads.
+- Modular deep-learning architecture supporting direct per-image estimation
+  and detection-based per-object counting and attribute estimation.
+- End-to-end training, inference, evaluation, and visualization in PyTorch.
+- Interchangeable keypoint- and regression-based estimation approaches.
+- Demonstrated on two public datasets for grape berry counting and multi-task
+  estimation of root length, diameter, and color.
 - Validated command-line tools and a local Streamlit interface.
-- Modular checkpoint splitting, composition, and inspection utilities.
 - CPU test coverage and continuous integration through GitHub Actions.
 
 ## Datasets
@@ -74,6 +72,38 @@ estimator selected with `--estimate-type`.*
 [grapevine-root dataset](https://doi.org/10.5281/zenodo.8084106): (a) raw input;
 (b) ground-truth keypoint heatmap (TRL: 124.09 mm); and
 (c) predicted keypoint heatmap (TRL: 110.03 mm).*
+
+#### Root model architectures
+
+##### Direct per-image TRL estimation
+
+<p align="center">
+  <img src="docs/images/per-image-TRL-models.jpg" width="75%" alt="Keypoint-based D+R and regression-based MSR architectures for direct per-image total root length estimation">
+</p>
+
+*Direct per-image TRL estimation. The complete image is processed without
+first detecting individual roots. The `keypoints` option uses the D+R
+architecture, while the `regression` option uses the MSR architecture.*
+
+##### Per-root attributes with standalone keypoint estimators
+
+![Detection, crop extraction, and standalone keypoint estimators for per-root length, diameter, and color](docs/images/per-object-keypoint-model-roots.jpg)
+
+*Standalone keypoint architecture for per-root attribute estimation. LegoNet
+detects roots, extracts each predicted crop with RoI Align, and estimates
+length, diameter, and color through separate D+R output modules.*
+
+##### Per-root attributes with the multibranch keypoint estimator
+
+![Detection, crop extraction, and multibranch keypoint architecture for per-root length, diameter, and color](docs/images/per-object-multi-branch-model-roots.jpg)
+
+*Multibranch keypoint architecture for per-root attribute estimation. Length
+uses a dedicated branch, while diameter and color share a second backbone and
+keypoint-detection branch. Per-root predictions can subsequently be aggregated
+into image-level TRL, mean diameter, and white-root fraction.*
+
+The supported configurations also include a regression-based per-root
+attribute estimator, which is not shown in these two per-root diagrams.
 
 The experiment scope, distinction between direct per-image estimation and
 per-object aggregation, and staged verification plan are documented in
