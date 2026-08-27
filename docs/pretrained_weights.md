@@ -51,13 +51,38 @@ aggregates exactly.
 ## Automatic and manual loading
 
 Inference defaults to `--weights-mode auto`, which downloads or reuses the
-matching full-model checkpoint. Use `--weights-mode full`, `partial`,
-`detector_only`, or `none` for explicit loading workflows; the required path
-options are summarized in the main README.
+matching published full-model checkpoint. The runtime also supports explicit
+full-model and modular checkpoint loading:
 
-Automatic selection is configuration-aware. If no published checkpoint exists
+| Mode | Required path options | Intended use |
+|---|---|---|
+| `auto` | None | Download or reuse the matching published full-model checkpoint. This is the inference default. |
+| `none` | None | Initialize the complete selected model without weights. |
+| `full` | `--full-weights-file` | Resume or run a complete model checkpoint. |
+| `partial` | `--bbox-weights-file` and, for per-object networks, `--per-object-weights-file` | Assemble a model from task-specific checkpoints. |
+| `detector_only` | `--bbox-weights-file` | Train a new per-object head using a pretrained frozen detector. Available only for per-object training. |
+
+`full`, `partial`, and `detector_only` accept local paths but download any
+required path that was omitted. `none` disables all checkpoint loading.
+Automatic selection is configuration-aware: if no published checkpoint exists
 for a requested combination, LegoNet fails with a clear message instead of
 silently loading an incompatible file.
+
+For example, this training command supplies its detector explicitly:
+
+```bash
+python scripts/run_legonet.py \
+  --storage-path /path/to/legonet-storage \
+  --dataset-name grapes \
+  --network-type per_object_counting \
+  --estimate-type regression \
+  --run-script Training \
+  --val-set Val \
+  --have-gt true \
+  --weights-mode detector_only \
+  --bbox-weights-file /path/to/legonet_bbox_grapes.pt \
+  --num-of-epochs 300
+```
 
 ## Checkpoint utilities
 
