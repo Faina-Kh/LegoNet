@@ -102,11 +102,7 @@ def evaluate(
 
                 # get only the prediction maps
                 predicted_maps = count_outputs[1:5]
-                # The final item is the post-threshold, post-local-NMS map.
-                # Keep a fallback for older/custom models that return only the
-                # historical raw ReLU map at index 6.
-                final_map_index = 7 if len(count_outputs) > 7 else 6
-                predicted_maps.append(count_outputs[final_map_index])
+                predicted_maps.append(count_outputs[6])
 
                 #---------------------------------------
                 # import matplotlib.pyplot as plt

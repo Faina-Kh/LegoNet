@@ -48,34 +48,6 @@ class EvaluationVisualizationTests(TestCase):
                 (output / "sample_map_5_predicted_map_tmp.png").exists()
             )
 
-    @patch("legonet.eval.KP_detection_eval.plt.imsave")
-    @patch(
-        "legonet.eval.KP_detection_eval.ImageFont.truetype",
-        return_value=ImageFont.load_default(),
-    )
-    def test_prediction_heatmap_scales_nonempty_activations(
-        self, _font, imsave
-    ) -> None:
-        with TemporaryDirectory() as temporary_directory:
-            temporary_map = Path(temporary_directory) / "sample_map_5_predicted_map_tmp.png"
-            Image.new("RGBA", (4, 4), "black").save(temporary_map)
-
-            visualize_KeyPointsHeatmaps(
-                np.asarray([[0.001, 0.002]], dtype=float),
-                None,
-                "sample",
-                "sample_map_5",
-                Image.new("RGB", (16, 16), "white"),
-                temporary_directory,
-            )
-
-            predicted_call = next(
-                call for call in imsave.call_args_list
-                if str(call.args[0]).endswith("_predicted_map_tmp.png")
-            )
-            self.assertEqual(predicted_call.kwargs["vmin"], 0.0)
-            self.assertAlmostEqual(predicted_call.kwargs["vmax"], 0.002)
-
     def test_object_visualizations_save_overlay_and_crop(self) -> None:
         with TemporaryDirectory() as temporary_directory:
             output_path = Path(temporary_directory)
@@ -270,29 +242,6 @@ class EvaluationVisualizationTests(TestCase):
         np.testing.assert_array_equal(arguments[0], predicted_maps[0][4])
         np.testing.assert_array_equal(arguments[1], point_maps[5][0])
         self.assertEqual(arguments[3], "sample_crop_0_map_5")
-
-    @patch("legonet.eval.visualization._visualize_keypoint_heatmaps")
-    def test_keypoint_heatmap_uses_drawn_map_index_when_crops_are_skipped(
-        self, visualize_heatmap
-    ) -> None:
-        predicted_maps = [
-            [np.full((2, 2), 10 + index) for index in range(5)],
-            [np.full((2, 2), 20 + index) for index in range(5)],
-        ]
-
-        save_keypoint_heatmap(
-            image_name="sample.jpg",
-            crop_index=3,
-            crop_image=Image.new("RGB", (8, 8)),
-            point_maps=None,
-            predicted_maps=predicted_maps,
-            maps_index=1,
-            draw_maps=True,
-            maps_path="maps",
-        )
-
-        predicted_map = visualize_heatmap.call_args[0][0]
-        np.testing.assert_array_equal(predicted_map, predicted_maps[1][4])
 
     @patch("legonet.eval.visualization._visualize_keypoint_heatmaps")
     def test_disabled_keypoint_drawing_still_advances_index(

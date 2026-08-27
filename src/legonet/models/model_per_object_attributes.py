@@ -344,16 +344,7 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
 
                     diameter,_ ,_ ,_ ,_ , _, _ = self.estimator_diameter(count_input)
 
-                    estimation_outputs = [
-                        torch.cat([color, length, diameter], dim=-1),
-                        maps_0,
-                        maps_1,
-                        maps_2,
-                        maps_3,
-                        maps_4,
-                        maps_5,
-                        SFMS_lists[0]['processed_find_map'],
-                    ]
+                    estimation_outputs = [torch.cat([color,length,diameter], dim=-1), maps_0, maps_1, maps_2, maps_3, maps_4, maps_5] #counting_outputs
 
                 elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     counting_outputs = []
