@@ -52,8 +52,8 @@ orig_avg_abs_count_diff: 0.500 | orig_count_agreement: 0.750 | orig_MSE: 0.400 |
 
     def test_extracts_per_image_attribute_one_minus_fvu(self) -> None:
         output = (
-            "AbsvalueDiff: 0.250 | MSE 0.125 | "
-            "RelError (gt>0): 0.100 | 1-FVU: 0.750\n"
+            "Abs_value_Diff: 0.250 | MSE 0.125 | "
+            "MRD (Relative Error for gt>0): 0.100 | 1-FVU: 0.750\n"
         )
 
         summary = extract_evaluation_summary(output)

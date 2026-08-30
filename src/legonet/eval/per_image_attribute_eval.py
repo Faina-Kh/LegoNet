@@ -222,7 +222,7 @@ def evaluate(
         if args.have_GT:
             num_of_images = len(all_GT_values)
             valueDiff = sum_of_differences(all_GT_values, all_predicted_values) / num_of_images
-            AbsvalueDiff = sum_of_absolute_differences(all_GT_values, all_predicted_values) / num_of_images
+            Abs_value_Diff = sum_of_absolute_differences(all_GT_values, all_predicted_values) / num_of_images
             one_minus_fvu = compute_regression_metrics(
                 all_GT_values,
                 all_predicted_values,
@@ -234,9 +234,9 @@ def evaluate(
         if args.have_GT:
             if  model.estimator.binary_model:
                 print(
-                    'AbsvalueDiff: {:.3f} | accuracy {:.3f} | 1-FVU: {:.3f} \n'.format(
-                        AbsvalueDiff,
-                        1-AbsvalueDiff,
+                    'Abs_value_Diff: {:.3f} | accuracy {:.3f} | 1-FVU: {:.3f} \n'.format(
+                        Abs_value_Diff,
+                        1-Abs_value_Diff,
                         one_minus_fvu,
                     )
                 )
@@ -255,8 +255,8 @@ def evaluate(
                     MSE = None
 
                 print(
-                    'AbsvalueDiff: {:.3f} | MSE {:.3f} | RelError (gt>0): {:.3f} | 1-FVU: {:.3f} \n'.format(
-                        AbsvalueDiff,
+                    'AbsvalueDiff: {:.3f} | MSE {:.3f} | MRD (Relative Error for gt>0): {:.3f} | 1-FVU: {:.3f} \n'.format(
+                        Abs_value_Diff,
                         MSE,
                         mean_rel_error,
                         one_minus_fvu,
@@ -297,15 +297,15 @@ def evaluate(
         #         if all_GT_values[i] == all_predicted_values[i]:
         #             countAgr += 1
         #     CountAgreement = countAgr / num_of_images
-        #     print('valueDiff: {} | AbsvalueDiff: {} | CountAgreement: {} | MSE {} \n'.format(
-        #         valueDiff, AbsvalueDiff, CountAgreement, MSE))
+        #     print('valueDiff: {} | Abs_value_Diff: {} | CountAgreement: {} | MSE {} \n'.format(
+        #         valueDiff, Abs_value_Diff, CountAgreement, MSE))
 
         model.train()
 
         #if args.dataset_name == "roots":
         if  model.estimator.binary_model:
             if args.have_GT:
-                return AbsvalueDiff
+                return Abs_value_Diff
             else:
                 return None
         else:

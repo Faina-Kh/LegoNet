@@ -22,6 +22,13 @@ from legonet.eval.visualization import (
 class EvaluationVisualizationTests(TestCase):
     """Verify visualization helpers without running model evaluation."""
 
+    def test_heatmap_count_values_are_formatted_as_integers(self) -> None:
+        self.assertEqual(KP_detection_eval._format_heatmap_value(12.0, "count"), "12")
+        self.assertEqual(KP_detection_eval._format_heatmap_value(12.6, "count"), "13")
+
+    def test_heatmap_length_values_keep_decimal_precision(self) -> None:
+        self.assertEqual(KP_detection_eval._format_heatmap_value(12.56, "length"), "12.56")
+
     def test_scaled_box_uses_image_scale(self) -> None:
         self.assertEqual(
             scaled_box([10, 20, 30, 40], [2]),

@@ -143,6 +143,13 @@ def calc_points_recall_precision_ap(T, P):
     return recall, precision, ap
 
 
+def _format_heatmap_value(value, attribute_name: str) -> str:
+    """Format discrete counts as integers and continuous attributes to 2 decimals."""
+    if attribute_name.casefold() == "count":
+        return str(int(np.rint(value)))
+    return str(np.round(value, 2))
+
+
 def visualize_KeyPointsHeatmaps(predicted_map, gt_map, image_name, map_name, imgToVis, draw_path, count_pred = None,
                                 count_GT=None, font_size = 30, attribute_name = "TRL", attribute_unit = "mm",
                                 heatmap_vmax: float | None = None): #"count"
@@ -182,7 +189,7 @@ def visualize_KeyPointsHeatmaps(predicted_map, gt_map, image_name, map_name, img
 
         if count_GT is not None:
             draw = ImageDraw.Draw(alphaBlended)
-            draw.text((50, 50), "GT "+ attribute_name+ " = "+str(np.round(count_GT, 2))+ " " + attribute_unit,
+            draw.text((50, 50), "GT "+ attribute_name+ " = "+_format_heatmap_value(count_GT, attribute_name)+ " " + attribute_unit,
                       (255, 255, 255), font=font)
 
         alphaBlended.save(draw_path + '/' + map_name+'_Blended_GT.png')
@@ -209,7 +216,7 @@ def visualize_KeyPointsHeatmaps(predicted_map, gt_map, image_name, map_name, img
 
         if count_pred is not None:
             draw = ImageDraw.Draw(alphaBlended_relu)
-            draw.text((50, 50), "Predicted "+ attribute_name+ " = " + str(np.round(count_pred, 2))+ " " +
+            draw.text((50, 50), "Predicted "+ attribute_name+ " = " + _format_heatmap_value(count_pred, attribute_name)+ " " +
                       attribute_unit,(255, 255, 255), font=font)
 
         alphaBlended_relu.save(predicted_heatmap_path)
