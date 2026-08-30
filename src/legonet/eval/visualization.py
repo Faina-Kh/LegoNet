@@ -44,11 +44,11 @@ def _crop_image(bbox_crop: Any, unnormalize: Callable[[Any], Any]) -> Image.Imag
     return Image.fromarray(crop_array, mode="RGB")
 
 
-def _visualize_keypoint_heatmaps(*args: Any) -> None:
+def _visualize_keypoint_heatmaps(*args: Any, **kwargs: Any) -> None:
     """Load the optional keypoint renderer only when maps are requested."""
     from legonet.eval.KP_detection_eval import visualize_KeyPointsHeatmaps
 
-    visualize_KeyPointsHeatmaps(*args)
+    visualize_KeyPointsHeatmaps(*args, **kwargs)
 
 
 def save_detection_overview(
@@ -204,8 +204,12 @@ def save_keypoint_heatmap(
     maps_index: int,
     draw_maps: bool,
     maps_path: str,
+    predicted_value: float | None = None,
+    ground_truth_value: float | None = None,
+    attribute_name: str = "TRL",
+    attribute_unit: str = "mm",
 ) -> int:
-    """Optionally save the fifth predicted heatmap, with GT when available."""
+    """Optionally save the fifth heatmap and its GT/predicted estimate."""
     true_maps = (
         [
             np.asarray(point_maps[index][crop_index]).copy()
@@ -234,5 +238,9 @@ def save_keypoint_heatmap(
             map_name,
             crop_image,
             maps_path,
+            count_pred=predicted_value,
+            count_GT=ground_truth_value,
+            attribute_name=attribute_name,
+            attribute_unit=attribute_unit,
         )
     return maps_index + 1

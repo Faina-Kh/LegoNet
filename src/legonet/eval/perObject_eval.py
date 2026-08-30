@@ -573,6 +573,23 @@ def eval(
                                     )
                                 )
                             ):
+                                predicted_heatmap_value = (
+                                    TRL_pred[i]
+                                    if evaluates_attributes
+                                    else count_pred[i]
+                                )
+                                heatmap_gt_values = (
+                                    orig_TRL_GT
+                                    if evaluates_attributes
+                                    else orig_count_GT
+                                )
+                                ground_truth_heatmap_value = (
+                                    heatmap_gt_values[i]
+                                    if args.have_GT
+                                    and i < len(heatmap_gt_values)
+                                    and heatmap_gt_values[i] != -1
+                                    else None
+                                )
                                 maps_idx = save_keypoint_heatmap(
                                     image_name=image_name,
                                     crop_index=i,
@@ -588,6 +605,14 @@ def eval(
                                     maps_index=maps_idx,
                                     draw_maps=config.DrawProperties.DRAW_MAPS,
                                     maps_path=config.DrawProperties.maps_path,
+                                    predicted_value=predicted_heatmap_value,
+                                    ground_truth_value=ground_truth_heatmap_value,
+                                    attribute_name=(
+                                        "TRL" if evaluates_attributes else "count"
+                                    ),
+                                    attribute_unit=(
+                                        "mm" if evaluates_attributes else ""
+                                    ),
                                 )
 
                     if verbose:

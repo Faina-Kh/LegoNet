@@ -269,6 +269,10 @@ class EvaluationVisualizationTests(TestCase):
             maps_index=0,
             draw_maps=True,
             maps_path="maps",
+            predicted_value=12.5,
+            ground_truth_value=14.0,
+            attribute_name="count",
+            attribute_unit="",
         )
 
         self.assertEqual(next_index, 1)
@@ -277,6 +281,12 @@ class EvaluationVisualizationTests(TestCase):
         np.testing.assert_array_equal(arguments[0], predicted_maps[0][4])
         np.testing.assert_array_equal(arguments[1], point_maps[5][0])
         self.assertEqual(arguments[3], "sample_crop_0_map_5")
+        self.assertEqual(visualize_heatmap.call_args.kwargs["count_pred"], 12.5)
+        self.assertEqual(visualize_heatmap.call_args.kwargs["count_GT"], 14.0)
+        self.assertEqual(
+            visualize_heatmap.call_args.kwargs["attribute_name"], "count"
+        )
+        self.assertEqual(visualize_heatmap.call_args.kwargs["attribute_unit"], "")
 
     @patch("legonet.eval.visualization._visualize_keypoint_heatmaps")
     def test_disabled_keypoint_drawing_still_advances_index(
