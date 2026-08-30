@@ -66,6 +66,23 @@ def _include_crop_in_point_evaluation(
     return evaluates_attributes or torch.sum(ground_truth_map).item() > 0
 
 
+def _evaluate_crop_keypoints(
+    raw_map: torch.Tensor,
+    processed_map: torch.Tensor,
+    ground_truth_map: torch.Tensor,
+    *,
+    evaluates_attributes: bool,
+) -> tuple[list[float], list[float]]:
+    """Use the paper-compatible raw protocol for grape counting crops."""
+    if evaluates_attributes:
+        return points_detection_t_p(processed_map, ground_truth_map)
+    return points_detection_t_p(
+        raw_map,
+        ground_truth_map,
+        candidate_threshold=0.0,
+    )
+
+
 def _get_detections(detection_outputs, scale):
     scores, labels, boxes = detection_outputs
     boxes = boxes.cpu().numpy()
@@ -461,7 +478,12 @@ def eval(
                                         evaluates_attributes=evaluates_attributes,
                                     ):
                                         continue
-                                    t, p = points_detection_t_p(evaluation_maps[b, :, :], all_crops_GT_detections_maps[b, :, :])
+                                    t, p = _evaluate_crop_keypoints(
+                                        all_predicted_detection_maps[b, :, :],
+                                        evaluation_maps[b, :, :],
+                                        all_crops_GT_detections_maps[b, :, :],
+                                        evaluates_attributes=evaluates_attributes,
+                                    )
                                     state['T']=state['T']+ t
                                     state['P']=state['P']+ p
                                     if getattr(
@@ -473,12 +495,17 @@ def eval(
                                             "keypoint_protocol_comparison"
                                         ]
                                         for protocol_name in (
+                                            "processed_threshold_0_02",
                                             "processed_local_maxima",
                                             "raw_nonzero",
                                         ):
                                             comparison.setdefault(
                                                 protocol_name, {"T": [], "P": []}
                                             )
+                                        processed_t, processed_p = points_detection_t_p(
+                                            evaluation_maps[b, :, :],
+                                            all_crops_GT_detections_maps[b, :, :],
+                                        )
                                         local_t, local_p = points_detection_t_p(
                                             evaluation_maps[b, :, :],
                                             all_crops_GT_detections_maps[b, :, :],
@@ -490,6 +517,8 @@ def eval(
                                             all_crops_GT_detections_maps[b, :, :],
                                             candidate_threshold=0.0,
                                         )
+                                        comparison["processed_threshold_0_02"]["T"].extend(processed_t)
+                                        comparison["processed_threshold_0_02"]["P"].extend(processed_p)
                                         comparison["processed_local_maxima"]["T"].extend(local_t)
                                         comparison["processed_local_maxima"]["P"].extend(local_p)
                                         comparison["raw_nonzero"]["T"].extend(raw_t)
@@ -693,5 +722,3 @@ def eval(
             text_results_path=getattr(args, "txt_results", None),
         )
         return summary_metrics if return_metrics else legacy_result
-
-

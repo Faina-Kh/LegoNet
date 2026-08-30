@@ -31,6 +31,21 @@ class PerObjectEvaluationTests(unittest.TestCase):
             )
         )
 
+    def test_grape_point_evaluation_uses_raw_nonzero_map(self):
+        raw_map = torch.tensor([[0.0, 0.01], [0.0, 0.0]])
+        processed_map = torch.zeros((2, 2))
+        ground_truth_map = torch.tensor([[0.0, 1.0], [0.0, 0.0]])
+
+        targets, scores = perObject_eval._evaluate_crop_keypoints(
+            raw_map,
+            processed_map,
+            ground_truth_map,
+            evaluates_attributes=False,
+        )
+
+        self.assertEqual(targets, [1])
+        self.assertAlmostEqual(scores[0], 0.01, places=6)
+
     def test_metric_point_map_uses_geometric_containment_not_bbox_id(self):
         """Point metrics include contained points from any GT bbox id."""
         points = [

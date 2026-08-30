@@ -53,6 +53,7 @@ def evaluate(
         all_GT_values = []
         all_predicted_values = []
         T, P = [], []
+        protocol_comparison = {}
         all_rel_error = []
         predicted_maps = None
 
@@ -158,6 +159,34 @@ def evaluate(
                         )
                         T = T + t
                         P = P + p
+                        if getattr(args, "compare_keypoint_protocols", False):
+                            for protocol_name in (
+                                "processed_threshold_0_02",
+                                "processed_local_maxima",
+                                "raw_nonzero",
+                            ):
+                                protocol_comparison.setdefault(
+                                    protocol_name, {"T": [], "P": []}
+                                )
+                            protocol_inputs = {
+                                "processed_threshold_0_02": points_detection_t_p(
+                                    evaluation_map[b], true_map[b]
+                                ),
+                                "processed_local_maxima": points_detection_t_p(
+                                    evaluation_map[b],
+                                    true_map[b],
+                                    candidate_threshold=None,
+                                    local_maxima_only=True,
+                                ),
+                                "raw_nonzero": points_detection_t_p(
+                                    predicted_maps[-1][b],
+                                    true_map[b],
+                                    candidate_threshold=0.0,
+                                ),
+                            }
+                            for protocol_name, (protocol_t, protocol_p) in protocol_inputs.items():
+                                protocol_comparison[protocol_name]["T"].extend(protocol_t)
+                                protocol_comparison[protocol_name]["P"].extend(protocol_p)
 
             if args.have_GT:
                 if not model.estimator.binary_model:
@@ -275,6 +304,50 @@ def evaluate(
                     recall[-1],
                     precision[-1],
                 )
+                if protocol_comparison:
+                    comparison_rows = []
+                    for protocol_name, values in protocol_comparison.items():
+                        protocol_recall, protocol_precision, protocol_ap = (
+                            calc_points_recall_precision_ap(
+                                values["T"], values["P"]
+                            )
+                        )
+                        comparison_rows.append(
+                            (
+                                protocol_name,
+                                protocol_ap,
+                                protocol_recall[-1],
+                                protocol_precision[-1],
+                                sum(values["T"]),
+                                len(protocol_precision),
+                            )
+                        )
+                        plot_PR_curve(
+                            protocol_recall,
+                            protocol_precision,
+                            protocol_ap,
+                            save_path=config.General.files_path,
+                            plots_name=(
+                                f"Points_PR_curve_{protocol_name}.png"
+                            ),
+                        )
+                    comparison_path = os.path.join(
+                        config.General.files_path,
+                        "keypoint_protocol_comparison.csv",
+                    )
+                    with open(comparison_path, "w", newline="") as comparison_file:
+                        writer = csv.writer(comparison_file)
+                        writer.writerow(
+                            (
+                                "protocol",
+                                "mAP",
+                                "max_recall",
+                                "final_precision",
+                                "ground_truth_points",
+                                "candidates",
+                            )
+                        )
+                        writer.writerows(comparison_rows)
 
                 # print recall and precision  to csv
                 csv_columns = ['recall', 'precision']

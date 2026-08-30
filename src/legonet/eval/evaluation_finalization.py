@@ -321,10 +321,6 @@ def _write_keypoint_protocol_comparison(
     comparison = state.get("keypoint_protocol_comparison", {})
     if not comparison:
         return
-    comparison = {
-        "processed_threshold_0_02": {"T": state["T"], "P": state["P"]},
-        **comparison,
-    }
     rows = []
     for protocol_name, values in comparison.items():
         recall, precision, average_precision = calc_points_recall_precision_ap(
@@ -336,6 +332,7 @@ def _write_keypoint_protocol_comparison(
                 average_precision,
                 recall[-1],
                 precision[-1],
+                sum(values["T"]),
                 len(precision),
             )
         )
@@ -348,6 +345,8 @@ def _write_keypoint_protocol_comparison(
         )
     output_path = Path(files_path) / "keypoint_protocol_comparison.csv"
     with output_path.open("w", encoding="utf-8", newline="") as output_file:
-        output_file.write("protocol,mAP,max_recall,final_precision,candidates\n")
+        output_file.write(
+            "protocol,mAP,max_recall,final_precision,ground_truth_points,candidates\n"
+        )
         for row in rows:
             output_file.write(",".join(str(value) for value in row) + "\n")

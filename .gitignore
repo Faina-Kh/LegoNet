@@ -47,3 +47,6 @@ dist/
 .pytest-temp/
 
 AGENTS.md
+
+# Local, unpublished investigation notes
+docs/private/
