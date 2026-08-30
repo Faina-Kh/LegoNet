@@ -46,7 +46,7 @@ class EvaluationVisualizationTests(TestCase):
                     "sample_map_5",
                     Image.new("RGB", (16, 16), "white"),
                     temporary_directory,
-                    fixed_scale=True,
+                    heatmap_vmax=1.0,
                 )
 
             output = Path(temporary_directory)
@@ -56,6 +56,32 @@ class EvaluationVisualizationTests(TestCase):
             )
             self.assertEqual(imsave.call_args.kwargs["vmin"], 0.0)
             self.assertEqual(imsave.call_args.kwargs["vmax"], 1.0)
+
+    @patch(
+        "legonet.eval.KP_detection_eval.ImageFont.truetype",
+        return_value=ImageFont.load_default(),
+    )
+    def test_gt_and_prediction_heatmaps_use_the_same_fixed_scale(self, _font) -> None:
+        with TemporaryDirectory() as temporary_directory:
+            original_imsave = KP_detection_eval.plt.imsave
+            with patch(
+                "legonet.eval.KP_detection_eval.plt.imsave",
+                side_effect=original_imsave,
+            ) as imsave:
+                visualize_KeyPointsHeatmaps(
+                    np.full((4, 4), 0.1, dtype=float),
+                    np.ones((4, 4), dtype=float),
+                    "sample",
+                    "sample_map_5",
+                    Image.new("RGB", (16, 16), "white"),
+                    temporary_directory,
+                    heatmap_vmax=1.0,
+                )
+
+            self.assertEqual(imsave.call_count, 2)
+            for call in imsave.call_args_list:
+                self.assertEqual(call.kwargs["vmin"], 0.0)
+                self.assertEqual(call.kwargs["vmax"], 1.0)
 
     def test_object_visualizations_save_overlay_and_crop(self) -> None:
         with TemporaryDirectory() as temporary_directory:

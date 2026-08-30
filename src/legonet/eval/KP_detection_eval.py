@@ -132,7 +132,7 @@ def calc_points_recall_precision_ap(T, P):
 
 def visualize_KeyPointsHeatmaps(predicted_map, gt_map, image_name, map_name, imgToVis, draw_path, count_pred = None,
                                 count_GT=None, font_size = 30, attribute_name = "TRL", attribute_unit = "mm",
-                                fixed_scale: bool = False): #"count"
+                                heatmap_vmax: float | None = None): #"count"
 
     font = ImageFont.truetype("arial.ttf", font_size) #15) #60
 
@@ -155,7 +155,12 @@ def visualize_KeyPointsHeatmaps(predicted_map, gt_map, image_name, map_name, img
         anno = gt_map.copy() #.cpu().numpy().copy()
 
     if gt_map is not None:
-        plt.imsave(draw_path + '/' + map_name+ '_anno.png', anno)
+        save_options = (
+            {"vmin": 0.0, "vmax": heatmap_vmax}
+            if heatmap_vmax is not None
+            else {}
+        )
+        plt.imsave(draw_path + '/' + map_name+ '_anno.png', anno, **save_options)
         gt_anns = Image.open(draw_path + '/' + map_name+ '_anno.png')
         gt_anns = gt_anns.resize((BG_w, BG_h), Image.Resampling.LANCZOS) #Image.ANTIALIAS)
         gt_anns.save(draw_path + '/' + map_name + '_anno.png')
@@ -177,7 +182,11 @@ def visualize_KeyPointsHeatmaps(predicted_map, gt_map, image_name, map_name, img
         predicted_heatmap_path = os.path.join(
             draw_path, map_name + "_Predicted.png"
         )
-        save_options = {"vmin": 0.0, "vmax": 1.0} if fixed_scale else {}
+        save_options = (
+            {"vmin": 0.0, "vmax": heatmap_vmax}
+            if heatmap_vmax is not None
+            else {}
+        )
         plt.imsave(predicted_map_path, predicted_map, **save_options)
         relu_pred = Image.open(predicted_map_path)
 
