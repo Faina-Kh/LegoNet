@@ -403,7 +403,6 @@ def train_model(
             _record_losses(component_history, result)
             _print_step(epoch, iteration, args, result, float(np.mean(running_losses)))
             gc.collect()
-            torch.cuda.empty_cache()
 
         _print_epoch_summary(epoch, component_history)
         if args.network_type == "bbox_detection":

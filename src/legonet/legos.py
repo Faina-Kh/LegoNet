@@ -5,7 +5,6 @@ import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 from legonet import config
 from legonet import modular_losses
-import gc
 from pathlib import Path
 
 
@@ -573,9 +572,6 @@ class FindModule(nn.Module):
             pyramid_feats = inputs
 
         #output_maps are B x  W x H x C
-
-        gc.collect()
-        torch.cuda.empty_cache()
 
         SFMS_lists = [self.feature_classification(feature) for feature in pyramid_feats]
 
