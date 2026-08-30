@@ -116,6 +116,42 @@ class CropPredictionPreparationTests(unittest.TestCase):
         self.assertEqual(len(result.predicted_maps_to_draw), 1)
         self.assertEqual(len(result.predicted_maps_to_draw[0]), 5)
 
+    def test_root_keypoint_map_receives_matched_bbox_id(self) -> None:
+        state = _state(attribute_mode=True)
+        maps = [torch.full((1, 2, 2), float(index)) for index in range(7)]
+        estimation_outputs = [torch.tensor([[0.8, 4.0, 0.5]]), *maps]
+        received_bbox_ids = []
+
+        def build_map(*args):
+            received_bbox_ids.append(args[-1])
+            return np.ones((2, 2))
+
+        prepare_crop_predictions(
+            state=state,
+            dataset=SimpleNamespace(
+                image_data_points_location={"image.jpg": []}
+            ),
+            image_name="image.jpg",
+            predicted_boxes=np.zeros((1, 4)),
+            original_crop_boxes=[[1, 2, 3, 4]],
+            estimation_outputs=estimation_outputs,
+            sample_annotations={
+                "points_annot": [
+                    torch.tensor([1.0]),
+                    *[torch.zeros((1, 2, 2)) for _ in range(5)],
+                    torch.tensor([[1.0, 4.0, 0.5, 17.0]]),
+                ],
+            },
+            scale=[1.0],
+            evaluates_attributes=True,
+            have_ground_truth=True,
+            estimate_type="withKeyPoints",
+            crop_size=(640, 640),
+            point_center_map_builder=build_map,
+        )
+
+        self.assertEqual(received_bbox_ids, [17.0])
+
     def test_prepares_keypoint_predictions_without_ground_truth(self) -> None:
         """No-GT inference must not access point-annotation dataset fields."""
         state = _state(attribute_mode=True)

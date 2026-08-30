@@ -61,8 +61,8 @@ class PerObjectEvaluationTests(unittest.TestCase):
         self.assertEqual(targets, [1])
         self.assertAlmostEqual(scores[0], 0.01, places=6)
 
-    def test_metric_point_map_uses_geometric_containment_not_bbox_id(self):
-        """Point metrics include contained points from any GT bbox id."""
+    def test_grape_metric_point_map_uses_geometric_containment(self):
+        """Without an object ID, contained points from any box are included."""
         points = [
             {"x": 15.0, "y": 25.0, "bbox_id": 999},
             {"x": 50.0, "y": 50.0, "bbox_id": 1},
@@ -74,6 +74,25 @@ class PerObjectEvaluationTests(unittest.TestCase):
             image_scale=[1.0],
             output_shape=(80, 80),
             crop_size=(640, 640),
+        )
+
+        self.assertEqual(np.sum(center_map), 1.0)
+        self.assertEqual(center_map[20, 20], 1.0)
+
+    def test_root_metric_point_map_uses_only_matched_bbox_id(self):
+        """Root crop metrics match the object-specific training target."""
+        points = [
+            {"x": 15.0, "y": 25.0, "bbox_id": 7},
+            {"x": 16.0, "y": 26.0, "bbox_id": 8},
+        ]
+
+        center_map = perObject_eval._geometric_point_centers_map(
+            point_annotations=points,
+            crop_box=[10.0, 20.0, 30.0, 40.0],
+            image_scale=[1.0],
+            output_shape=(80, 80),
+            crop_size=(640, 640),
+            matched_bbox_id=7,
         )
 
         self.assertEqual(np.sum(center_map), 1.0)

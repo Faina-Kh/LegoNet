@@ -142,13 +142,13 @@ def _geometric_point_centers_map(
     image_scale,
     output_shape,
     crop_size,
+    matched_bbox_id=None,
 ):
-    """Project points geometrically inside a crop onto a binary center map.
+    """Project the crop's applicable points onto a binary center map.
 
-    This helper is used only for point-detection metrics. It deliberately
-    ignores GT bbox identifiers so roots and grapes use the same geometric
-    point-to-crop association without changing model inputs or attribute
-    calculations.
+    Grape counting uses every geometrically contained point. Root attribute
+    evaluation additionally restricts points to the matched object's bbox ID,
+    which is the same target population used to supervise the root crop model.
     """
     scale = float(np.asarray(image_scale).reshape(-1)[0])
     x1, y1, x2, y2 = (float(value) for value in crop_box[:4])
@@ -162,6 +162,11 @@ def _geometric_point_centers_map(
         return center_map
 
     for point in point_annotations:
+        if (
+            matched_bbox_id is not None
+            and float(point.get("bbox_id", -1)) != float(matched_bbox_id)
+        ):
+            continue
         point_x = float(point["x"]) * scale
         point_y = float(point["y"]) * scale
         if not (x1 <= point_x <= x2 and y1 <= point_y <= y2):

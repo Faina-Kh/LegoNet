@@ -115,12 +115,18 @@ def prepare_crop_predictions(
                     ]
                 )
                 if sample_annotations is not None and have_ground_truth:
+                    matched_bbox_id = None
+                    if evaluates_attributes:
+                        matched_bbox_id = sample_annotations["points_annot"][6][
+                            crop_index, 3
+                        ].item()
                     center_map = point_center_map_builder(
                         dataset.image_data_points_location[image_name],
                         original_crop_boxes[crop_index],
                         scale,
                         predicted_detection_maps[-1].shape,
                         crop_size,
+                        matched_bbox_id,
                     )
                     ground_truth_detection_maps.append(torch.tensor(center_map))
 
