@@ -401,6 +401,10 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
                 elif config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     return classification_loss, regression_loss, color_loss, length_loss, diameter_loss
 
+            if config.AttributeEstimation.estimate_type == 'withKeyPoints':
+                return classification_loss, regression_loss, None, None, None, None
+            return classification_loss, regression_loss, None, None, None
+
 
             # else:
             #     if config.AttributeEstimation.estimate_type == 'withKeyPoints':

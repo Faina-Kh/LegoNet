@@ -350,6 +350,8 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
 
                 return classification_loss, regression_loss, color_loss, maps_loss, length_loss, diameter_loss
 
+            return classification_loss, regression_loss, None, None, None, None
+
         else:
             if bbox_pred_adjusted.shape[0] > 0: #len(bbox_crops_list)>0:
                 return detection_outputs, estimation_outputs, sample_anns, relevant_points_anns, crops_orig_boxes #bbox_pred_adjusted,....
