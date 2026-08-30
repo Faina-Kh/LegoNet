@@ -59,7 +59,7 @@ def evaluate(
         if args.have_GT and model.estimator.binary_model:
             print("Per-image values: image | GT | predicted")
         elif args.have_GT:
-            print("Per-image values: image | GT | predicted | abs diff | rel_error")
+            print("Per-image values: image | GT | predicted | abs_diff | rel_error")
         else:
             print("Per-image values: image | predicted")
 
@@ -148,17 +148,16 @@ def evaluate(
 
             if predicted_maps is not None and args.have_GT:
                 if config.AttributeEstimation.calc_det_performance and dataset.csv_leaf_location_file != "":
-                    if torch.sum(data['annot'][1]).item()> 0: # check that there are gt points
-                        true_map = data['annot'][5]
-                        evaluation_map = process_keypoint_map_for_evaluation(
-                            model, predicted_maps[-1]
+                    true_map = data['annot'][5]
+                    evaluation_map = process_keypoint_map_for_evaluation(
+                        model, predicted_maps[-1]
+                    )
+                    for b in range(evaluation_map.shape[0]):
+                        t, p = points_detection_t_p(
+                            evaluation_map[b], true_map[b]
                         )
-                        for b in range(evaluation_map.shape[0]):
-                            t, p = points_detection_t_p(
-                                evaluation_map[b], true_map[b]
-                            )
-                            T = T + t
-                            P = P + p
+                        T = T + t
+                        P = P + p
 
             if args.have_GT:
                 if not model.estimator.binary_model:
@@ -186,7 +185,7 @@ def evaluate(
             else:
                 if args.have_GT:
                     print(
-                        'image: {} | GT: {:.3f} | predicted: {:.3f} | abs diff: {:.3f} | rel_error: {:.3f}'.format(
+                        'image: {} | GT: {:.3f} | predicted: {:.3f} | abs_diff: {:.3f} | rel_error: {:.3f}'.format(
                             Image_name, GT, prediction,
                             abs(GT - prediction), rel_error))
 
@@ -213,7 +212,7 @@ def evaluate(
         #             all_GT_values.append(count_GT)
         #             all_predicted_values.append(np.round(count_pred))
         #             print(
-        #                 'image: {} | GT: {} | predicted: {} ({}) | abs diff: {}'.format(
+        #                 'image: {} | GT: {} | predicted: {} ({}) | abs_diff: {}'.format(
         #                     Image_name, int(count_GT), np.round(count_pred), count_pred,
         #                     abs(count_GT - count_pred)))
 
@@ -255,7 +254,7 @@ def evaluate(
                     MSE = None
 
                 print(
-                    'AbsvalueDiff: {:.3f} | MSE {:.3f} | MRD (Relative Error for gt>0): {:.3f} | 1-FVU: {:.3f} \n'.format(
+                    'Abs_value_Diff: {:.3f} | MSE {:.3f} | MRD (Relative Error for gt>0): {:.3f} | 1-FVU: {:.3f} \n'.format(
                         Abs_value_Diff,
                         MSE,
                         mean_rel_error,

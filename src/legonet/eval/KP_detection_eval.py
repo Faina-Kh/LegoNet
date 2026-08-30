@@ -8,6 +8,9 @@ from PIL import ImageFont
 from PIL import ImageDraw
 
 
+KEYPOINT_CANDIDATE_THRESHOLD = 0.02
+
+
 def process_keypoint_map_for_evaluation(model, raw_map):
     """Apply the model's trained keypoint-suppression path before evaluation."""
     model_instance = getattr(model, "module", model)
@@ -40,10 +43,12 @@ def points_detection_t_p(detections_map_1, GT_centers, alpha=0.1): #local_soft_m
     # local_soft_max_activations = get_activations(model, model_inputs=image[0], print_shape_only=False,
     #                                              layer_name='smooth_step_function2')
     # local_soft_max_activations = local_soft_max_activations[0][0, :, :, 0]
-    # detections_map = np.where(local_soft_max_activations > 0.02, local_soft_max_activations, 0)
-
     detections_map = detections_map_1.clone().cpu().numpy()
-    #detections_map = np.where(detections_map > 0.02, detections_map, 0)
+    detections_map = np.where(
+        detections_map > KEYPOINT_CANDIDATE_THRESHOLD,
+        detections_map,
+        0,
+    )
 
     # plt.hist(detections_map.copy().reshape(detections_map.size))
     # plt.savefig(config.General.save_path+'\\hist.png')

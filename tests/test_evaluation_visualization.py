@@ -6,6 +6,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 import numpy as np
+import torch
 from PIL import Image, ImageFont
 
 from legonet.eval import KP_detection_eval
@@ -28,6 +29,28 @@ class EvaluationVisualizationTests(TestCase):
 
     def test_heatmap_length_values_keep_decimal_precision(self) -> None:
         self.assertEqual(KP_detection_eval._format_heatmap_value(12.56, "length"), "12.56")
+
+    def test_point_evaluation_applies_historical_candidate_cutoff(self) -> None:
+        predicted_map = torch.tensor([[0.01, 0.03], [0.0, 0.0]])
+        ground_truth_map = np.array([[0.0, 1.0], [0.0, 0.0]])
+
+        targets, scores = KP_detection_eval.points_detection_t_p(
+            predicted_map, ground_truth_map
+        )
+
+        self.assertEqual(targets, [1])
+        self.assertAlmostEqual(scores[0], 0.03, places=6)
+
+    def test_empty_gt_map_records_candidates_as_false_positives(self) -> None:
+        predicted_map = torch.tensor([[0.01, 0.03], [0.0, 0.0]])
+        ground_truth_map = np.zeros((2, 2))
+
+        targets, scores = KP_detection_eval.points_detection_t_p(
+            predicted_map, ground_truth_map
+        )
+
+        self.assertEqual(targets, [0])
+        self.assertAlmostEqual(scores[0], 0.03, places=6)
 
     def test_scaled_box_uses_image_scale(self) -> None:
         self.assertEqual(
