@@ -307,9 +307,9 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
                         maps_loss += current_maps_loss
                         count_input = SFMS_lists, cls_output, current_roots_anns  # annotations[1][0][0] #corrected_counting_anns
 
-                        current_color_loss = self.EstimateWithPointsModule_color(count_input)
-                        current_length_loss = self.EstimateWithPointsModule_length(count_input)
-                        current_diameter_loss = self.EstimateWithPointsModule_diameter(count_input)
+                        current_color_loss = self.estimator_color(count_input)
+                        current_length_loss = self.estimator_length(count_input)
+                        current_diameter_loss = self.estimator_diameter(count_input)
 
                         color_loss += current_color_loss[0]
                         length_loss += current_length_loss[0]
