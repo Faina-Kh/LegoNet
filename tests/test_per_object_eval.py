@@ -3,12 +3,33 @@
 import unittest
 
 import numpy as np
+import torch
 
 from legonet.eval import perObject_eval
 
 
 class PerObjectEvaluationTests(unittest.TestCase):
     """Characterize bbox-to-GT matching used before attribute evaluation."""
+
+    def test_grape_point_evaluation_excludes_empty_gt_crops(self):
+        self.assertFalse(
+            perObject_eval._include_crop_in_point_evaluation(
+                torch.zeros((2, 2)), evaluates_attributes=False
+            )
+        )
+        self.assertTrue(
+            perObject_eval._include_crop_in_point_evaluation(
+                torch.tensor([[0.0, 1.0], [0.0, 0.0]]),
+                evaluates_attributes=False,
+            )
+        )
+
+    def test_root_attribute_point_evaluation_keeps_empty_gt_crops(self):
+        self.assertTrue(
+            perObject_eval._include_crop_in_point_evaluation(
+                torch.zeros((2, 2)), evaluates_attributes=True
+            )
+        )
 
     def test_metric_point_map_uses_geometric_containment_not_bbox_id(self):
         """Point metrics include contained points from any GT bbox id."""

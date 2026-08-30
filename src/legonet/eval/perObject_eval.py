@@ -57,6 +57,15 @@ from legonet.utils import printf
 unnormalize = UnNormalizer()
 
 
+def _include_crop_in_point_evaluation(
+    ground_truth_map: torch.Tensor,
+    *,
+    evaluates_attributes: bool,
+) -> bool:
+    """Exclude empty GT crops from grape counting point evaluation."""
+    return evaluates_attributes or torch.sum(ground_truth_map).item() > 0
+
+
 def _get_detections(detection_outputs, scale):
     scores, labels, boxes = detection_outputs
     boxes = boxes.cpu().numpy()
@@ -447,6 +456,11 @@ def eval(
                                     model, all_predicted_detection_maps
                                 )
                                 for b in range(evaluation_maps.shape[0]):
+                                    if not _include_crop_in_point_evaluation(
+                                        all_crops_GT_detections_maps[b],
+                                        evaluates_attributes=evaluates_attributes,
+                                    ):
+                                        continue
                                     t, p = points_detection_t_p(evaluation_maps[b, :, :], all_crops_GT_detections_maps[b, :, :])
                                     state['T']=state['T']+ t
                                     state['P']=state['P']+ p
