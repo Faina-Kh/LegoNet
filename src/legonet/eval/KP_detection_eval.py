@@ -39,16 +39,34 @@ def extract_plant_BB(image_name, activation_map):
     return (x_max - x_min),(y_max - y_min)
 
 
-def points_detection_t_p(detections_map_1, GT_centers, alpha=0.1): #local_soft_max_activations, image_name, model, image, GT_centers, alpha=0.1):
+def points_detection_t_p(
+    detections_map_1,
+    GT_centers,
+    alpha=0.1,
+    *,
+    candidate_threshold=KEYPOINT_CANDIDATE_THRESHOLD,
+    local_maxima_only=False,
+):
     # local_soft_max_activations = get_activations(model, model_inputs=image[0], print_shape_only=False,
     #                                              layer_name='smooth_step_function2')
     # local_soft_max_activations = local_soft_max_activations[0][0, :, :, 0]
     detections_map = detections_map_1.clone().cpu().numpy()
-    detections_map = np.where(
-        detections_map > KEYPOINT_CANDIDATE_THRESHOLD,
-        detections_map,
-        0,
-    )
+    if local_maxima_only:
+        map_tensor = detections_map_1.detach().unsqueeze(0).unsqueeze(0)
+        pooled_map = torch.nn.functional.max_pool2d(
+            map_tensor, kernel_size=3, stride=1, padding=1
+        ).squeeze(0).squeeze(0).cpu().numpy()
+        candidate_mask = np.logical_and(
+            detections_map == pooled_map,
+            detections_map > np.min(detections_map),
+        )
+        detections_map = np.where(candidate_mask, detections_map, 0)
+    elif candidate_threshold is not None:
+        detections_map = np.where(
+            detections_map > candidate_threshold,
+            detections_map,
+            0,
+        )
 
     # plt.hist(detections_map.copy().reshape(detections_map.size))
     # plt.savefig(config.General.save_path+'\\hist.png')

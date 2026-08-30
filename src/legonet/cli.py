@@ -121,6 +121,16 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
         help="Load the pretrained detector while initializing per-object heads from scratch.",
     )
     parser.add_argument("--evaluate-detection", "--evaluate_detection", type=parse_bool, default=None)
+    parser.add_argument(
+        "--compare-keypoint-protocols",
+        "--compare_keypoint_protocols",
+        type=parse_bool,
+        default=None,
+        help=(
+            "Write diagnostic keypoint AP results for the current protocol, "
+            "processed-map local maxima, and the historical raw-map protocol."
+        ),
+    )
     parser.add_argument("--weights-type", "--weights_type", choices=['full_model_weights', 'partial_weights'], default=None)
     parser.add_argument(
         "--weights-mode",
@@ -254,6 +264,11 @@ def resolve_boolean_options(args: argparse.Namespace) -> argparse.Namespace:
     )
     args.evaluate_detection = (
         True if args.evaluate_detection is None else args.evaluate_detection
+    )
+    args.compare_keypoint_protocols = (
+        False
+        if args.compare_keypoint_protocols is None
+        else args.compare_keypoint_protocols
     )
     args.load_weights = True if args.load_weights is None else args.load_weights
     args.save_from_model_file = (

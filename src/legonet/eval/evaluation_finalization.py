@@ -311,3 +311,43 @@ def _finalize_keypoints(
     write_keypoint_summary(
         files_path, average_precision, recall[-1], precision[-1]
     )
+    _write_keypoint_protocol_comparison(state, files_path)
+
+
+def _write_keypoint_protocol_comparison(
+    state: Mapping[str, Any], files_path: str
+) -> None:
+    """Write opt-in alternative keypoint-candidate protocol diagnostics."""
+    comparison = state.get("keypoint_protocol_comparison", {})
+    if not comparison:
+        return
+    comparison = {
+        "processed_threshold_0_02": {"T": state["T"], "P": state["P"]},
+        **comparison,
+    }
+    rows = []
+    for protocol_name, values in comparison.items():
+        recall, precision, average_precision = calc_points_recall_precision_ap(
+            values["T"], values["P"]
+        )
+        rows.append(
+            (
+                protocol_name,
+                average_precision,
+                recall[-1],
+                precision[-1],
+                len(precision),
+            )
+        )
+        plot_PR_curve(
+            recall,
+            precision,
+            average_precision,
+            save_path=files_path,
+            plots_name=f"Points_PR_curve_{protocol_name}.png",
+        )
+    output_path = Path(files_path) / "keypoint_protocol_comparison.csv"
+    with output_path.open("w", encoding="utf-8", newline="") as output_file:
+        output_file.write("protocol,mAP,max_recall,final_precision,candidates\n")
+        for row in rows:
+            output_file.write(",".join(str(value) for value in row) + "\n")

@@ -464,6 +464,36 @@ def eval(
                                     t, p = points_detection_t_p(evaluation_maps[b, :, :], all_crops_GT_detections_maps[b, :, :])
                                     state['T']=state['T']+ t
                                     state['P']=state['P']+ p
+                                    if getattr(
+                                        args,
+                                        "compare_keypoint_protocols",
+                                        False,
+                                    ):
+                                        comparison = state[
+                                            "keypoint_protocol_comparison"
+                                        ]
+                                        for protocol_name in (
+                                            "processed_local_maxima",
+                                            "raw_nonzero",
+                                        ):
+                                            comparison.setdefault(
+                                                protocol_name, {"T": [], "P": []}
+                                            )
+                                        local_t, local_p = points_detection_t_p(
+                                            evaluation_maps[b, :, :],
+                                            all_crops_GT_detections_maps[b, :, :],
+                                            candidate_threshold=None,
+                                            local_maxima_only=True,
+                                        )
+                                        raw_t, raw_p = points_detection_t_p(
+                                            all_predicted_detection_maps[b, :, :],
+                                            all_crops_GT_detections_maps[b, :, :],
+                                            candidate_threshold=0.0,
+                                        )
+                                        comparison["processed_local_maxima"]["T"].extend(local_t)
+                                        comparison["processed_local_maxima"]["P"].extend(local_p)
+                                        comparison["raw_nonzero"]["T"].extend(raw_t)
+                                        comparison["raw_nonzero"]["P"].extend(raw_p)
 
                     if not evaluates_attributes:
                         state['all_crops_GT_counts'].append(crops_count_GT)  # based on the number of points in the crop

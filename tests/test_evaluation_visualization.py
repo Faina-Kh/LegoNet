@@ -52,6 +52,22 @@ class EvaluationVisualizationTests(TestCase):
         self.assertEqual(targets, [0])
         self.assertAlmostEqual(scores[0], 0.03, places=6)
 
+    def test_local_maximum_protocol_keeps_peaks_below_fixed_cutoff(self) -> None:
+        predicted_map = torch.tensor(
+            [[0.001, 0.005, 0.001], [0.002, 0.010, 0.002], [0.001, 0.003, 0.001]]
+        )
+        ground_truth_map = np.zeros((3, 3))
+
+        targets, scores = KP_detection_eval.points_detection_t_p(
+            predicted_map,
+            ground_truth_map,
+            candidate_threshold=None,
+            local_maxima_only=True,
+        )
+
+        self.assertEqual(targets, [0])
+        self.assertAlmostEqual(scores[0], 0.01, places=6)
+
     def test_scaled_box_uses_image_scale(self) -> None:
         self.assertEqual(
             scaled_box([10, 20, 30, 40], [2]),

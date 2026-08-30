@@ -33,6 +33,7 @@ def initiate_global_dicts(
             "all_predicted_counts": [],
             "T": [],
             "P": [],
+            "keypoint_protocol_comparison": {},
             "all_crops_GT_counts": [],
             "all_orig_GT_counts": [],
             "orig_abs_diff": [],
