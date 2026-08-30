@@ -11,7 +11,10 @@ import legonet.my_dataloader as myDataloader
 from legonet.my_dataloader import UnNormalizer
 from legonet.eval.matching import choose_boxes_by_IoUandPrc
 from legonet.models.model_bbox_detection import BBOX_Detection
-from legonet.models.keypoint_utils import KeypointUtilitiesMixin
+from legonet.models.keypoint_utils import (
+    KeypointUtilitiesMixin,
+    validate_training_crop_alignment,
+)
 from legonet.models.detector_lifecycle import DetectorLifecycleMixin
 
 
@@ -281,6 +284,24 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
 
             if self.training:
 
+                alignment_batches = {
+                    "primary_features": bbox_pyramid_p3[0],
+                    "root_attributes": corrected_counting_anns[6],
+                }
+                if config.AttributeEstimation.estimate_type == 'withKeyPoints':
+                    alignment_batches.update(
+                        {
+                            f"keypoint_map_{map_index + 1}": point_map
+                            for map_index, point_map in enumerate(
+                                corrected_counting_anns[1:6]
+                            )
+                        }
+                    )
+                validate_training_crop_alignment(
+                    num_of_crops,
+                    **alignment_batches,
+                )
+
                 if config.AttributeEstimation.estimate_type == 'withKeyPoints':
 
                     count_train_inputs = bbox_pyramid_p3, corrected_counting_anns[1:6]  # anchors, None
@@ -291,7 +312,7 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
                     diameter_loss = 0
                     color_loss = 0
 
-                    for i in range(num_of_boxes):
+                    for i in range(num_of_crops):
                         current_roots_anns = [root_anns[0][i][0].unsqueeze(dim=0),root_anns[0][i][1].unsqueeze(dim=0),root_anns[0][i][2].unsqueeze(dim=0)]
                         current_count_train_inputs = [[count_train_inputs[0][0][i].unsqueeze(dim=0)],
                                                       [count_train_inputs[1][0][i].unsqueeze(dim=0), count_train_inputs[1][1][i].unsqueeze(dim=0),
@@ -316,7 +337,7 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
                     diameter_loss = 0
                     color_loss = 0
 
-                    for i in range(num_of_boxes):
+                    for i in range(num_of_crops):
                         current_color_loss = self.estimator_color(
                             [bbox_pyramid_feats[i][:config.AttributeEstimation.num_of_pyr_levels],
                              corrected_counting_anns[6][i, 0].unsqueeze(dim=0).unsqueeze(dim=0)])

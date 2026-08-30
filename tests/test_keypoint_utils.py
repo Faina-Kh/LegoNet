@@ -2,10 +2,31 @@ import unittest
 
 import numpy as np
 
-from legonet.models.keypoint_utils import KeypointUtilitiesMixin
+from legonet.models.keypoint_utils import (
+    KeypointUtilitiesMixin,
+    validate_training_crop_alignment,
+)
 
 
 class KeypointUtilitiesTests(unittest.TestCase):
+    def test_training_crop_alignment_accepts_matching_batches(self):
+        validate_training_crop_alignment(
+            2,
+            features=np.zeros((2, 4)),
+            targets=np.zeros((2, 1)),
+        )
+
+    def test_training_crop_alignment_reports_mismatched_batch(self):
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "expected 2 entries, found targets=1",
+        ):
+            validate_training_crop_alignment(
+                2,
+                features=np.zeros((2, 4)),
+                targets=np.zeros((1, 1)),
+            )
+
     def test_keypoint_map_preserves_input_annotations(self):
         points = [{"x": 16.0, "y": 8.0}]
 

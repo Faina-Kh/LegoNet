@@ -3,9 +3,28 @@
 from __future__ import annotations
 
 import copy
-from typing import Sequence
+from typing import Any, Sequence
 
 import numpy as np
+
+
+def validate_training_crop_alignment(
+    num_of_crops: int,
+    **named_batches: Any,
+) -> None:
+    """Require every prepared training target to match the crop batch size."""
+    mismatches = []
+    for name, batch in named_batches.items():
+        shape = getattr(batch, "shape", None)
+        actual_size = int(shape[0]) if shape is not None else len(batch)
+        if actual_size != num_of_crops:
+            mismatches.append(f"{name}={actual_size}")
+    if mismatches:
+        details = ", ".join(mismatches)
+        raise RuntimeError(
+            "Per-object training crop alignment failed: "
+            f"expected {num_of_crops} entries, found {details}."
+        )
 
 
 class KeypointUtilitiesMixin:
