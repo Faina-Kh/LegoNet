@@ -47,6 +47,23 @@ class KeypointUtilitiesTests(unittest.TestCase):
         self.assertEqual(points[0]["x"], 4.0)
         self.assertEqual(points[0]["y"], 6.0)
 
+    def test_multibranch_attribute_points_require_matching_bbox_id(self):
+        points = [
+            {"x": 2.0, "y": 3.0, "bbox_id": 7.0},
+            {"x": 2.0, "y": 3.0, "bbox_id": 8.0},
+        ]
+        boxes = np.array([[0.0, 0.0, 10.0, 10.0, 7.0]])
+
+        assigned = KeypointUtilitiesMixin.find_points_in_bbox(
+            None,
+            points,
+            boxes,
+            scale=1.0,
+            network_type="per_object_attributes_multibranch",
+        )
+
+        self.assertEqual(assigned, [{"x": [2.0], "y": [3.0]}])
+
     def test_counting_points_use_geometric_containment_only(self):
         points = [
             {"x": 2.0, "y": 3.0, "bbox_id": 7.0},

@@ -122,7 +122,10 @@ class KeypointUtilitiesMixin:
             point["y"] *= scale
 
         points_by_box = []
-        require_matching_bbox_id = network_type == "per_object_attributes"
+        require_matching_bbox_id = network_type in {
+            "per_object_attributes",
+            "per_object_attributes_multibranch",
+        }
         for box in bbox_pred:
             box_x1, box_y1, box_x2, box_y2, box_id = box[:5]
             point_x = []
