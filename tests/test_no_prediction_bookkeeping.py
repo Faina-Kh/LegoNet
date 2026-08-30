@@ -38,7 +38,7 @@ class NoPredictionBookkeepingTests(unittest.TestCase):
         )
 
         record = state["no_predictions"]["image.jpg"]
-        self.assertEqual(record["TRL_gt"], [8])
+        self.assertEqual(record["length_gt"], [8])
         self.assertEqual(record["dia_gt"], [0.4])
         self.assertEqual(record["color_gt"], [0.75])
         self.assertNotIn("pred", record)

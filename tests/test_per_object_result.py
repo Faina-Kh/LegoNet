@@ -34,7 +34,7 @@ class PerObjectEvaluationResultTests(unittest.TestCase):
         self.assertEqual(result.one_minus_fvu, 0.65)
         self.assertEqual(result.to_legacy_tuple(), legacy)
 
-    def test_attribute_layout_contains_only_trl_relative_error(self) -> None:
+    def test_attribute_layout_contains_only_length_relative_error(self) -> None:
         """The attribute contract preserves its single historical value."""
         result = PerObjectEvaluationResult.from_legacy_sequence((0.15,))
 
@@ -42,7 +42,7 @@ class PerObjectEvaluationResultTests(unittest.TestCase):
         self.assertEqual(result.relative_error, 0.15)
         self.assertIsNone(result.matched_objects)
         self.assertEqual(
-            result.attributes.regression["trl"].mean_relative_error,
+            result.attributes.regression["length"].mean_relative_error,
             0.15,
         )
         self.assertEqual(result.to_legacy_tuple(), (0.15,))

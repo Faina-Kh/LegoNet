@@ -71,7 +71,7 @@ def prepare_image_ground_truth(
         state["all_data_gt_count"].append(count[0])
         state["gt_objects_withGTpoints"] += 1
         if attributes:
-            state.setdefault("all_data_gt_TRL", []).append(count[3])
+            state.setdefault("all_data_gt_lengths", []).append(count[3])
             state.setdefault("all_data_gt_dia", []).append(count[4])
             state.setdefault("all_data_gt_color", []).append(count[0])
 

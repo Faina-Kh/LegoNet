@@ -91,7 +91,7 @@ class EvaluationFinalizationTests(unittest.TestCase):
             had_predictions=True,
             has_original_gt=True,
             precision_detection=1.0,
-            trl_relative_error=0.25,
+            length_relative_error=0.25,
         )
 
         result = build_legacy_result(

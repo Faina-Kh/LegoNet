@@ -42,7 +42,7 @@ class DetectionBookkeepingTests(unittest.TestCase):
             iou_threshold=0.5,
         )
 
-        self.assertEqual(result.trl_ground_truth, [-1, 12.0])
+        self.assertEqual(result.length_ground_truth, [-1, 12.0])
         self.assertEqual(result.diameter_ground_truth, [-1, 0.5])
         self.assertEqual(result.color_ground_truth, [-1, 1.0])
         self.assertEqual(state["found_orig_objects"], 1)

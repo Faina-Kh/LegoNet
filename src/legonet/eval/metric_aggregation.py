@@ -25,10 +25,10 @@ class PostLoopMetrics:
     count_mse: float = -1
     count_agreement: float = -1
     count_fvu: float = -1
-    trl_mae: float = -1
-    trl_relative_error: float = 100000
-    trl_mse: float = -1
-    trl_fvu: float = -1
+    length_mae: float = -1
+    length_relative_error: float = 100000
+    length_mse: float = -1
+    length_fvu: float = -1
     diameter_mae: float = -1
     diameter_relative_error: float = -1
     diameter_mse: float = -1
@@ -132,18 +132,18 @@ def _aggregate_counting_metrics(state: Mapping[str, Any]) -> PostLoopMetrics:
 
 
 def _aggregate_attribute_metrics(state: Mapping[str, Any]) -> PostLoopMetrics:
-    trl_gt = []
-    trl_predictions = []
+    length_gt = []
+    length_predictions = []
     diameter_gt = []
     diameter_predictions = []
     color_gt = []
     color_predictions = []
-    for image_index, image_predictions in enumerate(state["all_predicted_TRL"]):
-        for object_index, trl_prediction in enumerate(image_predictions):
-            image_trl_gt = state["all_orig_GT_TRL"][image_index]
-            if image_trl_gt and image_trl_gt[object_index] != -1:
-                trl_gt.append(image_trl_gt[object_index])
-                trl_predictions.append(trl_prediction)
+    for image_index, image_predictions in enumerate(state["all_predicted_lengths"]):
+        for object_index, length_prediction in enumerate(image_predictions):
+            image_length_gt = state["all_orig_GT_lengths"][image_index]
+            if image_length_gt and image_length_gt[object_index] != -1:
+                length_gt.append(image_length_gt[object_index])
+                length_predictions.append(length_prediction)
                 diameter_gt.append(state["all_orig_GT_dia"][image_index][object_index])
                 diameter_predictions.append(state["all_predicted_dia"][image_index][object_index])
             if state["all_orig_GT_color"][image_index][object_index] != -1:
@@ -153,17 +153,17 @@ def _aggregate_attribute_metrics(state: Mapping[str, Any]) -> PostLoopMetrics:
     found = state["found_orig_objects"]
     detections = found + state["FP"]
     precision = found / detections if detections > 0 else -1
-    if not trl_gt:
+    if not length_gt:
         return PostLoopMetrics(
-            had_predictions=bool(state["all_predicted_TRL"]),
+            had_predictions=bool(state["all_predicted_lengths"]),
             has_original_gt=False,
             precision_detection=precision,
         )
 
-    trl_metrics = compute_regression_metrics(
-        trl_gt,
-        trl_predictions,
-        relative_errors=state["orig_rel_error_TRL"],
+    length_metrics = compute_regression_metrics(
+        length_gt,
+        length_predictions,
+        relative_errors=state["orig_rel_error_length"],
         preserve_zero_variance_division=True,
     )
     diameter_metrics = compute_regression_metrics(
@@ -182,13 +182,13 @@ def _aggregate_attribute_metrics(state: Mapping[str, Any]) -> PostLoopMetrics:
         eligible_samples=eligible_color_samples,
     )
     return PostLoopMetrics(
-        had_predictions=bool(state["all_predicted_TRL"]),
+        had_predictions=bool(state["all_predicted_lengths"]),
         has_original_gt=True,
         precision_detection=precision,
-        trl_mae=trl_metrics.mean_absolute_error,
-        trl_relative_error=trl_metrics.mean_relative_error,
-        trl_mse=trl_metrics.mean_squared_error,
-        trl_fvu=1 - trl_metrics.one_minus_fvu,
+        length_mae=length_metrics.mean_absolute_error,
+        length_relative_error=length_metrics.mean_relative_error,
+        length_mse=length_metrics.mean_squared_error,
+        length_fvu=1 - length_metrics.one_minus_fvu,
         diameter_mae=diameter_metrics.mean_absolute_error,
         diameter_relative_error=diameter_metrics.mean_relative_error,
         diameter_mse=diameter_metrics.mean_squared_error,

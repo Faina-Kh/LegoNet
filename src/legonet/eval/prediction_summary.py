@@ -28,15 +28,15 @@ def record_per_image_predictions(
     for prediction in predictions:
         if attributes:
             predicted_count = np.round(prediction.cpu()[0].numpy())
-            predicted_trl = prediction.cpu()[1].numpy()
+            predicted_length = prediction.cpu()[1].numpy()
             predicted_diameter = prediction.cpu()[2].numpy()
             predicted_color = decode_class_predictions(
                 [prediction.cpu()[0].item()], ClassificationType.BINARY
             )[0]
-            state.setdefault("predicted_TRL_any_crop", []).append(predicted_trl)
+            state.setdefault("predicted_lengths_any_crop", []).append(predicted_length)
             state.setdefault("predicted_dia_any_crop", []).append(predicted_diameter)
             state.setdefault("predicted_color_any_crop", []).append(predicted_color)
-            predicted_trl_sum += predicted_trl
+            predicted_trl_sum += predicted_length
             predicted_diameter_sum += predicted_diameter
         else:
             predicted_count = np.round(prediction.cpu().item())

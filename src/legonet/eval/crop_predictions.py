@@ -20,7 +20,7 @@ class PreparedCropPredictions:
     adjusted_original_boxes: list[Any]
     ground_truth_counts: list[Any]
     count_predictions: list[Any]
-    trl_predictions: list[float]
+    length_predictions: list[float]
     diameter_predictions: list[float]
     color_predictions: list[int]
     predicted_detection_maps: Any
@@ -48,7 +48,7 @@ def prepare_crop_predictions(
     adjusted_original_boxes: list[Any] = []
     ground_truth_counts: list[Any] = []
     count_predictions: list[Any] = []
-    trl_predictions: list[float] = []
+    length_predictions: list[float] = []
     diameter_predictions: list[float] = []
     color_predictions: list[int] = []
     predicted_detection_maps: Any = []
@@ -80,14 +80,14 @@ def prepare_crop_predictions(
                             ClassificationType.BINARY,
                         )[0]
                     )
-                    trl_prediction = attribute_output[1].cpu().item()
+                    length_prediction = attribute_output[1].cpu().item()
                     diameter_prediction = attribute_output[2].cpu().item()
                     record = state["detections_data_any_crop"][image_name]
                     record["color_pred"].append(decoded_color)
-                    record["TRL_pred"].append(trl_prediction)
+                    record["length_pred"].append(length_prediction)
                     record["dia_pred"].append(diameter_prediction)
                     color_predictions.append(decoded_color)
-                    trl_predictions.append(trl_prediction)
+                    length_predictions.append(length_prediction)
                     diameter_predictions.append(diameter_prediction)
                 else:
                     prediction = np.round(
@@ -169,7 +169,7 @@ def prepare_crop_predictions(
         adjusted_original_boxes=adjusted_original_boxes,
         ground_truth_counts=ground_truth_counts,
         count_predictions=count_predictions,
-        trl_predictions=trl_predictions,
+        length_predictions=length_predictions,
         diameter_predictions=diameter_predictions,
         color_predictions=color_predictions,
         predicted_detection_maps=predicted_detection_maps,

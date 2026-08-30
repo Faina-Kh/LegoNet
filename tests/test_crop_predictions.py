@@ -11,7 +11,7 @@ from legonet.eval.crop_predictions import prepare_crop_predictions
 
 def _state(attribute_mode: bool) -> dict:
     record = (
-        {"color_pred": [], "TRL_pred": [], "dia_pred": []}
+        {"color_pred": [], "length_pred": [], "dia_pred": []}
         if attribute_mode
         else {"pred": []}
     )
@@ -75,12 +75,12 @@ class CropPredictionPreparationTests(unittest.TestCase):
         )
 
         self.assertEqual(result.color_predictions, [1, 0])
-        self.assertEqual(result.trl_predictions, [4.0, 6.0])
+        self.assertEqual(result.length_predictions, [4.0, 6.0])
         self.assertAlmostEqual(result.diameter_predictions[0], 0.5)
         self.assertAlmostEqual(result.diameter_predictions[1], 0.7)
         record = state["detections_data_any_crop"]["image.jpg"]
         self.assertEqual(record["color_pred"], [1, 0])
-        self.assertEqual(record["TRL_pred"], [4.0, 6.0])
+        self.assertEqual(record["length_pred"], [4.0, 6.0])
 
     def test_prepares_keypoint_maps_with_aligned_batch_dimensions(self) -> None:
         state = _state(attribute_mode=False)
@@ -142,7 +142,7 @@ class CropPredictionPreparationTests(unittest.TestCase):
 
         self.assertEqual(result.ground_truth_detection_maps, [])
         self.assertEqual(tuple(result.predicted_detection_maps.shape), (1, 2, 2))
-        self.assertEqual(result.trl_predictions, [4.0])
+        self.assertEqual(result.length_predictions, [4.0])
 
     def test_no_gt_counting_preserves_crop_images_for_visualization(self) -> None:
         state = _state(attribute_mode=False)

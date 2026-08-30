@@ -384,7 +384,7 @@ def eval(
             )
             crops_count_GT = crop_predictions.ground_truth_counts
             count_pred = crop_predictions.count_predictions
-            TRL_pred = crop_predictions.trl_predictions
+            length_pred = crop_predictions.length_predictions
             dia_pred = crop_predictions.diameter_predictions
             color_pred = crop_predictions.color_predictions
             all_predicted_detection_maps = (
@@ -427,7 +427,7 @@ def eval(
                 iou_threshold=config.Detection.iou_threshold,
             )
             orig_count_GT = bookkeeping.count_ground_truth
-            orig_TRL_GT = bookkeeping.trl_ground_truth
+            orig_length_GT = bookkeeping.length_ground_truth
             orig_dia_GT = bookkeeping.diameter_ground_truth
             orig_color_GT = bookkeeping.color_ground_truth
             max_overlap_array = bookkeeping.max_overlaps
@@ -451,8 +451,8 @@ def eval(
                         state['all_orig_GT_counts'].append(orig_count_GT) # count in the corresponding annotated box, it is -1 if the crop is false positive
 
                     else:
-                        state['all_predicted_TRL'].append(TRL_pred)
-                        state['all_orig_GT_TRL'].append(orig_TRL_GT)
+                        state['all_predicted_lengths'].append(length_pred)
+                        state['all_orig_GT_lengths'].append(orig_length_GT)
 
                         state['all_predicted_dia'].append(dia_pred)
                         state['all_orig_GT_dia'].append(orig_dia_GT)
@@ -471,8 +471,8 @@ def eval(
 
                         elif crops_count_GT[i] > 0:
                             if orig_color_GT[i] != -1:
-                                state['orig_abs_diff_TRL'].append(abs(orig_TRL_GT[i] - TRL_pred[i]))
-                                state['orig_rel_error_TRL'].append(abs(orig_TRL_GT[i] - TRL_pred[i]) / orig_TRL_GT[i])
+                                state['orig_abs_diff_length'].append(abs(orig_length_GT[i] - length_pred[i]))
+                                state['orig_rel_error_length'].append(abs(orig_length_GT[i] - length_pred[i]) / orig_length_GT[i])
 
                                 state['orig_abs_diff_dia'].append(abs(orig_dia_GT[i] - dia_pred[i]))
                                 state['orig_rel_error_dia'].append(abs(orig_dia_GT[i] - dia_pred[i]) / orig_dia_GT[i])
@@ -501,8 +501,8 @@ def eval(
                                                 orig_color_GT[i], color_pred[i], state['orig_abs_diff_color'][-1]
                                             )
                                             printf(
-                                                "orig_TRL_GT: %.3f | TRL_pred: %.3f | TRL_orig_abs_diff: %.3f | TRL_orig_rel_error:  %.3f\n",
-                                                orig_TRL_GT[i], TRL_pred[i] , state['orig_abs_diff_TRL'][-1], state['orig_rel_error_TRL'][-1]
+                                                "orig_length_GT: %.3f | length_pred: %.3f | length_orig_abs_diff: %.3f | length_orig_rel_error:  %.3f\n",
+                                                orig_length_GT[i], length_pred[i] , state['orig_abs_diff_length'][-1], state['orig_rel_error_length'][-1]
                                             )
                                             printf(
                                                 "orig_dia_GT: %.3f | dia_pred: %.3f | dia_orig_abs_diff: %.3f | dia_orig_rel_error: %.3f\n",
@@ -574,12 +574,12 @@ def eval(
                                 )
                             ):
                                 predicted_heatmap_value = (
-                                    TRL_pred[i]
+                                    length_pred[i]
                                     if evaluates_attributes
                                     else count_pred[i]
                                 )
                                 heatmap_gt_values = (
-                                    orig_TRL_GT
+                                    orig_length_GT
                                     if evaluates_attributes
                                     else orig_count_GT
                                 )
@@ -608,7 +608,7 @@ def eval(
                                     predicted_value=predicted_heatmap_value,
                                     ground_truth_value=ground_truth_heatmap_value,
                                     attribute_name=(
-                                        "TRL" if evaluates_attributes else "count"
+                                        "length" if evaluates_attributes else "count"
                                     ),
                                     attribute_unit=(
                                         "mm" if evaluates_attributes else ""
@@ -617,10 +617,10 @@ def eval(
 
                     if verbose:
                         if not args.have_GT and len(estimation_outputs) >0 and evaluates_attributes:
-                            for i in range(len(TRL_pred)):
+                            for i in range(len(length_pred)):
                                 printf(
-                                    "color_pred: %.3f | TRL_pred: %.3f | dia_pred: %.3f \n",
-                                    color_pred[i], TRL_pred[i], dia_pred[i]
+                                    "color_pred: %.3f | length_pred: %.3f | dia_pred: %.3f \n",
+                                    color_pred[i], length_pred[i], dia_pred[i]
                                 )
                             print()
 

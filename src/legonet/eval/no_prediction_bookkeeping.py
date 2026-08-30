@@ -28,8 +28,8 @@ def record_no_predictions(
         if attributes:
             record.update(
                 {
-                    "TRL_pred": [],
-                    "TRL_gt": [],
+                    "length_pred": [],
+                    "length_gt": [],
                     "dia_pred": [],
                     "dia_gt": [],
                     "color_pred": [],
@@ -47,8 +47,8 @@ def record_no_predictions(
     record["max_overlap"].append(-1)
 
     if attributes:
-        record["TRL_pred"].append(0)
-        record["TRL_gt"].append(image_trl_sum)
+        record["length_pred"].append(0)
+        record["length_gt"].append(image_trl_sum)
         record["dia_pred"].append(0)
         record["dia_gt"].append(image_diameter_average)
         record["color_pred"].append(-1)

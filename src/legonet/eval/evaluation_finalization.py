@@ -99,7 +99,7 @@ def build_legacy_result(
 ) -> list[float]:
     """Construct the historical list returned to training and inference callers."""
     if attributes:
-        return [metrics.trl_relative_error]
+        return [metrics.length_relative_error]
 
     reported_recall = (
         detection_metrics[2]
@@ -155,10 +155,10 @@ def _format_metric_summary(
         )
     elif have_gt:
         return format_attribute_summary(
-            metrics.trl_mae,
-            metrics.trl_mse,
-            metrics.trl_relative_error,
-            1 - metrics.trl_fvu,
+            metrics.length_mae,
+            metrics.length_mse,
+            metrics.length_relative_error,
+            1 - metrics.length_fvu,
             metrics.diameter_mae,
             metrics.diameter_mse,
             metrics.diameter_relative_error,

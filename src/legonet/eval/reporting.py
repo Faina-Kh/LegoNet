@@ -17,14 +17,14 @@ COUNT_COLUMNS = (
 )
 ATTRIBUTE_COLUMNS = (
     "img", "crop", "gt_color", "pred_color", "label", "score",
-    "max_overlap", "gt_TRL", "pred_TRL", "gt_dia", "pred_dia",
+    "max_overlap", "gt_length", "pred_length", "gt_dia", "pred_dia",
 )
 COUNT_SUMMARY_COLUMNS = (
     "img", "gt_count", "pred", "label", "score", "max_overlap",
 )
 ATTRIBUTE_SUMMARY_COLUMNS = (
     "img", "gt_color", "pred_color", "label", "score", "max_overlap",
-    "gt_TRL", "pred_TRL", "gt_dia", "pred_dia",
+    "gt_length", "pred_length", "gt_dia", "pred_dia",
 )
 SEPARATOR = "=" * 100
 
@@ -66,10 +66,10 @@ def format_counting_summary(
 
 
 def format_attribute_summary(
-    trl_mean_absolute_error: float,
-    trl_mean_squared_error: float,
-    trl_mean_relative_error: float,
-    trl_one_minus_fvu: float,
+    length_mean_absolute_error: float,
+    length_mean_squared_error: float,
+    length_mean_relative_error: float,
+    length_one_minus_fvu: float,
     diameter_mean_absolute_error: float,
     diameter_mean_squared_error: float,
     diameter_mean_relative_error: float,
@@ -80,10 +80,10 @@ def format_attribute_summary(
     report = (
         f"{SEPARATOR}\n"
         "Evaluation Summary - per-object attributes\n"
-        f"orig_avg_abs_TRL_diff: {trl_mean_absolute_error:.3f} | "
-        f"orig_MSE_TRL: {trl_mean_squared_error:.3f} | "
-        f"orig_avg_relative_error_TRL: {trl_mean_relative_error:.3f} | "
-        f"orig_1-FVU_TRL: {trl_one_minus_fvu:.3f}\n"
+        f"orig_avg_abs_length_diff: {length_mean_absolute_error:.3f} | "
+        f"orig_MSE_length: {length_mean_squared_error:.3f} | "
+        f"orig_avg_relative_error_length: {length_mean_relative_error:.3f} | "
+        f"orig_1-FVU_length: {length_one_minus_fvu:.3f}\n"
         f"orig_avg_abs_dia_diff: {diameter_mean_absolute_error:.3f} | "
         f"orig_MSE_dia: {diameter_mean_squared_error:.3f} | "
         f"orig_avg_relative_error_dia: {diameter_mean_relative_error:.3f} | "
@@ -307,8 +307,8 @@ def _detection_rows(
                     image_records["label"][index],
                     image_records["score"][index],
                     image_records["max_overlap"][index],
-                    image_records["TRL_gt"][index],
-                    image_records["TRL_pred"][index],
+                    image_records["length_gt"][index],
+                    image_records["length_pred"][index],
                     image_records["dia_gt"][index],
                     image_records["dia_pred"][index],
                 ]
@@ -333,7 +333,7 @@ def _summary_rows(
 ) -> list[list[Any]]:
     """Build unmatched-GT or no-prediction rows using legacy placeholders."""
     rows = []
-    prediction_key = "TRL_pred" if attributes else "pred"
+    prediction_key = "length_pred" if attributes else "pred"
     for image_name, image_records in records.items():
         predictions = image_records[prediction_key] if image_records else ()
         for index in range(len(predictions)):
@@ -345,8 +345,8 @@ def _summary_rows(
                     image_records["label"][index],
                     image_records["score"][index],
                     image_records["max_overlap"][index],
-                    image_records["TRL_gt"][index],
-                    image_records["TRL_pred"][index],
+                    image_records["length_gt"][index],
+                    image_records["length_pred"][index],
                     image_records["dia_gt"][index],
                     image_records["dia_pred"][index],
                 ]

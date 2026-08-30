@@ -81,7 +81,7 @@ class EvaluationReportingTests(unittest.TestCase):
         record = {
             "color_gt": [1], "color_pred": [0], "label": [1],
             "score": [0.75], "max_overlap": [0.6],
-            "TRL_gt": [10], "TRL_pred": [9],
+            "length_gt": [10], "length_pred": [9],
             "dia_gt": [2], "dia_pred": [3],
         }
         empty_record = {key: [] for key in record}
@@ -193,7 +193,7 @@ class EvaluationReportingTests(unittest.TestCase):
             color,
         )
 
-        self.assertIn("orig_avg_relative_error_TRL: 0.100", report)
+        self.assertIn("orig_avg_relative_error_length: 0.100", report)
         self.assertIn("color_error_rate: n/a", report)
         self.assertIn("color_1-FVU: n/a", report)
         self.assertIn(

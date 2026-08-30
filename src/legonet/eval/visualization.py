@@ -206,7 +206,7 @@ def save_keypoint_heatmap(
     maps_path: str,
     predicted_value: float | None = None,
     ground_truth_value: float | None = None,
-    attribute_name: str = "TRL",
+    attribute_name: str = "length",
     attribute_unit: str = "mm",
 ) -> int:
     """Optionally save the fifth heatmap and its GT/predicted estimate."""

@@ -125,7 +125,7 @@ class PerObjectEvaluationResult:
     """Named representation of the positional ``perObject_eval.eval`` output.
 
     Counting results populate every field. Attribute results populate only
-    ``relative_error``; in that mode it describes total root length (TRL).
+    ``relative_error``; in that mode it describes per-object root length.
     Values are intentionally not normalized so conversion preserves legacy
     Python and NumPy scalar types exactly.
     """
@@ -148,12 +148,12 @@ class PerObjectEvaluationResult:
     ) -> "PerObjectEvaluationResult":
         """Create a named result from a documented legacy layout."""
         if len(output) == 1:
-            trl_metrics = RegressionMetrics(mean_relative_error=output[0])
+            length_metrics = RegressionMetrics(mean_relative_error=output[0])
             return cls(
                 kind=PerObjectResultKind.ATTRIBUTES,
                 relative_error=output[0],
                 attributes=AttributeEvaluationResult(
-                    regression={"trl": trl_metrics}
+                    regression={"length": length_metrics}
                 ),
             )
         if len(output) == 9:

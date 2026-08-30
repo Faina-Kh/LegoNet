@@ -16,7 +16,7 @@ class DetectionBookkeepingResult:
     """Aligned GT values and overlaps produced by detection bookkeeping."""
 
     count_ground_truth: list[Any]
-    trl_ground_truth: list[Any]
+    length_ground_truth: list[Any]
     diameter_ground_truth: list[Any]
     color_ground_truth: list[Any]
     max_overlaps: Optional[list[float]]
@@ -27,7 +27,7 @@ def _append_false_positive(
     image_name: str,
     attributes: bool,
     count_ground_truth: list[Any],
-    trl_ground_truth: list[Any],
+    length_ground_truth: list[Any],
     diameter_ground_truth: list[Any],
     color_ground_truth: list[Any],
     score: float,
@@ -46,10 +46,10 @@ def _append_false_positive(
         record["gt_count"].append(-1)
         return
 
-    trl_ground_truth.append(-1)
+    length_ground_truth.append(-1)
     diameter_ground_truth.append(-1)
     color_ground_truth.append(-1)
-    record["TRL_gt"].append(-1)
+    record["length_gt"].append(-1)
     record["dia_gt"].append(-1)
     record["color_gt"].append(-1)
 
@@ -66,7 +66,7 @@ def record_detection_bookkeeping(
 ) -> DetectionBookkeepingResult:
     """Match detections and update found, false-positive, and missed-GT state."""
     count_ground_truth: list[Any] = []
-    trl_ground_truth: list[Any] = []
+    length_ground_truth: list[Any] = []
     diameter_ground_truth: list[Any] = []
     color_ground_truth: list[Any] = []
     matched_gt_value_indices: list[int] = []
@@ -101,7 +101,7 @@ def record_detection_bookkeeping(
                     image_name,
                     attributes,
                     count_ground_truth,
-                    trl_ground_truth,
+                    length_ground_truth,
                     diameter_ground_truth,
                     color_ground_truth,
                     float(detection[4]),
@@ -124,10 +124,10 @@ def record_detection_bookkeeping(
             )
             if matching_value_index is None:
                 if attributes:
-                    trl_ground_truth.append(-1)
+                    length_ground_truth.append(-1)
                     diameter_ground_truth.append(-1)
                     color_ground_truth.append(-1)
-                    record["TRL_gt"].append(0)
+                    record["length_gt"].append(0)
                     record["dia_gt"].append(0)
                     record["color_gt"].append(-1)
                 else:
@@ -138,12 +138,12 @@ def record_detection_bookkeeping(
             values = gt_values[matching_value_index]
             matched_gt_value_indices.append(matching_value_index)
             if attributes:
-                color, trl, diameter = values[0], values[3], values[4]
+                color, length, diameter = values[0], values[3], values[4]
                 color_ground_truth.append(color)
-                trl_ground_truth.append(trl)
+                length_ground_truth.append(length)
                 diameter_ground_truth.append(diameter)
                 record["color_gt"].append(color)
-                record["TRL_gt"].append(trl)
+                record["length_gt"].append(length)
                 record["dia_gt"].append(diameter)
             else:
                 count_ground_truth.append(values[0])
@@ -157,7 +157,7 @@ def record_detection_bookkeeping(
                 image_name,
                 attributes,
                 count_ground_truth,
-                trl_ground_truth,
+                length_ground_truth,
                 diameter_ground_truth,
                 color_ground_truth,
                 float(detection[4]),
@@ -177,8 +177,8 @@ def record_detection_bookkeeping(
             missed_record["gt_count"].append(values[0])
             missed_record["pred"].append(-1)
         if attributes:
-            missed_record["TRL_gt"].append(values[3])
-            missed_record["TRL_pred"].append(-1)
+            missed_record["length_gt"].append(values[3])
+            missed_record["length_pred"].append(-1)
             missed_record["dia_gt"].append(values[4])
             missed_record["dia_pred"].append(-1)
             missed_record["color_gt"].append(values[0])
@@ -186,7 +186,7 @@ def record_detection_bookkeeping(
 
     return DetectionBookkeepingResult(
         count_ground_truth=count_ground_truth,
-        trl_ground_truth=trl_ground_truth,
+        length_ground_truth=length_ground_truth,
         diameter_ground_truth=diameter_ground_truth,
         color_ground_truth=color_ground_truth,
         max_overlaps=max_overlaps,
