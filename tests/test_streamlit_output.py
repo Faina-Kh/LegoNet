@@ -14,21 +14,21 @@ from legonet.streamlit_output import (
 class StreamlitOutputTests(unittest.TestCase):
     """Verify that verbose per-image rows do not hide aggregate metrics."""
 
-    def test_excludes_keypoint_metrics_from_attribute_summary(self) -> None:
+    def test_includes_keypoint_metrics_in_attribute_summary(self) -> None:
         output = """
 image.jpg: avg_gt_dia: 0.5, avg_pred_dia: 0.4
 Avg of per image rel_error of TRL:0.1000 | 1-FVU: 0.9000
 Avg of per image rel_error of diameter:0.2000 | 1-FVU: 0.8000
 Avg of per image absolute error of color: 0.3000 | 1-FVU: 0.7000
 color_classes: ('non_white', 'white') | color_error_rate: 0.125 | color_1-FVU: 0.600 | color_confusion_matrix: ((7, 1), (0, 8))
-Evaluation Summary - keypoint detection
-mAP: 0.600 | recall: 0.500 | precision: 0.400
+Keypoint detection evaluation
+mAP: 0.600
 """
 
         summary = extract_evaluation_summary(output)
 
         self.assertNotIn("image.jpg", summary)
-        self.assertEqual(len(summary.splitlines()), 4)
+        self.assertEqual(len(summary.splitlines()), 6)
         self.assertIn("absolute error of color", summary)
         self.assertIn(
             "color_error_rate: 0.125 | color_1-FVU: 0.600",
@@ -36,8 +36,8 @@ mAP: 0.600 | recall: 0.500 | precision: 0.400
         )
         self.assertNotIn("color_classes", summary)
         self.assertNotIn("color_confusion_matrix", summary)
-        self.assertNotIn("mAP: 0.600", summary)
-        self.assertNotIn("Evaluation Summary - keypoint detection", summary)
+        self.assertIn("mAP: 0.600", summary)
+        self.assertIn("Keypoint detection evaluation", summary)
 
     def test_extracts_counting_summary(self) -> None:
         output = """

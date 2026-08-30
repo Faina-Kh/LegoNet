@@ -297,9 +297,7 @@ def _finalize_keypoints(
     )
     if report_summary:
         _emit_summary(
-            format_keypoint_summary(
-                average_precision, recall[-1], precision[-1]
-            ),
+            format_keypoint_summary(average_precision),
             text_results_path,
         )
     plot_PR_curve(

@@ -13,8 +13,14 @@ import csv
 from PIL import Image
 from thop import profile, clever_format
 
-from legonet.eval.KP_detection_eval import points_detection_t_p, calc_points_recall_precision_ap, visualize_KeyPointsHeatmaps
+from legonet.eval.KP_detection_eval import (
+    calc_points_recall_precision_ap,
+    points_detection_t_p,
+    process_keypoint_map_for_evaluation,
+    visualize_KeyPointsHeatmaps,
+)
 from legonet.eval.detection_eval import plot_PR_curve
+from legonet.eval.reporting import format_keypoint_summary, write_keypoint_summary
 from legonet.eval.scalars import first_scalar
 from legonet.eval.numeric_metrics import (
     sum_of_absolute_differences,
@@ -143,12 +149,16 @@ def evaluate(
             if predicted_maps is not None and args.have_GT:
                 if config.AttributeEstimation.calc_det_performance and dataset.csv_leaf_location_file != "":
                     if torch.sum(data['annot'][1]).item()> 0: # check that there are gt points
-                        true_maps = data['annot'][1:]
-                        for m in range(len(predicted_maps)):
-                            for b in range(predicted_maps[0].shape[0]):
-                                t, p = points_detection_t_p(predicted_maps[m][b], true_maps[m][b])
-                                T = T + t
-                                P = P + p
+                        true_map = data['annot'][5]
+                        evaluation_map = process_keypoint_map_for_evaluation(
+                            model, predicted_maps[-1]
+                        )
+                        for b in range(evaluation_map.shape[0]):
+                            t, p = points_detection_t_p(
+                                evaluation_map[b], true_map[b]
+                            )
+                            T = T + t
+                            P = P + p
 
             if args.have_GT:
                 if not model.estimator.binary_model:
@@ -254,8 +264,18 @@ def evaluate(
                 )
             if config.AttributeEstimation.calc_det_performance and config.General.experiment_path != "" and args.have_GT and config.AttributeEstimation.estimate_type == 'withKeyPoints':
                 recall, precision, ap = calc_points_recall_precision_ap(T, P)
+                print(
+                    format_keypoint_summary(ap),
+                    end="",
+                )
                 plot_PR_curve(recall, precision, ap,
                               save_path=config.General.files_path, plots_name = 'Points_PR_curve.png')
+                write_keypoint_summary(
+                    config.General.files_path,
+                    ap,
+                    recall[-1],
+                    precision[-1],
+                )
 
                 # print recall and precision  to csv
                 csv_columns = ['recall', 'precision']

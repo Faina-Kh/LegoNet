@@ -42,8 +42,8 @@ class MainEntryPointTests(unittest.TestCase):
             results_path = Path(directory) / "results.txt"
             results_path.write_text(
                 "Evaluation Summary - per-object attributes\n"
-                "orig_avg_abs_TRL_diff: 0.100\n"
-                "mAP: 0.600 | recall: 0.500 | precision: 0.400\n",
+                "orig_avg_abs_length_diff: 0.100\n"
+                "mAP: 0.600\n",
                 encoding="utf-8",
             )
             args = SimpleNamespace(txt_results=str(results_path))
@@ -54,7 +54,7 @@ class MainEntryPointTests(unittest.TestCase):
         self.assertIn("Execution time in minutes: 2.00", output)
         self.assertIn("\nEvaluation Summary\n", output)
         final_summary = output[output.rfind("\nEvaluation Summary\n") :]
-        self.assertNotIn("mAP: 0.600", final_summary)
+        self.assertIn("mAP: 0.600", final_summary)
         self.assertLess(
             output.rfind("Evaluation Summary"),
             output.rfind("Execution time in minutes"),

@@ -8,6 +8,19 @@ from PIL import ImageFont
 from PIL import ImageDraw
 
 
+def process_keypoint_map_for_evaluation(model, raw_map):
+    """Apply the model's trained keypoint-suppression path before evaluation."""
+    model_instance = getattr(model, "module", model)
+    find_module = getattr(model_instance, "find_2", None)
+    if find_module is None:
+        find_module = getattr(model_instance, "find", None)
+    if find_module is None or not hasattr(find_module, "process_keypoint_map"):
+        raise AttributeError(
+            "The keypoint model does not expose process_keypoint_map()."
+        )
+    return find_module.process_keypoint_map(raw_map)
+
+
 def extract_plant_BB(image_name, activation_map):
     image_shape = activation_map.shape
     mask_image_path = image_name + '_fg.png'

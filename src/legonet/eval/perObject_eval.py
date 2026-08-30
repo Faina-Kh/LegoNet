@@ -28,7 +28,10 @@ from legonet.eval.ground_truth_preparation import (
 )
 from legonet.eval.evaluation_state import initiate_global_dicts
 from legonet.eval.detection_bookkeeping import record_detection_bookkeeping
-from legonet.eval.KP_detection_eval import points_detection_t_p
+from legonet.eval.KP_detection_eval import (
+    points_detection_t_p,
+    process_keypoint_map_for_evaluation,
+)
 from legonet.eval.matching import (
     assign_detection_to_gt as _assign_detection_to_gt,
     choose_boxes_by_IoUandPrc,
@@ -440,8 +443,11 @@ def eval(
                     if config.AttributeEstimation.estimate_type == 'withKeyPoints':
                         if evaluate_points:
                             if len(all_predicted_detection_maps)>0:
-                                for b in range(all_predicted_detection_maps.shape[0]):
-                                    t, p = points_detection_t_p(all_predicted_detection_maps[b, :, :], all_crops_GT_detections_maps[b, :, :])
+                                evaluation_maps = process_keypoint_map_for_evaluation(
+                                    model, all_predicted_detection_maps
+                                )
+                                for b in range(evaluation_maps.shape[0]):
+                                    t, p = points_detection_t_p(evaluation_maps[b, :, :], all_crops_GT_detections_maps[b, :, :])
                                     state['T']=state['T']+ t
                                     state['P']=state['P']+ p
 

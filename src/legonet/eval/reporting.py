@@ -111,16 +111,12 @@ def format_attribute_summary(
 
 def format_keypoint_summary(
     average_precision: float,
-    recall: float,
-    precision: float,
 ) -> str:
-    """Format the aggregate keypoint-detection metrics."""
+    """Format the threshold-independent keypoint-detection metric."""
     return (
         f"{SEPARATOR}\n"
         "Keypoint detection evaluation\n"
-        f"mAP: {_metric_text(average_precision)} | "
-        f"recall: {_metric_text(recall)} | "
-        f"precision: {_metric_text(precision)}\n"
+        f"mAP: {_metric_text(average_precision)}\n"
     )
 
 

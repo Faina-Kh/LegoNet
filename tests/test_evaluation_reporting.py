@@ -139,10 +139,12 @@ class EvaluationReportingTests(unittest.TestCase):
                 write_keypoint_precision_recall(directory, [0.2], [1.0, 0.8])
 
     def test_formats_and_writes_keypoint_summary(self) -> None:
-        report = format_keypoint_summary(0.75, 0.6, 0.8)
+        report = format_keypoint_summary(0.75)
 
         self.assertIn("Keypoint detection evaluation", report)
-        self.assertIn("mAP: 0.750 | recall: 0.600 | precision: 0.800", report)
+        self.assertIn("mAP: 0.750", report)
+        self.assertNotIn("recall:", report)
+        self.assertNotIn("precision:", report)
 
         with tempfile.TemporaryDirectory() as directory:
             write_keypoint_summary(directory, 0.75, 0.6, 0.8)
