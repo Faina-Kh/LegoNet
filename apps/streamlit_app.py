@@ -66,7 +66,7 @@ WEIGHTS_MODE_LABELS = {
     "none": "Do not load weights",
     "full": "Full model checkpoint",
     "partial": "Partial task checkpoints",
-    "detector_only": "Pretrained detector only",
+    "detector_only": "Automatic pretrained detector only (recommended)",
 }
 
 
@@ -551,8 +551,32 @@ with st.sidebar:
     if weights_mode == "detector_only":
         st.caption(
             "The pretrained detector is frozen and the per-object estimation "
-            "head is initialized from scratch."
+            "head is initialized from scratch. Leave the custom path empty to "
+            "download the published detector automatically."
         )
+        try:
+            automatic_checkpoint = select_published_checkpoint(
+                dataset_name,
+                network_type,
+                estimate_type,
+                "bbox",
+            )
+            automatic_path = (
+                checkpoint_cache_dir(storage_path) / automatic_checkpoint.filename
+            )
+            cache_status = (
+                "already cached"
+                if automatic_path.is_file()
+                else "downloaded when the run starts"
+            )
+            st.info(
+                f"Automatic detector: {automatic_checkpoint.filename} "
+                f"({automatic_checkpoint.size / (1024 * 1024):.1f} MiB); "
+                f"{cache_status}."
+            )
+            st.markdown(f"[Published checkpoint and license]({ZENODO_RECORD_URL})")
+        except ValueError as error:
+            st.warning(str(error))
     elif weights_mode == "auto":
         try:
             automatic_checkpoint = select_published_checkpoint(
@@ -588,7 +612,10 @@ with st.sidebar:
         )
     elif weights_mode == "detector_only":
         requested_weight_fields.append(
-            ("Bounding-box detector weights file", "bbox_weights_file")
+            (
+                "Optional custom bounding-box detector weights file",
+                "bbox_weights_file",
+            )
         )
     elif weights_mode == "partial":
         if network_type in (
