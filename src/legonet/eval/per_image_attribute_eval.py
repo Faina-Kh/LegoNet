@@ -126,14 +126,19 @@ def evaluate(
 
                 for i in [4]:  # range(5): # choose which heatmaps to visualize, numbered from 0 to 4
                     map_name = Image_name + '_map_' + str(i + 1)
-                    predicted_map = predicted_maps[i].cpu().numpy()[0]
+                    processed_map = model.find.process_keypoint_map(
+                        predicted_maps[i]
+                    )
+                    predicted_map = processed_map.cpu().numpy()[0]
                     if gt_maps is not None:
                         gt_map = gt_maps[i].cpu().numpy()[0]
                         visualize_KeyPointsHeatmaps(predicted_map, gt_map, Image_name, map_name, img,
-                                                    config.DrawProperties.maps_path, prediction, GT)
+                                                    config.DrawProperties.maps_path, prediction, GT,
+                                                    fixed_scale=True)
                     else:
                         visualize_KeyPointsHeatmaps(predicted_map, None, Image_name, map_name, img,
-                                                    config.DrawProperties.maps_path, prediction, GT)
+                                                    config.DrawProperties.maps_path, prediction, GT,
+                                                    fixed_scale=True)
 
             if args.have_GT:
                 all_GT_values.append(GT)

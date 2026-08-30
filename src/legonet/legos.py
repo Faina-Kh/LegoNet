@@ -552,6 +552,12 @@ class FindModule(nn.Module):
                 self.linear = torch.nn.Linear(6400,1)
                 self.sigmoid_for_binary_2 = torch.nn.Sigmoid()
 
+    def process_keypoint_map(self, raw_map: torch.Tensor) -> torch.Tensor:
+        """Apply the keypoint suppression path used by attribute estimation."""
+        step_output = self.SmoothStepFunction(raw_map)
+        local_maxima = self.LocalNMS(step_output)
+        return self.SmoothStepFunction1(local_maxima)
+
 
     def forward(self, inputs):
 
@@ -597,9 +603,9 @@ class FindModule(nn.Module):
                 classification = SFMS['find_maps']
 
                 classification_output = classification[-1]
-                cls_output_Step_Function1 = self.SmoothStepFunction(classification_output)
-                cls_output_MaxPooled = self.LocalNMS(cls_output_Step_Function1)
-                cls_output_Step_Function2 = self.SmoothStepFunction1(cls_output_MaxPooled)
+                cls_output_Step_Function2 = self.process_keypoint_map(
+                    classification_output
+                )
 
                 if not self.Find_for_count: #(config.General.binary_model and not config.prev_color_model) or config.General.other
                     x1 = cls_output_Step_Function2.unsqueeze(dim=1)

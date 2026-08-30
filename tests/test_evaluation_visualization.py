@@ -8,6 +8,7 @@ from unittest.mock import patch
 import numpy as np
 from PIL import Image, ImageFont
 
+from legonet.eval import KP_detection_eval
 from legonet.eval.KP_detection_eval import visualize_KeyPointsHeatmaps
 from legonet.eval.visualization import (
     _matched_gt_box,
@@ -33,20 +34,28 @@ class EvaluationVisualizationTests(TestCase):
     )
     def test_prediction_heatmap_is_not_deleted(self, _font) -> None:
         with TemporaryDirectory() as temporary_directory:
-            visualize_KeyPointsHeatmaps(
-                np.ones((4, 4), dtype=float),
-                None,
-                "sample",
-                "sample_map_5",
-                Image.new("RGB", (16, 16), "white"),
-                temporary_directory,
-            )
+            original_imsave = KP_detection_eval.plt.imsave
+            with patch(
+                "legonet.eval.KP_detection_eval.plt.imsave",
+                side_effect=original_imsave,
+            ) as imsave:
+                visualize_KeyPointsHeatmaps(
+                    np.ones((4, 4), dtype=float),
+                    None,
+                    "sample",
+                    "sample_map_5",
+                    Image.new("RGB", (16, 16), "white"),
+                    temporary_directory,
+                    fixed_scale=True,
+                )
 
             output = Path(temporary_directory)
             self.assertTrue((output / "sample_map_5_Predicted.png").is_file())
             self.assertFalse(
                 (output / "sample_map_5_predicted_map_tmp.png").exists()
             )
+            self.assertEqual(imsave.call_args.kwargs["vmin"], 0.0)
+            self.assertEqual(imsave.call_args.kwargs["vmax"], 1.0)
 
     def test_object_visualizations_save_overlay_and_crop(self) -> None:
         with TemporaryDirectory() as temporary_directory:
