@@ -155,7 +155,9 @@ def evaluate(
                     )
                     for b in range(evaluation_map.shape[0]):
                         t, p = points_detection_t_p(
-                            evaluation_map[b], true_map[b]
+                            predicted_maps[-1][b],
+                            true_map[b],
+                            candidate_threshold=0.0,
                         )
                         T = T + t
                         P = P + p

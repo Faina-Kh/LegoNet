@@ -25,8 +25,6 @@ def extract_evaluation_summary(output: str) -> str:
     """Extract compact aggregate metrics from verbose evaluation output."""
     summary_prefixes = (
         "Evaluation Summary -",
-        "Keypoint detection evaluation",
-        "mAP:",
         "orig_avg_abs_count_diff:",
         "orig_avg_abs_TRL_diff:",
         "orig_avg_abs_length_diff:",

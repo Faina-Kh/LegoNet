@@ -73,9 +73,7 @@ def _evaluate_crop_keypoints(
     *,
     evaluates_attributes: bool,
 ) -> tuple[list[float], list[float]]:
-    """Use the paper-compatible raw protocol for grape counting crops."""
-    if evaluates_attributes:
-        return points_detection_t_p(processed_map, ground_truth_map)
+    """Evaluate raw final-ReLU candidates for counting and root attributes."""
     return points_detection_t_p(
         raw_map,
         ground_truth_map,

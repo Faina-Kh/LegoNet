@@ -14,7 +14,7 @@ from legonet.streamlit_output import (
 class StreamlitOutputTests(unittest.TestCase):
     """Verify that verbose per-image rows do not hide aggregate metrics."""
 
-    def test_includes_keypoint_metrics_in_attribute_summary(self) -> None:
+    def test_does_not_duplicate_keypoint_metrics_in_attribute_summary(self) -> None:
         output = """
 image.jpg: avg_gt_dia: 0.5, avg_pred_dia: 0.4
 Avg of per image rel_error of TRL:0.1000 | 1-FVU: 0.9000
@@ -28,7 +28,7 @@ mAP: 0.600
         summary = extract_evaluation_summary(output)
 
         self.assertNotIn("image.jpg", summary)
-        self.assertEqual(len(summary.splitlines()), 6)
+        self.assertEqual(len(summary.splitlines()), 4)
         self.assertIn("absolute error of color", summary)
         self.assertIn(
             "color_error_rate: 0.125 | color_1-FVU: 0.600",
@@ -36,8 +36,8 @@ mAP: 0.600
         )
         self.assertNotIn("color_classes", summary)
         self.assertNotIn("color_confusion_matrix", summary)
-        self.assertIn("mAP: 0.600", summary)
-        self.assertIn("Keypoint detection evaluation", summary)
+        self.assertNotIn("mAP: 0.600", summary)
+        self.assertNotIn("Keypoint detection evaluation", summary)
 
     def test_extracts_counting_summary(self) -> None:
         output = """
