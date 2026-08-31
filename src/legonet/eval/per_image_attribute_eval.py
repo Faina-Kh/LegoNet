@@ -57,12 +57,13 @@ def evaluate(
         all_rel_error = []
         predicted_maps = None
 
+        print("Per-image values:")
         if args.have_GT and model.estimator.binary_model:
-            print("Per-image values: image | GT | predicted")
+            print("Image | GT | Predicted")
         elif args.have_GT:
-            print("Per-image values: image | GT | predicted | abs_diff | rel_error")
+            print("Image | GT | Predicted | Absolute difference | Relative error (MRD)")
         else:
-            print("Per-image values: image | predicted")
+            print("Image | Predicted")
 
         for iter_num, data in enumerate(dataloader):
 
@@ -204,25 +205,25 @@ def evaluate(
                 if args.have_GT:
 
                     print(
-                        'image: {} | GT: {:.3f} | predicted: {:.3f}'.format(
+                        '{} | {:.3f} | {:.3f}'.format(
                             Image_name, GT, prediction,
                             ))
 
                 else:
                     print(
-                        'image: {} | predicted: {:.3f}'.format(
+                        '{} | {:.3f}'.format(
                             Image_name, prediction))
 
             else:
                 if args.have_GT:
                     print(
-                        'image: {} | GT: {:.3f} | predicted: {:.3f} | abs_diff: {:.3f} | rel_error: {:.3f}'.format(
+                        '{} | {:.3f} | {:.3f} | {:.3f} | {:.3f}'.format(
                             Image_name, GT, prediction,
                             abs(GT - prediction), rel_error))
 
                 else:
                     print(
-                        'image: {} | predicted: {:.3f} '.format(
+                        '{} | {:.3f}'.format(
                             Image_name, prediction))
 
         # else:
@@ -247,8 +248,6 @@ def evaluate(
         #                     Image_name, int(count_GT), np.round(count_pred), count_pred,
         #                     abs(count_GT - count_pred)))
 
-        print('\n Summary:')
-
         if args.have_GT:
             num_of_images = len(all_GT_values)
             valueDiff = sum_of_differences(all_GT_values, all_predicted_values) / num_of_images
@@ -263,8 +262,9 @@ def evaluate(
         #if args.dataset_name == "roots":
         if args.have_GT:
             if  model.estimator.binary_model:
-                print(
-                    'Abs_value_Diff: {:.3f} | accuracy {:.3f} | 1-FVU: {:.3f} \n'.format(
+                args.per_image_evaluation_summary = (
+                    "Evaluation Summary - per-image estimation\n"
+                    'Abs_value_Diff: {:.3f} | accuracy: {:.3f} | 1-FVU: {:.3f}'.format(
                         Abs_value_Diff,
                         1-Abs_value_Diff,
                         one_minus_fvu,
@@ -284,8 +284,9 @@ def evaluate(
                 else:
                     MSE = None
 
-                print(
-                    'Abs_value_Diff: {:.3f} | MSE {:.3f} | MRD (Relative Error for gt>0): {:.3f} | 1-FVU: {:.3f} \n'.format(
+                args.per_image_evaluation_summary = (
+                    "Evaluation Summary - per-image estimation\n"
+                    'Abs_value_Diff: {:.3f} | MSE: {:.3f} | MRD (gt > 0): {:.3f} | 1-FVU: {:.3f}'.format(
                         Abs_value_Diff,
                         MSE,
                         mean_rel_error,

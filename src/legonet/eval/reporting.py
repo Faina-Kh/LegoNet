@@ -155,10 +155,10 @@ def format_detection_metrics(metrics: Sequence[Any]) -> str:
 def format_counting_per_image(
     ground_truth: Mapping[str, float], predictions: Mapping[str, float]
 ) -> str:
-    """Format legacy per-image counting values and relative errors."""
+    """Format per-image counting values and relative errors."""
     lines = [
         "Per image stats based on IoU-matched GT boxes",
-        "Per image gt, predicted avg count",
+        "Image | GT average count | Predicted average count | Relative error (MRD)",
     ]
     errors = []
     for image_name, prediction in predictions.items():
@@ -166,8 +166,7 @@ def format_counting_per_image(
         error = abs(target - prediction) / target
         errors.append(error)
         lines.append(
-            f"{image_name}: avg_gt: {target:.2f}, avg_pred: {prediction:.2f}, "
-            f"rel_error: {error:.2f}"
+            f"{image_name} | {target:.2f} | {prediction:.2f} | {error:.2f}"
         )
     lines.append(f"Avg of per image rel_error:{np.mean(errors):.3f}")
     return "\n".join(lines) + "\n"
@@ -213,8 +212,10 @@ def format_roots_per_image(
     """Format image-level roots aggregates and their dataset metrics."""
     image_names = list(color_predictions)
     lines = [
+        f"{SEPARATOR}",
+        "Evaluation Summary - per-image aggregation",
         "Per image stats based on IoU-matched GT boxes",
-        "Per image gt TRL (sum of RL), predicted sum TRL",
+        "Image | GT TRL | Predicted TRL | Relative error (MRD)",
     ]
     trl_errors = []
     for image_name, prediction in trl_predictions.items():
@@ -222,8 +223,7 @@ def format_roots_per_image(
         error = abs(target - prediction) / target if target > 0 else -1
         trl_errors.append(error)
         lines.append(
-            f"{image_name}: sum_gt_TRL: {target:.2f}, pred_TRL: "
-            f"{prediction:.2f}, rel_error_TRL: {error:.2f}"
+            f"{image_name} | {target:.2f} | {prediction:.2f} | {error:.2f}"
         )
     valid_trl_errors = [error for error in trl_errors if error > 0]
     lines.extend(
@@ -237,6 +237,9 @@ def format_roots_per_image(
 
     diameter_errors = []
     diameter_differences = []
+    lines.append(
+        "Image | GT diameter | Predicted diameter | Relative error (MRD)"
+    )
     for image_name, prediction in diameter_predictions.items():
         target = diameter_ground_truth[image_name]
         difference = abs(target - prediction)
@@ -244,8 +247,7 @@ def format_roots_per_image(
         diameter_differences.append(difference)
         diameter_errors.append(error)
         lines.append(
-            f"{image_name}: avg_gt_dia: {target:.2f}, avg_pred_dia: "
-            f"{prediction:.2f}, rel_error_dia: {error:.2f}"
+            f"{image_name} | {target:.2f} | {prediction:.2f} | {error:.2f}"
         )
     lines.extend(
         [
@@ -254,7 +256,7 @@ def format_roots_per_image(
             f"{_metric_text(per_image_metrics.diameter.one_minus_fvu, 3)} |"
             f"abs difference:{np.mean(diameter_differences):.3f}",
             "",
-            "Per image average GT and predicted color",
+            "Image | GT color | Predicted color | Absolute error",
         ]
     )
 
@@ -265,8 +267,7 @@ def format_roots_per_image(
         difference = abs(target - prediction)
         color_differences.append(difference)
         lines.append(
-            f"{image_name}: avg_gt_color: {target:.2f}, avg_pred_color: "
-            f"{prediction:.2f}, abs_error_color: {difference:.2f}"
+            f"{image_name} | {target:.2f} | {prediction:.2f} | {difference:.2f}"
         )
     lines.append(
         "Avg of per image absolute error of color: "

@@ -229,6 +229,19 @@ class EvaluationReportingTests(unittest.TestCase):
         self.assertIn("rel_error of TRL:", report)
         self.assertIn("rel_error of diameter:", report)
         self.assertIn("absolute error of color:", report)
+        self.assertIn("Evaluation Summary - per-image aggregation", report)
+        self.assertIn(
+            "Image | GT TRL | Predicted TRL | Relative error (MRD)", report
+        )
+        self.assertIn(
+            "Image | GT diameter | Predicted diameter | Relative error (MRD)",
+            report,
+        )
+        self.assertIn("Image | GT color | Predicted color | Absolute error", report)
+        self.assertIn("a.jpg | 10.00 | 9.00 | 0.10", report)
+        self.assertNotIn("sum_gt_TRL", report)
+        self.assertNotIn("avg_gt_dia", report)
+        self.assertNotIn("avg_gt_color", report)
         self.assertEqual(report.count("1-FVU:"), 3)
         self.assertNotIn("Per-image aggregate 1-FVU", report)
 

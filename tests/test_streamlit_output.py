@@ -87,6 +87,19 @@ orig_avg_abs_count_diff: 0.500 | orig_count_agreement: 0.750 | orig_MSE: 0.400 |
         self.assertIn("orig_avg_abs_TRL_diff: 0.100", section)
         self.assertTrue(saved_output.endswith(section))
 
+    def test_appends_runtime_per_image_summary_without_prior_print(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            results_path = Path(directory) / "results.txt"
+            results_path.write_text("ordinary output\n", encoding="utf-8")
+
+            section = append_evaluation_summary(
+                str(results_path),
+                "Evaluation Summary - per-image estimation\nMRD: 0.100",
+            )
+
+        self.assertIn("Evaluation Summary - per-image estimation", section)
+        self.assertIn("MRD: 0.100", section)
+
 
 if __name__ == "__main__":
     unittest.main()

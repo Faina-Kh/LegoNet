@@ -50,17 +50,24 @@ def extract_evaluation_summary(output: str) -> str:
             lines.append(" | ".join(color_metrics))
             continue
         if stripped_line.startswith(summary_prefixes):
+            if stripped_line.startswith("Evaluation Summary -") and lines:
+                lines.append("")
             lines.append(stripped_line)
     return "\n".join(lines)
 
 
-def append_evaluation_summary(text_results_path: str) -> str:
+def append_evaluation_summary(
+    text_results_path: str,
+    additional_summary: str = "",
+) -> str:
     """Append the GUI's consolidated evaluation summary to a text artifact."""
     results_path = Path(text_results_path)
     if not results_path.is_file():
         return ""
     output = results_path.read_text(encoding="utf-8")
     summary = extract_evaluation_summary(output)
+    if additional_summary:
+        summary = "\n".join(part for part in (summary, additional_summary) if part)
     if not summary:
         return ""
     section = (

@@ -25,7 +25,12 @@ import faulthandler
 def finalize_text_results(args, execution_time: float) -> None:
     """Append execution time and the consolidated summary to the text output."""
     if getattr(args, "txt_results", ""):
-        append_evaluation_summary(args.txt_results)
+        summary = append_evaluation_summary(
+            args.txt_results,
+            getattr(args, "per_image_evaluation_summary", ""),
+        )
+        if summary:
+            print(summary, end="")
 
         with open(args.txt_results, "a", encoding="utf-8") as results_file:
             results_file.write(
@@ -424,7 +429,9 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     #################################################
 
     if args.run_script == 'Training':
-        args.current_results_dir = args.current_results_dir or (args.network_type + type_name + 'Training')
+        args.current_results_dir = args.current_results_dir or (
+            args.network_type + type_name + 'Training'
+        )
     else:
         args.current_results_dir = args.current_results_dir or (args.network_type +"_"+ type_name + args.val_set ) #+ "_Check" ) #+ type_name) # + type_name # +'_by_IoUavg_'+ 'new_84' ) #'_'+time_stemp
 
