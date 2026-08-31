@@ -136,8 +136,7 @@ or activate an existing isolated Python 3.12 environment. Then install the CPU
 build of PyTorch followed by LegoNet:
 
 ```bash
-python -m pip install torch==2.5.1 torchvision==0.20.1 \
-  --index-url https://download.pytorch.org/whl/cpu
+python -m pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cpu
 python -m pip install -e .
 ```
 
@@ -151,6 +150,13 @@ legonet \
   --run-script Inference \
   --val-set Test \
   --have-gt true
+```
+
+On Linux, macOS, WSL, or Git Bash, use the multiline command above. In Windows
+Command Prompt or PowerShell, run it on one line:
+
+```cmd
+legonet --dataset-name grapes --network-type per_object_counting --estimate-type keypoints --run-script Inference --val-set Test --have-gt true
 ```
 
 Run per-root length, diameter, and color estimation with:
