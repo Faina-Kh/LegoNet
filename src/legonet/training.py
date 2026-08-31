@@ -21,8 +21,7 @@ from legonet.training_evaluation import (
 from legonet.training_step import LossResult, run_training_step
 
 
-DETECTION_NETWORKS = {
-    "bbox_detection",
+PER_OBJECT_NETWORKS_WITH_FROZEN_DETECTOR = {
     "per_object_counting",
     "per_object_attributes",
     "per_object_attributes_multibranch",
@@ -376,7 +375,7 @@ def train_model(
     for epoch in range(args.epochs):
         model.train()
         model.freeze_bn()
-        if args.network_type in DETECTION_NETWORKS:
+        if args.network_type in PER_OBJECT_NETWORKS_WITH_FROZEN_DETECTOR:
             model.freeze_detector()
         epoch_losses = []
         component_history = {name: [] for name in _epoch_loss_keys(args)}

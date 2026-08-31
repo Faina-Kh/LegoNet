@@ -215,6 +215,7 @@ def save_partial_weights(
         }
         print("Available modules in clean_state_dict:", list_checkpoint_modules(clean_state_dict))
 
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
         torch.save(clean_state_dict, save_path)
 
 

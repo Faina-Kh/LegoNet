@@ -10,6 +10,17 @@ from legonet import training
 class TrainingOrchestrationTests(unittest.TestCase):
     """Verify frozen detector evaluation timing and scope."""
 
+    def test_standalone_detector_is_not_in_frozen_detector_networks(self):
+        """Bounding-box training must leave the standalone detector trainable."""
+        self.assertNotIn(
+            "bbox_detection",
+            training.PER_OBJECT_NETWORKS_WITH_FROZEN_DETECTOR,
+        )
+        self.assertIn(
+            "per_object_attributes",
+            training.PER_OBJECT_NETWORKS_WITH_FROZEN_DETECTOR,
+        )
+
     def test_per_object_detector_is_evaluated_once_before_training(self):
         args = SimpleNamespace(
             network_type="per_object_counting",

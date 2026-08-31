@@ -421,7 +421,11 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     # Automatic resolution converts ``auto`` into a concrete loading mode.
     configure_weights_mode(args)
     validate_configuration(args)
-    type_name = '_KP_' if args.estimate_type == "withKeyPoints" else "_Reg_"
+    estimate_suffix = (
+        ""
+        if args.network_type == "bbox_detection"
+        else "_KP" if args.estimate_type == "withKeyPoints" else "_Reg"
+    )
 
     #################################################
     args.choose_epoch_by_IoUavg = False
@@ -430,10 +434,12 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
 
     if args.run_script == 'Training':
         args.current_results_dir = args.current_results_dir or (
-            args.network_type + type_name + 'Training'
+            args.network_type + estimate_suffix + '_Training'
         )
     else:
-        args.current_results_dir = args.current_results_dir or (args.network_type +"_"+ type_name + args.val_set ) #+ "_Check" ) #+ type_name) # + type_name # +'_by_IoUavg_'+ 'new_84' ) #'_'+time_stemp
+        args.current_results_dir = args.current_results_dir or (
+            args.network_type + estimate_suffix + "_" + args.val_set
+        )
 
     args.evaluate_per_object = args.network_type in PER_OBJECT_NETWORKS
 
@@ -697,8 +703,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         #     args.bbox_detection_weights_dir = os.path.join(args.myExpPath, 'per_object_counting', #'grapes_det_correct_filter_Score_0.7_nms_0.3',
         #                                                    "Weights", '2026-04-16_161416') #'2026-04-06_221233')
 
-        os.makedirs(args.bbox_detection_weights_dir, exist_ok=True)
-
         if not args.network_type == "bbox_detection":
 
             if args.network_type == "per_object_counting":
@@ -718,15 +722,11 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
             elif args.network_type == "per_object_attributes_multibranch":
                 args.per_object_weights_dir = os.path.join(weights_dir, "per_object_attributes", 'both_Back2bFind2b') #args.myExpPath, "Weights",
 
-            os.makedirs(args.per_object_weights_dir, exist_ok=True)
-
     if args.network_type == "per_image_estimation":
         if args.estimate_type == "withKeyPoints":
             args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_KP") # args.myExpPath, "Weights",
         else:
             args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_Reg") #args.myExpPath, "Weights", #os.path.join(args.myExpPath, 'TRL_estimator_reg\\Weights\\2026-05-21_121532') #os.path.join(args.myExpPath, "Weights", "per_image_attributes", "TRL_Reg")
-        os.makedirs(args.per_image_weights_dir, exist_ok=True)
-
     # "D:\\from 16\\more_counting_Res\\more_counting_Res\\legonet_epoch=249.pt" #cont_legonet_epoch=14.pt"
 
     if args.load_bbox_det_weights:

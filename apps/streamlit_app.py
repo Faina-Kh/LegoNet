@@ -407,11 +407,15 @@ with st.sidebar:
         num_of_epochs = 0
 
     results_dir_context = (selected_network_type, run_script, val_set)
-    type_name = '_KP_' if estimate_type == "keypoints" else "_Reg_"
+    estimate_suffix = (
+        ""
+        if selected_network_type == "bbox_detection"
+        else "_KP" if estimate_type == "keypoints" else "_Reg"
+    )
     if st.session_state.get("runner_results_dir_context") != results_dir_context:
         results_suffix = "Training" if run_script == "Training" else val_set
         st.session_state.runner_results_dir = (
-            selected_network_type + type_name + results_suffix
+            selected_network_type + estimate_suffix + "_" + results_suffix
         )
         st.session_state.runner_results_dir_context = results_dir_context
     current_results_dir = st.text_input(
@@ -525,7 +529,7 @@ with st.sidebar:
     elif can_load_only_bbox:
         available_weights_modes = ("detector_only", "full", "partial", "none")
     elif network_type == "bbox_detection":
-        available_weights_modes = ("full", "none")
+        available_weights_modes = ("auto", "full", "none")
     elif network_type == "per_image_estimation":
         available_weights_modes = ("full", "none")
     else:
@@ -539,8 +543,9 @@ with st.sidebar:
         key="runner_weights_mode",
         format_func=lambda mode: WEIGHTS_MODE_LABELS[mode],
         help=(
-            "For the bounding-box detection model, load a checkpoint containing "
-            "the entire model or start without saved weights."
+            "For the bounding-box detection model, automatically download the "
+            "published detector checkpoint, provide a full checkpoint, or start "
+            "without saved weights."
             if network_type == "bbox_detection"
             else "For per-image models, load a checkpoint containing the entire "
             "model or start without saved weights."
