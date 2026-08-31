@@ -27,14 +27,14 @@ DEBUG_SETTINGS: dict[str, DebugValue] = {
     "run_script": "Training",  # "Inference" or "Training"
     "val_set": "Val",  # "Test" or "Val"
     "gpu_num": "0",
-    "current_results_dir": "Train_"+"per_object_counting_Back2_Initialization",
-    "estimate_type": "reg_fpn_p3_p7_min_sig", #"reg_fpn_p3_p7_min_sig", "withKeyPoints"
+    "current_results_dir": "",
+    "estimate_type": "", #"regression", "keypoints"
     "num_of_epochs": 300,
     "have_gt": True,
     "to_draw": False,
     "evaluate_detection": True,
     "weights_mode": "detector_only",  # "none", "full", "partial", "detector_only"
-    "bbox_weights_file": 'C:\\Users\\bordezki\\Desktop\\LegoNet\\ExpResults\\grapes\\Weights\\bbox_detection\\legonet_bbox_grapes.pt', #os.environ.get("LEGONET_BBOX_WEIGHTS_FILE", ""),
+    "bbox_weights_file": None,
     "full_weights_file": None,
     "per_object_weights_file": None,
 }

@@ -48,10 +48,10 @@ def _print_best_error_checkpoint_notice(
 ) -> None:
     """Report replacement of the saved best checkpoint by a better metric."""
     previous_text = (
-        "none" if previous_error is None else f"{previous_error:.6f}"
+        "none" if previous_error is None else f"{previous_error:.3f}"
     )
     print(
-        f"New best validation {metric_name}: {current_error:.6f} "
+        f"New best validation {metric_name}: {current_error:.3f} "
         f"(previous: {previous_text}) at epoch {epoch}. \n"
         "Replacing the previously saved best-epoch weights file. \n"
     )
@@ -73,7 +73,7 @@ def _print_best_training_error(args: Any, best: BestMetrics) -> None:
         return
 
     print(
-        f"Best validation {metric_name}: {error:.6f}, achieved at epoch {epoch}."
+        f"Best validation {metric_name}: {error:.3f}, achieved at epoch {epoch}."
     )
 
 

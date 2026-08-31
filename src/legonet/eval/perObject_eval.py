@@ -83,10 +83,12 @@ def _evaluate_crop_keypoints(
 
 def _get_detections(detection_outputs, scale):
     scores, labels, boxes = detection_outputs
-    boxes = boxes.cpu().numpy()
+    # NumPy can share storage with an already-CPU tensor. Copy before
+    # rescaling so cached detector outputs remain in model-input coordinates.
+    boxes = boxes.cpu().numpy().copy()
 
     # correct boxes for image scale
-    boxes /= scale
+    boxes = boxes / scale
 
     return scores.cpu().numpy(), boxes
 

@@ -182,10 +182,12 @@ def _get_detections(generator, model, dataloader, sampler, score_threshold=0.05,
 
             scores = scores.cpu().numpy()
             labels = labels.cpu().numpy()
-            boxes = boxes.cpu().numpy()
+            # NumPy can share storage with an already-CPU tensor. Copy before
+            # rescaling so another evaluation pass can safely reuse outputs.
+            boxes = boxes.cpu().numpy().copy()
 
             # correct boxes for image scale
-            boxes /= scale
+            boxes = boxes / scale
 
             # select indices which have a score above the threshold
             indices = np.where(scores > score_threshold)[0]

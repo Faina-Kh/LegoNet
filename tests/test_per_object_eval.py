@@ -11,6 +11,26 @@ from legonet.eval import perObject_eval
 class PerObjectEvaluationTests(unittest.TestCase):
     """Characterize bbox-to-GT matching used before attribute evaluation."""
 
+    def test_detection_rescaling_does_not_mutate_cached_cpu_boxes(self):
+        boxes = torch.tensor([[10.0, 20.0, 30.0, 40.0]])
+        original_boxes = boxes.clone()
+        detection_outputs = (
+            torch.tensor([0.9]),
+            torch.tensor([0]),
+            boxes,
+        )
+
+        _, scaled_boxes = perObject_eval._get_detections(
+            detection_outputs,
+            np.array([0.5]),
+        )
+
+        np.testing.assert_allclose(
+            scaled_boxes,
+            np.array([[20.0, 40.0, 60.0, 80.0]]),
+        )
+        torch.testing.assert_close(boxes, original_boxes)
+
     def test_grape_point_evaluation_excludes_empty_gt_crops(self):
         self.assertFalse(
             perObject_eval._include_crop_in_point_evaluation(

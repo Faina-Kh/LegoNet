@@ -45,7 +45,7 @@ def evaluate(
 ) -> Optional[float]:
     """Evaluate the configured per-image attribute model."""
 
-    print("Start evaluation")
+    print("\nStart evaluation")
     model.eval()
 
     with torch.no_grad():

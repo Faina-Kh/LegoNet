@@ -31,5 +31,5 @@ def save_epoch_checkpoint(
             if previous_checkpoint != checkpoint_path and previous_checkpoint.is_file():
                 previous_checkpoint.unlink()
 
-    print(f"Saved epoch {epoch} checkpoint: {checkpoint_path}")
+    print(f"Saved epoch {epoch} checkpoint: {checkpoint_path}\n")
     return checkpoint_path

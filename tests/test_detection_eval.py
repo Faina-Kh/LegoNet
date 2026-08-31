@@ -49,16 +49,17 @@ class DetectionEvaluationTests(unittest.TestCase):
         data = {
             "img": image,
             "bbox_annot": mock.Mock(),
-            "scale": np.array([1.0]),
+            "scale": np.array([0.5]),
         }
         scores = mock.Mock()
         labels = mock.Mock()
         boxes = mock.Mock()
         scores.cpu.return_value.numpy.return_value = np.array([0.9])
         labels.cpu.return_value.numpy.return_value = np.array([0])
-        boxes.cpu.return_value.numpy.return_value = np.array(
+        cached_box_array = np.array(
             [[1.0, 2.0, 3.0, 4.0]]
         )
+        boxes.cpu.return_value.numpy.return_value = cached_box_array
         model = mock.Mock()
         model.bbox_detection.return_value = scores, labels, boxes
         original_network_type = config.General.NETWORK_TYPE
@@ -82,6 +83,14 @@ class DetectionEvaluationTests(unittest.TestCase):
 
         model.bbox_detection.assert_called_once_with(["image"])
         self.assertEqual(detections[0][0].shape, (1, 5))
+        np.testing.assert_allclose(
+            detections[0][0][0, :4],
+            np.array([2.0, 4.0, 6.0, 8.0]),
+        )
+        np.testing.assert_allclose(
+            cached_box_array,
+            np.array([[1.0, 2.0, 3.0, 4.0]]),
+        )
         self.assertAlmostEqual(detections[0][0][0, 4], 0.9)
 
     def test_empty_image_detection_counts_as_false_positive(self):
