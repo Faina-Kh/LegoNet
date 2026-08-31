@@ -44,12 +44,14 @@ class CheckpointingTests(unittest.TestCase):
             unrelated_weights.write_text("keep")
             notes.write_text("keep")
 
-            path = self.checkpointing.save_epoch_checkpoint(
-                model,
-                epoch=3,
-                replace_existing=True,
-                weights_dir=temporary_directory,
-            )
+            output = io.StringIO()
+            with redirect_stdout(output):
+                path = self.checkpointing.save_epoch_checkpoint(
+                    model,
+                    epoch=3,
+                    replace_existing=True,
+                    weights_dir=temporary_directory,
+                )
 
             self.assertEqual(path, directory / "legonet_epoch=3.pt")
             self.assertFalse(old_checkpoint.exists())
@@ -59,6 +61,7 @@ class CheckpointingTests(unittest.TestCase):
                 {"weight": 1},
                 str(path),
             )
+            self.assertIn("Saved epoch 3 checkpoint:", output.getvalue())
 
     def test_failed_save_does_not_remove_previous_checkpoint(self):
         """A save failure leaves the previous valid checkpoint untouched."""

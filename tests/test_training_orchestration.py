@@ -1,6 +1,8 @@
 """Tests for epoch-level training evaluation orchestration."""
 
 import unittest
+import io
+from contextlib import redirect_stdout
 from types import SimpleNamespace
 from unittest import mock
 
@@ -41,6 +43,42 @@ class TrainingOrchestrationTests(unittest.TestCase):
 
         evaluate_detection.assert_called_once_with(
             "dataset", "loader", "sampler", "model"
+        )
+
+    def test_detection_epoch_reports_validation_and_saves_first_checkpoint(self):
+        """The first detector epoch is visible and always establishes a best model."""
+        args = SimpleNamespace(
+            dataset_type="roots_json",
+            evaluate_detection=True,
+        )
+        metrics = SimpleNamespace(
+            mean_average_precision=0.0,
+            precision=0.0,
+            recall=0.0,
+        )
+        output = io.StringIO()
+
+        with mock.patch.object(
+            training, "evaluate_detection", return_value=metrics
+        ), mock.patch.object(training, "save_epoch_checkpoint") as save_checkpoint:
+            with redirect_stdout(output):
+                training._evaluate_detection_epoch(
+                    args,
+                    epoch=0,
+                    model="model",
+                    dataset_val=["a", "b"],
+                    dataloader_val="loader",
+                    sampler_val="sampler",
+                    best=training.BestMetrics(),
+                )
+
+        report = output.getvalue()
+        self.assertIn("Starting bounding-box evaluation", report)
+        self.assertIn("2 images", report)
+        self.assertIn("New best validation mAP: 0.000", report)
+        self.assertIn("Finished validation evaluation", report)
+        save_checkpoint.assert_called_once_with(
+            "model", 0, replace_existing=True
         )
 
     def test_detector_evaluation_is_skipped_when_disabled(self):

@@ -32,7 +32,7 @@ PER_OBJECT_NETWORKS_WITH_FROZEN_DETECTOR = {
 class BestMetrics:
     """Best validation metrics observed during a training run."""
 
-    mean_average_precision: float = 0.0
+    mean_average_precision: Optional[float] = None
     average_relative_error: float = 100.0
     average_relative_error_epoch: Optional[int] = None
     checkpoint_metric_name: Optional[str] = None
@@ -191,6 +191,10 @@ def _evaluate_detection_epoch(
         if args.dataset_type == "kcsv":
             _save_periodic_checkpoint(epoch, model)
         return
+    print(
+        f"Starting bounding-box evaluation on the validation set for epoch "
+        f"{epoch} ({len(dataset_val)} images)."
+    )
     metrics = evaluate_detection(dataset_val, dataloader_val, sampler_val, model)
     mean_ap = metrics.mean_average_precision
     precision = metrics.precision
@@ -201,9 +205,23 @@ def _evaluate_detection_epoch(
             results_file.write(
                 f"Epoch: {epoch}, mAP = {mean_ap:.3f}, precision = {precision:.3f}, recall = {recall:.3f}\n"
             )
-    if mean_ap > best.mean_average_precision:
+    previous_mean_ap = best.mean_average_precision
+    if previous_mean_ap is None or mean_ap > previous_mean_ap:
+        previous_text = (
+            "none" if previous_mean_ap is None else f"{previous_mean_ap:.3f}"
+        )
+        print(
+            f"New best validation mAP: {mean_ap:.3f} "
+            f"(previous: {previous_text})."
+        )
         best.mean_average_precision = mean_ap
         save_epoch_checkpoint(model, epoch, replace_existing=True)
+    else:
+        print(
+            f"Epoch {epoch} checkpoint was not saved because validation mAP "
+            f"did not improve on {previous_mean_ap:.3f}."
+        )
+    print(f"Finished validation evaluation for epoch {epoch}.\n")
 
 
 def _evaluate_per_image_attribute_epoch(

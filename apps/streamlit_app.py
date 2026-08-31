@@ -59,15 +59,7 @@ DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
     "per_image_estimation": "keypoints",
     "per_object_attributes_multibranch": "keypoints"
 }
-WEIGHTS_TYPES = ('full_model_weights', 'partial_weights')
 STORAGE_PATH_STATE_KEY = "runner_storage_path"
-WEIGHTS_MODE_LABELS = {
-    "auto": "Automatic pretrained weights (recommended)",
-    "none": "Do not load weights",
-    "full": "Full model checkpoint",
-    "partial": "Partial task checkpoints",
-    "detector_only": "Automatic pretrained detector only (recommended)",
-}
 
 
 def find_project_root(start: Path) -> Path:
@@ -160,6 +152,78 @@ def persist_uploaded_weights(uploaded_file, state_key: str) -> str:
     st.session_state[signature_key] = signature
     st.session_state[path_key] = str(destination)
     return str(destination)
+
+
+def select_checkpoint_file(
+    *,
+    label: str,
+    state_key: str,
+    component: str,
+    dataset_name: str,
+    network_type: str,
+    estimate_type: str,
+    storage_path: str,
+) -> tuple[bool, str]:
+    """Select automatic retrieval or a user-provided checkpoint file."""
+    source = st.radio(
+        f"{label} source",
+        ("Automatic download (recommended)", "User-provided file"),
+        key=f"runner_source_{state_key}",
+        horizontal=True,
+    )
+    automatic = source.startswith("Automatic")
+    if automatic:
+        try:
+            checkpoint = select_published_checkpoint(
+                dataset_name,
+                network_type,
+                estimate_type,
+                component,
+            )
+            cached_path = checkpoint_cache_dir(storage_path) / checkpoint.filename
+            cache_status = (
+                "already cached"
+                if cached_path.is_file()
+                else "downloaded when the run starts"
+            )
+            st.info(
+                f"{label}: {checkpoint.filename} "
+                f"({checkpoint.size / (1024 * 1024):.1f} MiB); {cache_status}."
+            )
+            st.markdown(f"[Published checkpoint and license]({ZENODO_RECORD_URL})")
+        except ValueError as error:
+            st.warning(str(error))
+        return True, ""
+
+    saved_path_key = f"runner_saved_{state_key}"
+    input_key = f"runner_input_{state_key}"
+    if saved_path_key not in st.session_state:
+        st.session_state[saved_path_key] = ""
+    if input_key not in st.session_state:
+        st.session_state[input_key] = st.session_state[saved_path_key]
+
+    manual_path = st.text_input(
+        f"{label} path",
+        key=input_key,
+        help="Enter a path that exists on the machine running Streamlit.",
+    )
+    if manual_path:
+        st.session_state[saved_path_key] = manual_path
+
+    uploaded_file = st.file_uploader(
+        f"Browse local machine for {label.lower()}",
+        type=["pt", "pth"],
+        key=f"upload_{state_key}",
+    )
+    if uploaded_file is not None:
+        selected_path = persist_uploaded_weights(uploaded_file, state_key)
+        st.session_state[saved_path_key] = selected_path
+        st.caption(f"Uploaded checkpoint: {uploaded_file.name}")
+    else:
+        selected_path = manual_path or st.session_state[saved_path_key]
+        if selected_path:
+            st.caption(f"Selected checkpoint: {Path(selected_path).name}")
+    return False, selected_path
 
 
 def build_command(
@@ -516,168 +580,93 @@ with st.sidebar:
             ),
         )
 
-    can_load_only_bbox = (
-        run_script == "Training" and network_type in PER_OBJECT_NETWORKS
-    )
-    if run_script == "Inference":
-        if network_type == "bbox_detection" or network_type.startswith(
-            "per_image_"
-        ):
-            available_weights_modes = ("auto", "full", "none")
-        else:
-            available_weights_modes = ("auto", "partial", "full", "none")
-    elif can_load_only_bbox:
-        available_weights_modes = ("detector_only", "full", "partial", "none")
-    elif network_type == "bbox_detection":
-        available_weights_modes = ("auto", "full", "none")
-    elif network_type == "per_image_estimation":
-        available_weights_modes = ("full", "none")
-    else:
-        available_weights_modes = ("partial", "full", "none")
-
-    if st.session_state.get("runner_weights_mode") not in available_weights_modes:
-        st.session_state.runner_weights_mode = available_weights_modes[0]
-    weights_mode = st.selectbox(
-        "Weights loading",
-        available_weights_modes,
-        key="runner_weights_mode",
-        format_func=lambda mode: WEIGHTS_MODE_LABELS[mode],
-        help=(
-            "For the bounding-box detection model, automatically download the "
-            "published detector checkpoint, provide a full checkpoint, or start "
-            "without saved weights."
-            if network_type == "bbox_detection"
-            else "For per-image models, load a checkpoint containing the entire "
-            "model or start without saved weights."
-            if network_type == "per_image_estimation"
-            else "Choose whether to load a full checkpoint, compatible "
-            "task-specific checkpoints, or initialize without saved weights."
-        ),
-    )
-    if weights_mode == "detector_only":
-        st.caption(
-            "The pretrained detector is frozen and the per-object estimation "
-            "head is initialized from scratch. Leave the custom path empty to "
-            "download the published detector automatically."
-        )
-        try:
-            automatic_checkpoint = select_published_checkpoint(
-                dataset_name,
-                network_type,
-                estimate_type,
-                "bbox",
-            )
-            automatic_path = (
-                checkpoint_cache_dir(storage_path) / automatic_checkpoint.filename
-            )
-            cache_status = (
-                "already cached"
-                if automatic_path.is_file()
-                else "downloaded when the run starts"
-            )
-            st.info(
-                f"Automatic detector: {automatic_checkpoint.filename} "
-                f"({automatic_checkpoint.size / (1024 * 1024):.1f} MiB); "
-                f"{cache_status}."
-            )
-            st.markdown(f"[Published checkpoint and license]({ZENODO_RECORD_URL})")
-        except ValueError as error:
-            st.warning(str(error))
-    elif weights_mode == "auto":
-        try:
-            automatic_checkpoint = select_published_checkpoint(
-                dataset_name,
-                network_type,
-                estimate_type,
-                "full",
-            )
-            automatic_path = (
-                checkpoint_cache_dir(storage_path) / automatic_checkpoint.filename
-            )
-            cache_status = (
-                "cached"
-                if automatic_path.is_file()
-                else "downloaded when the run starts"
-            )
-            st.info(
-                f"{automatic_checkpoint.filename} "
-                f"({automatic_checkpoint.size / (1024 * 1024):.1f} MiB) will be "
-                f"{cache_status}."
-            )
-            st.markdown(f"[Published checkpoint and license]({ZENODO_RECORD_URL})")
-        except ValueError as error:
-            st.warning(str(error))
-
     full_weights_file = ""
     bbox_weights_file = ""
     per_object_weights_file = ""
-    requested_weight_fields = []
-    if weights_mode == "full":
-        requested_weight_fields.append(
-            ("Full model weights file", "full_weights_file")
-        )
-    elif weights_mode == "detector_only":
-        requested_weight_fields.append(
-            (
-                "Optional custom bounding-box detector weights file",
-                "bbox_weights_file",
+    missing_user_checkpoint = False
+    if network_type in PER_OBJECT_NETWORKS:
+        if run_script == "Training":
+            weight_layouts = (
+                "Detector only; initialize estimation head from scratch",
+                "Full model checkpoint",
+                "Separate detector and estimation-head checkpoints",
             )
-        )
-    elif weights_mode == "partial":
-        if network_type in (
-            "bbox_detection",
-            "per_object_counting",
-            "per_object_attributes",
-            "per_object_attributes_multibranch",
-        ):
-            requested_weight_fields.append(
-                ("Bounding-box detector weights file", "bbox_weights_file")
-            )
-        if network_type in PER_OBJECT_NETWORKS:
-            requested_weight_fields.append(
-                ("Per-object head weights file", "per_object_weights_file")
-            )
-
-    selected_weight_paths = {}
-    for label, state_key in requested_weight_fields:
-        saved_path_key = f"runner_saved_{state_key}"
-        input_key = f"runner_input_{state_key}"
-        if saved_path_key not in st.session_state:
-            st.session_state[saved_path_key] = st.session_state.get(
-                state_key,
-                "",
-            )
-        if input_key not in st.session_state:
-            st.session_state[input_key] = st.session_state[saved_path_key]
-
-        manual_path = st.text_input(
-            f"{label} path",
-            key=input_key,
-            help="Enter a path that already exists on the machine running Streamlit.",
-        )
-        if manual_path:
-            st.session_state[saved_path_key] = manual_path
-
-        uploaded_file = st.file_uploader(
-            f"Browse local machine for {label.lower()}",
-            type=["pt", "pth"],
-            key=f"upload_{state_key}",
-        )
-        if uploaded_file is not None:
-            selected_path = persist_uploaded_weights(uploaded_file, state_key)
-            st.session_state[saved_path_key] = selected_path
-            st.caption(f"Uploaded checkpoint: {uploaded_file.name}")
         else:
-            selected_path = manual_path or st.session_state[saved_path_key]
-            if selected_path:
-                st.caption(f"Selected checkpoint: {Path(selected_path).name}")
-        selected_weight_paths[state_key] = selected_path
+            weight_layouts = (
+                "Full model checkpoint",
+                "Separate detector and estimation-head checkpoints",
+                "No checkpoint",
+            )
+    else:
+        weight_layouts = ("Full model checkpoint", "No checkpoint")
 
-    full_weights_file = selected_weight_paths.get("full_weights_file", "")
-    bbox_weights_file = selected_weight_paths.get("bbox_weights_file", "")
-    per_object_weights_file = selected_weight_paths.get(
-        "per_object_weights_file", ""
+    layout_context = (network_type, run_script)
+    if st.session_state.get("runner_weight_layout_context") != layout_context:
+        st.session_state.runner_weight_layout = weight_layouts[0]
+        st.session_state.runner_weight_layout_context = layout_context
+    weight_layout = st.selectbox(
+        "Checkpoint configuration",
+        weight_layouts,
+        key="runner_weight_layout",
+        help="Choose which model components to initialize from checkpoints.",
     )
+
+    if weight_layout == "No checkpoint":
+        weights_mode = "none"
+    elif weight_layout == "Full model checkpoint":
+        automatic, full_weights_file = select_checkpoint_file(
+            label="Full model checkpoint",
+            state_key="full_weights_file",
+            component="full",
+            dataset_name=dataset_name,
+            network_type=network_type,
+            estimate_type=estimate_type,
+            storage_path=storage_path,
+        )
+        # In explicit ``full`` mode, an omitted path asks the resolver to
+        # download the published full checkpoint; a supplied path is used as-is.
+        weights_mode = "full"
+        missing_user_checkpoint = not automatic and not full_weights_file
+    elif weight_layout.startswith("Detector only"):
+        st.caption(
+            "The detector is frozen and the per-object estimation head is "
+            "initialized from scratch."
+        )
+        automatic, bbox_weights_file = select_checkpoint_file(
+            label="Bounding-box detector checkpoint",
+            state_key="bbox_weights_file",
+            component="bbox",
+            dataset_name=dataset_name,
+            network_type=network_type,
+            estimate_type=estimate_type,
+            storage_path=storage_path,
+        )
+        weights_mode = "detector_only"
+        missing_user_checkpoint = not automatic and not bbox_weights_file
+    else:
+        automatic_bbox, bbox_weights_file = select_checkpoint_file(
+            label="Bounding-box detector checkpoint",
+            state_key="bbox_weights_file",
+            component="bbox",
+            dataset_name=dataset_name,
+            network_type=network_type,
+            estimate_type=estimate_type,
+            storage_path=storage_path,
+        )
+        automatic_head, per_object_weights_file = select_checkpoint_file(
+            label="Per-object estimation-head checkpoint",
+            state_key="per_object_weights_file",
+            component="head",
+            dataset_name=dataset_name,
+            network_type=network_type,
+            estimate_type=estimate_type,
+            storage_path=storage_path,
+        )
+        weights_mode = "partial"
+        missing_user_checkpoint = (
+            (not automatic_bbox and not bbox_weights_file)
+            or (not automatic_head and not per_object_weights_file)
+        )
 
 
 
@@ -737,11 +726,13 @@ cuda_required_for_selected_run = (
 )
 if cuda_required_for_selected_run:
     st.error("This training mode requires CUDA in the current code.")
+if missing_user_checkpoint:
+    st.error("Select a checkpoint file for every user-provided checkpoint source.")
 
 run_clicked = st.button(
     "Run LegoNet",
     type="primary",
-    disabled=cuda_required_for_selected_run,
+    disabled=cuda_required_for_selected_run or missing_user_checkpoint,
 )
 
 if "run_output" not in st.session_state:
