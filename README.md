@@ -113,12 +113,29 @@ per-object aggregation, and staged verification plan are documented in
 
 ## Quick start
 
-In a fresh Python 3.12 environment, clone the repository and install the CPU
+Create the recommended workspace and clone the repository as `Code`:
+
+```bash
+mkdir LegoNet
+cd LegoNet
+git clone https://github.com/Faina-Kh/LegoNet.git Code
+cd Code
+```
+
+Choose CPU for basic inference or systems without a compatible NVIDIA GPU, or
+use the [CUDA setup](#cuda-research-environment) for training and faster
+inference. If you choose CPU, either create a Conda environment (recommended
+for isolation within the CPU option):
+
+```bash
+conda create -n legonet-cpu python=3.12
+conda activate legonet-cpu
+```
+
+or activate an existing isolated Python 3.12 environment. Then install the CPU
 build of PyTorch followed by LegoNet:
 
 ```bash
-git clone https://github.com/Faina-Kh/LegoNet.git Code
-cd Code
 python -m pip install torch==2.5.1 torchvision==0.20.1 \
   --index-url https://download.pytorch.org/whl/cpu
 python -m pip install -e .
