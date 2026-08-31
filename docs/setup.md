@@ -106,21 +106,46 @@ picker opens on the machine running Streamlit and may be unavailable for remote
 or headless deployments; manual path entry remains available in those
 environments.
 
-Weight loading is selected by mode, and the GUI displays only the checkpoint
-paths required by that mode. Each checkpoint supports manual server-path entry
-or browser-based file upload. Uploaded checkpoints are copied to a temporary
-server-side directory before the LegoNet subprocess starts, so uploads work
-both locally and when the browser connects to a remote Streamlit server. Manual
-path entry remains useful when the checkpoint already exists on the machine
-running Streamlit.
+Checkpoint selection has two steps. First choose the **Checkpoint
+configuration**, which determines which model components are initialized from
+weights. Depending on the selected network and whether the run performs
+training or inference, the available configurations are:
+
+- **Full model checkpoint** loads every model component from one file.
+- **Separate detector and estimation-head checkpoints** loads the detector and
+  per-object head from independent files.
+- **Detector only; initialize estimation head from scratch** is available for
+  per-object training. It loads and freezes the detector while training a new
+  estimation head.
+- **No checkpoint** starts without a LegoNet checkpoint where that
+  configuration is supported.
+
+Next, choose a source for every checkpoint required by the selected
+configuration:
+
+- **Automatic download (recommended)** shows the published filename, download
+  size, cache status, and Zenodo record. The file is downloaded and verified
+  when the run starts, or reused immediately if it is already cached.
+- **User-provided file** reveals controls for entering a path on the machine
+  running Streamlit or uploading a `.pt`/`.pth` file through the browser. These
+  controls remain hidden for automatically selected checkpoints.
+
+Each component has its own source choice. A separate-checkpoint configuration
+can therefore mix sources—for example, a user-provided detector checkpoint and
+an automatically downloaded estimation-head checkpoint. Uploaded files are
+copied to a temporary server-side directory before the LegoNet subprocess
+starts, so uploads work both locally and when the browser connects to a remote
+Streamlit server. Manual path entry remains useful when the checkpoint already
+exists on the Streamlit server.
 
 For a typical inference run:
 
 1. Keep the source-checkout storage directory or select another location.
 2. Choose `grapes` or `roots`, then choose the network and estimate type.
-3. Leave **Weights loading** set to **Automatic pretrained weights
-   (recommended)**. The GUI shows the selected filename, download size, cache
-   status, and Zenodo record before the run starts.
+3. Keep **Checkpoint configuration** set to **Full model checkpoint**, then
+   keep **Full model checkpoint source** set to **Automatic download
+   (recommended)**. Confirm the displayed filename, size, cache status, and
+   Zenodo record.
 4. Choose `Test` or `Val`, enable visualizations if required, inspect the
    command preview, and select **Run LegoNet**.
 
@@ -133,9 +158,10 @@ downloaded again even when this option is enabled.
 
 The subprocess output reports when a checkpoint download begins and when its
 checksum has been verified. The first run may download approximately 125–401
-MiB depending on the selected model; later runs use the cached checkpoint.
-Select **Full model checkpoint** or **Partial task checkpoints** to override
-automatic selection with paths or uploaded `.pt`/`.pth` files. Select **Do not
-load weights** to disable both local and downloaded checkpoints.
+MiB per selected checkpoint, depending on the model; later runs reuse cached
+files. When **User-provided file** is selected, **Run LegoNet** remains disabled
+until a path or uploaded file has been supplied for every required checkpoint.
+Choose **No checkpoint** to disable both local and downloaded LegoNet
+checkpoints where the selected training or inference configuration permits it.
 
 The GUI previews the exact CLI command before launching it.
