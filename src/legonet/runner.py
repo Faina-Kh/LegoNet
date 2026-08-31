@@ -2,6 +2,7 @@
 
 import json
 import random
+import re
 import sys
 from collections.abc import Mapping
 from enum import Enum
@@ -31,12 +32,32 @@ DETECTION_NETWORKS = {
 class Tee:
     """Write output to multiple file-like streams."""
 
-    def __init__(self, *streams: Any) -> None:
+    _TRANSIENT_PERCENTAGE = re.compile(r"^\s*\d+(?:\.\d+)?%\s*$")
+    _PROGRESS_PROTOCOL_PREFIX = "__LEGONET_PROGRESS__\t"
+
+    def __init__(
+        self,
+        *streams: Any,
+        suppress_transient_progress_after_first: bool = False,
+    ) -> None:
         self.streams = streams
+        self.suppress_transient_progress_after_first = (
+            suppress_transient_progress_after_first
+        )
 
     def write(self, data: str) -> None:
         """Write and immediately flush data to every stream."""
-        for stream in self.streams:
+        transient_percentage = bool(
+            self._TRANSIENT_PERCENTAGE.fullmatch(data.strip("\r\n"))
+        )
+        progress_protocol = data.startswith(self._PROGRESS_PROTOCOL_PREFIX)
+        for index, stream in enumerate(self.streams):
+            if (
+                index > 0
+                and self.suppress_transient_progress_after_first
+                and (transient_percentage or progress_protocol)
+            ):
+                continue
             stream.write(data)
             stream.flush()
 
@@ -131,6 +152,19 @@ def _checkpoint_lines(args: Any) -> list[str]:
     return lines or ["  Checkpoints: none"]
 
 
+def _public_estimate_type(args: Any) -> str:
+    """Return the public CLI name instead of the legacy internal identifier."""
+    if getattr(args, "network_type", None) == "bbox_detection":
+        return "not applicable"
+    return {
+        "withKeyPoints": "keypoints",
+        "reg_fpn_p3_p7_min_sig": "regression",
+    }.get(
+        getattr(args, "estimate_type", None),
+        getattr(args, "estimate_type", "not applicable"),
+    )
+
+
 def format_run_parameters(args: Any, configuration_path: Path) -> str:
     """Return a concise, grouped summary of the resolved run settings."""
     lines = [
@@ -141,7 +175,7 @@ def format_run_parameters(args: Any, configuration_path: Path) -> str:
         f"  Mode: {getattr(args, 'run_script', 'unknown')}",
         f"  Dataset: {getattr(args, 'dataset_name', 'unknown')}",
         f"  Network: {getattr(args, 'network_type', 'unknown')}",
-        f"  Estimator: {getattr(args, 'estimate_type', 'not applicable')}",
+        f"  Estimate type: {_public_estimate_type(args)}",
         f"  Split: {getattr(args, 'val_set', 'not applicable')}",
         f"  Device: {config.General.device}",
         "",
@@ -185,8 +219,16 @@ def run(args: Any = None) -> Any:
     original_stdout = sys.stdout
     original_stderr = sys.stderr
     with open(args.txt_results, "a", encoding="utf-8") as results_file:
-        sys.stdout = Tee(original_stdout, results_file)
-        sys.stderr = Tee(original_stderr, results_file)
+        sys.stdout = Tee(
+            original_stdout,
+            results_file,
+            suppress_transient_progress_after_first=True,
+        )
+        sys.stderr = Tee(
+            original_stderr,
+            results_file,
+            suppress_transient_progress_after_first=True,
+        )
         try:
             return _run(args)
         finally:

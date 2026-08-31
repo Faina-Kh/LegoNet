@@ -167,7 +167,6 @@ def forward_losses(
             "length": length,
             "diameter": diameter,
         }
-    model_input.append(args.do_counting)
     classification, regression, color, length, diameter = model(model_input)
     return {
         "classification": classification,

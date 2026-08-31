@@ -137,6 +137,35 @@ class TrainingStepTests(unittest.TestCase):
         )
         self.assertEqual(result.total.item(), 259)
 
+    def test_root_regression_forward_uses_three_model_inputs(self):
+        """Regression training no longer depends on the removed do_counting flag."""
+        config.AttributeEstimation.estimate_type = "reg_fpn_p3_p7_min_sig"
+        image = mock.Mock()
+        prepared_image = image.to.return_value.float.return_value
+        boxes = mock.Mock()
+        prepared_boxes = boxes.to.return_value
+        points = object()
+        model = mock.Mock(
+            return_value=tuple(FakeTensor(value) for value in range(1, 6))
+        )
+
+        losses = self.step.forward_losses(
+            model,
+            {"img": image, "bbox_annot": boxes, "points_annot": points},
+            self.args(
+                "per_object_attributes",
+                estimate_type="reg_fpn_p3_p7_min_sig",
+            ),
+            [3],
+        )
+
+        model_inputs = model.call_args.args[0]
+        self.assertEqual(
+            model_inputs,
+            [prepared_image, [prepared_boxes, points], self.step.torch.tensor.return_value],
+        )
+        self.assertEqual(set(losses), {"classification", "regression", "color", "length", "diameter"})
+
 
 if __name__ == "__main__":
     unittest.main()

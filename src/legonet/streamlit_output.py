@@ -7,6 +7,8 @@ from pathlib import Path
 
 SUMMARY_SEPARATOR = "=" * 100
 EXECUTION_TIME_PREFIX = "Execution time in minutes:"
+SUMMARY_PROTOCOL_PREFIX = "__LEGONET_SUMMARY__\t"
+SUMMARY_PROTOCOL_RESET = "__LEGONET_SUMMARY_RESET__"
 
 
 def separate_execution_time(output: str) -> tuple[str, str]:

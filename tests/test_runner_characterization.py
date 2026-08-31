@@ -237,6 +237,8 @@ class RunnerCharacterizationTests(unittest.TestCase):
 
         self.assertEqual(output.getvalue(), summary)
         self.assertIn("Run\n  Mode: Inference", summary)
+        self.assertIn("Estimate type: keypoints", summary)
+        self.assertNotIn("withKeyPoints", summary)
         self.assertIn("Storage and output", summary)
         self.assertIn("Full checkpoint: counting.pt", summary)
         self.assertNotIn("internal_detail", summary)
@@ -598,6 +600,43 @@ class RunnerCharacterizationTests(unittest.TestCase):
         second.write.assert_called_once_with("training output")
         self.assertEqual(first.flush.call_count, 2)
         self.assertEqual(second.flush.call_count, 2)
+
+    def test_tee_omits_transient_download_percentages_from_results_stream(self):
+        """Carriage-return download updates remain live but are not persisted."""
+        console = mock.Mock()
+        results_file = mock.Mock()
+        tee = self.runner.Tee(
+            console,
+            results_file,
+            suppress_transient_progress_after_first=True,
+        )
+
+        tee.write("\r 12.3%")
+        tee.write("Download complete: 100% verified\n")
+
+        self.assertEqual(
+            [call.args[0] for call in console.write.call_args_list],
+            ["\r 12.3%", "Download complete: 100% verified\n"],
+        )
+        results_file.write.assert_called_once_with(
+            "Download complete: 100% verified\n"
+        )
+
+    def test_tee_omits_streamlit_progress_protocol_from_results_stream(self):
+        """Structured GUI progress is displayed live but not persisted."""
+        console = mock.Mock()
+        results_file = mock.Mock()
+        tee = self.runner.Tee(
+            console,
+            results_file,
+            suppress_transient_progress_after_first=True,
+        )
+        progress = "__LEGONET_PROGRESS__\tLoading annotations:\t1\t25\n"
+
+        tee.write(progress)
+
+        console.write.assert_called_once_with(progress)
+        results_file.write.assert_not_called()
 
     def test_training_dispatch_receives_the_complete_data_bundle(self):
         """The runner delegates training with every constructed data object."""

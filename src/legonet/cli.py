@@ -9,7 +9,12 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from legonet import config, paths
-from legonet.streamlit_output import append_evaluation_summary
+from legonet.streamlit_output import (
+    SUMMARY_PROTOCOL_PREFIX,
+    SUMMARY_PROTOCOL_RESET,
+    append_evaluation_summary,
+    extract_evaluation_summary,
+)
 from legonet.pretrained import resolve_pretrained_weights
 from legonet.datasets import default_storage_root, ensure_dataset_available
 from legonet.checkpoint_conversion import (
@@ -39,7 +44,13 @@ def finalize_text_results(args, execution_time: float) -> None:
             additional_summary,
         )
         if summary:
-            print(summary, end="")
+            if os.environ.get("LEGONET_STREAMLIT_SUMMARIES") == "1":
+                print(SUMMARY_PROTOCOL_RESET)
+                compact_summary = extract_evaluation_summary(summary)
+                for line in compact_summary.splitlines():
+                    print(f"{SUMMARY_PROTOCOL_PREFIX}{line}")
+            else:
+                print(summary, end="")
 
         with open(args.txt_results, "a", encoding="utf-8") as results_file:
             results_file.write(

@@ -16,6 +16,8 @@ if str(SOURCE_ROOT) not in sys.path:
     sys.path.insert(0, str(SOURCE_ROOT))
 
 from legonet.streamlit_output import (
+    SUMMARY_PROTOCOL_PREFIX,
+    SUMMARY_PROTOCOL_RESET,
     extract_evaluation_summary,
     separate_execution_time,
 )
@@ -831,6 +833,16 @@ if run_clicked:
 
     if process.stdout is not None:
         for line in process.stdout:
+            if line.rstrip("\r\n") == SUMMARY_PROTOCOL_RESET:
+                summary_lines.clear()
+                st.session_state.evaluation_summary = ""
+                continue
+            if line.startswith(SUMMARY_PROTOCOL_PREFIX):
+                summary_lines.append(
+                    line[len(SUMMARY_PROTOCOL_PREFIX):].rstrip("\r\n")
+                )
+                st.session_state.evaluation_summary = "\n".join(summary_lines)
+                continue
             if line.startswith("__LEGONET_PROGRESS__\t"):
                 _, label, current_text, total_text = line.rstrip("\r\n").split(
                     "\t", maxsplit=3
