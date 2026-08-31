@@ -50,6 +50,20 @@ orig_avg_abs_count_diff: 0.500 | orig_count_agreement: 0.750 | orig_MSE: 0.400 |
         self.assertIn("Evaluation Summary - per-object counting", summary)
         self.assertIn("orig_avg_abs_count_diff: 0.500", summary)
 
+    def test_keeps_only_latest_repeated_summary_type(self) -> None:
+        output = """
+Evaluation Summary - per-object counting for IoU-matched GT boxes
+orig_avg_abs_count_diff: 2.000 | orig_avg_relative_error: 0.500
+Evaluation Summary - per-object counting for IoU-matched GT boxes
+orig_avg_abs_count_diff: 1.000 | orig_avg_relative_error: 0.250
+"""
+
+        summary = extract_evaluation_summary(output)
+
+        self.assertNotIn("2.000", summary)
+        self.assertIn("orig_avg_abs_count_diff: 1.000", summary)
+        self.assertEqual(summary.count("Evaluation Summary -"), 1)
+
     def test_extracts_per_image_attribute_one_minus_fvu(self) -> None:
         output = (
             "Abs_value_Diff: 0.250 | MSE 0.125 | "

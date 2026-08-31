@@ -22,7 +22,7 @@ def separate_execution_time(output: str) -> tuple[str, str]:
 
 
 def extract_evaluation_summary(output: str) -> str:
-    """Extract compact aggregate metrics from verbose evaluation output."""
+    """Extract the latest compact aggregate metrics from evaluation output."""
     summary_prefixes = (
         "Evaluation Summary -",
         "orig_avg_abs_count_diff:",
@@ -36,9 +36,32 @@ def extract_evaluation_summary(output: str) -> str:
         "Avg of per image rel_error of diameter:",
         "Avg of per image absolute error of color:",
     )
-    lines = []
+    sections: list[list[str] | None] = []
+    latest_section_index: dict[str, int] = {}
+    current_section: list[str] | None = None
+
+    def start_section(heading: str) -> None:
+        """Start a summary section, replacing an older section of that type."""
+        nonlocal current_section
+        previous_index = latest_section_index.get(heading)
+        if previous_index is not None:
+            sections[previous_index] = None
+        current_section = [heading]
+        latest_section_index[heading] = len(sections)
+        sections.append(current_section)
+
+    def append_metric(metric: str) -> None:
+        """Attach a metric to its heading or retain it as a standalone row."""
+        if current_section is not None:
+            current_section.append(metric)
+        else:
+            sections.append([metric])
+
     for line in output.splitlines():
         stripped_line = line.strip()
+        if stripped_line.startswith("Evaluation Summary -"):
+            start_section(stripped_line)
+            continue
         color_metrics = [
             part.strip()
             for part in stripped_line.split("|")
@@ -47,12 +70,20 @@ def extract_evaluation_summary(output: str) -> str:
             )
         ]
         if color_metrics:
-            lines.append(" | ".join(color_metrics))
+            append_metric(" | ".join(color_metrics))
             continue
         if stripped_line.startswith(summary_prefixes):
-            if stripped_line.startswith("Evaluation Summary -") and lines:
-                lines.append("")
-            lines.append(stripped_line)
+            append_metric(stripped_line)
+            continue
+        if stripped_line:
+            current_section = None
+
+    retained_sections = [section for section in sections if section]
+    lines: list[str] = []
+    for section in retained_sections:
+        if section[0].startswith("Evaluation Summary -") and lines:
+            lines.append("")
+        lines.extend(section)
     return "\n".join(lines)
 
 

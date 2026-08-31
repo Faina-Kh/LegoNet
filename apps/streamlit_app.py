@@ -857,6 +857,11 @@ if run_clicked:
             output_segment.append(line)
             output_update_count += 1
             st.session_state.run_output = "".join(output_lines)
+            if line.strip() == "Evaluation Summary":
+                # The final consolidated section supersedes summaries captured
+                # while validation epochs were still streaming.
+                summary_lines.clear()
+                st.session_state.evaluation_summary = ""
             line_summary = extract_evaluation_summary(line)
             if line_summary:
                 summary_lines.append(line_summary)

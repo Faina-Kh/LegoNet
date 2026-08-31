@@ -203,6 +203,7 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
     )
 
     parsed_args = parser.parse_args(args)
+    parsed_args._invocation_argv = list(sys.argv[1:] if args is None else args)
     # if parsed_args.run_script is None:
     #     parsed_args.run_script = parsed_args.run_script_positional
 
@@ -464,6 +465,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     configure_weights_mode(args)
     # Reject unsupported experiment combinations before any network access.
     validate_configuration(args)
+    print_run_start(args, getattr(args, "_invocation_argv", None))
     resolve_pretrained_weights(args)
     # Automatic resolution converts ``auto`` into a concrete loading mode.
     configure_weights_mode(args)
@@ -882,8 +884,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ValueError as error:
         print(f"Configuration error: {error}", file=sys.stderr)
         return 2
-
-    print_run_start(args, argv)
 
     from legonet import runner
 
