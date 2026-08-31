@@ -149,14 +149,19 @@ legonet \
   --estimate-type keypoints \
   --run-script Inference \
   --val-set Test \
-  --have-gt true
+  --have-gt true \
+  --to-draw true \
+  --draw-detection-overview true \
+  --draw-individual-object-visualizations false \
+  --draw-gt-only false \
+  --draw-per-object-estimation-visualizations true
 ```
 
 On Linux, macOS, WSL, or Git Bash, use the multiline command above. In Windows
 Command Prompt or PowerShell, run it on one line:
 
 ```cmd
-legonet --dataset-name grapes --network-type per_object_counting --estimate-type keypoints --run-script Inference --val-set Test --have-gt true
+legonet --dataset-name grapes --network-type per_object_counting --estimate-type keypoints --run-script Inference --val-set Test --have-gt true --to-draw true --draw-detection-overview true --draw-individual-object-visualizations false --draw-gt-only false --draw-per-object-estimation-visualizations true
 ```
 
 Run per-root length, diameter, and color estimation with:
@@ -168,8 +173,18 @@ legonet \
   --estimate-type keypoints \
   --run-script Inference \
   --val-set Test \
-  --have-gt true
+  --have-gt true \
+  --to-draw true \
+  --draw-detection-overview true \
+  --draw-individual-object-visualizations false \
+  --draw-gt-only false \
+  --draw-per-object-estimation-visualizations true
 ```
+
+Both examples save a full-image detection overview showing the GT annotations
+and predicted boxes, together with per-object crops and estimation heatmaps.
+Separate box images and GT-only images remain disabled to limit redundant
+output.
 
 On the first run, LegoNet downloads the required public dataset files and
 matching pretrained checkpoint, verifies them, and caches them in the storage
@@ -194,8 +209,9 @@ It supports automatic pretrained weights as well as local or uploaded
 checkpoints, and previews the exact CLI command before launching a run.
 
 For a typical inference run, select the storage location, dataset, network, and
-estimate type; keep **Weights loading** set to **Automatic pretrained weights
-(recommended)**; then choose `Test` or `Val` and select **Run LegoNet**.
+estimate type. Keep **Checkpoint configuration** set to **Full model
+checkpoint** and its source set to **Automatic download (recommended)**, then
+choose `Test` or `Val` and select **Run LegoNet**.
 
 See the [detailed setup guide](docs/setup.md) for storage selection, remote or
 headless use, checkpoint uploads, and automatic dataset-download behavior.
