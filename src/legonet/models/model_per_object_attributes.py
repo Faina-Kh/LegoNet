@@ -270,16 +270,22 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
             num_of_crops = sample_anns['img'].shape[0]
 
             # img input should be tensor [b,c,h,w]
-            bbox_pyramid_feats= []
-            bbox_pyramid_p3 = []
+            bbox_pyramid_feats = []
+            bbox_p3_features = []
 
             for i in range(num_of_crops):
-                current= self.backbone_2(sample_anns['img'][i].unsqueeze(dim=0).to(config.General.device))
-                bbox_pyramid_feats.append(current)
-                if i==0:
-                    bbox_pyramid_p3.append(bbox_pyramid_feats[i][0]) ##current[0]
-                else:
-                    bbox_pyramid_p3[0] = torch.cat((bbox_pyramid_p3[0], bbox_pyramid_feats[i][0]), dim=0)  #[bbox_pyramid_feats[0]]  # [bbox_pyramid_feats]  # [p3]
+                current = self.backbone_2(
+                    sample_anns['img'][i]
+                    .unsqueeze(dim=0)
+                    .to(config.General.device)
+                )
+                bbox_p3_features.append(current[0])
+                if config.AttributeEstimation.estimate_type == 'reg_fpn_p3_p7_min_sig':
+                    bbox_pyramid_feats.append(current)
+
+            # Concatenating once avoids retaining a chain of progressively larger
+            # intermediate tensors in the autograd graph for images with many crops.
+            bbox_pyramid_p3 = [torch.cat(bbox_p3_features, dim=0)]
 
 
             if self.training:
