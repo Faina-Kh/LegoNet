@@ -1,4 +1,10 @@
-"""Public command-line entry point for LegoNet."""
+"""Thin subprocess entry point used by the Streamlit GUI.
+
+The GUI builds a CLI-compatible command and launches this script so experiments
+run separately from the Streamlit process. Command-line users should normally
+use the installed ``legonet`` command; PyCharm and other IDE users who want to
+edit run settings in code should use ``scripts/debug_legonet.py``.
+"""
 
 from __future__ import annotations
 

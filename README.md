@@ -140,6 +140,17 @@ python -m pip install torch==2.5.1 torchvision==0.20.1 --index-url https://downl
 python -m pip install -e .
 ```
 
+Verify that the active environment imports this checkout and provides the CLI:
+
+```bash
+python -c "import legonet; print(legonet.__file__)"
+legonet --help
+```
+
+The reported module path should be inside the current `LegoNet/Code` checkout.
+If the import fails or points elsewhere, confirm that the intended environment
+is active and repeat `python -m pip install -e .`.
+
 Run keypoint-based grape counting on the public test set:
 
 ```bash

@@ -4,6 +4,46 @@ The main README provides the shortest path to installing and running LegoNet.
 This guide collects the more detailed storage and Streamlit behavior needed for
 custom local, remote, or development setups.
 
+## Verify the active environment
+
+After installation, verify that Python imports LegoNet from the current
+checkout:
+
+```bash
+python -c "import legonet; print(legonet.__file__)"
+legonet --help
+```
+
+The module path should be inside the current `LegoNet/Code` directory. If the
+import fails or points elsewhere, activate the intended environment and run
+`python -m pip install -e .` again from `Code/`.
+
+To see which executables the shell will use, run the following in Windows
+Command Prompt:
+
+```cmd
+where python
+where legonet
+```
+
+In Windows PowerShell, use:
+
+```powershell
+Get-Command python
+Get-Command legonet
+```
+
+On Linux, macOS, WSL, or Git Bash, use:
+
+```bash
+command -v python
+command -v legonet
+```
+
+The active environment's paths should appear first. If `legonet` is not
+installed there, the shell may continue searching `PATH` and launch an older
+installation from another Python or Conda environment.
+
 ## Storage directory
 
 When the source checkout directory is named `Code`, LegoNet uses its parent as
