@@ -56,8 +56,13 @@ image.jpg,grapes,x,y           # contributed berry-point annotation
 ```
 
 LegoNet uses the four-column and six-column row lengths to distinguish points
-from bounding boxes.
-`classes.txt` maps the `grapes` class name to its numeric class identifier.
+from bounding boxes. All coordinates are integer, absolute pixel coordinates
+in the resized WGISD image. `(x1, y1)` and `(x2, y2)` are opposite box corners;
+`(x, y)` is a berry center. The files have no header. `classes.txt` contains:
+
+```text
+grapes,0
+```
 
 ## Download and runtime layout
 

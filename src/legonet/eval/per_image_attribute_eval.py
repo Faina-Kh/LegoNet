@@ -20,7 +20,7 @@ from legonet.eval.KP_detection_eval import (
     visualize_KeyPointsHeatmaps,
 )
 from legonet.eval.detection_eval import plot_PR_curve
-from legonet.eval.reporting import format_keypoint_summary, write_keypoint_summary
+from legonet.eval.reporting import format_keypoint_summary
 from legonet.eval.scalars import first_scalar
 from legonet.eval.numeric_metrics import (
     sum_of_absolute_differences,
@@ -301,12 +301,6 @@ def evaluate(
                 )
                 plot_PR_curve(recall, precision, ap,
                               save_path=config.General.files_path, plots_name = 'Points_PR_curve.png')
-                write_keypoint_summary(
-                    config.General.files_path,
-                    ap,
-                    recall[-1],
-                    precision[-1],
-                )
                 if protocol_comparison:
                     comparison_rows = []
                     for protocol_name, values in protocol_comparison.items():

@@ -123,12 +123,15 @@ python scripts/run_legonet.py \
   ... \
   --to-draw true \
   --draw-detection-overview false \
+  --draw-individual-object-visualizations true \
+  --draw-per-object-estimation-visualizations true \
   --draw-gt-only false
 ```
 
-The options affect only the full-image overview and GT-only artifacts.
-Per-object predicted-box images, predicted crops, and requested keypoint maps
-remain available while `--to-draw true` is selected.
+The individual-object switch controls matched predicted-box views. The
+per-object-estimation switch controls model crops and requested keypoint maps.
+The other switches independently control the full-image overview and GT-only
+artifacts; `--to-draw` is the master switch.
 
 The detection overview is useful for relatively sparse datasets such as
 grapes. Dense roots images may contain many overlapping roots, points, GT

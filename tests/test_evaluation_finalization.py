@@ -67,6 +67,50 @@ class EvaluationFinalizationTests(unittest.TestCase):
             saved_output,
         )
 
+    def test_inference_can_collect_summary_without_emitting_it(self):
+        state = {"gt_objects_withGTpoints": 5, "found_orig_objects": 4}
+        metrics = PostLoopMetrics(
+            had_predictions=True,
+            has_original_gt=True,
+            precision_detection=0.8,
+            count_relative_error=0.1,
+            count_mae=0.5,
+            count_agreement=0.75,
+            count_mse=0.4,
+            count_fvu=0.2,
+            crop_count_metrics={
+                "num_positive": 4,
+                "num_empty": 0,
+                "num_total": 4,
+                "mae": 0.5,
+                "exact_agreement": 0.75,
+                "mse": 0.4,
+                "mean_relative_error": 0.1,
+            },
+        )
+        summaries = []
+        output = io.StringIO()
+
+        with tempfile.TemporaryDirectory() as directory, redirect_stdout(output):
+            finalize_evaluation(
+                state,
+                metrics,
+                attributes=False,
+                have_gt=True,
+                predict_empty_image=False,
+                verbose=False,
+                print_to_files=False,
+                detection_metrics=None,
+                evaluate_points=False,
+                files_path=directory,
+                emit_summaries=False,
+                summary_collector=summaries,
+            )
+
+        self.assertNotIn("Evaluation Summary", output.getvalue())
+        self.assertEqual(len(summaries), 1)
+        self.assertIn("Evaluation Summary - per-object counting", summaries[0])
+
     def test_counting_result_preserves_legacy_field_order(self):
         state = {"gt_objects_withGTpoints": 5, "found_orig_objects": 4}
         metrics = PostLoopMetrics(

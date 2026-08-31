@@ -134,6 +134,8 @@ Each experiment output directory contains a concise human-readable results
 file and `run_configuration.json`. The JSON file records the original
 invocation, all resolved arguments, and the shared runtime configuration used
 for the run, providing a machine-readable record for reproducibility.
+See [Experiment outputs](outputs.md) for the directory and artifact reference,
+and [Dataset input formats](input-formats.md) for the supported annotations.
 
 ## Streamlit GUI
 

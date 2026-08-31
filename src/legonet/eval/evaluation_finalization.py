@@ -22,7 +22,6 @@ from legonet.eval.reporting import (
     format_roots_per_image,
     write_evaluation_artifacts,
     write_keypoint_precision_recall,
-    write_keypoint_summary,
 )
 
 
@@ -39,6 +38,8 @@ def finalize_evaluation(
     evaluate_points: bool,
     files_path: str,
     text_results_path: str | None = None,
+    emit_summaries: bool = True,
+    summary_collector: list[str] | None = None,
 ) -> list[float]:
     """Report final metrics, write requested artifacts, and build legacy output."""
     _print_availability(metrics, attributes=attributes, have_gt=have_gt, verbose=verbose)
@@ -46,16 +47,17 @@ def finalize_evaluation(
         verbose
         or print_to_files
         or os.environ.get("LEGONET_STREAMLIT_SUMMARIES") == "1"
+        or summary_collector is not None
     )
     if report_summary:
-        _emit_summary(
-            _format_metric_summary(
-                metrics,
-                attributes=attributes,
-                have_gt=have_gt,
-            ),
-            text_results_path,
+        metric_summary = _format_metric_summary(
+            metrics,
+            attributes=attributes,
+            have_gt=have_gt,
         )
+        _collect_summary(metric_summary, summary_collector)
+        if emit_summaries:
+            _emit_summary(metric_summary, text_results_path)
     if verbose:
         _print_verbose_details(
             state,
@@ -80,6 +82,8 @@ def finalize_evaluation(
             files_path=files_path,
             report_summary=report_summary,
             text_results_path=text_results_path,
+            emit_summary=emit_summaries,
+            summary_collector=summary_collector,
         )
 
     return build_legacy_result(
@@ -194,6 +198,12 @@ def _emit_summary(summary: str, text_results_path: str | None) -> None:
         results_file.write(summary)
 
 
+def _collect_summary(summary: str, collector: list[str] | None) -> None:
+    """Retain one formatted summary for deferred inference reporting."""
+    if summary and collector is not None:
+        collector.append(summary.rstrip())
+
+
 def _print_verbose_details(
     state: Mapping[str, Any],
     *,
@@ -291,15 +301,17 @@ def _finalize_keypoints(
     files_path: str,
     report_summary: bool,
     text_results_path: str | None,
+    emit_summary: bool,
+    summary_collector: list[str] | None,
 ) -> None:
     recall, precision, average_precision = calc_points_recall_precision_ap(
         state["T"], state["P"]
     )
     if report_summary:
-        _emit_summary(
-            format_keypoint_summary(average_precision),
-            text_results_path,
-        )
+        keypoint_summary = format_keypoint_summary(average_precision)
+        _collect_summary(keypoint_summary, summary_collector)
+        if emit_summary:
+            _emit_summary(keypoint_summary, text_results_path)
     plot_PR_curve(
         recall,
         precision,
@@ -308,9 +320,6 @@ def _finalize_keypoints(
         plots_name="Points_PR_curve.png",
     )
     write_keypoint_precision_recall(files_path, recall, precision)
-    write_keypoint_summary(
-        files_path, average_precision, recall[-1], precision[-1]
-    )
     _write_keypoint_protocol_comparison(state, files_path)
 
 

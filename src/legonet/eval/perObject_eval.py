@@ -716,6 +716,8 @@ def eval(
             attributes=evaluates_attributes,
         )
         model.train()
+        deferred_summaries: list[str] = []
+        is_inference = getattr(args, "run_script", None) == "Inference"
         legacy_result = finalize_evaluation(
             state,
             summary_metrics,
@@ -728,5 +730,9 @@ def eval(
             evaluate_points=evaluate_points,
             files_path=config.General.files_path,
             text_results_path=getattr(args, "txt_results", None),
+            emit_summaries=not is_inference,
+            summary_collector=deferred_summaries,
         )
+        if is_inference:
+            args.per_object_evaluation_summary = "\n".join(deferred_summaries)
         return summary_metrics if return_metrics else legacy_result

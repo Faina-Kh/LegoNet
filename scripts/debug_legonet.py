@@ -21,7 +21,7 @@ DebugValue = str | int | bool | None
 # Edit these values for the experiment you want to debug. Keeping the storage
 # path in LEGONET_STORAGE_PATH avoids committing a machine-specific path.
 DEBUG_SETTINGS: dict[str, DebugValue] = {
-    "storage_path": "C:\\Users\\bordezki\\Desktop\\LegoNet", # os.environ.get("LEGONET_STORAGE_PATH", ""),
+    "storage_path": os.environ.get("LEGONET_STORAGE_PATH"),
     "dataset_name": "grapes",  # "roots" or "grapes"
     "network_type": "per_object_counting", #"bbox_detection", "per_object_counting", "per_object_attributes", "per_object_attributes_multibranch"
     "run_script": "Training",  # "Inference" or "Training"

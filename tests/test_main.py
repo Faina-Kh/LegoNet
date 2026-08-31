@@ -41,20 +41,25 @@ class MainEntryPointTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             results_path = Path(directory) / "results.txt"
             results_path.write_text(
-                "Evaluation Summary - per-object attributes\n"
-                "orig_avg_abs_length_diff: 0.100\n"
-                "mAP: 0.600\n",
+                "ordinary inference output\n",
                 encoding="utf-8",
             )
-            args = SimpleNamespace(txt_results=str(results_path))
+            args = SimpleNamespace(
+                txt_results=str(results_path),
+                per_object_evaluation_summary=(
+                    "Evaluation Summary - per-object attributes\n"
+                    "orig_avg_abs_length_diff: 0.100"
+                ),
+            )
 
             self.main_module.finalize_text_results(args, 120.0)
             output = results_path.read_text(encoding="utf-8")
 
         self.assertIn("Execution time in minutes: 2.00", output)
         self.assertIn("\nEvaluation Summary\n", output)
-        final_summary = output[output.rfind("\nEvaluation Summary\n") :]
-        self.assertNotIn("mAP: 0.600", final_summary)
+        self.assertEqual(
+            output.count("Evaluation Summary - per-object attributes"), 1
+        )
         self.assertLess(
             output.rfind("Evaluation Summary"),
             output.rfind("Execution time in minutes"),

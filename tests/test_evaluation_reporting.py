@@ -15,7 +15,6 @@ from legonet.eval.reporting import (
     format_roots_per_image,
     write_evaluation_artifacts,
     write_keypoint_precision_recall,
-    write_keypoint_summary,
 )
 from legonet.eval.per_image_attribute_metrics import (
     compute_per_image_attribute_metrics,
@@ -138,24 +137,13 @@ class EvaluationReportingTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 write_keypoint_precision_recall(directory, [0.2], [1.0, 0.8])
 
-    def test_formats_and_writes_keypoint_summary(self) -> None:
+    def test_formats_keypoint_summary(self) -> None:
         report = format_keypoint_summary(0.75)
 
         self.assertIn("Keypoint detection evaluation", report)
         self.assertIn("mAP: 0.750", report)
         self.assertNotIn("recall:", report)
         self.assertNotIn("precision:", report)
-
-        with tempfile.TemporaryDirectory() as directory:
-            write_keypoint_summary(directory, 0.75, 0.6, 0.8)
-
-            self.assertEqual(
-                _read_csv(Path(directory) / "keypoint_summary.csv"),
-                [
-                    ["mAP", "recall", "precision"],
-                    ["0.75", "0.6", "0.8"],
-                ],
-            )
 
     def test_matching_diagnostics_state_the_evaluation_scope(self) -> None:
         report = format_matching_diagnostics(

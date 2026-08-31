@@ -413,17 +413,3 @@ def write_keypoint_precision_recall(
         ("recall", "precision"),
         list(zip(recall, precision)),
     )
-
-
-def write_keypoint_summary(
-    output_directory: str,
-    average_precision: float,
-    recall: float,
-    precision: float,
-) -> None:
-    """Write aggregate keypoint-detection metrics as a one-row CSV."""
-    _write_rows(
-        Path(output_directory) / "keypoint_summary.csv",
-        ("mAP", "recall", "precision"),
-        ((average_precision, recall, precision),),
-    )

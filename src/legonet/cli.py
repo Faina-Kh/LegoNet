@@ -26,9 +26,17 @@ import faulthandler
 def finalize_text_results(args, execution_time: float) -> None:
     """Append execution time and the consolidated summary to the text output."""
     if getattr(args, "txt_results", ""):
+        additional_summary = "\n".join(
+            summary
+            for summary in (
+                getattr(args, "per_object_evaluation_summary", ""),
+                getattr(args, "per_image_evaluation_summary", ""),
+            )
+            if summary
+        )
         summary = append_evaluation_summary(
             args.txt_results,
-            getattr(args, "per_image_evaluation_summary", ""),
+            additional_summary,
         )
         if summary:
             print(summary, end="")

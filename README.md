@@ -276,6 +276,9 @@ When the checkout is named `Code`, its parent is used as the default storage
 root. Use `--storage-path` or `LEGONET_STORAGE_PATH` to select another location.
 See the [detailed setup guide](docs/setup.md) for the complete runtime layout,
 custom-path examples, and environment-variable configuration.
+The [experiment-output guide](docs/outputs.md) explains files created under
+`ExpResults`, and the [input-format guide](docs/input-formats.md) documents the
+supported annotation layouts.
 
 ## Supported configurations
 

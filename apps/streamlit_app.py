@@ -473,7 +473,12 @@ with st.sidebar:
     else:
         num_of_epochs = 0
 
-    results_dir_context = (selected_network_type, run_script, val_set)
+    results_dir_context = (
+        selected_network_type,
+        estimate_type,
+        run_script,
+        val_set,
+    )
     estimate_suffix = (
         ""
         if selected_network_type == "bbox_detection"

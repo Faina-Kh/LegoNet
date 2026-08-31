@@ -38,6 +38,24 @@ together with `Root_Length`, `Root_Diameter`, and `Root_Color`. Bounding boxes
 are derived from each root's annotated points, enlarged by 10 pixels in each
 direction, and clipped to the image boundary.
 
+The formats are:
+
+```text
+# <Split>.csv (no header)
+image.jpg,TRL
+
+# <Split>_pointsOutput.csv (no header)
+image.jpg,x1,y1,x2,y2,...
+```
+
+The published point file may contain only `image.jpg` on a row. Coordinates
+are absolute image pixels. The `*_Dia_Length_Color.txt` file is valid JSON
+despite its extension: its top-level object maps record IDs to image records.
+An image record uses `processed_name` (legacy data may use `original_name`) and
+can include `TRL`, `points`, `roots_num`, and aggregate diameter values. Nested
+`root_N` objects contain `Root_Length`, `Root_Diameter`, optional `Root_Color`,
+and a flat `points` list `[x1, y1, x2, y2, ...]`.
+
 ## Runtime layout
 
 Place the downloaded dataset under the configured LegoNet storage directory:
