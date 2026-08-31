@@ -7,9 +7,13 @@ describe the current behavior that the runner refactor must preserve.
 
 import importlib
 import io
+import json
 import sys
 import types
 import unittest
+from contextlib import redirect_stdout
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import mock
 
@@ -189,6 +193,65 @@ class RunnerCharacterizationTests(unittest.TestCase):
                     self.runner._run(args)
             else:
                 self.runner._run(args)
+
+    def test_run_parameters_are_grouped_and_complete_json_is_saved(self):
+        """Console output stays concise while JSON retains resolved settings."""
+        args = SimpleNamespace(
+            _invocation_argv=["--dataset-name", "grapes"],
+            run_script="Inference",
+            dataset_name="grapes",
+            network_type="per_object_counting",
+            estimate_type="withKeyPoints",
+            val_set="Test",
+            STORAGE_PATH=r"D:\Faina\LegoNet",
+            txt_results="",
+            weights_mode="full",
+            full_model_weights="counting.pt",
+            have_GT=True,
+            evaluate_detection=True,
+            to_draw=False,
+            batch_size=1,
+            num_workers=0,
+            internal_detail={"value": numpy.int64(2)},
+        )
+
+        with TemporaryDirectory() as directory:
+            results_path = Path(directory) / "results.txt"
+            args.txt_results = str(results_path)
+            output = io.StringIO()
+            with (
+                mock.patch.object(
+                    self.runner.config.General, "experiment_path", "experiment"
+                ),
+                mock.patch.object(self.runner.config.General, "device", "cpu"),
+                redirect_stdout(output),
+            ):
+                self.runner.print_args(args, str(results_path))
+
+            summary = results_path.read_text(encoding="utf-8")
+            configuration = json.loads(
+                (Path(directory) / "run_configuration.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+
+        self.assertEqual(output.getvalue(), summary)
+        self.assertIn("Run\n  Mode: Inference", summary)
+        self.assertIn("Storage and output", summary)
+        self.assertIn("Full checkpoint: counting.pt", summary)
+        self.assertNotIn("internal_detail", summary)
+        self.assertNotIn("_invocation_argv", summary)
+        self.assertEqual(configuration["schema_version"], 1)
+        self.assertEqual(
+            configuration["invocation_arguments"],
+            ["--dataset-name", "grapes"],
+        )
+        self.assertEqual(
+            configuration["resolved_arguments"]["internal_detail"], {"value": 2}
+        )
+        self.assertEqual(
+            configuration["runtime_configuration"]["General"]["device"], "cpu"
+        )
 
     def test_partial_detector_weights_keep_current_module_mapping(self):
         """Partial detector loading targets the three current detector modules."""

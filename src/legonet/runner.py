@@ -1,7 +1,11 @@
 """Top-level orchestration for LegoNet training and inference runs."""
 
+import json
 import random
 import sys
+from collections.abc import Mapping
+from enum import Enum
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -54,21 +58,125 @@ def freeze_bn(model: Any) -> None:
             layer.eval()
 
 
+def _json_compatible(value: Any) -> Any:
+    """Convert legacy runtime values into deterministic JSON-compatible data."""
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, Enum):
+        return value.name
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, Mapping):
+        return {
+            str(key): _json_compatible(item)
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        }
+    if isinstance(value, set):
+        return [_json_compatible(item) for item in sorted(value, key=str)]
+    if isinstance(value, (list, tuple)):
+        return [_json_compatible(item) for item in value]
+    return str(value)
+
+
+def _class_configuration(configuration_class: type[Any]) -> dict[str, Any]:
+    """Return public data attributes from one legacy configuration class."""
+    return {
+        name: _json_compatible(value)
+        for name, value in sorted(vars(configuration_class).items())
+        if not name.startswith("_") and not callable(value)
+    }
+
+
+def _write_run_configuration(args: Any, results_path: Path) -> Path:
+    """Write the complete resolved run configuration beside text results."""
+    raw_arguments = vars(args)
+    invocation_arguments = raw_arguments.get("_invocation_argv", [])
+    resolved_arguments = {
+        name: _json_compatible(value)
+        for name, value in sorted(raw_arguments.items())
+        if not name.startswith("_")
+    }
+    payload = {
+        "schema_version": 1,
+        "invocation_arguments": _json_compatible(invocation_arguments),
+        "resolved_arguments": resolved_arguments,
+        "runtime_configuration": {
+            "AttributeEstimation": _class_configuration(config.AttributeEstimation),
+            "Detect_and_Estimate": _class_configuration(config.Detect_and_Estimate),
+            "Detection": _class_configuration(config.Detection),
+            "DrawProperties": _class_configuration(config.DrawProperties),
+            "General": _class_configuration(config.General),
+        },
+    }
+    configuration_path = results_path.with_name("run_configuration.json")
+    configuration_path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return configuration_path
+
+
+def _checkpoint_lines(args: Any) -> list[str]:
+    """Return only checkpoint paths relevant to the resolved weights mode."""
+    candidates = (
+        ("Full checkpoint", getattr(args, "full_model_weights", None)),
+        ("Detector checkpoint", getattr(args, "bbox_detection_weights_file", None)),
+        ("Estimation-head checkpoint", getattr(args, "per_object_weights_file", None)),
+    )
+    lines = [f"  {label}: {value}" for label, value in candidates if value]
+    return lines or ["  Checkpoints: none"]
+
+
+def format_run_parameters(args: Any, configuration_path: Path) -> str:
+    """Return a concise, grouped summary of the resolved run settings."""
+    lines = [
+        "=====================================================================",
+        "Run Parameters",
+        "=====================================================================",
+        "Run",
+        f"  Mode: {getattr(args, 'run_script', 'unknown')}",
+        f"  Dataset: {getattr(args, 'dataset_name', 'unknown')}",
+        f"  Network: {getattr(args, 'network_type', 'unknown')}",
+        f"  Estimator: {getattr(args, 'estimate_type', 'not applicable')}",
+        f"  Split: {getattr(args, 'val_set', 'not applicable')}",
+        f"  Device: {config.General.device}",
+        "",
+        "Storage and output",
+        f"  Storage root: {getattr(args, 'STORAGE_PATH', 'unknown')}",
+        f"  Experiment path: {config.General.experiment_path}",
+        f"  Results file: {getattr(args, 'txt_results', 'unknown')}",
+        f"  Configuration JSON: {configuration_path}",
+        "",
+        "Weights",
+        f"  Mode: {getattr(args, 'weights_mode', 'unknown')}",
+        *_checkpoint_lines(args),
+        "",
+        "Evaluation and visualization",
+        f"  Ground truth available: {getattr(args, 'have_GT', False)}",
+        f"  Evaluate detection: {getattr(args, 'evaluate_detection', False)}",
+        f"  Draw results: {getattr(args, 'to_draw', False)}",
+        "",
+        "Runtime",
+        f"  Batch size: {getattr(args, 'batch_size', 'unknown')}",
+        f"  Data workers: {getattr(args, 'num_workers', 'unknown')}",
+    ]
+    if getattr(args, "run_script", None) == "Training":
+        lines.append(f"  Epochs: {getattr(args, 'epochs', 'unknown')}")
+    lines.extend(("=====================================================================", ""))
+    return "\n".join(lines) + "\n"
+
+
 def print_args(args: Any, file_path: str) -> None:
-    """Print run arguments to the console and a fresh results file."""
-    with open(file_path, "w", encoding="utf-8") as results_file:
-
-        def printf(message: str) -> None:
-            print(message, end="")
-            results_file.write(message)
-
-        printf("=====================================================================\n")
-        printf("Run Parameters\n")
-        printf("=====================================================================\n")
-        for variable_name, variable_value in vars(args).items():
-            printf(f"{variable_name}: {variable_value}\n")
-        printf(f"experiment path: {config.General.experiment_path}\n")
-        printf("=====================================================================\n\n")
+    """Print a concise run summary and save its complete JSON configuration."""
+    results_path = Path(file_path)
+    configuration_path = _write_run_configuration(args, results_path)
+    summary = format_run_parameters(args, configuration_path)
+    print(summary, end="")
+    results_path.write_text(summary, encoding="utf-8")
 
 
 def run(args: Any = None) -> Any:

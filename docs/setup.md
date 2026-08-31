@@ -130,6 +130,11 @@ LegoNet/
 Dataset, result, and checkpoint paths are constructed from these directory
 names. Missing directories are created automatically.
 
+Each experiment output directory contains a concise human-readable results
+file and `run_configuration.json`. The JSON file records the original
+invocation, all resolved arguments, and the shared runtime configuration used
+for the run, providing a machine-readable record for reproducibility.
+
 ## Streamlit GUI
 
 Install the optional GUI dependencies and start the local app with:
