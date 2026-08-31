@@ -44,6 +44,9 @@ dist/
 # Notebook checkpoints
 .ipynb_checkpoints/
 
+# Local notebook not intended for publication
+notebooks/run_legonet_main.ipynb
+
 .pytest-temp/
 
 AGENTS.md

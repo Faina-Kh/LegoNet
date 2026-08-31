@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sys
 import argparse
+import subprocess
 import time
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -37,6 +38,34 @@ def finalize_text_results(args, execution_time: float) -> None:
                 f"\n"
                 f"Execution time in minutes: {(execution_time / 60):.2f}\n"
             )
+
+
+def print_run_start(args: argparse.Namespace, argv: Sequence[str] | None) -> None:
+    """Print where run settings came from and summarize the resolved run."""
+    supplied_arguments = list(sys.argv[1:] if argv is None else argv)
+    equivalent_command = subprocess.list2cmdline(["legonet", *supplied_arguments])
+    estimate_type = getattr(args, "estimate_type", "not applicable")
+
+    print(
+        "Configuration: CLI-compatible arguments parsed in legonet.cli; "
+        "omitted options use runtime defaults. Streamlit and debug entry "
+        "points generate the same arguments."
+    )
+    print(
+        "Change settings: pass CLI options, use the Streamlit sidebar, or "
+        "edit DEBUG_SETTINGS in scripts/debug_legonet.py. Argument definitions "
+        "and defaults are in src/legonet/cli.py."
+    )
+    print(
+        "Run: "
+        f"{getattr(args, 'run_script', 'unknown')} | "
+        f"dataset={getattr(args, 'dataset_name', 'unknown')} | "
+        f"network={getattr(args, 'network_type', 'unknown')} | "
+        f"estimate={estimate_type} | "
+        f"split={getattr(args, 'val_set', 'unknown')} | "
+        f"weights={getattr(args, 'weights_mode', 'unknown')}"
+    )
+    print(f"Equivalent CLI: {equivalent_command}\n")
 
 
 def parse_bool(value):
@@ -371,6 +400,7 @@ def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
                 "Visualization output is available only during inference; "
                 "training requires --to-draw false."
             )
+
 
     if getattr(args, "load_only_bbox_weights", False) and not (
         args.run_script == "Training" and args.network_type in PER_OBJECT_NETWORKS
@@ -852,6 +882,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ValueError as error:
         print(f"Configuration error: {error}", file=sys.stderr)
         return 2
+
+    print_run_start(args, argv)
 
     from legonet import runner
 

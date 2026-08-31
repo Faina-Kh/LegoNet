@@ -99,6 +99,31 @@ class MainEntryPointTests(unittest.TestCase):
         self.runner_stub.run.assert_called_once_with(configured_args)
         finalize_text_results.assert_called_once()
 
+    def test_run_start_describes_configuration_and_equivalent_cli(self) -> None:
+        """The startup message explains inputs and the resolved experiment."""
+        args = SimpleNamespace(
+            run_script="Inference",
+            dataset_name="grapes",
+            network_type="per_object_counting",
+            estimate_type="withKeyPoints",
+            val_set="Test",
+            weights_mode="full",
+        )
+
+        with mock.patch("builtins.print") as print_mock:
+            self.main_module.print_run_start(
+                args,
+                ["--dataset-name", "grapes", "--run-script", "Inference"],
+            )
+
+        output = "\n".join(call.args[0] for call in print_mock.call_args_list)
+        self.assertIn("Configuration: CLI-compatible arguments", output)
+        self.assertIn("DEBUG_SETTINGS in scripts/debug_legonet.py", output)
+        self.assertIn("defaults are in src/legonet/cli.py", output)
+        self.assertIn("Inference | dataset=grapes", output)
+        self.assertIn("network=per_object_counting", output)
+        self.assertIn("Equivalent CLI: legonet --dataset-name grapes", output)
+
     def test_cli_storage_path_takes_precedence(self) -> None:
         """An explicit CLI path overrides the environment setting."""
         with TemporaryDirectory() as cli_dir, TemporaryDirectory() as env_dir:
