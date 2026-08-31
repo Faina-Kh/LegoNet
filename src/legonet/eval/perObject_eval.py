@@ -221,11 +221,15 @@ def eval(
     draw_individual_objects = getattr(
         args, "draw_individual_object_visualizations", True
     )
+    draw_estimation_visualizations = getattr(
+        args, "draw_per_object_estimation_visualizations", True
+    )
 
     if to_draw:
         visualization_root = Path(draw_path)
         crops_path = visualization_root / "Predicted crops"
-        crops_path.mkdir(parents=True, exist_ok=True)
+        if draw_estimation_visualizations:
+            crops_path.mkdir(parents=True, exist_ok=True)
 
         gt_path = visualization_root / "GT only"
         if draw_gt_only:
@@ -602,6 +606,7 @@ def eval(
 
                     if (
                         to_draw
+                        and draw_estimation_visualizations
                         and sample_anns is not None
                     ):
                         for i in range(len(adjusted_crops_orig_boxes)):

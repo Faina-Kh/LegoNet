@@ -136,6 +136,13 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
             "processed-map local maxima, and the historical raw-map protocol."
         ),
     )
+    parser.add_argument(
+        "--draw-per-object-estimation-visualizations",
+        "--draw_per_object_estimation_visualizations",
+        type=parse_bool,
+        default=None,
+        help="Save predicted crops and keypoint/attribute visualizations.",
+    )
     parser.add_argument("--weights-type", "--weights_type", choices=['full_model_weights', 'partial_weights'], default=None)
     parser.add_argument(
         "--weights-mode",
@@ -270,6 +277,11 @@ def resolve_boolean_options(args: argparse.Namespace) -> argparse.Namespace:
     args.evaluate_detection = (
         True if args.evaluate_detection is None else args.evaluate_detection
     )
+    args.draw_per_object_estimation_visualizations = (
+        True
+        if args.draw_per_object_estimation_visualizations is None
+        else args.draw_per_object_estimation_visualizations
+    )
     args.compare_keypoint_protocols = (
         False
         if args.compare_keypoint_protocols is None
@@ -354,6 +366,11 @@ def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
             raise ValueError("Training requires --have-gt true.")
         if args.val_set != "Val":
             raise ValueError("Training requires --val-set Val.")
+        if getattr(args, "to_draw", False):
+            raise ValueError(
+                "Visualization output is available only during inference; "
+                "training requires --to-draw false."
+            )
 
     if getattr(args, "load_only_bbox_weights", False) and not (
         args.run_script == "Training" and args.network_type in PER_OBJECT_NETWORKS
@@ -672,7 +689,10 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         args.txt_results = os.path.join(config.General.files_path,
                                         "with_Vis_results_"+ args.val_set +".txt" if config.General.to_draw else
                                         "without_Vis_results_"+ args.val_set +".txt")
-        if config.DrawProperties.DRAW_MAPS:
+        if config.DrawProperties.DRAW_MAPS and (
+            not args.evaluate_per_object
+            or args.draw_per_object_estimation_visualizations
+        ):
             config.DrawProperties.maps_path = os.path.join(config.DrawProperties.save_img_path, "KP heatmaps")
             os.makedirs(config.DrawProperties.maps_path, exist_ok=True)
 

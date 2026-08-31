@@ -467,6 +467,21 @@ class MainEntryPointTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "requires --val-set Val"):
             self.main_module.validate_configuration(args)
 
+    def test_training_rejects_visualization_output(self) -> None:
+        """Training does not expose visualization controls that it ignores."""
+        args = SimpleNamespace(
+            dataset_name="roots",
+            network_type="bbox_detection",
+            estimate_type="reg_fpn_p3_p7_min_sig",
+            run_script="Training",
+            val_set="Val",
+            have_GT=True,
+            to_draw=True,
+        )
+
+        with self.assertRaisesRegex(ValueError, "only during inference"):
+            self.main_module.validate_configuration(args)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -67,6 +67,9 @@ def visualize_bboxes(
     model: Any,
     unnormalize: Any,
     have_ground_truth: bool = True,
+    draw_detection_overview: bool = True,
+    draw_gt_only: bool = False,
+    draw_individual_objects: bool = False,
 ) -> None:
     """Save standalone-detector prediction overlays, with GT when available."""
     output_directory = os.path.join(
@@ -74,6 +77,15 @@ def visualize_bboxes(
         "BBOX visualization",
     )
     os.makedirs(output_directory, exist_ok=True)
+    overview_directory = os.path.join(output_directory, "Detection overview")
+    individual_directory = os.path.join(output_directory, "Individual boxes")
+    gt_directory = os.path.join(output_directory, "GT only")
+    if draw_detection_overview:
+        os.makedirs(overview_directory, exist_ok=True)
+    if draw_individual_objects:
+        os.makedirs(individual_directory, exist_ok=True)
+    if draw_gt_only:
+        os.makedirs(gt_directory, exist_ok=True)
     font = ImageFont.truetype("arial.ttf", 14)
     print()
     for index, data in enumerate(dataloader_val):
@@ -117,6 +129,7 @@ def visualize_bboxes(
             image_array = np.transpose(image_array, (1, 2, 0))
 
             image = Image.fromarray(np.uint8(image_array))
+            base_image = image.copy()
             draw = ImageDraw.Draw(image)
 
             for prediction_index in range(selected_indices[0].shape[0]):
@@ -129,9 +142,25 @@ def visualize_bboxes(
                     outline="red",
                     width=config.DrawProperties.LINE_WIDTH,
                 )
+                if draw_individual_objects:
+                    individual_image = base_image.copy()
+                    individual_draw = ImageDraw.Draw(individual_image)
+                    individual_draw.rectangle(
+                        ((x1, y1), (x2, y2)),
+                        outline="red",
+                        width=config.DrawProperties.LINE_WIDTH,
+                    )
+                    individual_image.save(
+                        os.path.join(
+                            individual_directory,
+                            f"{Path(image_name).stem}_prediction_{prediction_index}.png",
+                        )
+                    )
 
             if have_ground_truth:
-                for annotation in data["bbox_annot"].numpy()[0]:
+                gt_only_image = base_image.copy()
+                gt_only_draw = ImageDraw.Draw(gt_only_image)
+                for gt_index, annotation in enumerate(data["bbox_annot"].numpy()[0]):
                     if annotation[0] != -1:
                         x1, y1, x2, y2 = [int(value) for value in annotation[:4]]
                         draw.rectangle(
@@ -139,6 +168,32 @@ def visualize_bboxes(
                             outline="blue",
                             width=config.DrawProperties.LINE_WIDTH,
                         )
+                        gt_only_draw.rectangle(
+                            ((x1, y1), (x2, y2)),
+                            outline="blue",
+                            width=config.DrawProperties.LINE_WIDTH,
+                        )
+                        if draw_gt_only and draw_individual_objects:
+                            individual_gt = base_image.copy()
+                            individual_gt_draw = ImageDraw.Draw(individual_gt)
+                            individual_gt_draw.rectangle(
+                                ((x1, y1), (x2, y2)),
+                                outline="blue",
+                                width=config.DrawProperties.LINE_WIDTH,
+                            )
+                            individual_gt.save(
+                                os.path.join(
+                                    gt_directory,
+                                    f"{Path(image_name).stem}_gt_{gt_index}.png",
+                                )
+                            )
+                if draw_gt_only:
+                    gt_only_image.save(
+                        os.path.join(
+                            gt_directory,
+                            f"{Path(image_name).stem}_all_gt_boxes.png",
+                        )
+                    )
 
             legend = (
                 f"{image_name} | predictions: red | ground truth: blue"
@@ -158,7 +213,8 @@ def visualize_bboxes(
                 else "_predictions.png"
             )
             output_name = f"{Path(image_name).stem}{suffix}"
-            image.save(os.path.join(output_directory, output_name))
+            if draw_detection_overview:
+                image.save(os.path.join(overview_directory, output_name))
 
 
 def _evaluate_detection(
@@ -221,6 +277,13 @@ def _evaluate_detection(
             model,
             unnormalize=UnNormalizer(),
             have_ground_truth=args.have_GT,
+            draw_detection_overview=getattr(
+                args, "draw_detection_overview", True
+            ),
+            draw_gt_only=getattr(args, "draw_gt_only", False),
+            draw_individual_objects=getattr(
+                args, "draw_individual_object_visualizations", False
+            ),
         )
     return detection_metrics
 

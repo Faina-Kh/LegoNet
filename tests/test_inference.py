@@ -174,6 +174,9 @@ class InferenceTests(unittest.TestCase):
             model,
             unnormalize=mock.ANY,
             have_ground_truth=False,
+            draw_detection_overview=True,
+            draw_gt_only=False,
+            draw_individual_objects=False,
         )
 
     def test_combined_inference_dispatches_attribute_evaluation(self):

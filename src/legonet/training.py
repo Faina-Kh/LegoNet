@@ -192,7 +192,7 @@ def _evaluate_detection_epoch(
             _save_periodic_checkpoint(epoch, model)
         return
     print(
-        f"Starting bounding-box evaluation on the validation set for epoch "
+        f"\nStarting bounding-box evaluation on the validation set for epoch "
         f"{epoch} ({len(dataset_val)} images)."
     )
     metrics = evaluate_detection(dataset_val, dataloader_val, sampler_val, model)

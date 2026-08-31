@@ -242,6 +242,7 @@ def build_command(
     draw_detection_overview: bool,
     draw_gt_only: bool,
     draw_individual_object_visualizations: bool,
+    draw_per_object_estimation_visualizations: bool,
     evaluate_detection: bool,
     checkpoint_attribute: str,
     weights_mode: str,
@@ -283,6 +284,8 @@ def build_command(
         bool_arg(draw_gt_only),
         "--draw-individual-object-visualizations",
         bool_arg(draw_individual_object_visualizations),
+        "--draw-per-object-estimation-visualizations",
+        bool_arg(draw_per_object_estimation_visualizations),
         "--evaluate-detection",
         bool_arg(evaluate_detection),
         "--weights-mode",
@@ -506,12 +509,20 @@ with st.sidebar:
             "published Zenodo archive."
         ),
     )
-    to_draw = st.checkbox(
-        "Draw visualizations",
-        value=False,
-        key="runner_draw_visualizations",
+    if run_script == "Inference":
+        to_draw = st.checkbox(
+            "Draw visualizations",
+            value=False,
+            key="runner_draw_visualizations",
+        )
+    else:
+        to_draw = False
+        st.caption("Visualization output is available during inference only.")
+
+    includes_bbox_detection = (
+        network_type == "bbox_detection" or network_type in PER_OBJECT_NETWORKS
     )
-    if to_draw and network_type in PER_OBJECT_NETWORKS:
+    if to_draw and includes_bbox_detection:
         individual_context = dataset_name
         if (
             st.session_state.get("runner_individual_visualizations_context")
@@ -528,7 +539,6 @@ with st.sidebar:
             key="runner_draw_individual_object_visualizations",
             help=(
                 "Save separate full-image GT-box and predicted-box views. "
-                "Predicted crops and keypoint heatmaps are always retained. "
                 "The dataset default is enabled for roots and disabled for "
                 "grapes."
             ),
@@ -549,9 +559,22 @@ with st.sidebar:
         else:
             draw_gt_only = False
     else:
-        draw_individual_object_visualizations = dataset_name == "roots"
+        draw_individual_object_visualizations = False
         draw_detection_overview = False
         draw_gt_only = False
+
+    if to_draw and network_type in PER_OBJECT_NETWORKS:
+        draw_per_object_estimation_visualizations = st.checkbox(
+            "Draw per-object estimation visualizations",
+            value=True,
+            key="runner_draw_per_object_estimation_visualizations",
+            help=(
+                "Save predicted object crops and, for keypoint models, their "
+                "keypoint heatmaps. This is independent of bbox overview output."
+            ),
+        )
+    else:
+        draw_per_object_estimation_visualizations = False
     if not have_gt:
         evaluate_detection = False
     elif network_type in OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS:
@@ -689,6 +712,9 @@ command = build_command(
     draw_gt_only=draw_gt_only,
     draw_individual_object_visualizations=(
         draw_individual_object_visualizations
+    ),
+    draw_per_object_estimation_visualizations=(
+        draw_per_object_estimation_visualizations
     ),
     evaluate_detection=evaluate_detection,
     checkpoint_attribute=checkpoint_attribute,
