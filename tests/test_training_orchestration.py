@@ -100,8 +100,8 @@ class TrainingOrchestrationTests(unittest.TestCase):
             training._print_best_error_checkpoint_notice(12, 0.4, 0.3)
 
         message = print_mock.call_args.args[0]
-        self.assertIn("0.300000", message)
-        self.assertIn("previous: 0.400000", message)
+        self.assertIn("0.300", message)
+        self.assertIn("previous: 0.400", message)
         self.assertIn("epoch 12", message)
         self.assertIn("Replacing", message)
 
@@ -119,7 +119,7 @@ class TrainingOrchestrationTests(unittest.TestCase):
 
         self.assertEqual(
             print_mock.call_args.args[0],
-            "Best validation length_relative_error: 0.250000, achieved at epoch 17.",
+            "Best validation length_relative_error: 0.250, achieved at epoch 17.",
         )
 
     def test_checkpoint_comparison_minimizes_error(self):

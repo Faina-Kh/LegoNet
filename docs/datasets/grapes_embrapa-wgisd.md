@@ -148,6 +148,13 @@ Counting reports absolute and relative count errors for matched clusters. The
 same original matched-ground-truth count is used during validation, checkpoint
 selection, and test evaluation.
 
+For keypoint-based counting, point AP is evaluated only on non-empty
+detector-produced crops that were matched one-to-one to an eligible
+ground-truth cluster at the configured IoU threshold. Unmatched or duplicate
+detections remain part of bounding-box evaluation but are excluded from point
+AP, allowing berry-point localization to be assessed conditional on successful
+cluster detection.
+
 ### Bounding-box metrics
 
 Bounding-box detections are evaluated after confidence filtering and

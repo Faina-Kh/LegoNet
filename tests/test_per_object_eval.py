@@ -31,23 +31,22 @@ class PerObjectEvaluationTests(unittest.TestCase):
         )
         torch.testing.assert_close(boxes, original_boxes)
 
-    def test_grape_point_evaluation_excludes_empty_gt_crops(self):
+    def test_point_evaluation_requires_non_empty_matched_crop(self):
         self.assertFalse(
             perObject_eval._include_crop_in_point_evaluation(
-                torch.zeros((2, 2)), evaluates_attributes=False
+                torch.zeros((2, 2)), matched_prediction=True
             )
         )
         self.assertTrue(
             perObject_eval._include_crop_in_point_evaluation(
                 torch.tensor([[0.0, 1.0], [0.0, 0.0]]),
-                evaluates_attributes=False,
+                matched_prediction=True,
             )
         )
-
-    def test_root_attribute_point_evaluation_keeps_empty_gt_crops(self):
-        self.assertTrue(
+        self.assertFalse(
             perObject_eval._include_crop_in_point_evaluation(
-                torch.zeros((2, 2)), evaluates_attributes=True
+                torch.tensor([[0.0, 1.0], [0.0, 0.0]]),
+                matched_prediction=False,
             )
         )
 

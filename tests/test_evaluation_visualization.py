@@ -75,7 +75,7 @@ class EvaluationVisualizationTests(TestCase):
         )
 
     @patch(
-        "legonet.eval.KP_detection_eval.ImageFont.truetype",
+        "legonet.eval.KP_detection_eval.load_visualization_font",
         return_value=ImageFont.load_default(),
     )
     def test_prediction_heatmap_is_not_deleted(self, _font) -> None:
@@ -104,7 +104,7 @@ class EvaluationVisualizationTests(TestCase):
             self.assertEqual(imsave.call_args.kwargs["vmax"], 1.0)
 
     @patch(
-        "legonet.eval.KP_detection_eval.ImageFont.truetype",
+        "legonet.eval.KP_detection_eval.load_visualization_font",
         return_value=ImageFont.load_default(),
     )
     def test_gt_and_prediction_heatmaps_use_the_same_fixed_scale(self, _font) -> None:

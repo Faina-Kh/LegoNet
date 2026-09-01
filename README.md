@@ -305,6 +305,21 @@ Training requires ground-truth annotations and uses the `Val` validation
 split. Select a supported dataset, network type, and estimate type from the
 table above, then use `--run-script Training`.
 
+### Hardware expectations
+
+The original experiments were developed and trained on NVIDIA GPUs including
+the GTX 1080 Ti, RTX 2080 Ti, and RTX 3090 Ti, using a batch size of 1 for both
+training and inference. The released models can currently be run for inference
+on an RTX 2080 Ti.
+
+Full training is more memory-intensive. In particular, training the per-object
+root-estimation configurations exceeds the GPU memory available on the RTX
+2080 Ti system currently used to maintain the repository. Higher-memory GPUs
+may therefore be required to reproduce some training configurations. Because
+the original training machines are no longer all available, exact minimum VRAM
+requirements have not been established for each configuration. Pretrained
+checkpoints are provided for inference and evaluation without retraining.
+
 ## Automatic dataset setup
 
 If the selected public dataset is incomplete, LegoNet announces the source and

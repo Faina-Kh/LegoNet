@@ -218,6 +218,27 @@ these images count as false positives. Per-object attribute evaluation requires
 usable matched attribute annotations and therefore excludes these images. The
 two evaluations intentionally operate on different scopes.
 
+### Point-localization interpretation
+
+Point-localization AP is reported for the intermediate heatmaps of all
+keypoint-based configurations for consistency. For the standalone per-root
+keypoint model, point-localization performance is relatively low despite good
+final root-attribute estimation performance. Point-detection metrics for this
+configuration were not reported in the original paper.
+
+Per-root point AP is evaluated only on non-empty detector-produced crops that
+were matched one-to-one to a ground-truth root box at the configured IoU
+threshold. Unmatched or duplicate detections remain part of bounding-box
+evaluation but are excluded from point AP, allowing the intermediate point
+detector to be assessed conditional on successful root-box detection.
+
+Since the final attributes are obtained through learned downstream estimation
+layers, intermediate point-localization performance and final attribute
+estimation measure different aspects of the model. We report both for
+transparency; the multibranch model remains the paper-aligned keypoint-based
+per-root configuration. The PCK matching rule and AP protocol are defined in
+the [reproduction guide](../reproduction.md#point-localization-evaluation).
+
 ## Paper comparison
 
 The paper rows below report the published aggregate results. The current-code

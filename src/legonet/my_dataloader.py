@@ -320,9 +320,6 @@ class csv_LCCDataset(Dataset):
             gaussian_map = self.create_gausian_mask(annotations_leaves_centers[i, :2], output_shape[1], output_shape[0],
                                                radius=radius)
 
-            #draw_path = "D:\\Faina\\roots_project\\Rootfly_cam3\\Results\\val_points_for_roots_eval\\points_pred_img"
-            #plt.imsave(draw_path + '/' + "aaa" + '_map_'+str(i)+ '_anno.png', annotations)
-
             #time.sleep(0.01)
             # each center point in the GT will be 1 in the annotation map
             annotations = np.maximum(annotations, gaussian_map)

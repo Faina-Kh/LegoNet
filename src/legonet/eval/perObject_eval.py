@@ -60,10 +60,10 @@ unnormalize = UnNormalizer()
 def _include_crop_in_point_evaluation(
     ground_truth_map: torch.Tensor,
     *,
-    evaluates_attributes: bool,
+    matched_prediction: bool,
 ) -> bool:
-    """Exclude empty GT crops from grape counting point evaluation."""
-    return evaluates_attributes or torch.sum(ground_truth_map).item() > 0
+    """Include only non-empty crops with a successful one-to-one box match."""
+    return matched_prediction and torch.sum(ground_truth_map).item() > 0
 
 
 def _evaluate_crop_keypoints(
@@ -484,7 +484,9 @@ def eval(
                                 for b in range(evaluation_maps.shape[0]):
                                     if not _include_crop_in_point_evaluation(
                                         all_crops_GT_detections_maps[b],
-                                        evaluates_attributes=evaluates_attributes,
+                                        matched_prediction=(
+                                            bookkeeping.matched_predictions[b]
+                                        ),
                                     ):
                                         continue
                                     t, p = _evaluate_crop_keypoints(

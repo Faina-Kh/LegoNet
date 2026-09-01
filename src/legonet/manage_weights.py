@@ -285,7 +285,7 @@ if __name__ == '__main__':
 
     ##################################################
 
-    weights_path = '' #'C:/Users/bordezki/Desktop/LegoNet/ExpResults/grapes_detection_filterBBOX_minScore_0.7_prev/Weights'
+    weights_path = ''
 
 
 

@@ -20,6 +20,7 @@ class DetectionBookkeepingResult:
     diameter_ground_truth: list[Any]
     color_ground_truth: list[Any]
     max_overlaps: Optional[list[float]]
+    matched_predictions: list[bool]
 
 
 def _append_false_positive(
@@ -71,6 +72,7 @@ def record_detection_bookkeeping(
     color_ground_truth: list[Any] = []
     matched_gt_value_indices: list[int] = []
     max_overlaps: Optional[list[float]] = []
+    matched_predictions: list[bool] = []
 
     if predicted_boxes and len(annotated_boxes) > 0:
         boxes = torch.cat(
@@ -88,6 +90,7 @@ def record_detection_bookkeeping(
 
         record = state["detections_data_any_crop"][image_name]
         for detection, assigned_annotation, overlap, is_new_match in matches:
+            matched_predictions.append(is_new_match)
             record["score"].append(float(detection[4]))
             record["max_overlap"].append(overlap)
             max_overlaps.append(overlap)
@@ -152,6 +155,7 @@ def record_detection_bookkeeping(
     elif predicted_boxes:
         max_overlaps = None
         for detection in predicted_boxes:
+            matched_predictions.append(False)
             _append_false_positive(
                 state,
                 image_name,
@@ -190,4 +194,5 @@ def record_detection_bookkeeping(
         diameter_ground_truth=diameter_ground_truth,
         color_ground_truth=color_ground_truth,
         max_overlaps=max_overlaps,
+        matched_predictions=matched_predictions,
     )

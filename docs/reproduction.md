@@ -94,6 +94,47 @@ checkpoint. Attribute training accepts `--checkpoint-attribute` with `length`,
 and classification error rate for color. Length is the default. 1-FVU remains
 a reported metric and is not used for checkpoint selection.
 
+## Point-localization evaluation
+
+LegoNet reports point-localization average precision (AP) for the intermediate
+heatmaps of all keypoint-based configurations. Candidate points are ranked by
+their heatmap confidence and matched greedily, in descending-confidence order,
+to unmatched ground-truth points. A candidate is a true positive when it
+satisfies the Percentage of Correct Keypoints (PCK) criterion: its Euclidean
+distance from the matched ground-truth point must be no more than 10% of the
+larger heatmap dimension. Candidates outside that tolerance, and duplicate
+candidates for an already matched point, are false positives. Unmatched
+ground-truth points remain false negatives. The pooled confidence-ranked
+matches define the precision-recall curve and its AP.
+
+The PCK hit-or-miss criterion follows the evaluation introduced for plant
+point localization by Giuffrida et al. and applied to leaf counting by Itzhaky
+et al.:
+
+- M. V. Giuffrida, A. Dobrescu, P. Doerner, and S. A. Tsaftaris, “Leaf
+  counting without annotations using adversarial unsupervised domain
+  adaptation,” in *Proceedings of the IEEE/CVF Conference on Computer Vision
+  and Pattern Recognition Workshops (CVPRW)*, Long Beach, CA, USA, 16–17 June
+  2019, pp. 2590–2599.
+- Y. Itzhaky, G. Farjon, F. Khoroshevsky, A. Shpigler, and A. Bar-Hillel,
+  “Leaf counting: Multiple scale regression and detection using deep CNNs,”
+  in *BMVC*, BMVA Press, Newcastle, UK, 2018, p. 328.
+
+For compatibility with the historical grape evaluation, the default reported
+protocol ranks every positive value in the raw ReLU heatmap. For both grapes
+and roots per-object models, point AP is conditioned on successful object
+detection: it includes only non-empty detector-produced crops that were matched
+one-to-one to a ground-truth box at the configured IoU threshold. Unmatched
+detections, duplicate detections, and matched crops without GT points remain in
+the applicable bounding-box evaluation but do not enter point AP. This
+conditioning separates point-detector localization quality from bounding-box
+detector performance.
+
+Roots direct per-image point evaluation has no bounding-box matching stage and
+includes empty images as negatives. Direct per-image and conditioned
+per-object point AP therefore answer different questions and should not be
+combined.
+
 ## Empty-image policy
 
 Empty-image handling is dataset-specific:

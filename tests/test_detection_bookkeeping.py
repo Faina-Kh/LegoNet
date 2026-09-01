@@ -45,6 +45,7 @@ class DetectionBookkeepingTests(unittest.TestCase):
         self.assertEqual(result.length_ground_truth, [-1, 12.0])
         self.assertEqual(result.diameter_ground_truth, [-1, 0.5])
         self.assertEqual(result.color_ground_truth, [-1, 1.0])
+        self.assertEqual(result.matched_predictions, [False, True])
         self.assertEqual(state["found_orig_objects"], 1)
         self.assertEqual(state["FP"], 1)
         self.assertEqual(
@@ -70,6 +71,7 @@ class DetectionBookkeepingTests(unittest.TestCase):
 
         self.assertEqual(result.count_ground_truth, [-1])
         self.assertIsNone(result.max_overlaps)
+        self.assertEqual(result.matched_predictions, [False])
         self.assertEqual(state["FP"], 1)
         self.assertEqual(
             state["detections_data_any_crop"]["grapes.jpg"]["score"],

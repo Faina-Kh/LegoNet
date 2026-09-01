@@ -4,8 +4,9 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
-from PIL import ImageFont
 from PIL import ImageDraw
+
+from legonet.fonts import load_visualization_font
 
 
 KEYPOINT_CANDIDATE_THRESHOLD = 0.02
@@ -177,7 +178,7 @@ def visualize_KeyPointsHeatmaps(predicted_map, gt_map, image_name, map_name, img
                                 count_GT=None, font_size = 30, attribute_name = "TRL", attribute_unit = "mm",
                                 heatmap_vmax: float | None = None): #"count"
 
-    font = ImageFont.truetype("arial.ttf", font_size) #15) #60
+    font = load_visualization_font(font_size)
 
     if gt_map is not None:
         if gt_map.sum() == 0:

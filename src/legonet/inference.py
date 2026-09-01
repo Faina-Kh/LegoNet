@@ -6,12 +6,13 @@ from typing import Any, Hashable
 
 import numpy as np
 import torch
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 from legonet import config
 from legonet import utils
 from legonet.eval import detection_eval, per_image_attribute_eval
 from legonet.eval import perObject_eval
+from legonet.fonts import load_visualization_font
 from legonet.my_dataloader import UnNormalizer
 from legonet.utils import printf
 
@@ -86,7 +87,7 @@ def visualize_bboxes(
         os.makedirs(individual_directory, exist_ok=True)
     if draw_gt_only:
         os.makedirs(gt_directory, exist_ok=True)
-    font = ImageFont.truetype("arial.ttf", 14)
+    font = load_visualization_font(14)
     print()
     for index, data in enumerate(dataloader_val):
         group_index = sampler_val.groups[index]

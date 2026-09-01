@@ -623,12 +623,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
             args.color_loss_weight = 100  # 100
             args.maps_loss_weight = 1 #10
 
-            # #os.path.join(args.dataset_path,"Results\\detection\\IOU 0.7_score 0.7_limit_5\\2023-02-15_154227","saved_weights_epoch_280")
-            # "IOU 0.9_score 0.7_limit_5\\2023-02-16_150507" ,"saved_weights_epoch_158")
-            # "Results\\detection", "2023-02-05_193648_ratio 3_val 0.393", " saved_weights_epoch_175")
-            # "C:\\Users\\Aragorn\\Google Drive\\StoragePath\\ExpResults\\KK_Exp_Results\\grapes_twoBack_keypoints_sameRadi_fluid_new\\saved_weights_cont_14"
-            # #os.path.join(results_dir, 'wheat_MS5_s0.7_640\\saved_weights_211\\detector_weights')
-
     config.General.predict_empty_image = args.predict_empty_image
     config.AttributeEstimation.do_nmcs = args.do_nmcs
     config.AttributeEstimation.estimate_type = args.estimate_type
@@ -797,8 +791,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         if args.estimate_type == "withKeyPoints":
             args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_KP") # args.myExpPath, "Weights",
         else:
-            args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_Reg") #args.myExpPath, "Weights", #os.path.join(args.myExpPath, 'TRL_estimator_reg\\Weights\\2026-05-21_121532') #os.path.join(args.myExpPath, "Weights", "per_image_attributes", "TRL_Reg")
-    # "D:\\from 16\\more_counting_Res\\more_counting_Res\\legonet_epoch=249.pt" #cont_legonet_epoch=14.pt"
+            args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_Reg")
 
     if args.load_bbox_det_weights:
         args.bbox_detection_weights_file = require_weights_file(
@@ -884,10 +877,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
             args.weights_dir = os.path.join(args.myExpPath, "Weights", file_path)
             args.model_path = get_weights_file(args.weights_dir)  # for initial load of old weights file
 
-
-    #"C:\\Users\\Aragorn\\Google Drive\\StoragePath\\ExpResults (1)\\KK_Exp_Results_last\\grapes_twoBack_keypoints_sameRadi_fluid_new\\saved_weights_cont_14"
-    # #os.path.join(results_dir, 'wheat_MS5_s0.7_640\\saved_weights_211\\detector_weights')
-    #os.path.join(results_dir,'grapes_twoBack_reg_P3_P5_fluid_new', 'saved_weights_164')
 
     return args
 
