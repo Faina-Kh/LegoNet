@@ -175,13 +175,27 @@ Command Prompt or PowerShell, run it on one line:
 legonet --dataset-name grapes --network-type per_object_counting --estimate-type keypoints --run-script Inference --val-set Test --have-gt true --to-draw true --draw-detection-overview true --draw-individual-object-visualizations false --draw-gt-only false --draw-per-object-estimation-visualizations true
 ```
 
-Run per-root length, diameter, and color estimation with:
+Run direct keypoint-based total root length (TRL) estimation on complete root
+images with:
 
 ```bash
 legonet \
   --dataset-name roots \
-  --network-type per_object_attributes_multibranch \
+  --network-type per_image_estimation \
   --estimate-type keypoints \
+  --run-script Inference \
+  --val-set Test \
+  --have-gt true \
+  --to-draw true
+```
+
+Then run regression-based per-root length, diameter, and color estimation with:
+
+```bash
+legonet \
+  --dataset-name roots \
+  --network-type per_object_attributes \
+  --estimate-type regression \
   --run-script Inference \
   --val-set Test \
   --have-gt true \
@@ -192,10 +206,12 @@ legonet \
   --draw-per-object-estimation-visualizations true
 ```
 
-Both examples save a full-image detection overview showing the GT annotations
-and predicted boxes, together with per-object crops and estimation heatmaps.
-Separate box images and GT-only images remain disabled to limit redundant
-output.
+The grape example saves a full-image detection overview, per-object crops, and
+berry-point heatmaps. The direct TRL example saves image-level root-point
+heatmaps. The regression-based per-root example saves a full-image detection
+overview and per-object crops, but does not produce keypoint heatmaps. Separate
+box images and GT-only images remain disabled in the per-object examples to
+limit redundant output.
 
 On the first run, LegoNet downloads the required public dataset files and
 matching pretrained checkpoint, verifies them, and caches them in the storage
