@@ -3,7 +3,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import numpy as np
 import torch
@@ -12,6 +12,7 @@ from PIL import Image, ImageFont
 from legonet.eval import KP_detection_eval
 from legonet.eval.KP_detection_eval import visualize_KeyPointsHeatmaps
 from legonet.eval.visualization import (
+    _draw_box_legend,
     _matched_gt_box,
     save_detection_overview,
     save_keypoint_heatmap,
@@ -22,6 +23,45 @@ from legonet.eval.visualization import (
 
 class EvaluationVisualizationTests(TestCase):
     """Verify visualization helpers without running model evaluation."""
+
+    @patch(
+        "legonet.eval.visualization.load_visualization_font",
+        return_value=ImageFont.load_default(),
+    )
+    def test_box_legend_font_scales_with_image_height(self, load_font) -> None:
+        image = Image.new("RGB", (1600, 1200), "white")
+
+        _draw_box_legend(
+            image,
+            has_ground_truth=True,
+            has_predictions=True,
+        )
+
+        load_font.assert_called_once_with(42)
+        self.assertEqual(image.getpixel((0, 0)), (0, 0, 0))
+
+    @patch(
+        "legonet.eval.visualization.load_visualization_font",
+        return_value=ImageFont.load_default(),
+    )
+    def test_box_legend_names_only_the_box_types_present(self, _load_font) -> None:
+        cases = (
+            (True, False, "Blue: GT box"),
+            (False, True, "Red: predicted box"),
+            (True, True, "Blue: GT box | Red: predicted box"),
+        )
+
+        for has_ground_truth, has_predictions, expected in cases:
+            with self.subTest(expected=expected), patch(
+                "legonet.eval.visualization.ImageDraw.Draw"
+            ) as draw:
+                _draw_box_legend(
+                    Image.new("RGB", (320, 240), "white"),
+                    has_ground_truth=has_ground_truth,
+                    has_predictions=has_predictions,
+                )
+
+                self.assertEqual(draw.return_value.text.call_args.args[1], expected)
 
     def test_heatmap_count_values_are_formatted_as_integers(self) -> None:
         self.assertEqual(KP_detection_eval._format_heatmap_value(12.0, "count"), "12")
@@ -159,7 +199,11 @@ class EvaluationVisualizationTests(TestCase):
             self.assertTrue(
                 (output_path / "sample_predicted_BBOX_0.png").is_file()
             )
-            draw_legend.assert_called_once()
+            draw_legend.assert_called_once_with(
+                ANY,
+                has_ground_truth=True,
+                has_predictions=True,
+            )
             saved_crop_path = output_path / "sample_crop_0.png"
             self.assertTrue(saved_crop_path.is_file())
             saved_crop = Image.open(saved_crop_path)
@@ -243,7 +287,11 @@ class EvaluationVisualizationTests(TestCase):
             )
 
             self.assertTrue((output_path / "sample.png").is_file())
-            draw_legend.assert_called_once()
+            draw_legend.assert_called_once_with(
+                ANY,
+                has_ground_truth=True,
+                has_predictions=True,
+            )
             self.assertTrue((gt_path / "sample_all_Boxes.png").is_file())
             self.assertTrue((gt_path / "sample_gt_box_0.png").is_file())
 

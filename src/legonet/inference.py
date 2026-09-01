@@ -87,7 +87,6 @@ def visualize_bboxes(
         os.makedirs(individual_directory, exist_ok=True)
     if draw_gt_only:
         os.makedirs(gt_directory, exist_ok=True)
-    font = load_visualization_font(14)
     print()
     for index, data in enumerate(dataloader_val):
         group_index = sampler_val.groups[index]
@@ -205,12 +204,21 @@ def visualize_bboxes(
             legend = f"{image_name} | Red: predicted box"
             if has_both_box_types:
                 legend = f"{image_name} | Blue: GT box | Red: predicted box"
+            font_size = max(18, min(48, round(image.height * 0.035)))
+            font = load_visualization_font(font_size)
             text_box = font.getbbox(legend)
-            label_width = max(200, text_box[2] - text_box[0] + 10)
-            label_height = max(20, text_box[3] - text_box[1] + 8)
+            horizontal_padding = max(10, font_size // 2)
+            vertical_padding = max(8, font_size // 3)
+            label_width = text_box[2] - text_box[0] + horizontal_padding
+            label_height = text_box[3] - text_box[1] + vertical_padding
             label_image = Image.new("RGBA", (label_width, label_height), "black")
             label_draw = ImageDraw.Draw(label_image)
-            label_draw.text((5, 2), legend, fill="white", font=font)
+            label_draw.text(
+                (horizontal_padding // 2, vertical_padding // 4),
+                legend,
+                fill="white",
+                font=font,
+            )
             image.paste(label_image, (0, 0))
             suffix = (
                 "_predictions_and_gt.png"

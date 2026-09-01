@@ -11,15 +11,35 @@ from PIL import Image, ImageDraw
 from legonet.fonts import load_visualization_font
 
 
-def _draw_box_legend(image: Image.Image) -> None:
-    """Add the color key used by images containing GT and predicted boxes."""
-    legend = "Blue: GT box | Red: predicted box"
-    font = load_visualization_font(14)
+def _draw_box_legend(
+    image: Image.Image,
+    *,
+    has_ground_truth: bool,
+    has_predictions: bool,
+) -> None:
+    """Add a color key for whichever box types are present in an image."""
+    labels = []
+    if has_ground_truth:
+        labels.append("Blue: GT box")
+    if has_predictions:
+        labels.append("Red: predicted box")
+    if not labels:
+        return
+    legend = " | ".join(labels)
+    font_size = max(18, min(48, round(image.height * 0.035)))
+    font = load_visualization_font(font_size)
     text_box = font.getbbox(legend)
-    label_width = text_box[2] - text_box[0] + 10
-    label_height = max(20, text_box[3] - text_box[1] + 8)
+    horizontal_padding = max(10, font_size // 2)
+    vertical_padding = max(8, font_size // 3)
+    label_width = text_box[2] - text_box[0] + horizontal_padding
+    label_height = text_box[3] - text_box[1] + vertical_padding
     label_image = Image.new("RGBA", (label_width, label_height), "black")
-    ImageDraw.Draw(label_image).text((5, 2), legend, fill="white", font=font)
+    ImageDraw.Draw(label_image).text(
+        (horizontal_padding // 2, vertical_padding // 4),
+        legend,
+        fill="white",
+        font=font,
+    )
     image.paste(label_image, (0, 0))
 
 
@@ -128,8 +148,13 @@ def save_detection_overview(
                 outline="red",
                 width=line_width,
             )
-        if have_gt and len(gt_boxes) > 0 and len(predicted_boxes) > 0:
-            _draw_box_legend(image)
+        has_ground_truth_boxes = have_gt and len(gt_boxes) > 0
+        has_predicted_boxes = len(predicted_boxes) > 0
+        _draw_box_legend(
+            image,
+            has_ground_truth=has_ground_truth_boxes,
+            has_predictions=has_predicted_boxes,
+        )
         image.save(Path(draw_path) / f"{image_stem}.png")
 
 
@@ -184,10 +209,14 @@ def save_object_visualizations(
             outline="blue",
             width=line_width,
         )
-        _draw_box_legend(source_image)
 
     image_stem = Path(image_name).stem
     if save_predicted_box_overlay:
+        _draw_box_legend(
+            source_image,
+            has_ground_truth=matched_box is not None,
+            has_predictions=True,
+        )
         source_image.save(
             Path(predicted_boxes_path)
             / f"{image_stem}_predicted_BBOX_{crop_index}.png"
