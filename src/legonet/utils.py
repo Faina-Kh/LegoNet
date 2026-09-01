@@ -367,8 +367,6 @@ def convert_points_to_bboxes(orig_annot_file, new_annots_file):
                     adj_bbox_list.append(adj_bbox)
                     output_row.append([img, "wheat_spikelet", adj_bbox[0], adj_bbox[1], adj_bbox[2], adj_bbox[3]])
 
-        # draw_bboxes_and_points(os.path.join(head_tail[0],img), adj_bbox_list, [], save_path="C:\\Users\\khoro\\Desktop\\Experiments\\viz")
-
     with open(new_annots_file, mode='a+', newline='') as file:
         writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         writer.writerows(output_row)

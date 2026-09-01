@@ -359,7 +359,6 @@ def resolve_boolean_options(args: argparse.Namespace) -> argparse.Namespace:
 DEFAULT_ESTIMATE_TYPE_BY_NETWORK = {
     "per_image_estimation": "withKeyPoints",
     "per_object_attributes_multibranch": "withKeyPoints",
-    #"per_object_counting": "withKeyPoints" # dont have currently weights for "reg_fpn_p3_p7_min_sig"
 }
 
 MANDATORY_DETECTION_EVAL_NETWORK_OPTIONS = ("bbox_detection")
@@ -497,7 +496,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
 
     #################################################
     args.choose_epoch_by_IoUavg = False
-    #config.Detection.min_score = 0.05 # not 0.7
     #################################################
 
     if args.run_script == 'Training':
@@ -538,8 +536,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         and args.network_type
         in ("per_object_attributes", "per_object_attributes_multibranch")
     )
-
-
 
     ########################################################################################################################
     # GPU settings
@@ -612,7 +608,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
 
         if args.network_type in INCLUDE_BBOX_DETECTION:
             config.Detection.change_anchors = True
-            config.Detection.ratios = np.array([0.5, 1, 3])  # np.array([0.5, 1, 3]) #np.array([0.5, 1, 4]) #np.array([0.5, 1, 2])
+            config.Detection.ratios = np.array([0.5, 1, 3])
             print("Detection.ratios:", config.Detection.ratios)
 
             args.predict_empty_image = True
@@ -762,34 +758,29 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
 
     if args.network_type in INCLUDE_BBOX_DETECTION:
         args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection")
-        # if args.dataset_name == 'roots':
-        #     args.bbox_detection_weights_dir = os.path.join(args.myExpPath, "Weights", "bbox_detection") #"bbox_detection") "bbox_detection_epoch69"
-        # elif args.dataset_name == 'grapes':
-        #     args.bbox_detection_weights_dir = os.path.join(args.myExpPath, 'per_object_counting', #'grapes_det_correct_filter_Score_0.7_nms_0.3',
-        #                                                    "Weights", '2026-04-16_161416') #'2026-04-06_221233')
 
         if not args.network_type == "bbox_detection":
 
             if args.network_type == "per_object_counting":
-                args.per_object_weights_dir = os.path.join(weights_dir, "per_object_counting") #args.myExpPath, "Weights"
+                args.per_object_weights_dir = os.path.join(weights_dir, "per_object_counting")
                 if args.estimate_type == 'withKeyPoints':
                     args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'counting_KP')
                 elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'counting_Reg')
 
             elif args.network_type == "per_object_attributes":
-                args.per_object_weights_dir = os.path.join(weights_dir, "per_object_attributes") #args.myExpPath, "Weights",
+                args.per_object_weights_dir = os.path.join(weights_dir, "per_object_attributes")
                 if args.estimate_type == 'withKeyPoints':
                     args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'attributes_KP')
                 elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     args.per_object_weights_dir = os.path.join(args.per_object_weights_dir, 'attributes_Reg')
 
             elif args.network_type == "per_object_attributes_multibranch":
-                args.per_object_weights_dir = os.path.join(weights_dir, "per_object_attributes", 'both_Back2bFind2b') #args.myExpPath, "Weights",
+                args.per_object_weights_dir = os.path.join(weights_dir, "per_object_attributes", 'both_Back2bFind2b')
 
     if args.network_type == "per_image_estimation":
         if args.estimate_type == "withKeyPoints":
-            args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_KP") # args.myExpPath, "Weights",
+            args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_KP")
         else:
             args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_Reg")
 
@@ -832,22 +823,12 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
 
             elif args.network_type == "per_object_attributes_multibranch":
                 args.output_name = 'AttrWith2B2F'
-                #args.load_more_partial = True
 
                 weights_dir_path = os.path.join(args.myExpPath, "Weights", "Prev_model_files")
                 bbox_path = weights_dir_path + "\\Three_datasets_detection\\2023-05-20_230659\\legonet_epoch=69.pt"
-
-                limit5Path = weights_dir_path + "\\keyPoints_based_models\\both_2_with detect\\limit5\\2023-02-28_184758\\legonet_epoch=231.pt" #\\saved_weights_epoch_231"
-                # os.path.join("C:\\Users\\Aragorn\\Desktop", "roots project", "Grapevine_data_all",
-                # "Results\\both_2_with detect", "changed_colorModel","2023-02-28_184758", "saved_weights_epoch_231")
-                # should be in (path too long) : "I0.7_s 0.7_limit5_10dia_100color", #"fixed_detect", p
-                # "2023-02-28_184758", "saved_weights_epoch_231")
-
-                all_3setsPath = weights_dir_path + "\\keyPoints_based_models\\both_2_detect_3Sets\\2023-05-23_162315\\legonet_epoch=90.pt" #saved_weights_epoch_90"
-                # os.path.join("C:\\Users\\Aragorn\\Desktop", "roots project", "Grapevine_data_all",
-                #  "Results\\both_2_detect_3Sets\\I0.5_s0.7_10_dia_100_color", "2023-05-23_162315","saved_weights_epoch_90")
+                limit5Path = weights_dir_path + "\\keyPoints_based_models\\both_2_with detect\\limit5\\2023-02-28_184758\\legonet_epoch=231.pt"
+                all_3setsPath = weights_dir_path + "\\keyPoints_based_models\\both_2_detect_3Sets\\2023-05-23_162315\\legonet_epoch=90.pt"
                 args.model_path = {"bbox_path": bbox_path, "limit5Path": limit5Path, "all_3setsPath": all_3setsPath}
-
                 args.additional_modules_weights = \
                     {"backbone_2": limit5Path,
                      "find_2": limit5Path,
@@ -858,9 +839,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
                      "backbone_2_b": os.path.join(all_3setsPath, "backbone_2")
                      }
 
-                # args.additional_modules_weights["find_2_b"] = os.path.join(all_3setsPath, "find_2")
-                # args.additional_modules_weights["backbone_2_b"] = os.path.join(all_3setsPath, "backbone_2")
-
             elif args.network_type == "bbox_detection":
                 file_path += "Three_datasets_detection\\2023-05-20_230659"
 
@@ -868,7 +846,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         elif args.dataset_name == "grapes":
             if args.network_type == "per_object_counting":
                 if args.estimate_type == 'withKeyPoints':
-                    file_path += "both_old" #"per_object_counting_trained\\Weights\\2026-04-16_161416"
+                    file_path += "both_old"
                     args.output_name = 'CountWithKeyPoints'
                 elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
                     file_path =  ""
@@ -876,7 +854,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         if not args.network_type == "per_object_attributes_multibranch":
             args.weights_dir = os.path.join(args.myExpPath, "Weights", file_path)
             args.model_path = get_weights_file(args.weights_dir)  # for initial load of old weights file
-
 
     return args
 
