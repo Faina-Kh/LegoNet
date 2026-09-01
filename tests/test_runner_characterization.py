@@ -638,6 +638,29 @@ class RunnerCharacterizationTests(unittest.TestCase):
         console.write.assert_called_once_with(progress)
         results_file.write.assert_not_called()
 
+    def test_tee_omits_separately_written_progress_newline_from_results(self):
+        """A suppressed progress record cannot leave a blank saved line."""
+        console = mock.Mock()
+        results_file = mock.Mock()
+        tee = self.runner.Tee(
+            console,
+            results_file,
+            suppress_transient_progress_after_first=True,
+        )
+
+        progress = "__LEGONET_PROGRESS__\tLoading annotations:\t1\t25"
+        tee.write(progress)
+        tee.write("\n")
+        tee.write("Detection metric scope: 25 images\n")
+
+        self.assertEqual(
+            [call.args[0] for call in console.write.call_args_list],
+            [progress, "\n", "Detection metric scope: 25 images\n"],
+        )
+        results_file.write.assert_called_once_with(
+            "Detection metric scope: 25 images\n"
+        )
+
     def test_training_dispatch_receives_the_complete_data_bundle(self):
         """The runner delegates training with every constructed data object."""
         data = SimpleNamespace(

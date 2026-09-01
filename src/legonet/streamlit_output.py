@@ -64,6 +64,16 @@ def extract_evaluation_summary(output: str) -> str:
         if stripped_line.startswith("Evaluation Summary -"):
             start_section(stripped_line)
             continue
+        if stripped_line == "Keypoint detection evaluation":
+            start_section(stripped_line)
+            continue
+        if (
+            current_section is not None
+            and current_section[0] == "Keypoint detection evaluation"
+            and stripped_line.startswith("mAP:")
+        ):
+            append_metric(stripped_line)
+            continue
         color_metrics = [
             part.strip()
             for part in stripped_line.split("|")
@@ -83,7 +93,10 @@ def extract_evaluation_summary(output: str) -> str:
     retained_sections = [section for section in sections if section]
     lines: list[str] = []
     for section in retained_sections:
-        if section[0].startswith("Evaluation Summary -") and lines:
+        if (
+            section[0].startswith("Evaluation Summary -")
+            or section[0] == "Keypoint detection evaluation"
+        ) and lines:
             lines.append("")
         lines.extend(section)
     return "\n".join(lines)

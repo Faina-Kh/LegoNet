@@ -44,6 +44,7 @@ class Tee:
         self.suppress_transient_progress_after_first = (
             suppress_transient_progress_after_first
         )
+        self._suppressed_line_break_streams: set[int] = set()
 
     def write(self, data: str) -> None:
         """Write and immediately flush data to every stream."""
@@ -52,12 +53,19 @@ class Tee:
         )
         progress_protocol = data.startswith(self._PROGRESS_PROTOCOL_PREFIX)
         for index, stream in enumerate(self.streams):
-            if (
+            suppress_transient = (
                 index > 0
                 and self.suppress_transient_progress_after_first
                 and (transient_percentage or progress_protocol)
-            ):
+            )
+            if suppress_transient:
+                if not data.endswith(("\n", "\r")):
+                    self._suppressed_line_break_streams.add(index)
                 continue
+            if index in self._suppressed_line_break_streams:
+                self._suppressed_line_break_streams.remove(index)
+                if data in ("\n", "\r\n"):
+                    continue
             stream.write(data)
             stream.flush()
 

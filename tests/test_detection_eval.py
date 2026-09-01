@@ -241,12 +241,12 @@ class DetectionEvaluationTests(unittest.TestCase):
         generator = _Generator(num_classes=1, num_images=1)
         annotations = [[np.array([[0.0, 0.0, 10.0, 10.0]])]]
         detections = [[np.zeros((0, 5))]]
-        plot = mock.Mock()
+        step = mock.Mock()
 
         with (
             mock.patch.object(detection_eval, "_get_annotations", return_value=annotations),
             mock.patch.object(detection_eval, "_get_detections", return_value=detections),
-            mock.patch.object(detection_eval.plt, "plot", plot),
+            mock.patch.object(detection_eval.plt, "step", step),
             mock.patch.object(detection_eval.plt, "savefig"),
         ):
             mean_ap, precision, recall = detection_eval.evaluateMAP_simple(
@@ -261,9 +261,10 @@ class DetectionEvaluationTests(unittest.TestCase):
         self.assertEqual(mean_ap, 0.0)
         self.assertEqual(precision, 0.0)
         self.assertEqual(recall, 0.0)
-        plotted_recall, plotted_precision = plot.call_args.args
+        plotted_recall, plotted_precision = step.call_args.args
         self.assertEqual(plotted_recall.size, 0)
         self.assertEqual(plotted_precision.size, 0)
+        self.assertEqual(step.call_args.kwargs["where"], "post")
 
 
 if __name__ == "__main__":

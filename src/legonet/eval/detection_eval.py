@@ -88,7 +88,7 @@ def plot_precision_recall(saved_im_dir,AP, recalls, precisions):
     ax.set_title(("Precision-Recall Curve. AP@50 = {:.3f}").format(AP))
     ax.set_ylim(0, 1.1)
     ax.set_xlim(0, 1.1)
-    _ = ax.plot(recalls, precisions)
+    _ = ax.step(recalls, precisions, where="post")
     ax.set(xlabel='recall', ylabel='precision')
     ax.grid()
     image_path = os.path.join(saved_im_dir, "Precision-Recall Curve_AP " + str(AP) + ".jpg")
@@ -98,7 +98,7 @@ def plot_precision_recall(saved_im_dir,AP, recalls, precisions):
 
 def plot_PR_curve(recall, precision, ap, save_path, plots_name=""):
     plt.figure()
-    plt.step(recall, precision, color='b', alpha=0.99)
+    plt.step(recall, precision, where="post", color='b', alpha=0.99)
     plt.fill_between(recall, precision, step='post', color='b', alpha=0.1)
     plt.xlabel('Recall')
     plt.ylabel('Precision')
@@ -382,7 +382,9 @@ def evaluate_detection_params(generator,
                     average_precisions_all.append([iou, score, class_mAP])
 
                 if show_PR_curve:
-                    axs[score_index,iou_index].plot(recall, precision)
+                    axs[score_index,iou_index].step(
+                        recall, precision, where="post"
+                    )
                     axs[score_index,iou_index].set_title("score:"+str(score)+ ", IoU:"+str(iou), fontsize=8)
                     axs[score_index,iou_index].set(xlabel='recall', ylabel='precision')
                     axs[score_index, iou_index].tick_params(axis="x", labelsize=6)
@@ -391,40 +393,6 @@ def evaluate_detection_params(generator,
     if show_PR_curve:
         plt.savefig(os.path.join(save_path, "thresh.jpg"))
         plt.show()
-            # if (show_PR_curve):
-            #     # draw precision recall curve
-            #     demmi_recall = np.linspace(0,1,101, endpoint=True)
-            #     R = demmi_recall
-            #
-            #     tp_sum = np.cumsum(true_positives).astype(dtype=np.float)
-            #     fp_sum = np.cumsum(false_positives).astype(dtype=np.float)
-            #     for t, (tp, fp) in enumerate(zip(tp_sum, fp_sum)):
-            #         tp = np.array(tp)
-            #         fp = np.array(fp)
-            #         nd = tp.size
-            #
-            #         pr = tp / (fp + tp + np.spacing(1))
-            #         q = np.zeros(R.size)
-            #
-            #
-            #     pr = pr.tolist();
-            #     q = q.tolist()
-            #
-            #     for i in range(nd - 1, 0, -1):
-            #         if pr[i] > pr[i - 1]:
-            #             pr[i - 1] = pr[i]
-            #
-            #     precision = np.array(q)
-            #
-            #     saved_im_dir = os.path.join(os.getcwd(), 'results')
-            #
-            #     plot_precision_recall(saved_im_dir,  map, demmi_recall, precision)
-            #
-            #     plt.plot(recall, precision)
-            #     plt.xlabel('recall')
-            #     plt.ylabel('precision')
-            #     plt.show()
-            #     plt.savefig('detect_curve')
 
     return average_precisions_all #average_precisions
 
@@ -569,7 +537,7 @@ def evaluateMAP_simple(generator,
         mAP[label] = average_precisions[label][0]
 
     if generate_PR_curve:
-        plt.plot(pr_curve_recall, pr_curve_precision)
+        plt.step(pr_curve_recall, pr_curve_precision, where="post")
         plt.title(f'mAP={(np.mean(mAP)):.3f}')
         plt.grid(True)
         plt.xlabel("Recall")
