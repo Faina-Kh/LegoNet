@@ -311,7 +311,7 @@ def resolve_boolean_options(args: argparse.Namespace) -> argparse.Namespace:
     args.have_GT = True if args.have_gt is None else args.have_gt
     args.to_draw = False if args.to_draw is None else args.to_draw
     args.draw_detection_overview = (
-        True
+        args.dataset_name != "roots"
         if args.draw_detection_overview is None
         else args.draw_detection_overview
     )

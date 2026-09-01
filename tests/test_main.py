@@ -286,7 +286,7 @@ class MainEntryPointTests(unittest.TestCase):
 
         self.assertTrue(result.have_GT)
         self.assertFalse(result.to_draw)
-        self.assertTrue(result.draw_detection_overview)
+        self.assertFalse(result.draw_detection_overview)
         self.assertFalse(result.draw_gt_only)
         self.assertTrue(result.draw_individual_object_visualizations)
         self.assertTrue(result.evaluate_detection)
@@ -298,6 +298,7 @@ class MainEntryPointTests(unittest.TestCase):
             self.main_module.parse_args(["--dataset-name", "grapes"])
         )
 
+        self.assertTrue(result.draw_detection_overview)
         self.assertFalse(result.draw_individual_object_visualizations)
 
     def test_legacy_export_can_be_selected_explicitly(self) -> None:

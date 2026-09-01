@@ -550,11 +550,22 @@ with st.sidebar:
                 "grapes."
             ),
         )
+        overview_context = dataset_name
+        if (
+            st.session_state.get("runner_detection_overview_context")
+            != overview_context
+        ):
+            st.session_state.runner_draw_detection_overview = (
+                dataset_name != "roots"
+            )
+            st.session_state.runner_detection_overview_context = overview_context
         draw_detection_overview = st.checkbox(
             "Draw detection overview",
-            value=True,
             key="runner_draw_detection_overview",
-            help="Save full-image GT/prediction overlays; disable for dense images.",
+            help=(
+                "Save full-image GT/prediction overlays; disable for dense "
+                "images (roots)."
+            ),
         )
         if have_gt:
             draw_gt_only = st.checkbox(
