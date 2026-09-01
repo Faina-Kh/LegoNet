@@ -142,11 +142,15 @@ conda create -n legonet-cpu python=3.12
 conda activate legonet-cpu
 ```
 
-or activate an existing isolated Python 3.12 environment. Then install the CPU
-build of PyTorch followed by LegoNet:
+or activate an existing isolated Python 3.12 environment:
 
 ```bash
 python -m pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cpu
+```
+
+Then install LegoNet from the repository:
+
+```bash
 python -m pip install -e .
 ```
 
