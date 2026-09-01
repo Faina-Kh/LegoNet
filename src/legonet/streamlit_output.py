@@ -42,6 +42,7 @@ def extract_evaluation_summary(output: str) -> str:
         "orig_avg_abs_length_diff:",
         "orig_avg_abs_dia_diff:",
         "Abs_value_Diff:",
+        "MRD:",
         "color_correct:",
         "color_macro_precision:",
         "Avg of per image rel_error of TRL:",
@@ -121,9 +122,9 @@ def append_evaluation_summary(
     if not results_path.is_file():
         return ""
     output = results_path.read_text(encoding="utf-8")
-    summary = extract_evaluation_summary(output)
-    if additional_summary:
-        summary = "\n".join(part for part in (summary, additional_summary) if part)
+    summary = extract_evaluation_summary(
+        "\n".join(part for part in (output, additional_summary) if part)
+    )
     if not summary:
         return ""
     section = (

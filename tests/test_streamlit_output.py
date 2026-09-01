@@ -138,6 +138,22 @@ orig_avg_abs_count_diff: 1.000 | orig_avg_relative_error: 0.250
         self.assertIn("Evaluation Summary - per-image estimation", section)
         self.assertIn("MRD: 0.100", section)
 
+    def test_consolidated_summary_deduplicates_keypoint_section(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            results_path = Path(directory) / "results.txt"
+            results_path.write_text(
+                "Keypoint detection evaluation\nmAP: 0.500\n",
+                encoding="utf-8",
+            )
+
+            section = append_evaluation_summary(
+                str(results_path),
+                "Keypoint detection evaluation\nmAP: 0.500",
+            )
+
+        self.assertEqual(section.count("Keypoint detection evaluation"), 1)
+        self.assertEqual(section.count("mAP: 0.500"), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

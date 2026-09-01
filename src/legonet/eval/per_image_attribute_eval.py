@@ -295,10 +295,18 @@ def evaluate(
                 )
             if config.AttributeEstimation.calc_det_performance and config.General.experiment_path != "" and args.have_GT and config.AttributeEstimation.estimate_type == 'withKeyPoints':
                 recall, precision, ap = calc_points_recall_precision_ap(T, P)
-                print(
-                    format_keypoint_summary(ap),
-                    end="",
-                )
+                keypoint_summary = format_keypoint_summary(ap).rstrip()
+                if getattr(args, "run_script", None) == "Inference":
+                    args.per_image_evaluation_summary = "\n".join(
+                        part
+                        for part in (
+                            args.per_image_evaluation_summary,
+                            keypoint_summary,
+                        )
+                        if part
+                    )
+                else:
+                    print(keypoint_summary, end="\n")
                 plot_PR_curve(recall, precision, ap,
                               save_path=config.General.files_path, plots_name = 'Points_PR_curve.png')
                 if protocol_comparison:
