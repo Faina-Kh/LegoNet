@@ -132,6 +132,7 @@ def visualize_bboxes(
             image = Image.fromarray(np.uint8(image_array))
             base_image = image.copy()
             draw = ImageDraw.Draw(image)
+            has_predictions = selected_indices[0].shape[0] > 0
 
             for prediction_index in range(selected_indices[0].shape[0]):
                 annotation = transformed_anchors[
@@ -161,8 +162,10 @@ def visualize_bboxes(
             if have_ground_truth:
                 gt_only_image = base_image.copy()
                 gt_only_draw = ImageDraw.Draw(gt_only_image)
+                has_ground_truth_boxes = False
                 for gt_index, annotation in enumerate(data["bbox_annot"].numpy()[0]):
                     if annotation[0] != -1:
+                        has_ground_truth_boxes = True
                         x1, y1, x2, y2 = [int(value) for value in annotation[:4]]
                         draw.rectangle(
                             ((x1, y1), (x2, y2)),
@@ -196,11 +199,12 @@ def visualize_bboxes(
                         )
                     )
 
-            legend = (
-                f"{image_name} | predictions: red | ground truth: blue"
-                if have_ground_truth
-                else f"{image_name} | predictions: red"
+            has_both_box_types = (
+                have_ground_truth and has_ground_truth_boxes and has_predictions
             )
+            legend = f"{image_name} | Red: predicted box"
+            if has_both_box_types:
+                legend = f"{image_name} | Blue: GT box | Red: predicted box"
             text_box = font.getbbox(legend)
             label_width = max(200, text_box[2] - text_box[0] + 10)
             label_height = max(20, text_box[3] - text_box[1] + 8)

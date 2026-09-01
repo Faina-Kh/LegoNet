@@ -56,14 +56,17 @@ predicted keypoint heatmaps, respectively.*
 
 #### Architecture options
 
-![LegoNet object-detection pipeline and keypoint- or regression-based architectures for per-object grape berry counting](docs/images/per-object-count-models.jpg)
+![RetinaNet Where and Find detection heads, RoI Align crop extraction, and Find plus D+R keypoint or MSR regression branches for per-object grape berry counting](docs/images/per-object-count-models.jpg)
 
 *Architecture options for per-object grape berry counting. A shared RetinaNet
-detector locates grape clusters and RoI Align extracts each predicted crop. The
-crop is then processed by either the keypoint-based or regression-based count
-estimator selected with `--estimate-type`.*
+backbone and its Where and Find heads localize grape clusters, after which RoI
+Align extracts each predicted crop. A second ResNet-50/FPN backbone processes
+the crop. The `keypoints` option uses a Find module to predict berry-keypoint
+heatmaps and a D+R module to derive the berry count; the `regression` option
+instead uses an MSR module to regress the count directly from multiscale crop
+features.*
 
-### Per-image estimation - Total root length
+### Per-image estimation - Total root length (TRL)
 
 ![Raw underground image, ground-truth root keypoint heatmap, and LegoNet-predicted keypoint heatmap](docs/images/trl-keypoint-heatmaps-example.jpg)
 
@@ -76,30 +79,37 @@ estimator selected with `--estimate-type`.*
 #### Architecture options
 
 <p align="center">
-  <img src="docs/images/per-image-TRL-models.jpg" width="75%" alt="Keypoint-based D+R and regression-based MSR architectures for direct per-image total root length estimation">
+  <img src="docs/images/per-image-TRL-models.jpg" width="75%" alt="Shared ResNet-50 and FPN backbone with Find plus D+R keypoint and MSR regression branches for direct per-image total root length estimation">
 </p>
 
-*Direct per-image TRL estimation. The complete image is processed without
-first detecting individual roots. The `keypoints` option uses the Find + D+R
-architecture, while the `regression` option uses the MSR architecture.*
+*Architecture options for direct per-image TRL estimation. A shared ResNet-50
+and feature pyramid network (FPN) backbone processes the complete root image
+without first detecting individual roots. The `keypoints` option uses the Find
+module to predict root-keypoint heatmaps and the D+R module to estimate TRL from
+those detections. The `regression` option instead uses the MSR module to regress
+TRL directly from multiscale image features.*
 
 ### Per-object attribute estimation - Roots
 
 #### Per-root attributes with standalone keypoint estimators
 
-![Detection, crop extraction, and standalone keypoint estimators for per-root length, diameter, and color](docs/images/per-object-keypoint-model-roots.jpg)
+![RetinaNet root detection, RoI Align crop extraction, and a shared Find module with D+R outputs for per-root length, diameter, and color](docs/images/per-object-keypoint-model-roots.jpg)
 
 *Standalone keypoint architecture for per-root attribute estimation. LegoNet
-detects roots, extracts each predicted crop with RoI Align, and estimates
-length, diameter, and color through separate keypoint-based output modules (D+R).*
+uses a shared ResNet-50/FPN detector with Where and Find heads to localize roots,
+then RoI Align extracts each predicted crop. A second ResNet-50/FPN backbone and
+Find module predict crop-level keypoint heatmaps, from which separate D+R output
+modules estimate root length, diameter, and color.*
 
 #### Per-root attributes with the multibranch keypoint estimator
 
-![Detection, crop extraction, and multibranch keypoint architecture for per-root length, diameter, and color](docs/images/per-object-multi-branch-model-roots.jpg)
+![RetinaNet root detection and RoI Align followed by separate length and shared diameter-color keypoint branches](docs/images/per-object-multi-branch-model-roots.jpg)
 
 *Multibranch keypoint architecture for per-root attribute estimation. Length
-uses a dedicated branch, while diameter and color share a second backbone and
-keypoint-detection branch.*
+and the paired diameter-color task receive the same RetinaNet detections and RoI
+Align crops. Length uses its own ResNet-50/FPN backbone, Find module, and D+R
+output, while diameter and color share a second backbone and Find module before
+splitting into attribute-specific D+R outputs.*
 
 Per-root predictions can subsequently be aggregated
 into image-level TRL, mean diameter, and white-root fraction.

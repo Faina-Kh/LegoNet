@@ -8,6 +8,21 @@ from typing import Any, Callable, Mapping, Sequence, Tuple
 import numpy as np
 from PIL import Image, ImageDraw
 
+from legonet.fonts import load_visualization_font
+
+
+def _draw_box_legend(image: Image.Image) -> None:
+    """Add the color key used by images containing GT and predicted boxes."""
+    legend = "Blue: GT box | Red: predicted box"
+    font = load_visualization_font(14)
+    text_box = font.getbbox(legend)
+    label_width = text_box[2] - text_box[0] + 10
+    label_height = max(20, text_box[3] - text_box[1] + 8)
+    label_image = Image.new("RGBA", (label_width, label_height), "black")
+    ImageDraw.Draw(label_image).text((5, 2), legend, fill="white", font=font)
+    image.paste(label_image, (0, 0))
+
+
 def _number(value: Any) -> float:
     """Convert a scalar tensor or numeric value to ``float``."""
     return float(value.item()) if hasattr(value, "item") else float(value)
@@ -113,6 +128,8 @@ def save_detection_overview(
                 outline="red",
                 width=line_width,
             )
+        if have_gt and len(gt_boxes) > 0 and len(predicted_boxes) > 0:
+            _draw_box_legend(image)
         image.save(Path(draw_path) / f"{image_stem}.png")
 
 
@@ -167,6 +184,7 @@ def save_object_visualizations(
             outline="blue",
             width=line_width,
         )
+        _draw_box_legend(source_image)
 
     image_stem = Path(image_name).stem
     if save_predicted_box_overlay:

@@ -129,7 +129,8 @@ class EvaluationVisualizationTests(TestCase):
                 self.assertEqual(call.kwargs["vmin"], 0.0)
                 self.assertEqual(call.kwargs["vmax"], 1.0)
 
-    def test_object_visualizations_save_overlay_and_crop(self) -> None:
+    @patch("legonet.eval.visualization._draw_box_legend")
+    def test_object_visualizations_save_overlay_and_crop(self, draw_legend) -> None:
         with TemporaryDirectory() as temporary_directory:
             output_path = Path(temporary_directory)
             image_path = output_path / "source.jpg"
@@ -158,6 +159,7 @@ class EvaluationVisualizationTests(TestCase):
             self.assertTrue(
                 (output_path / "sample_predicted_BBOX_0.png").is_file()
             )
+            draw_legend.assert_called_once()
             saved_crop_path = output_path / "sample_crop_0.png"
             self.assertTrue(saved_crop_path.is_file())
             saved_crop = Image.open(saved_crop_path)
@@ -213,7 +215,10 @@ class EvaluationVisualizationTests(TestCase):
                 (output_path / "sample_predicted_BBOX_0.png").exists()
             )
 
-    def test_detection_overview_saves_gt_and_prediction_images(self) -> None:
+    @patch("legonet.eval.visualization._draw_box_legend")
+    def test_detection_overview_saves_gt_and_prediction_images(
+        self, draw_legend
+    ) -> None:
         with TemporaryDirectory() as temporary_directory:
             output_path = Path(temporary_directory)
             gt_path = output_path / "gt"
@@ -238,6 +243,7 @@ class EvaluationVisualizationTests(TestCase):
             )
 
             self.assertTrue((output_path / "sample.png").is_file())
+            draw_legend.assert_called_once()
             self.assertTrue((gt_path / "sample_all_Boxes.png").is_file())
             self.assertTrue((gt_path / "sample_gt_box_0.png").is_file())
 
