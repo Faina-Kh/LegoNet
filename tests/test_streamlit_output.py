@@ -7,12 +7,22 @@ from pathlib import Path
 from legonet.streamlit_output import (
     append_evaluation_summary,
     extract_evaluation_summary,
+    parse_transient_percentage,
     separate_execution_time,
 )
 
 
 class StreamlitOutputTests(unittest.TestCase):
     """Verify that verbose per-image rows do not hide aggregate metrics."""
+
+    def test_parses_standalone_download_percentage(self) -> None:
+        self.assertEqual(parse_transient_percentage("\r 12.3%\n"), 12.3)
+        self.assertEqual(parse_transient_percentage("100%"), 100.0)
+
+    def test_does_not_treat_ordinary_percentage_text_as_progress(self) -> None:
+        self.assertIsNone(
+            parse_transient_percentage("Download complete: 100% verified\n")
+        )
 
     def test_includes_keypoint_metrics_in_attribute_summary(self) -> None:
         output = """

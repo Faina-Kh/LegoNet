@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 
@@ -9,6 +10,15 @@ SUMMARY_SEPARATOR = "=" * 100
 EXECUTION_TIME_PREFIX = "Execution time in minutes:"
 SUMMARY_PROTOCOL_PREFIX = "__LEGONET_SUMMARY__\t"
 SUMMARY_PROTOCOL_RESET = "__LEGONET_SUMMARY_RESET__"
+_TRANSIENT_PERCENTAGE = re.compile(r"\s*(\d+(?:\.\d+)?)%\s*")
+
+
+def parse_transient_percentage(output: str) -> float | None:
+    """Return a standalone streamed percentage, excluding ordinary text."""
+    match = _TRANSIENT_PERCENTAGE.fullmatch(output.strip("\r\n"))
+    if match is None:
+        return None
+    return min(max(float(match.group(1)), 0.0), 100.0)
 
 
 def separate_execution_time(output: str) -> tuple[str, str]:

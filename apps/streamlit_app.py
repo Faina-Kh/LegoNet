@@ -19,6 +19,7 @@ from legonet.streamlit_output import (
     SUMMARY_PROTOCOL_PREFIX,
     SUMMARY_PROTOCOL_RESET,
     extract_evaluation_summary,
+    parse_transient_percentage,
     separate_execution_time,
 )
 from legonet.pretrained import (
@@ -821,6 +822,7 @@ if run_clicked:
     output_update_count = 0
     progress_placeholder = None
     progress_label = None
+    percentage_placeholder = None
     st.session_state.run_output = ""
     st.session_state.evaluation_summary = ""
     st.session_state.execution_time = ""
@@ -874,6 +876,15 @@ if run_clicked:
                         scroll_trigger,
                         output_update_count + current,
                     )
+                continue
+            percentage = parse_transient_percentage(line)
+            if percentage is not None:
+                if percentage_placeholder is None:
+                    percentage_placeholder = live_output_container.empty()
+                percentage_placeholder.progress(
+                    percentage / 100.0,
+                    text=f"Download progress: {percentage:g}%",
+                )
                 continue
             line, execution_time = separate_execution_time(line)
             if execution_time:
