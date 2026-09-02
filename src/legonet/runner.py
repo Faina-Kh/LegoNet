@@ -17,7 +17,7 @@ from legonet import config
 from legonet.data_setup import build_data
 from legonet.inference import run_inference
 from legonet.legoNet_build import model_build
-from legonet.model_setup import export_legacy_weights, load_requested_weights
+from legonet.model_setup import load_requested_weights
 from legonet.training import train_model
 
 
@@ -255,9 +255,6 @@ def _run(args: Any = None) -> Any:
 
     if args.load_weights or getattr(args, "load_only_bbox_weights", False):
         load_requested_weights(model, args)
-    elif args.save_from_model_file:
-        export_legacy_weights(model, args)
-        return None
 
     if args.network_type in DETECTION_NETWORKS and args.freeze_detection:
         model.freeze_detector()

@@ -89,7 +89,6 @@ def _runner_dependency_stubs():
         "legonet.manage_weights",
         list_checkpoint_modules=mock.Mock(),
         load_submodule_weights=mock.Mock(),
-        save_partial_weights=mock.Mock(),
         print_module_names=mock.Mock(),
         validate_checkpoint_modules=mock.Mock(),
     )
@@ -151,7 +150,6 @@ class RunnerCharacterizationTests(unittest.TestCase):
         for name in (
             "list_checkpoint_modules",
             "load_submodule_weights",
-            "save_partial_weights",
             "print_module_names",
         ):
             dependency = getattr(self.model_setup, name)
@@ -164,7 +162,6 @@ class RunnerCharacterizationTests(unittest.TestCase):
             "load_weights": True,
             "load_partial_weights": False,
             "load_full_model_weights": False,
-            "save_from_model_file": False,
             "myExpPath": "experiment",
             "network_type": "per_image_estimation",
             "estimate_type": "reg_fpn_p3_p7_min_sig",
@@ -565,28 +562,6 @@ class RunnerCharacterizationTests(unittest.TestCase):
             verbose=False,
         )
 
-    def test_legacy_detector_export_returns_before_model_execution(self):
-        """Legacy detector conversion saves one task and exits the runner."""
-        args = self._weight_args(
-            load_weights=False,
-            save_from_model_file=True,
-            network_type="bbox_detection",
-            model_path="legacy.pt",
-        )
-        model = mock.Mock()
-        legacy_model = mock.Mock()
-        self.model_setup.torch.load.return_value = legacy_model
-
-        self._run_through_weight_setup(args, model, stop_after_to=False)
-
-        self.model_setup.save_partial_weights.assert_called_once_with(
-            args,
-            model,
-            legacy_model,
-            tasks=["bbox_detection"],
-        )
-        model.to.assert_not_called()
-
     def test_tee_writes_and_flushes_every_stream(self):
         """The logging tee duplicates output to all configured streams."""
         first = mock.Mock()
@@ -673,7 +648,6 @@ class RunnerCharacterizationTests(unittest.TestCase):
         )
         args = SimpleNamespace(
             load_weights=False,
-            save_from_model_file=False,
             network_type="per_image_estimation",
             freeze_detection=False,
             run_script="Training",

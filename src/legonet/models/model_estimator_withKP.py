@@ -17,6 +17,7 @@ class ImageEstimatorWithKeypoints(nn.Module):
         dataset,
         network_type: str,
         num_classes: int,
+        pretrained: bool = True,
     ) -> None:
         super().__init__()
 
@@ -24,7 +25,10 @@ class ImageEstimatorWithKeypoints(nn.Module):
         self.network_type = network_type
         self.num_classes = num_classes
 
-        self.backbone = legos.ResNetBackboneModule(name='backbone_for_attribute')
+        self.backbone = legos.ResNetBackboneModule(
+            pretrained=pretrained,
+            name='backbone_for_attribute',
+        )
         self.find = legos.FindModule(
             num_classes=num_classes,
             name='find_for_attribute',

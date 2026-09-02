@@ -1,4 +1,4 @@
-"""Weight-loading and legacy-export policy for LegoNet models."""
+"""Weight-loading policy for LegoNet models."""
 
 import os
 from typing import Any
@@ -14,7 +14,6 @@ from legonet.manage_weights import (
     list_checkpoint_modules,
     load_submodule_weights,
     print_module_names,
-    save_partial_weights,
     validate_checkpoint_modules,
 )
 
@@ -72,7 +71,7 @@ def _load_partial_weights(model: Any, args: Any) -> None:
                 bbox_state,
                 submodule_names=detector_modules,
                 strict=False,
-                verbose=args.save_from_model_file,
+                verbose=False,
             )
         elif args.network_type in (
             "per_object_counting",
@@ -86,7 +85,7 @@ def _load_partial_weights(model: Any, args: Any) -> None:
                 bbox_state,
                 submodule_names=detector_modules,
                 strict=False,
-                verbose=args.save_from_model_file,
+                verbose=False,
             )
 
     if args.load_per_object_counting_weights and args.network_type == "per_object_counting":
@@ -121,7 +120,7 @@ def _load_partial_weights(model: Any, args: Any) -> None:
                 per_object_state,
                 submodule_names=module_names,
                 strict=False,
-                verbose=args.save_from_model_file,
+                verbose=False,
             )
 
     if args.load_per_object_attributes_weights and args.network_type in (
@@ -180,7 +179,7 @@ def _load_partial_weights(model: Any, args: Any) -> None:
                 per_object_state,
                 submodule_names=module_names,
                 strict=False,
-                verbose=args.save_from_model_file,
+                verbose=False,
             )
 
 
@@ -251,7 +250,7 @@ def _load_full_weights(model: Any, args: Any) -> None:
             model_state,
             submodule_names=module_names,
             strict=False,
-            verbose=args.save_from_model_file,
+            verbose=False,
         )
 
 
@@ -266,62 +265,3 @@ def load_requested_weights(model: Any, args: Any) -> None:
     elif args.load_full_model_weights:
         _load_full_weights(model, args)
 
-
-def export_legacy_weights(model: Any, args: Any) -> None:
-    """Convert a legacy model checkpoint into task-specific weight files."""
-    if args.network_type == "per_object_attributes_multibranch":
-        file_model = {
-            "file_bbox": torch.load(
-                args.model_path["bbox_path"],
-                map_location=config.General.device,
-            ),
-            "file_limit5Path": torch.load(
-                args.model_path["limit5Path"],
-                map_location=config.General.device,
-            ),
-            "file_all_3setsPath": torch.load(
-                args.model_path["all_3setsPath"],
-                map_location=config.General.device,
-            ),
-        }
-    else:
-        file_model = torch.load(
-            args.model_path,
-            map_location=config.General.device,
-        )
-        print(
-            "Available modules in model file:",
-            list_checkpoint_modules(file_model.state_dict()),
-        )
-
-    if args.network_type == "bbox_detection":
-        save_partial_weights(
-            args,
-            model,
-            file_model,
-            tasks=["bbox_detection"],
-        )
-    elif args.network_type == "per_object_counting":
-        save_partial_weights(
-            args,
-            model,
-            file_model,
-            tasks=["bbox_detection", "per_object_counting"],
-            output_name=args.output_name,
-        )
-    elif args.network_type in ("per_object_attributes", "per_object_attributes_multibranch"):
-        save_partial_weights(
-            args,
-            model,
-            file_model,
-            tasks=["bbox_detection", "per_object_attributes"],
-            output_name=args.output_name,
-        )
-    elif args.network_type == "per_image_estimation":
-        save_partial_weights(
-            args,
-            model,
-            file_model,
-            tasks=["per_image_attributes"],
-            output_name=args.output_name,
-        )

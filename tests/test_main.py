@@ -218,8 +218,6 @@ class MainEntryPointTests(unittest.TestCase):
                 "false",
                 "--load-weights",
                 "false",
-                "--save-from-model-file",
-                "false",
             ]
         )
 
@@ -232,7 +230,6 @@ class MainEntryPointTests(unittest.TestCase):
         self.assertFalse(result.draw_individual_object_visualizations)
         self.assertFalse(result.evaluate_detection)
         self.assertFalse(result.load_weights)
-        self.assertFalse(result.save_from_model_file)
 
     def test_checkpoint_attribute_can_be_selected_from_cli(self) -> None:
         args = self.main_module.parse_args(
@@ -291,7 +288,6 @@ class MainEntryPointTests(unittest.TestCase):
         self.assertTrue(result.draw_individual_object_visualizations)
         self.assertTrue(result.evaluate_detection)
         self.assertTrue(result.load_weights)
-        self.assertFalse(result.save_from_model_file)
 
     def test_grapes_disable_individual_visualizations_by_default(self) -> None:
         result = self.main_module.resolve_boolean_options(
@@ -300,36 +296,6 @@ class MainEntryPointTests(unittest.TestCase):
 
         self.assertTrue(result.draw_detection_overview)
         self.assertFalse(result.draw_individual_object_visualizations)
-
-    def test_legacy_export_can_be_selected_explicitly(self) -> None:
-        """Disabling loading permits explicit legacy weight export."""
-        args = self.main_module.parse_args(
-            [
-                "--load-weights",
-                "false",
-                "--save-from-model-file",
-                "true",
-            ]
-        )
-
-        result = self.main_module.resolve_boolean_options(args)
-
-        self.assertFalse(result.load_weights)
-        self.assertTrue(result.save_from_model_file)
-
-    def test_loading_and_legacy_export_are_mutually_exclusive(self) -> None:
-        """Contradictory weight modes fail before filesystem setup."""
-        args = self.main_module.parse_args(
-            [
-                "--load-weights",
-                "true",
-                "--save-from-model-file",
-                "true",
-            ]
-        )
-
-        with self.assertRaisesRegex(ValueError, "cannot both be true"):
-            self.main_module.resolve_boolean_options(args)
 
     def test_supported_configuration_is_accepted(self) -> None:
         """A documented roots attribute-training configuration is valid."""

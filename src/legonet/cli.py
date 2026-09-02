@@ -164,7 +164,6 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
             "keypoint heatmaps are unaffected."
         ),
     )
-    parser.add_argument("--save-from-model-file", "--save_from_model_file", type=parse_bool, default=None)
     parser.add_argument("--load-weights", "--load_weights", type=parse_bool, default=None)
     parser.add_argument(
         "--load-only-bbox-weights",
@@ -227,15 +226,6 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
     #     parsed_args.run_script = parsed_args.run_script_positional
 
     return parsed_args
-
-
-def get_weights_file(weights_dir):
-    files = [p for p in Path(weights_dir).iterdir() if p.is_file()]
-    if len(files) != 1:
-        raise FileNotFoundError(
-            f"Expected exactly one weights file in {weights_dir}, found {len(files)}."
-        )
-    return str(files[0])
 
 
 def require_weights_file(value: str | None, option_name: str) -> str:
@@ -337,21 +327,11 @@ def resolve_boolean_options(args: argparse.Namespace) -> argparse.Namespace:
         else args.compare_keypoint_protocols
     )
     args.load_weights = True if args.load_weights is None else args.load_weights
-    args.save_from_model_file = (
-        False
-        if args.save_from_model_file is None
-        else args.save_from_model_file
-    )
     args.download_missing_data = (
         True
         if args.download_missing_data is None
         else args.download_missing_data
     )
-
-    if args.load_weights and args.save_from_model_file:
-        raise ValueError(
-            "--load-weights and --save-from-model-file cannot both be true."
-        )
 
     return args
 
@@ -427,13 +407,6 @@ def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
         raise ValueError(
             "--load-only-bbox-weights is available only when training a "
             "per-object network."
-        )
-    if (
-        getattr(args, "load_only_bbox_weights", False)
-        and getattr(args, "save_from_model_file", False)
-    ):
-        raise ValueError(
-            "--load-only-bbox-weights and --save-from-model-file cannot both be true."
         )
     if (
         getattr(args, "weights_mode", None) == "partial"
@@ -778,12 +751,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
             elif args.network_type == "per_object_attributes_multibranch":
                 args.per_object_weights_dir = os.path.join(weights_dir, "per_object_attributes", 'both_Back2bFind2b')
 
-    if args.network_type == "per_image_estimation":
-        if args.estimate_type == "withKeyPoints":
-            args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_KP")
-        else:
-            args.per_image_weights_dir = os.path.join(full_model_weights_dir, "per_image_attributes", "TRL_Reg")
-
     if args.load_bbox_det_weights:
         args.bbox_detection_weights_file = require_weights_file(
             args.bbox_weights_file,
@@ -801,59 +768,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
             args.full_weights_file,
             "--full-weights-file",
         )
-
-    if args.save_from_model_file:
-        file_path = "Prev_model_files\\"
-        if args.dataset_name == "roots":
-            if args.network_type == "per_image_estimation" and args.estimate_type == "withKeyPoints":
-                file_path += "keyPoints_based_models\\TRL_only\\2023-01-23_132447"
-                args.output_name = 'TRLwithKeyPoints'
-
-            elif args.network_type == "per_image_estimation":
-                file_path += "Reg_based_models", "reg_TRL_only\\2023-06-04_175138"
-                args.output_name = 'TRLwithReg'
-
-            elif args.network_type == "per_object_attributes":
-                if args.estimate_type == 'withKeyPoints':
-                    file_path += "keyPoints_based_models\\both_2_detect_3Sets\\2023-05-23_162315"
-                    args.output_name = 'AttrWithKeyPoints'
-                elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                    file_path += "Reg_based_models\\both_2_detect_3Sets\\2023-05-28_194055"
-                    args.output_name = 'AttrWithReg'
-
-            elif args.network_type == "per_object_attributes_multibranch":
-                args.output_name = 'AttrWith2B2F'
-
-                weights_dir_path = os.path.join(args.myExpPath, "Weights", "Prev_model_files")
-                bbox_path = weights_dir_path + "\\Three_datasets_detection\\2023-05-20_230659\\legonet_epoch=69.pt"
-                limit5Path = weights_dir_path + "\\keyPoints_based_models\\both_2_with detect\\limit5\\2023-02-28_184758\\legonet_epoch=231.pt"
-                all_3setsPath = weights_dir_path + "\\keyPoints_based_models\\both_2_detect_3Sets\\2023-05-23_162315\\legonet_epoch=90.pt"
-                args.model_path = {"bbox_path": bbox_path, "limit5Path": limit5Path, "all_3setsPath": all_3setsPath}
-                args.additional_modules_weights = \
-                    {"backbone_2": limit5Path,
-                     "find_2": limit5Path,
-                     "LeanCountingModule_color": limit5Path,
-                     "LeanCountingModule_length": all_3setsPath,
-                     "LeanCountingModule_diameter": limit5Path,
-                     "find_2_b": os.path.join(all_3setsPath, "find_2"),
-                     "backbone_2_b": os.path.join(all_3setsPath, "backbone_2")
-                     }
-
-            elif args.network_type == "bbox_detection":
-                file_path += "Three_datasets_detection\\2023-05-20_230659"
-
-
-        elif args.dataset_name == "grapes":
-            if args.network_type == "per_object_counting":
-                if args.estimate_type == 'withKeyPoints':
-                    file_path += "both_old"
-                    args.output_name = 'CountWithKeyPoints'
-                elif args.estimate_type == 'reg_fpn_p3_p7_min_sig':
-                    file_path =  ""
-
-        if not args.network_type == "per_object_attributes_multibranch":
-            args.weights_dir = os.path.join(args.myExpPath, "Weights", file_path)
-            args.model_path = get_weights_file(args.weights_dir)  # for initial load of old weights file
 
     return args
 
