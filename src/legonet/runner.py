@@ -175,6 +175,7 @@ def _public_estimate_type(args: Any) -> str:
 
 def format_run_parameters(args: Any, configuration_path: Path) -> str:
     """Return a concise, grouped summary of the resolved run settings."""
+    dataset_subset = getattr(args, "dataset_subset", None)
     lines = [
         "=====================================================================",
         "Run Parameters",
@@ -182,6 +183,7 @@ def format_run_parameters(args: Any, configuration_path: Path) -> str:
         "Run",
         f"  Mode: {getattr(args, 'run_script', 'unknown')}",
         f"  Dataset: {getattr(args, 'dataset_name', 'unknown')}",
+        *([f"  Dataset subset: {dataset_subset}"] if dataset_subset else []),
         f"  Network: {getattr(args, 'network_type', 'unknown')}",
         f"  Estimate type: {_public_estimate_type(args)}",
         f"  Split: {getattr(args, 'val_set', 'not applicable')}",

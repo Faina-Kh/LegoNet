@@ -129,6 +129,26 @@ class MainEntryPointTests(unittest.TestCase):
         self.assertIn("network=per_object_counting", output)
         self.assertIn("Equivalent CLI: legonet --dataset-name grapes", output)
 
+    def test_run_start_includes_four_crops_subset(self) -> None:
+        args = SimpleNamespace(
+            run_script="Inference",
+            dataset_name="roots_four_crops",
+            dataset_subset="dataset_3",
+            network_type="per_image_estimation",
+            estimate_type="withKeyPoints",
+            val_set="Test",
+            weights_mode="full",
+        )
+
+        with mock.patch("builtins.print") as print_mock:
+            self.main_module.print_run_start(args, [])
+
+        output = "\n".join(call.args[0] for call in print_mock.call_args_list)
+        self.assertIn(
+            "dataset=roots_four_crops | subset=dataset_3 | network=",
+            output,
+        )
+
     def test_cli_storage_path_takes_precedence(self) -> None:
         """An explicit CLI path overrides the environment setting."""
         with TemporaryDirectory() as cli_dir, TemporaryDirectory() as env_dir:

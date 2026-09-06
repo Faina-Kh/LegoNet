@@ -65,6 +65,8 @@ def print_run_start(args: argparse.Namespace, argv: Sequence[str] | None) -> Non
     supplied_arguments = list(sys.argv[1:] if argv is None else argv)
     equivalent_command = subprocess.list2cmdline(["legonet", *supplied_arguments])
     estimate_type = getattr(args, "estimate_type", "not applicable")
+    dataset_subset = getattr(args, "dataset_subset", None)
+    subset_summary = f"subset={dataset_subset} | " if dataset_subset else ""
 
     print(
         "Configuration: CLI-compatible arguments parsed in legonet.cli; "
@@ -80,6 +82,7 @@ def print_run_start(args: argparse.Namespace, argv: Sequence[str] | None) -> Non
         "Run: "
         f"{getattr(args, 'run_script', 'unknown')} | "
         f"dataset={getattr(args, 'dataset_name', 'unknown')} | "
+        f"{subset_summary}"
         f"network={getattr(args, 'network_type', 'unknown')} | "
         f"estimate={estimate_type} | "
         f"split={getattr(args, 'val_set', 'unknown')} | "
