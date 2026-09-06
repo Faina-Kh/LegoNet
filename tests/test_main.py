@@ -531,6 +531,16 @@ class MainEntryPointTests(unittest.TestCase):
             )
         )
 
+    def test_per_image_keypoint_metrics_do_not_depend_on_detection_flag(self) -> None:
+        args = SimpleNamespace(
+            network_type="per_image_estimation",
+            estimate_type="keypoints",
+            have_GT=True,
+            evaluate_detection=False,
+        )
+
+        self.assertTrue(self.main_module.should_calculate_keypoint_metrics(args))
+
     def test_visualization_requires_an_enabled_output(self) -> None:
         args = SimpleNamespace(
             to_draw=True,

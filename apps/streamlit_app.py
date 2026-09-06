@@ -636,15 +636,7 @@ with st.sidebar:
         estimate_type,
         have_gt,
     ):
-        evaluate_detection = st.checkbox(
-            "Evaluate keypoints",
-            value=True,
-            key="runner_evaluate_per_image_keypoints",
-            help=(
-                "Calculate point mAP and save the keypoint precision-recall "
-                "curve and recall/precision CSV."
-            ),
-        )
+        evaluate_detection = False
     elif network_type in OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS:
         evaluate_detection = st.checkbox(
             "Evaluate detection",

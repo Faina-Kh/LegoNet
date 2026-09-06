@@ -408,6 +408,20 @@ def supports_per_image_keypoint_evaluation(
     )
 
 
+def should_calculate_keypoint_metrics(args: argparse.Namespace) -> bool:
+    """Return whether runtime keypoint metrics should be calculated."""
+    if supports_per_image_keypoint_evaluation(
+        args.network_type,
+        args.estimate_type,
+        args.have_GT,
+    ):
+        return True
+    return (
+        getattr(args, "evaluate_detection", False)
+        and normalize_estimate_type(args.estimate_type) == "withKeyPoints"
+    )
+
+
 def visualization_output_requested(args: argparse.Namespace) -> bool:
     """Return whether the selected drawing options can create an artifact."""
     if not getattr(args, "to_draw", False):
@@ -701,8 +715,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     config.General.model_name = args.network_type
     config.Detect_and_Estimate.type = args.network_type
     config.AttributeEstimation.calc_det_performance = (
-        args.evaluate_detection
-        and args.estimate_type == "withKeyPoints"
+        should_calculate_keypoint_metrics(args)
     )
 
     # task specific definitions - ToDo - organize per task type
