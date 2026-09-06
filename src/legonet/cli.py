@@ -17,6 +17,7 @@ from legonet.streamlit_output import (
 )
 from legonet.pretrained import resolve_pretrained_weights
 from legonet.datasets import default_storage_root, ensure_dataset_available
+from legonet.four_crops import resolve_four_crops_split
 from legonet.checkpoint_conversion import (
     ESTIMATE_TYPE_CHOICES,
     normalize_estimate_type,
@@ -113,7 +114,19 @@ def parse_args(args: Sequence[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Root storage path containing Datasets and ExpResults.",
     )
-    parser.add_argument("--dataset-name", "--dataset_name", choices=["grapes", "roots"], default=None)
+    parser.add_argument(
+        "--dataset-name",
+        "--dataset_name",
+        choices=["grapes", "roots_grapevines", "roots_four_crops", "roots"],
+        default=None,
+    )
+    parser.add_argument(
+        "--dataset-subset",
+        "--dataset_subset",
+        choices=["dataset_1", "dataset_2", "dataset_3", "dataset_4"],
+        default=None,
+        help="Four Crops subset. Required with --dataset-name roots_four_crops.",
+    )
     parser.add_argument(
         "--network-type",
         "--network_type",
@@ -298,10 +311,12 @@ def resolve_storage_path(
 
 def resolve_boolean_options(args: argparse.Namespace) -> argparse.Namespace:
     """Apply boolean defaults while preserving explicit CLI values."""
+    if getattr(args, "dataset_name", None):
+        args.dataset_name = normalize_dataset_name(args.dataset_name)
     args.have_GT = True if args.have_gt is None else args.have_gt
     args.to_draw = False if args.to_draw is None else args.to_draw
     args.draw_detection_overview = (
-        args.dataset_name != "roots"
+        args.dataset_name not in {"roots_grapevines", "roots_four_crops"}
         if args.draw_detection_overview is None
         else args.draw_detection_overview
     )
@@ -309,7 +324,7 @@ def resolve_boolean_options(args: argparse.Namespace) -> argparse.Namespace:
         False if args.draw_gt_only is None else args.draw_gt_only
     )
     args.draw_individual_object_visualizations = (
-        args.dataset_name == "roots"
+        args.dataset_name in {"roots_grapevines", "roots_four_crops"}
         if args.draw_individual_object_visualizations is None
         else args.draw_individual_object_visualizations
     )
@@ -348,8 +363,17 @@ PER_OBJECT_NETWORKS = ("per_object_counting", "per_object_attributes", "per_obje
 INCLUDE_BBOX_DETECTION = ("bbox_detection", "per_object_counting", "per_object_attributes", "per_object_attributes_multibranch")
 
 
-NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_estimation", "per_object_attributes",
+DATASET_NAME_ALIASES = {"roots": "roots_grapevines"}
+
+
+def normalize_dataset_name(dataset_name: str) -> str:
+    """Return the canonical public dataset identifier."""
+    return DATASET_NAME_ALIASES.get(dataset_name, dataset_name)
+
+
+NETWORKS_OPTIONS_BY_DATASETS = {'roots_grapevines': ("bbox_detection", "per_image_estimation", "per_object_attributes",
                                           "per_object_attributes_multibranch"),
+                                'roots_four_crops': ("per_image_estimation",),
                                 'grapes': ("bbox_detection", "per_object_counting")
                                 }
 
@@ -364,6 +388,7 @@ SUPPORTED_ESTIMATE_TYPES_BY_NETWORK = {
 
 def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
     """Validate supported public experiment-option combinations."""
+    args.dataset_name = normalize_dataset_name(args.dataset_name)
     args.estimate_type = normalize_estimate_type(args.estimate_type)
     supported_networks = NETWORKS_OPTIONS_BY_DATASETS.get(args.dataset_name)
     if supported_networks is None:
@@ -374,6 +399,27 @@ def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
         raise ValueError(
             f"Network type {args.network_type!r} is not supported for dataset "
             f"{args.dataset_name!r}. Choose one of: {choices}."
+        )
+
+    dataset_subset = getattr(args, "dataset_subset", None)
+    if args.dataset_name == "roots_four_crops":
+        if dataset_subset is None:
+            raise ValueError(
+                "--dataset-subset is required for the Four Crops dataset. "
+                "Choose dataset_1, dataset_2, dataset_3, or dataset_4."
+            )
+        if args.run_script == "Training" and dataset_subset in {
+            "dataset_3",
+            "dataset_4",
+        }:
+            raise ValueError(
+                f"Four Crops {dataset_subset} is inference-only. "
+                "Training is supported only for dataset_1 and dataset_2."
+            )
+    elif dataset_subset is not None:
+        raise ValueError(
+            "--dataset-subset is available only with "
+            "--dataset-name roots_four_crops."
         )
 
     supported_estimates = SUPPORTED_ESTIMATE_TYPES_BY_NETWORK[args.network_type]
@@ -424,9 +470,10 @@ def initialize_dataset_runtime_flags(
     args: argparse.Namespace,
 ) -> argparse.Namespace:
     """Set dataset-wide inference flags before model-specific configuration."""
+    args.dataset_name = normalize_dataset_name(args.dataset_name)
     # Roots models support inference on images without annotated objects.
     # Grapes per-object counting does not, so this remains false for that task.
-    args.predict_empty_image = args.dataset_name == "roots"
+    args.predict_empty_image = args.dataset_name in {"roots_grapevines", "roots_four_crops"}
     args.do_nmcs = args.dataset_name == "grapes"
     return args
 
@@ -440,7 +487,13 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     args.gpu_num = args.gpu_num or '0'
 
     args.STORAGE_PATH = resolve_storage_path(args.storage_path)
-    args.dataset_name = args.dataset_name or "roots" #"grapes" #"roots"
+    supplied_dataset_name = args.dataset_name or "roots_grapevines"
+    if supplied_dataset_name == "roots":
+        print(
+            "Deprecated dataset name 'roots'; use 'roots_grapevines' instead.",
+            file=sys.stderr,
+        )
+    args.dataset_name = normalize_dataset_name(supplied_dataset_name)
     args.network_type = args.network_type or "per_object_attributes_multibranch"
     selected_estimate_type = args.estimate_type or DEFAULT_ESTIMATE_TYPE_BY_NETWORK.get(
         args.network_type,
@@ -535,11 +588,12 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     myPaths = paths.get_paths(args.STORAGE_PATH, args.dataset_name)
     myDatasetsPath = myPaths["DATASETS_PATH"]
     args.myExpPath = myPaths["EXP_RESULTS_PATH"]
-    ensure_dataset_available(
+    myDatasetsPath = str(ensure_dataset_available(
         args.dataset_name,
         myDatasetsPath,
         download_missing=args.download_missing_data,
-    )
+        dataset_subset=args.dataset_subset,
+    ))
 
     config.General.experiment_path = os.path.join(args.myExpPath, 'Results', args.current_results_dir)
     os.makedirs(config.General.experiment_path, exist_ok=True)
@@ -574,7 +628,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         args.do_nmcs = True
 
 
-    elif args.dataset_name == 'roots':
+    elif args.dataset_name == 'roots_grapevines':
 
         args.filter_empty_bbox = False
         config.General.filter_empty_bbox = args.filter_empty_bbox
@@ -604,7 +658,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     args.output_size = 1
 
     args.pre_process = 'torch_like' #'keras_like'  # torch_like
-    args.backbone_type = "ResNetBackboneModule"
 
     args.loss_weight = 1  # 1  #1000 #10 #100 # roots_both ablations
 
@@ -631,11 +684,13 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     if args.dataset_name == "grapes":
         args.dataset_type = "kcsv"
 
-    elif args.dataset_name == "roots":
+    elif args.dataset_name == "roots_grapevines":
         if args.network_type == "per_image_estimation":
             args.dataset_type = 'csv_LCC'
         else:
             args.dataset_type = "roots_json"
+    elif args.dataset_name == "roots_four_crops":
+        args.dataset_type = "csv_LCC"
 
     if args.network_type == "bbox_detection":
         config.General.NETWORK_TYPE = config.NetworkType.detection
@@ -667,7 +722,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         else:
             args.val_file = args.kcsv_test
 
-    elif args.dataset_name == "roots":
+    elif args.dataset_name == "roots_grapevines":
         args.train_csv_leaf_number_file = os.path.join(myDatasetsPath, 'sub_Train', "Train.csv")
         args.train_csv_leaf_location_file = os.path.join(myDatasetsPath, 'sub_Train','Train_pointsOutput.csv')
         args.train_json_file = None
@@ -681,12 +736,39 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
             args.train_json_file = os.path.join(myDatasetsPath, 'sub_Train', "Train_Dia_Length_Color.txt")
             args.val_json_file = os.path.join(myDatasetsPath, "sub_" + args.val_set, args.val_set + "_Dia_Length_Color.txt")
 
-    if args.have_GT:
+    elif args.dataset_name == "roots_four_crops":
+        manifest_dir = os.path.join(
+            config.General.experiment_path,
+            "InputManifests",
+            args.dataset_subset,
+        )
+        selected = resolve_four_crops_split(
+            myDatasetsPath,
+            args.dataset_subset,
+            args.val_set,
+            manifest_dir,
+        )
+        args.val_csv_leaf_number_file = str(selected.trl_file)
+        args.val_csv_leaf_location_file = str(selected.points_file)
+        args.val_json_file = None
+        args.base_dir = str(selected.base_dir)
+        if args.run_script == "Training":
+            training = resolve_four_crops_split(
+                myDatasetsPath,
+                args.dataset_subset,
+                "Train",
+                manifest_dir,
+            )
+            args.train_csv_leaf_number_file = str(training.trl_file)
+            args.train_csv_leaf_location_file = str(training.points_file)
+            args.train_json_file = None
+
+    if args.have_GT and args.dataset_name != "roots_four_crops":
         args.base_dir = None
     else:
         args.base_dir = (
             os.path.join(myDatasetsPath, "sub_" + args.val_set)
-            if args.dataset_name == "roots"
+            if args.dataset_name == "roots_grapevines"
             else myDatasetsPath
         )
 

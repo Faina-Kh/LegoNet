@@ -21,7 +21,7 @@ def test_selects_grapes_keypoint_full_checkpoint() -> None:
 
 def test_selects_roots_direct_regression_checkpoint() -> None:
     checkpoint = pretrained.select_published_checkpoint(
-        "roots",
+        "roots_grapevines",
         "per_image_estimation",
         "regression",
         "full",
@@ -109,7 +109,7 @@ def test_auto_inference_downloads_full_checkpoint(tmp_path: Path) -> None:
         weights_mode="auto",
         run_script="Inference",
         STORAGE_PATH=str(tmp_path),
-        dataset_name="roots",
+        dataset_name="roots_grapevines",
         network_type="per_object_attributes_multibranch",
         estimate_type="withKeyPoints",
         full_weights_file=None,

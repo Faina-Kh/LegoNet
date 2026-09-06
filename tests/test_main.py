@@ -263,6 +263,76 @@ class MainEntryPointTests(unittest.TestCase):
         self.assertEqual(args.network_type, "per_image_estimation")
         self.assertEqual(args.estimate_type, "regression")
 
+    def test_four_crops_dataset_and_subset_are_parsed(self) -> None:
+        args = self.main_module.parse_args(
+            [
+                "--dataset-name",
+                "roots_four_crops",
+                "--dataset-subset",
+                "dataset_2",
+            ]
+        )
+
+        self.assertEqual(args.dataset_name, "roots_four_crops")
+        self.assertEqual(args.dataset_subset, "dataset_2")
+
+    def test_legacy_roots_name_normalizes_to_grapevines(self) -> None:
+        args = SimpleNamespace(
+            dataset_name="roots",
+            dataset_subset=None,
+            network_type="per_image_estimation",
+            estimate_type="withKeyPoints",
+            run_script="Inference",
+            val_set="Test",
+            have_GT=True,
+        )
+
+        result = self.main_module.validate_configuration(args)
+
+        self.assertEqual(result.dataset_name, "roots_grapevines")
+
+    def test_four_crops_requires_subset(self) -> None:
+        args = SimpleNamespace(
+            dataset_name="roots_four_crops",
+            dataset_subset=None,
+            network_type="per_image_estimation",
+            estimate_type="withKeyPoints",
+            run_script="Inference",
+            val_set="Test",
+            have_GT=True,
+        )
+
+        with self.assertRaisesRegex(ValueError, "dataset-subset is required"):
+            self.main_module.validate_configuration(args)
+
+    def test_four_crops_dataset_3_is_inference_only(self) -> None:
+        args = SimpleNamespace(
+            dataset_name="roots_four_crops",
+            dataset_subset="dataset_3",
+            network_type="per_image_estimation",
+            estimate_type="reg_fpn_p3_p7_min_sig",
+            run_script="Training",
+            val_set="Val",
+            have_GT=True,
+        )
+
+        with self.assertRaisesRegex(ValueError, "inference-only"):
+            self.main_module.validate_configuration(args)
+
+    def test_other_datasets_reject_four_crops_subset(self) -> None:
+        args = SimpleNamespace(
+            dataset_name="roots",
+            dataset_subset="dataset_1",
+            network_type="per_image_estimation",
+            estimate_type="withKeyPoints",
+            run_script="Inference",
+            val_set="Test",
+            have_GT=True,
+        )
+
+        with self.assertRaisesRegex(ValueError, "available only"):
+            self.main_module.validate_configuration(args)
+
     def test_removed_per_image_network_names_are_rejected(self) -> None:
         """Only the unified per-image network name is public."""
         with self.assertRaises(SystemExit):

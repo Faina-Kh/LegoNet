@@ -30,8 +30,9 @@ The underlying methods have been published in
 
 ## Datasets
 
-- `roots` uses the [Dataset of Grapevine roots with length, diameter, and color
+- `roots_grapevines` uses the [Dataset of Grapevine roots with length, diameter, and color
   annotations](https://doi.org/10.5281/zenodo.8084106).
+- `roots_four_crops` uses the [Four Crops minirhizotron root dataset](https://doi.org/10.5281/zenodo.7482146).
 - `grapes` uses the [Embrapa Wine Grape Instance Segmentation Dataset
   (Embrapa WGISD)](https://github.com/thsant/wgisd).
 
@@ -40,6 +41,7 @@ details, evaluation scope, and reference results:
 
 - [Embrapa WGISD grapes](docs/datasets/grapes_embrapa-wgisd.md)
 - [Grapevine roots](docs/datasets/roots_grapevine.md)
+- [Four Crops minirhizotron roots](docs/datasets/roots_four_crops.md)
 
 ## Visual examples
 
@@ -194,7 +196,7 @@ images with:
 
 ```bash
 legonet \
-  --dataset-name roots \
+  --dataset-name roots_grapevines \
   --network-type per_image_estimation \
   --estimate-type keypoints \
   --run-script Inference \
@@ -207,7 +209,7 @@ Then run regression-based per-root length, diameter, and color estimation with:
 
 ```bash
 legonet \
-  --dataset-name roots \
+  --dataset-name roots_grapevines \
   --network-type per_object_attributes \
   --estimate-type regression \
   --run-script Inference \
@@ -316,10 +318,11 @@ supported annotation layouts.
 |---|---|---|
 | `grapes` | `bbox_detection` | Not used by the detector |
 | `grapes` | `per_object_counting` | `keypoints` or `regression` |
-| `roots` | `bbox_detection` | Not used by the detector |
-| `roots` | `per_image_estimation` | `keypoints` or `regression` |
-| `roots` | `per_object_attributes` | `keypoints` or `regression` |
-| `roots` | `per_object_attributes_multibranch` | `keypoints` |
+| `roots_grapevines` | `bbox_detection` | Not used by the detector |
+| `roots_grapevines` | `per_image_estimation` | `keypoints` or `regression` |
+| `roots_grapevines` | `per_object_attributes` | `keypoints` or `regression` |
+| `roots_grapevines` | `per_object_attributes_multibranch` | `keypoints` |
+| `roots_four_crops` | `per_image_estimation` | `keypoints` or `regression` |
 
 The `--estimate-type` option selects one of two estimator-based architectures:
 
@@ -362,15 +365,26 @@ are skipped. The small grape annotation and license files are packaged with the
 code (`src/legonet/resources/datasets`) and copied into `Datasets/` during
 first-time setup.
 
-For roots, the published ZIP is downloaded from Zenodo, checksum verified,
-safely extracted, and checked for the expected split files. Pass
-`--download-missing-data false` to disable network-based dataset setup.
+For Grapevine roots, the published ZIP is downloaded from Zenodo, checksum
+verified, safely extracted, and checked for the expected split files. This is
+the recommended dataset for quickly trying the direct per-image TRL models.
+
+Four Crops is intended for the corresponding paper-specific experiments. Its
+Zenodo record packages every subset in one 4.31 GiB archive, so selecting one
+subset reduces extracted disk space but not download size. Browser or download-
+manager download is recommended because Zenodo's transfer can be slow. Save
+the complete file as
+`<storage-path>/downloads/zenodo-7482146/Datasets.zip`; LegoNet will verify its
+checksum and extract only the requested subset on the next run. Automatic
+download remains available. Pass `--download-missing-data false` to disable
+network-based dataset setup.
 
 Datasets can also be prepared or checked without starting inference:
 
 ```bash
 legonet-data download grapes
-legonet-data download roots
+legonet-data download roots_grapevines
+legonet-data download roots_four_crops --dataset-subset dataset_1
 legonet-data download all
 legonet-data verify all
 ```
@@ -428,7 +442,7 @@ listed with each dataset below.
 
 ### Grapevine roots
 
-The active `roots` configurations use the [Dataset of Grapevine roots with
+The active `roots_grapevines` configurations use the [Dataset of Grapevine roots with
 length, diameter, and color annotations](https://doi.org/10.5281/zenodo.8084106),
 created by Faina Khoroshevsky, Kaining Zhou, and Naftali Lazarovitch. The
 dataset is distributed under the

@@ -113,22 +113,38 @@ LegoNet/
 │   │   ├── val.txt
 │   │   ├── test.txt
 │   │   └── classes.txt
-│   └── Grapevines data/
+│   ├── Grapevines data/
 │       ├── sub_Train/
 │       │   ├── Train.csv
 │       │   ├── Train_pointsOutput.csv
 │       │   └── Train_Dia_Length_Color.txt
 │       ├── sub_Val/
 │       └── sub_Test/
+│   └── Four Crops/
+│       ├── dataset_1/
+│       ├── dataset_2/
+│       ├── dataset_3/
+│       └── dataset_4/
 ├── ExpResults/
 │   ├── grapes/
-│   └── roots/
+│   ├── roots_grapevines/
+│   └── roots_four_crops/
+├── downloads/
+│   └── zenodo-7482146/
+│       └── Datasets.zip
 └── checkpoints/
     └── zenodo-21966953/
 ```
 
 Dataset, result, and checkpoint paths are constructed from these directory
 names. Missing directories are created automatically.
+
+The Four Crops Zenodo archive is approximately 4.31 GiB and contains all four
+subsets in one file. For this optional paper-reproduction dataset, manual
+browser or resumable download is recommended. Save the completed archive as
+`<storage-path>/downloads/zenodo-7482146/Datasets.zip`; LegoNet verifies it and
+extracts only the selected subset. For a faster direct per-image TRL smoke
+test, use `roots_grapevines` instead.
 
 Each experiment output directory contains a concise human-readable results
 file and `run_configuration.json`. The JSON file records the original
@@ -188,7 +204,7 @@ exists on the Streamlit server.
 For a typical inference run:
 
 1. Keep the source-checkout storage directory or select another location.
-2. Choose `grapes` or `roots`, then choose the network and estimate type.
+2. Choose `grapes`, `roots_grapevines`, or `roots_four_crops`, then choose the network and estimate type.
 3. Keep **Checkpoint configuration** set to **Full model checkpoint**, then
    keep **Full model checkpoint source** set to **Automatic download
    (recommended)**. Confirm the displayed filename, size, cache status, and

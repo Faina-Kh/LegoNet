@@ -200,7 +200,7 @@ class csv_LCCDataset(Dataset):
                 except ValueError as e:
                     raise_from(ValueError('invalid CSV annotations file: {}: {}'.format(csv_leaf_location_file, e)), None)
                 self.centers_images_names = [x.replace('rgb', 'centers') for x in rgb_images_names]
-                if config.General.dataset_name!= 'roots': #'root' not in self.base_dir and 'Root' not in self.base_dir:
+                if config.General.dataset_name not in {'roots_grapevines', 'roots_four_crops'}:
                     assert set(list(self.image_data_leaf_location.keys())) == set(
                         self.centers_images_names), 'there are some missing centers annotations'
 
@@ -375,7 +375,7 @@ class csv_LCCDataset(Dataset):
                 raise (ValueError('image {}: doesnt contain label\''.format(img_file)), None)
 
             # Check that the bounding box is valid.
-            if config.General.dataset_name!= 'roots': #'root' not in self.base_dir and 'Root' not in self.base_dir:
+            if config.General.dataset_name not in {'roots_grapevines', 'roots_four_crops'}:
                 if int(float(num_of_leaves)) <= 0:
                     raise ValueError('num_of_leaves must be higher than 0 but is {}'.format(num_of_leaves))
 
@@ -418,7 +418,7 @@ class csv_LCCDataset(Dataset):
         result = {}
         for line, row in enumerate(csv_reader):
             line += 1
-            if config.General.dataset_name!= 'roots': #"root" not in self.base_dir and "Root" not in self.base_dir:
+            if config.General.dataset_name not in {'roots_grapevines', 'roots_four_crops'}:
                 try:
                     img_file, x, y = row[:3]
                 except ValueError:

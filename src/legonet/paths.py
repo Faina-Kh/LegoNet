@@ -16,12 +16,20 @@ def get_paths(storage_path: str, dataset_name: str) -> dict[str, str]:
             "Datasets",
             "Embrapa WGISD",
         )
-    elif dataset_name == "roots":
+    elif dataset_name in {"roots", "roots_grapevines"}:
         datasets_path = os.path.join(
             storage_path,
             "Datasets",
             "Grapevines data",
         )
+    elif dataset_name == "roots_four_crops":
+        datasets_path = os.path.join(
+            storage_path,
+            "Datasets",
+            "Four Crops",
+        )
+    else:
+        raise ValueError(f"Unsupported dataset: {dataset_name!r}.")
 
     experiment_results_path = os.path.join(
         storage_path,

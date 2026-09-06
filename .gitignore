@@ -53,6 +53,3 @@ AGENTS.md
 
 # Local, unpublished investigation notes
 docs/private/
-
-# Local checkpoint migration tools; never included in the public project
-.private/

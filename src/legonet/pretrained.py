@@ -70,22 +70,25 @@ def select_published_checkpoint(
 ) -> PublishedCheckpoint:
     """Select the published checkpoint for one supported model component."""
     estimate_type = normalize_estimate_type(estimate_type)
+    checkpoint_dataset_name = (
+        "roots" if dataset_name == "roots_grapevines" else dataset_name
+    )
     estimate = "keypoints" if estimate_type == "withKeyPoints" else "regression"
     if component == "bbox":
-        key = f"bbox_{dataset_name}"
+        key = f"bbox_{checkpoint_dataset_name}"
     elif network_type == "bbox_detection":
-        key = f"bbox_{dataset_name}"
+        key = f"bbox_{checkpoint_dataset_name}"
     elif network_type == "per_object_counting":
         prefix = "full_counting" if component == "full" else "counting"
-        key = f"{prefix}_{estimate}_{dataset_name}"
+        key = f"{prefix}_{estimate}_{checkpoint_dataset_name}"
     elif network_type == "per_object_attributes":
         prefix = "full_attributes" if component == "full" else "attributes"
-        key = f"{prefix}_{estimate}_{dataset_name}"
+        key = f"{prefix}_{estimate}_{checkpoint_dataset_name}"
     elif network_type == "per_object_attributes_multibranch":
         prefix = "full_attributes" if component == "full" else "attributes"
-        key = f"{prefix}_multibranch_{dataset_name}"
+        key = f"{prefix}_multibranch_{checkpoint_dataset_name}"
     elif network_type == "per_image_estimation":
-        key = f"direct_trl_{estimate}_{dataset_name}"
+        key = f"direct_trl_{estimate}_{checkpoint_dataset_name}"
     else:
         key = ""
 

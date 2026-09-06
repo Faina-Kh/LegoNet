@@ -1,6 +1,6 @@
 # Grapevine roots dataset
 
-LegoNet's `roots` configurations use the **Dataset of Grapevine Roots with
+LegoNet's `roots_grapevines` configurations use the **Dataset of Grapevine Roots with
 Length, Diameter, and Color Annotations**. The dataset contains in-situ
 minirhizotron images with root-object locations and three attributes:
 
@@ -20,7 +20,7 @@ download `Grapevines data.zip` from the
 published MD5 checksum, and safely extract it into the runtime
 `Datasets/Grapevines data/` directory.
 
-Run `legonet-data download roots`, or
+Run `legonet-data download roots_grapevines`, or
 allow the normal CLI/GUI workflow to prepare the dataset when it is first
 needed.
 
@@ -345,7 +345,7 @@ automatic dataset and checkpoint selection:
 
 ```bash
 legonet \
-  --dataset-name roots \
+  --dataset-name roots_grapevines \
   --network-type per_object_attributes \
   --estimate-type keypoints \
   --run-script Inference \

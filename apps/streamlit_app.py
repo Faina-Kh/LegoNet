@@ -30,7 +30,13 @@ from legonet.pretrained import (
 from legonet.datasets import default_storage_root
 
 
-DATASET_OPTIONS = ("roots", "grapes")
+DATASET_OPTIONS = ("roots_grapevines", "roots_four_crops", "grapes")
+DATASET_LABELS = {
+    "roots_grapevines": "Roots — Grapevines",
+    "roots_four_crops": "Roots — Four Crops",
+    "grapes": "Grapes — Embrapa WGISD",
+}
+FOUR_CROPS_SUBSETS = ("dataset_1", "dataset_2", "dataset_3", "dataset_4")
 NETWORK_OPTIONS = (
     "bbox_detection",
     "per_image_attributes",
@@ -38,8 +44,9 @@ NETWORK_OPTIONS = (
     "per_object_attributes",
     "per_object_attributes_multibranch",
 )
-NETWORKS_OPTIONS_BY_DATASETS = {'roots': ("bbox_detection", "per_image_estimation", "per_object_attributes",
+NETWORKS_OPTIONS_BY_DATASETS = {'roots_grapevines': ("bbox_detection", "per_image_estimation", "per_object_attributes",
                                           "per_object_attributes_multibranch"),
+                                'roots_four_crops': ("per_image_estimation",),
                                 'grapes': ("bbox_detection", "per_object_counting")
                                 }
 RUN_MODES = ("Inference", "Training")
@@ -249,6 +256,7 @@ def build_command(
     evaluate_detection: bool,
     checkpoint_attribute: str,
     weights_mode: str,
+    dataset_subset: str = "",
     download_missing_data: bool = True,
     full_weights_file: str = "",
     bbox_weights_file: str = "",
@@ -298,6 +306,8 @@ def build_command(
     ]
     if checkpoint_attribute:
         command.extend(["--checkpoint-attribute", checkpoint_attribute])
+    if dataset_subset:
+        command.extend(["--dataset-subset", dataset_subset])
     if full_weights_file:
         command.extend(["--full-weights-file", full_weights_file])
     if bbox_weights_file:
@@ -405,7 +415,21 @@ with st.sidebar:
         "Dataset",
         DATASET_OPTIONS,
         key="runner_dataset_name",
+        format_func=lambda value: DATASET_LABELS[value],
     )
+    dataset_subset = ""
+    if dataset_name == "roots_four_crops":
+        dataset_subset = st.selectbox(
+            "Four Crops subset",
+            FOUR_CROPS_SUBSETS,
+            key="runner_dataset_subset",
+            help=(
+                "Dataset 1 and Dataset 2 support training and inference. "
+                "Dataset 3 and Dataset 4 are inference-only. The Zenodo "
+                "record uses one 4.31 GiB archive, so selection reduces "
+                "extracted disk usage but not download size."
+            ),
+        )
 
     available_network_types = NETWORKS_OPTIONS_BY_DATASETS[dataset_name]
     if st.session_state.get("runner_network_type") not in available_network_types:
@@ -537,7 +561,7 @@ with st.sidebar:
             != individual_context
         ):
             st.session_state.runner_draw_individual_object_visualizations = (
-                dataset_name == "roots"
+                dataset_name == "roots_grapevines"
             )
             st.session_state.runner_individual_visualizations_context = (
                 individual_context
@@ -557,7 +581,7 @@ with st.sidebar:
             != overview_context
         ):
             st.session_state.runner_draw_detection_overview = (
-                dataset_name != "roots"
+                dataset_name != "roots_grapevines"
             )
             st.session_state.runner_detection_overview_context = overview_context
         draw_detection_overview = st.checkbox(
@@ -738,6 +762,7 @@ command = build_command(
     evaluate_detection=evaluate_detection,
     checkpoint_attribute=checkpoint_attribute,
     weights_mode=weights_mode,
+    dataset_subset=dataset_subset,
     download_missing_data=download_missing_data,
     full_weights_file=full_weights_file,
     bbox_weights_file=bbox_weights_file,
