@@ -395,6 +395,19 @@ def supports_visualization(network_type: str, estimate_type: str) -> bool:
     )
 
 
+def supports_per_image_keypoint_evaluation(
+    network_type: str,
+    estimate_type: str,
+    have_ground_truth: bool,
+) -> bool:
+    """Return whether point mAP is available for a per-image configuration."""
+    return (
+        have_ground_truth
+        and network_type == "per_image_estimation"
+        and normalize_estimate_type(estimate_type) == "withKeyPoints"
+    )
+
+
 def visualization_output_requested(args: argparse.Namespace) -> bool:
     """Return whether the selected drawing options can create an artifact."""
     if not getattr(args, "to_draw", False):
@@ -687,7 +700,10 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     config.General.MODE = args.run_script
     config.General.model_name = args.network_type
     config.Detect_and_Estimate.type = args.network_type
-    config.AttributeEstimation.calc_det_performance = args.evaluate_detection
+    config.AttributeEstimation.calc_det_performance = (
+        args.evaluate_detection
+        and args.estimate_type == "withKeyPoints"
+    )
 
     # task specific definitions - ToDo - organize per task type
     args.freeze_detection = True
@@ -758,9 +774,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         if config.General.to_draw:
             if args.estimate_type == 'withKeyPoints':
                 config.DrawProperties.DRAW_MAPS = True
-                config.AttributeEstimation.calc_det_performance = True
-            else:
-                config.AttributeEstimation.calc_det_performance = False
 
 
     ########################################################################################################################

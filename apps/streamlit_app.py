@@ -28,7 +28,11 @@ from legonet.pretrained import (
     select_published_checkpoint,
 )
 from legonet.datasets import default_storage_root
-from legonet.cli import default_results_directory, supports_visualization
+from legonet.cli import (
+    default_results_directory,
+    supports_per_image_keypoint_evaluation,
+    supports_visualization,
+)
 
 
 DATASET_OPTIONS = ("roots_grapevines", "roots_four_crops", "grapes")
@@ -627,6 +631,20 @@ with st.sidebar:
         draw_per_object_estimation_visualizations = False
     if not have_gt:
         evaluate_detection = False
+    elif supports_per_image_keypoint_evaluation(
+        network_type,
+        estimate_type,
+        have_gt,
+    ):
+        evaluate_detection = st.checkbox(
+            "Evaluate keypoints",
+            value=True,
+            key="runner_evaluate_per_image_keypoints",
+            help=(
+                "Calculate point mAP and save the keypoint precision-recall "
+                "curve and recall/precision CSV."
+            ),
+        )
     elif network_type in OPTIONAL_DETECTION_EVAL_NETWORK_OPTIONS:
         evaluate_detection = st.checkbox(
             "Evaluate detection",

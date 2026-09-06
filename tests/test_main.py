@@ -515,6 +515,22 @@ class MainEntryPointTests(unittest.TestCase):
             )
         )
 
+    def test_per_image_keypoints_with_gt_support_point_evaluation(self) -> None:
+        self.assertTrue(
+            self.main_module.supports_per_image_keypoint_evaluation(
+                "per_image_estimation",
+                "keypoints",
+                True,
+            )
+        )
+        self.assertFalse(
+            self.main_module.supports_per_image_keypoint_evaluation(
+                "per_image_estimation",
+                "regression",
+                True,
+            )
+        )
+
     def test_visualization_requires_an_enabled_output(self) -> None:
         args = SimpleNamespace(
             to_draw=True,
