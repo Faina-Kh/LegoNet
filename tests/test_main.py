@@ -539,6 +539,35 @@ class MainEntryPointTests(unittest.TestCase):
 
         self.assertEqual(result, "per_image_estimation_Reg_dataset_2_Test")
 
+    def test_four_crops_preserves_resolved_split_as_image_base_dir(self) -> None:
+        result = self.main_module.validation_image_base_dir(
+            "roots_four_crops",
+            r"C:\storage\Datasets\Four Crops\dataset_1",
+            "Test",
+            True,
+            resolved_four_crops_base_dir=(
+                r"C:\storage\Datasets\Four Crops\dataset_1\sub_Test"
+            ),
+        )
+
+        self.assertEqual(
+            result,
+            r"C:\storage\Datasets\Four Crops\dataset_1\sub_Test",
+        )
+
+    def test_grapevine_no_gt_uses_selected_split_as_image_base_dir(self) -> None:
+        result = self.main_module.validation_image_base_dir(
+            "roots_grapevines",
+            r"C:\storage\Datasets\Grapevines data",
+            "Test",
+            False,
+        )
+
+        self.assertEqual(
+            Path(result),
+            Path(r"C:\storage\Datasets\Grapevines data") / "sub_Test",
+        )
+
     def test_multibranch_network_requires_keypoints(self) -> None:
         """The multibranch architecture remains keypoint-only."""
         args = SimpleNamespace(

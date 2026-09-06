@@ -448,6 +448,26 @@ def default_results_directory(
     return f"{network_type}{estimate_suffix}{subset_suffix}_{results_suffix}"
 
 
+def validation_image_base_dir(
+    dataset_name: str,
+    dataset_path: str | Path,
+    val_set: str,
+    have_ground_truth: bool,
+    resolved_four_crops_base_dir: str | Path | None = None,
+) -> str | None:
+    """Return the image directory used by the validation/inference loader."""
+    dataset_name = normalize_dataset_name(dataset_name)
+    if dataset_name == "roots_four_crops":
+        if resolved_four_crops_base_dir is None:
+            raise ValueError("The resolved Four Crops image directory is missing.")
+        return str(resolved_four_crops_base_dir)
+    if have_ground_truth:
+        return None
+    if dataset_name == "roots_grapevines":
+        return os.path.join(str(dataset_path), f"sub_{val_set}")
+    return str(dataset_path)
+
+
 def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
     """Validate supported public experiment-option combinations."""
     args.dataset_name = normalize_dataset_name(args.dataset_name)
@@ -829,14 +849,13 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
             args.train_csv_leaf_location_file = str(training.points_file)
             args.train_json_file = None
 
-    if args.have_GT and args.dataset_name != "roots_four_crops":
-        args.base_dir = None
-    else:
-        args.base_dir = (
-            os.path.join(myDatasetsPath, "sub_" + args.val_set)
-            if args.dataset_name == "roots_grapevines"
-            else myDatasetsPath
-        )
+    args.base_dir = validation_image_base_dir(
+        args.dataset_name,
+        myDatasetsPath,
+        args.val_set,
+        args.have_GT,
+        resolved_four_crops_base_dir=getattr(args, "base_dir", None),
+    )
 
     if args.run_script == 'Inference':
         results_dir = config.General.experiment_path

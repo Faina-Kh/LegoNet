@@ -45,10 +45,10 @@ normalizes its name:
 `-- dataset_4/
 ```
 
-Install one subset from a source checkout with:
+Install one subset with:
 
-```cmd
-python scripts\download_datasets.py download roots_four_crops ^
+```bash
+legonet-data download roots_four_crops \
   --dataset-subset dataset_1
 ```
 
@@ -108,13 +108,13 @@ dataset will need to follow.
 
 Select exactly one subset per run:
 
-```cmd
-python scripts\run_legonet.py ^
-  --dataset-name roots_four_crops ^
-  --dataset-subset dataset_3 ^
-  --network-type per_image_estimation ^
-  --estimate-type regression ^
-  --run-script Inference ^
+```bash
+legonet \
+  --dataset-name roots_four_crops \
+  --dataset-subset dataset_3 \
+  --network-type per_image_estimation \
+  --estimate-type regression \
+  --run-script Inference \
   --val-set Test
 ```
 
