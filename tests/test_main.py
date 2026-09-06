@@ -492,6 +492,53 @@ class MainEntryPointTests(unittest.TestCase):
 
         self.assertIs(self.main_module.validate_configuration(args), args)
 
+    def test_per_image_regression_rejects_visualization(self) -> None:
+        args = SimpleNamespace(
+            dataset_name="roots_four_crops",
+            dataset_subset="dataset_1",
+            network_type="per_image_estimation",
+            estimate_type="reg_fpn_p3_p7_min_sig",
+            run_script="Inference",
+            val_set="Test",
+            have_GT=True,
+            to_draw=True,
+        )
+
+        with self.assertRaisesRegex(ValueError, "does not implement visualization"):
+            self.main_module.validate_configuration(args)
+
+    def test_per_object_regression_still_supports_visualization(self) -> None:
+        self.assertTrue(
+            self.main_module.supports_visualization(
+                "per_object_attributes",
+                "regression",
+            )
+        )
+
+    def test_visualization_requires_an_enabled_output(self) -> None:
+        args = SimpleNamespace(
+            to_draw=True,
+            network_type="bbox_detection",
+            estimate_type="keypoints",
+            draw_detection_overview=False,
+            draw_gt_only=False,
+            draw_individual_object_visualizations=False,
+        )
+
+        self.assertFalse(self.main_module.visualization_output_requested(args))
+
+    def test_four_crops_default_results_directory_contains_subset(self) -> None:
+        result = self.main_module.default_results_directory(
+            "roots_four_crops",
+            "dataset_2",
+            "per_image_estimation",
+            "regression",
+            "Inference",
+            "Test",
+        )
+
+        self.assertEqual(result, "per_image_estimation_Reg_dataset_2_Test")
+
     def test_multibranch_network_requires_keypoints(self) -> None:
         """The multibranch architecture remains keypoint-only."""
         args = SimpleNamespace(

@@ -386,6 +386,68 @@ SUPPORTED_ESTIMATE_TYPES_BY_NETWORK = {
 }
 
 
+def supports_visualization(network_type: str, estimate_type: str) -> bool:
+    """Return whether a model configuration implements any visualization."""
+    normalized_estimate = normalize_estimate_type(estimate_type)
+    return not (
+        network_type == "per_image_estimation"
+        and normalized_estimate == "reg_fpn_p3_p7_min_sig"
+    )
+
+
+def visualization_output_requested(args: argparse.Namespace) -> bool:
+    """Return whether the selected drawing options can create an artifact."""
+    if not getattr(args, "to_draw", False):
+        return False
+    if args.network_type == "per_image_estimation":
+        return supports_visualization(args.network_type, args.estimate_type)
+    if args.network_type == "bbox_detection":
+        return any(
+            getattr(args, option, False)
+            for option in (
+                "draw_detection_overview",
+                "draw_gt_only",
+                "draw_individual_object_visualizations",
+            )
+        )
+    if args.network_type in PER_OBJECT_NETWORKS:
+        return any(
+            getattr(args, option, False)
+            for option in (
+                "draw_detection_overview",
+                "draw_gt_only",
+                "draw_individual_object_visualizations",
+                "draw_per_object_estimation_visualizations",
+            )
+        )
+    return False
+
+
+def default_results_directory(
+    dataset_name: str,
+    dataset_subset: str | None,
+    network_type: str,
+    estimate_type: str,
+    run_script: str,
+    val_set: str,
+) -> str:
+    """Build the default results folder name for one public configuration."""
+    normalized_estimate = normalize_estimate_type(estimate_type)
+    estimate_suffix = (
+        ""
+        if network_type == "bbox_detection"
+        else "_KP" if normalized_estimate == "withKeyPoints" else "_Reg"
+    )
+    subset_suffix = (
+        f"_{dataset_subset}"
+        if normalize_dataset_name(dataset_name) == "roots_four_crops"
+        and dataset_subset
+        else ""
+    )
+    results_suffix = "Training" if run_script == "Training" else val_set
+    return f"{network_type}{estimate_suffix}{subset_suffix}_{results_suffix}"
+
+
 def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
     """Validate supported public experiment-option combinations."""
     args.dataset_name = normalize_dataset_name(args.dataset_name)
@@ -434,6 +496,15 @@ def validate_configuration(args: argparse.Namespace) -> argparse.Namespace:
         raise ValueError(f"Unsupported run mode: {args.run_script!r}.")
     if args.val_set not in ("Val", "Test"):
         raise ValueError(f"Unsupported validation set: {args.val_set!r}.")
+
+    if getattr(args, "to_draw", False) and not supports_visualization(
+        args.network_type,
+        args.estimate_type,
+    ):
+        raise ValueError(
+            "Per-image regression does not implement visualization output; "
+            "use --to-draw false."
+        )
 
     if args.run_script == "Training":
         if not args.have_GT:
@@ -514,24 +585,18 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     # Automatic resolution converts ``auto`` into a concrete loading mode.
     configure_weights_mode(args)
     validate_configuration(args)
-    estimate_suffix = (
-        ""
-        if args.network_type == "bbox_detection"
-        else "_KP" if args.estimate_type == "withKeyPoints" else "_Reg"
-    )
-
     #################################################
     args.choose_epoch_by_IoUavg = False
     #################################################
 
-    if args.run_script == 'Training':
-        args.current_results_dir = args.current_results_dir or (
-            args.network_type + estimate_suffix + '_Training'
-        )
-    else:
-        args.current_results_dir = args.current_results_dir or (
-            args.network_type + estimate_suffix + "_" + args.val_set
-        )
+    args.current_results_dir = args.current_results_dir or default_results_directory(
+        args.dataset_name,
+        args.dataset_subset,
+        args.network_type,
+        args.estimate_type,
+        args.run_script,
+        args.val_set,
+    )
 
     args.evaluate_per_object = args.network_type in PER_OBJECT_NETWORKS
 
@@ -667,14 +732,15 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         config.DrawProperties.DRAW_MAPS = False
         config.AttributeEstimation.calc_det_performance = False
 
-    elif args.to_draw:
-        config.General.to_draw = True
-        if args.estimate_type == 'withKeyPoints':
-            config.DrawProperties.DRAW_MAPS = True
-            config.AttributeEstimation.calc_det_performance = True
-        else:
-            config.DrawProperties.DRAW_MAPS = False
-            config.AttributeEstimation.calc_det_performance = False
+    else:
+        config.General.to_draw = visualization_output_requested(args)
+        config.DrawProperties.DRAW_MAPS = False
+        if config.General.to_draw:
+            if args.estimate_type == 'withKeyPoints':
+                config.DrawProperties.DRAW_MAPS = True
+                config.AttributeEstimation.calc_det_performance = True
+            else:
+                config.AttributeEstimation.calc_det_performance = False
 
 
     ########################################################################################################################
@@ -776,7 +842,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         results_dir = config.General.experiment_path
         os.makedirs(results_dir, exist_ok=True)
 
-        if args.to_draw:
+        if config.General.to_draw:
             config.DrawProperties.save_img_path = os.path.join(results_dir, "Vis_" + args.val_set)
             os.makedirs(config.DrawProperties.save_img_path, exist_ok=True)
 

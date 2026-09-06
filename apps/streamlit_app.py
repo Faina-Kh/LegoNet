@@ -28,6 +28,7 @@ from legonet.pretrained import (
     select_published_checkpoint,
 )
 from legonet.datasets import default_storage_root
+from legonet.cli import default_results_directory, supports_visualization
 
 
 DATASET_OPTIONS = ("roots_grapevines", "roots_four_crops", "grapes")
@@ -501,20 +502,21 @@ with st.sidebar:
         num_of_epochs = 0
 
     results_dir_context = (
+        dataset_name,
+        dataset_subset,
         selected_network_type,
         estimate_type,
         run_script,
         val_set,
     )
-    estimate_suffix = (
-        ""
-        if selected_network_type == "bbox_detection"
-        else "_KP" if estimate_type == "keypoints" else "_Reg"
-    )
     if st.session_state.get("runner_results_dir_context") != results_dir_context:
-        results_suffix = "Training" if run_script == "Training" else val_set
-        st.session_state.runner_results_dir = (
-            selected_network_type + estimate_suffix + "_" + results_suffix
+        st.session_state.runner_results_dir = default_results_directory(
+            dataset_name,
+            dataset_subset or None,
+            selected_network_type,
+            estimate_type,
+            run_script,
+            val_set,
         )
         st.session_state.runner_results_dir_context = results_dir_context
     current_results_dir = st.text_input(
@@ -541,15 +543,20 @@ with st.sidebar:
             "published Zenodo archive."
         ),
     )
-    if run_script == "Inference":
+    visualization_supported = supports_visualization(network_type, estimate_type)
+    if run_script == "Inference" and visualization_supported:
         to_draw = st.checkbox(
             "Draw visualizations",
             value=False,
             key="runner_draw_visualizations",
         )
-    else:
+    elif run_script != "Inference":
         to_draw = False
         st.caption("Visualization output is available during inference only.")
+    else:
+        to_draw = False
+        st.session_state.runner_draw_visualizations = False
+        st.caption("Per-image regression does not produce visualization output.")
 
     includes_bbox_detection = (
         network_type == "bbox_detection" or network_type in PER_OBJECT_NETWORKS
