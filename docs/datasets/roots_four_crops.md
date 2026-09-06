@@ -99,9 +99,12 @@ image_filename.jpg,x1,y1,x2,y2,...
 
 An image with no annotated root points is represented by a filename-only row.
 Before a run, LegoNet checks that TRL is finite and nonnegative, coordinates
-form nonnegative x/y pairs, both files describe the same images, and every
-referenced image exists. These rules also describe the annotation structure a
-future user-provided Four Crops-compatible dataset will need to follow.
+form integer x/y pairs, both files describe the same images, and every
+referenced image exists. The published annotations include some negative
+boundary coordinates; consistent with the legacy roots loader, LegoNet clamps
+their affected coordinate to zero when loading the sample. These rules also
+describe the annotation structure a future user-provided Four Crops-compatible
+dataset will need to follow.
 
 Select exactly one subset per run:
 

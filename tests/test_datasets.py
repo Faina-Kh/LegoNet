@@ -164,6 +164,30 @@ def test_four_crops_rejects_incomplete_existing_destination(tmp_path: Path) -> N
         datasets.download_four_crops_subset(destination, "dataset_1")
 
 
+def test_four_crops_install_retries_transient_windows_lock(tmp_path: Path) -> None:
+    dataset_dir = tmp_path / "Four Crops"
+    staged = tmp_path / "staged"
+    staged.mkdir()
+
+    with (
+        patch.object(
+            datasets.os,
+            "replace",
+            side_effect=[PermissionError("locked"), None],
+        ) as replace,
+        patch.object(datasets.time, "sleep") as sleep,
+    ):
+        result = datasets._install_four_crops_subset(
+            staged,
+            dataset_dir,
+            "dataset_1",
+        )
+
+    assert result == dataset_dir / "dataset_1"
+    assert replace.call_count == 2
+    sleep.assert_called_once_with(1)
+
+
 def test_four_crops_selective_extraction_validates_entire_archive(
     tmp_path: Path,
 ) -> None:

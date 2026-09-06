@@ -68,11 +68,11 @@ def _read_points(path: Path) -> dict[PurePosixPath, list[str]]:
             if len(coordinates) % 2:
                 raise ValueError(f"Expected x,y coordinate pairs in {path} line {line}.")
             try:
-                values = [float(value) for value in coordinates]
+                [int(value) for value in coordinates]
             except ValueError as error:
-                raise ValueError(f"Invalid coordinate in {path} line {line}.") from error
-            if any(not math.isfinite(value) or value < 0 for value in values):
-                raise ValueError(f"Coordinates must be finite and nonnegative in {path} line {line}.")
+                raise ValueError(
+                    f"Coordinates must be integers in {path} line {line}."
+                ) from error
             if image in rows:
                 raise ValueError(f"Duplicate image in {path} line {line}: {image}")
             rows[image] = coordinates

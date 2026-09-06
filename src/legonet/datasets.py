@@ -366,6 +366,40 @@ def _extract_four_crops_subset(
         )
 
 
+def _install_four_crops_subset(
+    staged: Path,
+    dataset_dir: Path,
+    subset: str,
+    attempts: int = 10,
+) -> Path:
+    """Atomically install a staged subset, tolerating transient Windows locks."""
+    destination = dataset_dir / subset
+    last_error: PermissionError | None = None
+    for attempt in range(1, attempts + 1):
+        if destination.exists():
+            if four_crops_subset_complete(dataset_dir, subset):
+                return destination
+            raise ValueError(
+                f"Four Crops destination appeared during extraction but is "
+                f"incomplete: {destination}. Another run may be installing the "
+                "same subset; stop duplicate runs and move the incomplete "
+                "directory aside before retrying."
+            )
+        try:
+            os.replace(staged, destination)
+            return destination
+        except PermissionError as error:
+            last_error = error
+            if attempt < attempts:
+                time.sleep(1)
+    raise ValueError(
+        f"Windows kept the extracted Four Crops directory locked, so it could "
+        f"not be installed at {destination}. Stop duplicate LegoNet runs and "
+        "temporarily pause antivirus/indexing for this dataset directory, then "
+        "retry; the verified archive will be reused."
+    ) from last_error
+
+
 def download_four_crops_subset(
     dataset_dir: str | Path,
     subset: str,
@@ -436,7 +470,7 @@ def download_four_crops_subset(
             json.dumps(marker, indent=2) + "\n",
             encoding="utf-8",
         )
-        os.replace(staged, subset_dir)
+        _install_four_crops_subset(staged, directory, subset)
     print(f"Four Crops {subset} installed: {subset_dir}")
     return subset_dir.resolve()
 

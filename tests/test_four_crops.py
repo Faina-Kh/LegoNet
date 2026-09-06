@@ -75,3 +75,16 @@ def test_rejects_missing_referenced_image(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="is missing"):
         resolve_four_crops_split(tmp_path, "dataset_1", "Test")
+
+
+def test_accepts_published_negative_boundary_coordinates(tmp_path: Path) -> None:
+    split = tmp_path / "sub_Test"
+    _write_pair(split, "Test", [("root.jpg", "2")])
+    (split / "Test_pointsOutput.csv").write_text(
+        "root.jpg,-1,12,8,-2\n",
+        encoding="utf-8",
+    )
+
+    result = resolve_four_crops_split(tmp_path, "dataset_1", "Test")
+
+    assert result.points_file == split / "Test_pointsOutput.csv"
