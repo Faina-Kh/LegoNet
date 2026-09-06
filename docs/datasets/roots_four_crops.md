@@ -83,6 +83,13 @@ a small combined Dataset 4 manifest under the run's
 `InputManifests/dataset_4` results directory. The generated manifest refers to
 images by acquisition-relative path; the downloaded dataset is not modified.
 
+Dataset 4 evaluation retains the overall metrics and additionally reports each
+acquisition subfolder separately. The run summary lists per-subfolder MAE, MSE
+for positive GT, MRD for positive GT, and 1-FVU. Keypoint runs also list point
+mAP. The same values, together with image counts, are written to
+`OutputFiles_Test/per_subfolder_TRL_metrics.csv`, allowing results for corn,
+melon, pepper, and tomato acquisitions to be compared independently.
+
 ## Annotation format
 
 The TRL files have no header. Each row is:

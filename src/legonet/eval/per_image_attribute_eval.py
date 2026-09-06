@@ -5,9 +5,10 @@ from __future__ import annotations
 import torch
 import os
 import numpy as np
+from collections import defaultdict
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Optional
+from pathlib import Path, PurePosixPath
+from typing import Any, Mapping, Optional
 from legonet import config
 import csv
 from PIL import Image
@@ -36,6 +37,92 @@ class PerImageCheckpointMetrics:
     metric_value: Optional[float]
 
 
+def _dataset_4_subfolder(image_name: str, args: Any) -> str | None:
+    """Return the acquisition folder encoded in a Dataset 4 manifest path."""
+    if not (
+        getattr(args, "dataset_name", None) == "roots_four_crops"
+        and getattr(args, "dataset_subset", None) == "dataset_4"
+    ):
+        return None
+    parts = PurePosixPath(image_name.replace("\\", "/")).parts
+    return parts[0] if len(parts) > 1 else None
+
+
+def _format_metric(value: float | None) -> str:
+    """Format one optional per-subfolder metric for the text summary."""
+    return "n/a" if value is None or not np.isfinite(value) else f"{value:.3f}"
+
+
+def write_dataset_4_subfolder_metrics(
+    groups: Mapping[str, Mapping[str, list[float]]],
+    output_directory: str | Path,
+    include_point_ap: bool,
+) -> tuple[Path, str]:
+    """Write per-acquisition Dataset 4 TRL and optional keypoint metrics."""
+    output_path = Path(output_directory) / "per_subfolder_TRL_metrics.csv"
+    rows = []
+    summary_lines = ["Dataset 4 per-subfolder metrics"]
+    for subfolder in sorted(groups):
+        values = groups[subfolder]
+        ground_truth = values["ground_truth"]
+        predictions = values["predictions"]
+        metrics = compute_regression_metrics(ground_truth, predictions)
+        nonzero_pairs = [
+            (target, estimate)
+            for target, estimate in zip(ground_truth, predictions)
+            if target > 0
+        ]
+        mse_nonzero = (
+            float(np.mean([(target - estimate) ** 2 for target, estimate in nonzero_pairs]))
+            if nonzero_pairs
+            else None
+        )
+        point_ap = None
+        if include_point_ap:
+            _, _, point_ap = calc_points_recall_precision_ap(
+                values.get("point_truth", []),
+                values.get("point_scores", []),
+            )
+            point_ap = float(point_ap)
+        rows.append(
+            (
+                subfolder,
+                len(ground_truth),
+                len(nonzero_pairs),
+                metrics.mean_absolute_error,
+                mse_nonzero,
+                metrics.mean_relative_error,
+                metrics.one_minus_fvu,
+                point_ap,
+            )
+        )
+        summary_lines.append(
+            f"{subfolder}: images={len(ground_truth)} | "
+            f"MAE={_format_metric(metrics.mean_absolute_error)} | "
+            f"MSE (gt > 0)={_format_metric(mse_nonzero)} | "
+            f"MRD (gt > 0)={_format_metric(metrics.mean_relative_error)} | "
+            f"1-FVU={_format_metric(metrics.one_minus_fvu)}"
+            + (f" | point mAP={_format_metric(point_ap)}" if include_point_ap else "")
+        )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8", newline="") as output_file:
+        writer = csv.writer(output_file)
+        writer.writerow(
+            (
+                "subfolder",
+                "images",
+                "nonzero_gt_images",
+                "mean_absolute_error",
+                "mean_squared_error_gt_positive",
+                "mean_relative_deviation_gt_positive",
+                "one_minus_fvu",
+                "point_mAP",
+            )
+        )
+        writer.writerows(rows)
+    return output_path, "\n".join(summary_lines)
+
+
 def evaluate(
     dataloader: Any,
     dataset: Any,
@@ -54,6 +141,14 @@ def evaluate(
         all_predicted_values = []
         T, P = [], []
         protocol_comparison = {}
+        subfolder_values = defaultdict(
+            lambda: {
+                "ground_truth": [],
+                "predictions": [],
+                "point_truth": [],
+                "point_scores": [],
+            }
+        )
         all_rel_error = []
         predicted_maps = None
 
@@ -68,6 +163,7 @@ def evaluate(
         for iter_num, data in enumerate(dataloader):
 
             full_rgbImage_name = dataset.bgr_images_names[dataloader.batch_sampler.groups[iter_num][0]]
+            subfolder = _dataset_4_subfolder(full_rgbImage_name, args)
 
             Image_name = Path(full_rgbImage_name).stem
 
@@ -162,6 +258,9 @@ def evaluate(
                         )
                         T = T + t
                         P = P + p
+                        if subfolder is not None:
+                            subfolder_values[subfolder]["point_truth"].extend(t)
+                            subfolder_values[subfolder]["point_scores"].extend(p)
                         if getattr(args, "compare_keypoint_protocols", False):
                             for protocol_name in (
                                 "processed_threshold_0_02",
@@ -200,6 +299,9 @@ def evaluate(
                         rel_error = -1
 
             all_predicted_values.append(prediction)
+            if subfolder is not None and args.have_GT:
+                subfolder_values[subfolder]["ground_truth"].append(float(GT))
+                subfolder_values[subfolder]["predictions"].append(float(prediction))
 
             if  model.estimator.binary_model:
                 if args.have_GT:
@@ -292,6 +394,15 @@ def evaluate(
                         mean_rel_error,
                         one_minus_fvu,
                     )
+                )
+            if subfolder_values:
+                _, subfolder_summary = write_dataset_4_subfolder_metrics(
+                    subfolder_values,
+                    config.General.files_path,
+                    include_point_ap=(args.estimate_type == "withKeyPoints"),
+                )
+                args.per_image_evaluation_summary = "\n".join(
+                    (args.per_image_evaluation_summary, subfolder_summary)
                 )
             if config.AttributeEstimation.calc_det_performance and config.General.experiment_path != "" and args.have_GT and config.AttributeEstimation.estimate_type == 'withKeyPoints':
                 recall, precision, ap = calc_points_recall_precision_ap(T, P)

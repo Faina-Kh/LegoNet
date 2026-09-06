@@ -33,6 +33,9 @@ in the same directory, so use a distinct name when results must be preserved.
 - Keypoint evaluation may produce `parts_recall_precision.csv` and
   `Points_PR_curve.png`. Protocol-comparison runs add
   `keypoint_protocol_comparison.csv` and protocol-specific plots.
+- Dataset 4 per-image TRL evaluation adds
+  `per_subfolder_TRL_metrics.csv`, containing separate regression metrics and,
+  for keypoint models, point mAP for each acquisition/crop subfolder.
 
 Visualization folders depend on the selected drawing switches. Detection
 overviews show full images; per-object folders contain matched-box views,
