@@ -84,8 +84,7 @@ def write_dataset_4_subfolder_metrics(
                 values.get("point_scores", []),
             )
             point_ap = float(point_ap)
-        rows.append(
-            (
+        row = [
                 subfolder,
                 len(ground_truth),
                 len(nonzero_pairs),
@@ -93,9 +92,10 @@ def write_dataset_4_subfolder_metrics(
                 mse_nonzero,
                 metrics.mean_relative_error,
                 metrics.one_minus_fvu,
-                point_ap,
-            )
-        )
+        ]
+        if include_point_ap:
+            row.append(point_ap)
+        rows.append(row)
         summary_lines.append(
             f"{subfolder}: images={len(ground_truth)} | "
             f"MAE={_format_metric(metrics.mean_absolute_error)} | "
@@ -107,18 +107,18 @@ def write_dataset_4_subfolder_metrics(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8", newline="") as output_file:
         writer = csv.writer(output_file)
-        writer.writerow(
-            (
-                "subfolder",
-                "images",
-                "nonzero_gt_images",
-                "mean_absolute_error",
-                "mean_squared_error_gt_positive",
-                "mean_relative_deviation_gt_positive",
-                "one_minus_fvu",
-                "point_mAP",
-            )
-        )
+        columns = [
+            "subfolder",
+            "images",
+            "nonzero_gt_images",
+            "mean_absolute_error",
+            "mean_squared_error_gt_positive",
+            "mean_relative_deviation_gt_positive",
+            "one_minus_fvu",
+        ]
+        if include_point_ap:
+            columns.append("point_mAP")
+        writer.writerow(columns)
         writer.writerows(rows)
     return output_path, "\n".join(summary_lines)
 

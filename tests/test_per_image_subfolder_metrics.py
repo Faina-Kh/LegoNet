@@ -51,3 +51,25 @@ def test_writes_separate_metrics_for_each_dataset_4_subfolder(tmp_path: Path) ->
     assert rows[1]["point_mAP"] == "1.0"
     assert "CORN: images=2" in summary
     assert "MELON: images=1" in summary
+
+
+def test_regression_subfolder_csv_omits_point_map_column(tmp_path: Path) -> None:
+    groups = {
+        "PEPPER": {
+            "ground_truth": [10.0],
+            "predictions": [9.0],
+            "point_truth": [],
+            "point_scores": [],
+        }
+    }
+
+    output, summary = write_dataset_4_subfolder_metrics(
+        groups,
+        tmp_path,
+        include_point_ap=False,
+    )
+
+    with output.open(encoding="utf-8", newline="") as input_file:
+        row = next(csv.DictReader(input_file))
+    assert "point_mAP" not in row
+    assert "point mAP" not in summary
