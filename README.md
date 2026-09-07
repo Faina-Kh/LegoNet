@@ -4,7 +4,7 @@
 
 LegoNet detects agricultural objects and estimates biologically meaningful
 properties directly from images—such as berry counts for countable grape
-clusters and grapevine-root length, diameter, and color.
+clusters and root length, diameter, and color.
 
 The project combines object detection, keypoint estimation, regression, and
 multi-branch attribute prediction in a reproducible PyTorch pipeline. It

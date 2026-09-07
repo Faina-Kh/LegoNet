@@ -278,6 +278,34 @@ class RunnerCharacterizationTests(unittest.TestCase):
         self.assertIn("Dataset: roots_four_crops", summary)
         self.assertIn("Dataset subset: dataset_4", summary)
 
+    def test_run_parameters_include_physical_gpu_for_cuda_device(self):
+        args = SimpleNamespace(
+            run_script="Training",
+            dataset_name="roots_four_crops",
+            dataset_subset="dataset_1",
+            network_type="per_image_estimation",
+            estimate_type="withKeyPoints",
+            val_set="Val",
+            gpu_num="1",
+            STORAGE_PATH="storage",
+            txt_results="results.txt",
+            weights_mode="none",
+            have_GT=True,
+            evaluate_detection=False,
+            to_draw=False,
+            batch_size=1,
+            num_workers=0,
+            epochs=300,
+        )
+
+        with mock.patch.object(self.runner.config.General, "device", "cuda:0"):
+            summary = self.runner.format_run_parameters(
+                args,
+                Path("run_configuration.json"),
+            )
+
+        self.assertIn("  Device: cuda:0\n  Physical GPU: 1\n", summary)
+
     def test_partial_detector_weights_keep_current_module_mapping(self):
         """Partial detector loading targets the three current detector modules."""
         args = self._weight_args(

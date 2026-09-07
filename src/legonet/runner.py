@@ -173,6 +173,15 @@ def _public_estimate_type(args: Any) -> str:
     )
 
 
+def _device_lines(args: Any) -> list[str]:
+    """Describe the process-local device and its physical GPU selection."""
+    device = str(config.General.device)
+    lines = [f"  Device: {device}"]
+    if device.startswith("cuda"):
+        lines.append(f"  Physical GPU: {getattr(args, 'gpu_num', 'unknown')}")
+    return lines
+
+
 def format_run_parameters(args: Any, configuration_path: Path) -> str:
     """Return a concise, grouped summary of the resolved run settings."""
     dataset_subset = getattr(args, "dataset_subset", None)
@@ -187,7 +196,7 @@ def format_run_parameters(args: Any, configuration_path: Path) -> str:
         f"  Network: {getattr(args, 'network_type', 'unknown')}",
         f"  Estimate type: {_public_estimate_type(args)}",
         f"  Split: {getattr(args, 'val_set', 'not applicable')}",
-        f"  Device: {config.General.device}",
+        *_device_lines(args),
         "",
         "Storage and output",
         f"  Storage root: {getattr(args, 'STORAGE_PATH', 'unknown')}",
