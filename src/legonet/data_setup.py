@@ -68,6 +68,7 @@ def _build_kcsv_datasets(args: Any) -> Tuple[Any, Any]:
         else:
             dataset_train = KCSVDataset(
                 input_file=args.train_json_file,
+                pre_process=args.pre_process,
                 transform=transforms.Compose(
                     [
                         Normalizer(pre_process=args.pre_process),
@@ -96,6 +97,7 @@ def _build_kcsv_datasets(args: Any) -> Tuple[Any, Any]:
     else:
         dataset_val = KCSVDataset(
             input_file=args.val_json_file,
+            pre_process=args.pre_process,
             transform=transforms.Compose(
                 [
                     Normalizer(pre_process=args.pre_process),
@@ -117,7 +119,7 @@ def _build_lcc_datasets(args: Any) -> Tuple[Any, Any]:
         dataset_train = csv_LCCDataset(
             args.train_csv_leaf_number_file,
             args.train_csv_leaf_location_file,
-            pre_process="keras_like",
+            pre_process=args.pre_process,
             ann_type="count",
             transform=transforms.Compose(
                 [
@@ -133,7 +135,7 @@ def _build_lcc_datasets(args: Any) -> Tuple[Any, Any]:
     dataset_val = csv_LCCDataset(
         args.val_csv_leaf_number_file,
         args.val_csv_leaf_location_file,
-        pre_process="keras_like",
+        pre_process=args.pre_process,
         ann_type="count",
         transform=transforms.Compose(
             [

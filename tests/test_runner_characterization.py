@@ -209,6 +209,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
             to_draw=False,
             batch_size=1,
             num_workers=0,
+            pre_process="torch_like",
             internal_detail={"value": numpy.int64(2)},
         )
 
@@ -235,6 +236,8 @@ class RunnerCharacterizationTests(unittest.TestCase):
         self.assertEqual(output.getvalue(), summary)
         self.assertIn("Run\n  Mode: Inference", summary)
         self.assertIn("Estimate type: keypoints", summary)
+        self.assertIn("Preprocessing: torch_like", summary)
+        self.assertIn("Input color order: RGB", summary)
         self.assertNotIn("withKeyPoints", summary)
         self.assertIn("Storage and output", summary)
         self.assertIn("Full checkpoint: counting.pt", summary)
@@ -810,7 +813,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
         self.data_setup.csv_LCCDataset.assert_called_once()
         dataset_call = self.data_setup.csv_LCCDataset.call_args
         self.assertEqual(dataset_call[0][:2], ("validation.csv", "validation_points.csv"))
-        self.assertEqual(dataset_call[1]["pre_process"], "keras_like")
+        self.assertEqual(dataset_call[1]["pre_process"], "torch_like")
         self.assertEqual(dataset_call[1]["ann_type"], "count")
         self.assertEqual(dataset_call[1]["json_file"], "validation.json")
         self.assertEqual(dataset_call[1]["base_dir"], "dataset")
@@ -854,6 +857,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
         dataset_call = self.data_setup.KCSVDataset.call_args
         self.assertEqual(dataset_call[1]["input_file"], "validation.json")
         self.assertEqual(dataset_call[1]["dataset_type"], "roots_json")
+        self.assertEqual(dataset_call[1]["pre_process"], "torch_like")
         self.assertEqual(dataset_call[1]["base_dir"], "dataset")
         self.assertTrue(dataset_call[1]["have_GT"])
         self.data_setup.DataLoader.assert_called_once_with(
@@ -863,6 +867,45 @@ class RunnerCharacterizationTests(unittest.TestCase):
             batch_sampler=validation_sampler,
         )
         self.runner.model_build.assert_called_once_with(args, None, validation_dataset)
+
+    def test_csv_lcc_training_uses_requested_preprocessing_for_both_splits(self):
+        """Per-image Roots training keeps train and validation preprocessing aligned."""
+        args = SimpleNamespace(
+            run_script="Training",
+            train_csv_leaf_number_file="train.csv",
+            train_csv_leaf_location_file="train_points.csv",
+            train_json_file=None,
+            val_csv_leaf_number_file="validation.csv",
+            val_csv_leaf_location_file="validation_points.csv",
+            val_json_file=None,
+            pre_process="torch_like",
+            base_dir="dataset",
+            have_GT=True,
+        )
+
+        self.data_setup._build_lcc_datasets(args)
+
+        self.assertEqual(self.data_setup.csv_LCCDataset.call_count, 2)
+        for dataset_call in self.data_setup.csv_LCCDataset.call_args_list:
+            self.assertEqual(dataset_call.kwargs["pre_process"], "torch_like")
+
+    def test_roots_json_training_uses_requested_preprocessing_for_both_splits(self):
+        """Roots detection training keeps train and validation preprocessing aligned."""
+        args = SimpleNamespace(
+            run_script="Training",
+            dataset_type="roots_json",
+            train_json_file="train.json",
+            val_json_file="validation.json",
+            pre_process="torch_like",
+            base_dir="dataset",
+            have_GT=True,
+        )
+
+        self.data_setup._build_kcsv_datasets(args)
+
+        self.assertEqual(self.data_setup.KCSVDataset.call_count, 2)
+        for dataset_call in self.data_setup.KCSVDataset.call_args_list:
+            self.assertEqual(dataset_call.kwargs["pre_process"], "torch_like")
 
     def test_coco_training_builds_train_and_validation_loaders(self):
         """COCO training creates both loaders with the detection collater."""
