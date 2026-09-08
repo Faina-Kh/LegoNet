@@ -212,7 +212,11 @@ def format_run_parameters(args: Any, configuration_path: Path) -> str:
         "",
         "Evaluation and visualization",
         f"  Ground truth available: {getattr(args, 'have_GT', False)}",
-        f"  Evaluate detection: {getattr(args, 'evaluate_detection', False)}",
+        *(
+            [f"  Evaluate detection: {getattr(args, 'evaluate_detection', False)}"]
+            if getattr(args, "network_type", None) in DETECTION_NETWORKS
+            else []
+        ),
         f"  Draw results: {getattr(args, 'to_draw', False)}",
         "",
         "Runtime",

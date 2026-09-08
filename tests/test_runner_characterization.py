@@ -238,6 +238,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
         self.assertIn("Estimate type: keypoints", summary)
         self.assertIn("Preprocessing: torch_like", summary)
         self.assertIn("Input color order: RGB", summary)
+        self.assertIn("Evaluate detection: True", summary)
         self.assertNotIn("withKeyPoints", summary)
         self.assertIn("Storage and output", summary)
         self.assertIn("Full checkpoint: counting.pt", summary)
@@ -280,6 +281,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
 
         self.assertIn("Dataset: roots_four_crops", summary)
         self.assertIn("Dataset subset: dataset_4", summary)
+        self.assertNotIn("Evaluate detection:", summary)
 
     def test_run_parameters_include_physical_gpu_for_cuda_device(self):
         args = SimpleNamespace(
