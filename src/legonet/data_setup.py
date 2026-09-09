@@ -119,8 +119,8 @@ def _build_lcc_datasets(args: Any) -> Tuple[Any, Any]:
     loader_preprocessing = args.preprocessing_contract
     if args.run_script == "Training":
         dataset_train = csv_LCCDataset(
-            args.train_csv_leaf_number_file,
-            args.train_csv_leaf_location_file,
+            args.train_csv_attribute_value_file,
+            args.train_csv_attribute_location_file,
             pre_process=loader_preprocessing,
             transform=transforms.Compose(
                 [
@@ -134,8 +134,8 @@ def _build_lcc_datasets(args: Any) -> Tuple[Any, Any]:
         dataset_train = None
 
     dataset_val = csv_LCCDataset(
-        args.val_csv_leaf_number_file,
-        args.val_csv_leaf_location_file,
+        args.val_csv_attribute_value_file,
+        args.val_csv_attribute_location_file,
         pre_process=loader_preprocessing,
         transform=transforms.Compose(
             [

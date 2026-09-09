@@ -841,12 +841,12 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
             args.val_file = args.kcsv_test
 
     elif args.dataset_name == "roots_grapevines":
-        args.train_csv_leaf_number_file = os.path.join(myDatasetsPath, 'sub_Train', "Train.csv")
-        args.train_csv_leaf_location_file = os.path.join(myDatasetsPath, 'sub_Train','Train_pointsOutput.csv')
+        args.train_csv_attribute_value_file = os.path.join(myDatasetsPath, 'sub_Train', "Train.csv")
+        args.train_csv_attribute_location_file = os.path.join(myDatasetsPath, 'sub_Train','Train_pointsOutput.csv')
         args.train_json_file = None
 
-        args.val_csv_leaf_number_file = os.path.join(myDatasetsPath, "sub_" + args.val_set, args.val_set + ".csv")
-        args.val_csv_leaf_location_file = os.path.join(myDatasetsPath, "sub_" + args.val_set,
+        args.val_csv_attribute_value_file = os.path.join(myDatasetsPath, "sub_" + args.val_set, args.val_set + ".csv")
+        args.val_csv_attribute_location_file = os.path.join(myDatasetsPath, "sub_" + args.val_set,
                                                        args.val_set + "_pointsOutput.csv")
         args.val_json_file = None
 
@@ -866,8 +866,8 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
             args.val_set,
             manifest_dir,
         )
-        args.val_csv_leaf_number_file = str(selected.trl_file)
-        args.val_csv_leaf_location_file = str(selected.points_file)
+        args.val_csv_attribute_value_file = str(selected.trl_file)
+        args.val_csv_attribute_location_file = str(selected.points_file)
         args.val_json_file = None
         args.base_dir = str(selected.base_dir)
         if args.run_script == "Training":
@@ -877,8 +877,8 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
                 "Train",
                 manifest_dir,
             )
-            args.train_csv_leaf_number_file = str(training.trl_file)
-            args.train_csv_leaf_location_file = str(training.points_file)
+            args.train_csv_attribute_value_file = str(training.trl_file)
+            args.train_csv_attribute_location_file = str(training.points_file)
             args.train_json_file = None
 
     args.base_dir = validation_image_base_dir(

@@ -792,8 +792,8 @@ class RunnerCharacterizationTests(unittest.TestCase):
         args = SimpleNamespace(
             dataset_type="csv_LCC",
             run_script="Inference",
-            val_csv_leaf_number_file="validation.csv",
-            val_csv_leaf_location_file="validation_points.csv",
+            val_csv_attribute_value_file="validation.csv",
+            val_csv_attribute_location_file="validation_points.csv",
             val_json_file="validation.json",
             preprocessing_contract="published_roots",
             base_dir="dataset",

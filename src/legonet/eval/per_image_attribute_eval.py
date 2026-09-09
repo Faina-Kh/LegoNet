@@ -221,7 +221,7 @@ def evaluate(
 
             if args.estimate_type == "withKeyPoints" and config.General.to_draw:
                 img = Image.open(os.path.join(dataset.base_dir, full_rgbImage_name))
-                if args.have_GT and args.val_csv_leaf_location_file != "":
+                if args.have_GT and args.val_csv_attribute_location_file != "":
                     gt_maps = data['annot'][1:6]
 
                 else:
@@ -245,7 +245,7 @@ def evaluate(
                 all_GT_values.append(GT)
 
             if predicted_maps is not None and args.have_GT:
-                if config.AttributeEstimation.calc_det_performance and dataset.csv_leaf_location_file != "":
+                if config.AttributeEstimation.calc_det_performance and dataset.csv_attribute_location_file != "":
                     true_map = data['annot'][5]
                     evaluation_map = process_keypoint_map_for_evaluation(
                         model, predicted_maps[-1]
