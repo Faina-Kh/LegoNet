@@ -54,9 +54,6 @@ from legonet.utils import printf
 
 
 
-unnormalize = UnNormalizer()
-
-
 def _include_crop_in_point_evaluation(
     ground_truth_map: torch.Tensor,
     *,
@@ -208,6 +205,12 @@ def eval(
     """
     if args is None:
         raise ValueError("Per-object evaluation requires configured run arguments.")
+
+    unnormalize = UnNormalizer(
+        preprocessing_contract=getattr(
+            args, "preprocessing_contract", "imagenet_rgb"
+        )
+    )
 
     evaluates_attributes = config.Detect_and_Estimate.type in {
         "per_object_attributes",

@@ -288,7 +288,11 @@ def _evaluate_detection(
             sampler_val,
             dataset_val,
             model,
-            unnormalize=UnNormalizer(),
+            unnormalize=UnNormalizer(
+                preprocessing_contract=getattr(
+                    args, "preprocessing_contract", "imagenet_rgb"
+                )
+            ),
             have_ground_truth=args.have_GT,
             draw_detection_overview=getattr(
                 args, "draw_detection_overview", True

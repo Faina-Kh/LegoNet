@@ -1637,7 +1637,9 @@ class Normalizer(object):
 
 
 class UnNormalizer(object):
-    def __init__(self, mean=None, std=None):
+    """Restore normalized CHW tensors to display-ready channel order."""
+
+    def __init__(self, mean=None, std=None, preprocessing_contract="imagenet_rgb"):
         if mean == None:
             self.mean = [0.485, 0.456, 0.406]
         else:
@@ -1646,6 +1648,7 @@ class UnNormalizer(object):
             self.std = [0.229, 0.224, 0.225]
         else:
             self.std = std
+        self.preprocessing_contract = preprocessing_contract
 
     def __call__(self, tensor):
         """
@@ -1656,6 +1659,10 @@ class UnNormalizer(object):
         """
         for t, m, s in zip(tensor, self.mean, self.std):
             t.mul_(s).add_(m)
+        if self.preprocessing_contract == "published_roots":
+            # Published Roots tensors enter the model in BGR order. Pillow
+            # and saved visualization artifacts expect RGB.
+            return tensor[[2, 1, 0], ...]
         return tensor
 
 

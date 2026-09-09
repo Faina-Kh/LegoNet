@@ -185,12 +185,14 @@ evaluation. Its folder is not created unless `--draw-gt-only true` is passed.
 
 ## Preprocessing contracts
 
-New training uses the `imagenet_rgb` contract: images remain RGB, are scaled to
-`[0, 1]`, and use the ImageNet RGB mean and standard deviation. Existing
-published grapevine-roots checkpoints use the historical `published_roots`
-contract: the raw RGB channels are reordered to BGR and then processed with the
-historical ImageNet normalization. This convention is retained to reproduce
-the published checkpoint results.
+New training and inference that do not load published grapevine-roots weights
+use the `imagenet_rgb` contract: images remain RGB, are scaled to `[0, 1]`, and
+use the ImageNet RGB mean and standard deviation. Training or inference that
+loads an existing published grapevine-roots checkpoint uses the historical
+`published_roots` contract: the raw RGB channels are reordered to BGR and then
+processed with the historical ImageNet normalization. This convention is
+retained to reproduce the published checkpoint results. Saved visualizations
+are converted back to RGB and do not change the tensor supplied to the model.
 
 Training initialized from a published Roots checkpoint inherits
 `published_roots`; training without checkpoint weights uses `imagenet_rgb`.
