@@ -1244,7 +1244,12 @@ def LCC_collater(data):
 
     if have_GT:
         for i in range(len(annots)):
-            annots[i][0] = np.asarray([annots[i][0][0:4]], dtype=np.float64)
+            # The active per-image estimators predict one scalar.  Annotation
+            # rows also contain a class index, which must not become a second
+            # regression target through broadcasting.  The historical
+            # four-value slice belonged only to the retired
+            # ``counting_lean_multiple_out`` architecture.
+            annots[i][0] = np.asarray([annots[i][0][0]], dtype=np.float64)
 
     for i in range(len(imgs)):
         imgs[i] = torch.tensor(imgs[i])
