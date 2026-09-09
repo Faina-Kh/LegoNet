@@ -10,7 +10,7 @@ from legonet import legos
 from legonet import utils
 from legonet import config
 import legonet.my_dataloader as myDataloader
-from legonet.my_dataloader import UnNormalizer
+from legonet.my_dataloader import normalized_chw_to_rgb_array
 from legonet.eval.matching import choose_boxes_by_IoUandPrc
 
 from legonet.models.model_bbox_detection import BBOX_Detection
@@ -362,14 +362,11 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
 
     def get_crops(self, img, bbox_pred=None, anns=None, view_gt = False):
         if view_gt:
-            unnormalize = UnNormalizer()
-
-            im = img.cpu().clone().detach()
-            im = np.array(255 * unnormalize(im))
-            im[im < 0] = 0
-            im[im > 255] = 255
-            im = np.transpose(im, (1,2,0))
-            im = cv2.cvtColor(im.astype(np.uint8), cv2.COLOR_BGR2RGB)
+            rgb_image = normalized_chw_to_rgb_array(
+                img,
+                config.General.preprocessing_contract,
+            )
+            im = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR)
             cv2.imshow('img', im)
             cv2.waitKey(0)
 
@@ -387,8 +384,6 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
             cv2.imshow('img',im)
             cv2.waitKey(0)
 
-            im=torch.tensor(im).float().permute(2,0,1).unsqueeze(dim=0).to(config.General.device)
-
         indices = torch.tensor([0, 1, 2, 3]).to(config.General.device)
         box_coord = torch.index_select(bbox_pred, 1, indices)
 
@@ -403,8 +398,11 @@ class PerObjectEstimate(KeypointUtilitiesMixin, DetectorLifecycleMixin, nn.Modul
 
         # view the crops per image
         if view_gt:
-            bbox_img = np.asarray(bbox_crops[0].permute(1,2,0).cpu())
-            bbox_img = bbox_img.astype(np.uint8)
+            rgb_crop = normalized_chw_to_rgb_array(
+                bbox_crops[0],
+                config.General.preprocessing_contract,
+            )
+            bbox_img = cv2.cvtColor(rgb_crop, cv2.COLOR_RGB2BGR)
             cv2.imshow('bbox', bbox_img)
             cv2.waitKey(0)
 

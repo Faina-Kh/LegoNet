@@ -640,6 +640,7 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
         if args.dataset_name == "roots_grapevines" and args.weights_mode != "none"
         else "imagenet_rgb"
     )
+    config.General.preprocessing_contract = args.preprocessing_contract
     #################################################
     args.choose_epoch_by_IoUavg = False
     #################################################

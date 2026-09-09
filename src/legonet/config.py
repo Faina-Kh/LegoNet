@@ -37,6 +37,7 @@ class General:
     device = ""
     filter_empty_bbox = False
     weights_dir = ""
+    preprocessing_contract = "imagenet_rgb"
 
 
 class Detection:

@@ -2,6 +2,7 @@ from __future__ import print_function, division
 import sys
 import os
 from pathlib import Path
+from typing import Any
 import torch
 import numpy as np
 import random
@@ -1664,6 +1665,23 @@ class UnNormalizer(object):
             # and saved visualization artifacts expect RGB.
             return tensor[[2, 1, 0], ...]
         return tensor
+
+
+def normalized_chw_to_rgb_array(
+    tensor: Any,
+    preprocessing_contract: str = "imagenet_rgb",
+) -> np.ndarray:
+    """Convert a normalized CHW tensor to a clipped uint8 RGB array."""
+    image = tensor
+    for method_name in ("cpu", "clone", "detach"):
+        if hasattr(image, method_name):
+            image = getattr(image, method_name)()
+    image = UnNormalizer(
+        preprocessing_contract=preprocessing_contract
+    )(image)
+    image_array = np.asarray(255 * image)
+    image_array = np.clip(image_array, 0, 255)
+    return np.transpose(image_array, (1, 2, 0)).astype(np.uint8)
 
 
 class AspectRatioBasedSampler(Sampler):

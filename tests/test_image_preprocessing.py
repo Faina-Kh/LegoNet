@@ -6,7 +6,12 @@ import numpy as np
 from PIL import Image
 import torch
 
-from legonet.my_dataloader import Normalizer, UnNormalizer, csv_LCCDataset
+from legonet.my_dataloader import (
+    Normalizer,
+    UnNormalizer,
+    csv_LCCDataset,
+    normalized_chw_to_rgb_array,
+)
 
 
 def test_loader_applies_contract_channel_order(tmp_path):
@@ -55,6 +60,18 @@ def test_unnormalizer_preserves_rgb_display_order():
     )
 
     torch.testing.assert_close(restored, expected_rgb)
+
+
+def test_normalized_tensor_display_helper_returns_uint8_rgb():
+    """The shared display helper presents historical BGR tensors as RGB."""
+    restored = normalized_chw_to_rgb_array(
+        _normalized_chw([200.0, 20.0, 10.0]),
+        preprocessing_contract="published_roots",
+    )
+
+    assert restored.dtype == np.uint8
+    assert restored.shape == (1, 1, 3)
+    np.testing.assert_allclose(restored[0, 0], [10, 20, 200], atol=1)
 
 
 def test_unnormalizer_converts_published_roots_bgr_to_rgb_for_display():
