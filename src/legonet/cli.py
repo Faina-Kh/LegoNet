@@ -635,6 +635,11 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     # Automatic resolution converts ``auto`` into a concrete loading mode.
     configure_weights_mode(args)
     validate_configuration(args)
+    args.preprocessing_contract = (
+        "published_roots"
+        if args.dataset_name == "roots_grapevines" and args.weights_mode != "none"
+        else "imagenet_rgb"
+    )
     #################################################
     args.choose_epoch_by_IoUavg = False
     #################################################
@@ -773,8 +778,6 @@ def configure_runtime(args: argparse.Namespace) -> argparse.Namespace:
     args.num_workers = 0 # 0 - for single processing
     args.batch_size = 1
     args.output_size = 1
-
-    args.pre_process = 'torch_like' #'keras_like'  # torch_like
 
     args.loss_weight = 1  # 1  #1000 #10 #100 # roots_both ablations
 

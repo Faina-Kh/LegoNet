@@ -143,26 +143,24 @@ class csv_LCCDataset(Dataset):
 
     def __init__(
             self,
-            csv_leaf_number_file,
-            csv_leaf_location_file,
+            csv_attribute_value_file,
+            csv_attribute_location_file,
             base_dir=None,
             image_min_side=800,
             image_max_side=1333,
-            pre_process = 'keras_like',
-            ann_type = None,
+            pre_process = 'imagenet_rgb',
             transform = None,
             json_file = None,
             have_GT = True
 
     ):
-        self.csv_leaf_number_file = csv_leaf_number_file
-        self.csv_leaf_location_file = csv_leaf_location_file
+        self.csv_attribute_value_file = csv_attribute_value_file
+        self.csv_attribute_location_file = csv_attribute_location_file
 
         self.base_dir = base_dir
         self.image_min_side = image_min_side
         self.image_max_side = image_max_side
         self.pre_process = pre_process
-        self.ann_type = ann_type
         self.transform = transform
         self.json_file = json_file
 
@@ -170,46 +168,41 @@ class csv_LCCDataset(Dataset):
 
         self.bgr_images_names = []
         self.centers_images_names = []
-        self.image_data_leaf_number = {}
-        self.image_data_leaf_location = {}
+        self.image_data_attribute_value = {}
+        self.image_data_attribute_location = {}
 
         # Take base_dir from annotations file if not explicitly specified.
         if self.base_dir is None:
-            self.base_dir = os.path.dirname(csv_leaf_number_file)
+            self.base_dir = os.path.dirname(csv_attribute_value_file)
 
 
-        self.labels = {'0': 'leaves'}
-        self.classes = {'leaves': 0}
+        self.labels = {'0': 'attributes'}
+        self.classes = {'attributes': 0}
 
 
-        if self.have_GT and csv_leaf_number_file:
-            # csv with img_path, num_of_leaves
-        #try: # for leaf data- requiered int anns
-            with self._open_for_csv(csv_leaf_number_file) as file:
-                self.image_data_leaf_number = self._read_annotations_NOL(csv.reader(file, delimiter=','))
-        #except ValueError as e:
-        #    raise_from(ValueError('invalid CSV annotations file: {}: {}'.format(csv_leaf_number_file, e)), None)
-            rgb_images_names = list(self.image_data_leaf_number.keys())
+        if self.have_GT and csv_attribute_value_file:
+            # CSV with image path and scalar attribute value.
+            with self._open_for_csv(csv_attribute_value_file) as file:
+                self.image_data_attribute_value = self._read_annotations_NOL(csv.reader(file, delimiter=','))
+
+            rgb_images_names = list(self.image_data_attribute_value.keys())
             self.bgr_images_names = rgb_images_names
 
             # csv with img_path, x, y
-            if csv_leaf_location_file != "":
+            if csv_attribute_location_file != "":
                 try:
-                    with self._open_for_csv(csv_leaf_location_file) as file:
-                        self.image_data_leaf_location = self._read_annotations_leaves_locations(csv.reader(file, delimiter=','))
+                    with self._open_for_csv(csv_attribute_location_file) as file:
+                        self.image_data_attribute_location = self._read_annotations_attribute_locations(csv.reader(file, delimiter=','))
                 except ValueError as e:
-                    raise_from(ValueError('invalid CSV annotations file: {}: {}'.format(csv_leaf_location_file, e)), None)
+                    raise_from(ValueError('invalid CSV annotations file: {}: {}'.format(csv_attribute_location_file, e)), None)
                 self.centers_images_names = [x.replace('rgb', 'centers') for x in rgb_images_names]
                 if config.General.dataset_name not in {'roots_grapevines', 'roots_four_crops'}:
-                    assert set(list(self.image_data_leaf_location.keys())) == set(
+                    assert set(list(self.image_data_attribute_location.keys())) == set(
                         self.centers_images_names), 'there are some missing centers annotations'
-
 
             if json_file !=None:
                 self.json_data = json.load(open(json_file, 'r'))
                 assert type(self.json_data) == dict, 'annotation file format {} not supported'.format(type(self.json_data))
-
-
 
         else:
             rgb_images_names = os.listdir(self.base_dir)
@@ -226,7 +219,6 @@ class csv_LCCDataset(Dataset):
 
 
     def image_path_rgb(self, image_index):
-        #print(os.path.join(self.base_dir, self.bgr_images_names[image_index]))
         return os.path.join(self.base_dir, self.bgr_images_names[image_index])
 
     def num_classes(self):
@@ -241,7 +233,7 @@ class csv_LCCDataset(Dataset):
         #print(self.image_path_rgb(image_index).split("\\")[-1])
         image = np.asarray(Image.open(self.image_path_rgb(image_index)).convert('RGB'))
 
-        if pre_process == "keras_like":
+        if pre_process == "published_roots":
             # transform the image to bgr
             return image[:, :, ::-1].copy()
 
@@ -250,16 +242,14 @@ class csv_LCCDataset(Dataset):
 
 
     def get_output_forV20(self, group):
-        annotations_group_num_of_leaves = self.load_annotations_group_num_of_leaves(group)
-        if len(self.image_data_leaf_location)>0:
-            annotations_group_leaves_center = self.load_annotations_group_leaves_center(group)
+        annotations_group_attribute_values = self.load_annotations_group_attribute_values(group)
+        if len(self.image_data_attribute_location)>0:
+            annotations_group_attribute_centers = self.load_annotations_group_attribute_centers(group)
 
             # # check validity of annotations
-            # image_group_0, annotations_group_leaves_center, annotations_group_num_of_leaves = self.filter_annotations(
-            #     image_group, annotations_group_leaves_center, annotations_group_num_of_leaves, group)
-            return annotations_group_num_of_leaves[0], annotations_group_leaves_center[0][0]
+            return annotations_group_attribute_values[0], annotations_group_attribute_centers[0][0]
         else:
-            return annotations_group_num_of_leaves[0]
+            return annotations_group_attribute_values[0]
 
     def image_output_shape(self, image_shape, pyramid_level=3):
         return (np.array(image_shape[:2]) + 2 ** pyramid_level - 1) // (2 ** pyramid_level)
@@ -302,22 +292,22 @@ class csv_LCCDataset(Dataset):
         return p
 
 
-    def compute_keypoints_targets_multi_maps(self, image_shape, annotations_leaves_centers_a, radius=(5, 5), pyramid_level=3):
+    def compute_keypoints_targets_multi_maps(self, image_shape, annotation_centers_input, radius=(5, 5), pyramid_level=3):
         # resize transformed-image and annotations
         import copy
-        annotations_leaves_centers = copy.deepcopy(annotations_leaves_centers_a)
+        annotation_centers = copy.deepcopy(annotation_centers_input)
         # here we should resize image too and then check it with the annotations
         output_shape = self.image_output_shape(image_shape, pyramid_level=pyramid_level)
         image_ratio = self.images_ratios(image_shape, output_shape)
-        annotations_leaves_centers[:, :2] = annotations_leaves_centers[:, :2] * image_ratio
+        annotation_centers[:, :2] = annotation_centers[:, :2] * image_ratio
         annotations = np.zeros(output_shape)
 
-        for i in range(annotations_leaves_centers.shape[0]):
-            if np.all(annotations_leaves_centers_a==[0,0,0]): #np.sum(annotations_leaves_centers)==0   # there are no gt points
+        for i in range(annotation_centers.shape[0]):
+            if np.all(annotation_centers_input==[0,0,0]):
                 continue
 
             #time.sleep(0.01)
-            gaussian_map = self.create_gausian_mask(annotations_leaves_centers[i, :2], output_shape[1], output_shape[0],
+            gaussian_map = self.create_gausian_mask(annotation_centers[i, :2], output_shape[1], output_shape[0],
                                                radius=radius)
 
             #time.sleep(0.01)
@@ -362,59 +352,28 @@ class csv_LCCDataset(Dataset):
             line += 1
 
             try:
-                img_file, num_of_leaves = row[:2]
+                img_file, attribute_value = row[:2]
             except ValueError:
                 raise_from(ValueError(
-                    'line {}: format should be \'img_file, num_of_leaves\' or \'img_file,,,,,\''.format(line)), None)
+                    'line {}: format should be \'img_file, attribute_value\' or \'img_file,,,,,\''.format(line)), None)
 
             if img_file not in result:
                 result[img_file] = []
 
             # If a row contains only an image path, it's an image without annotations.
-            if (num_of_leaves) == (''):
+            if attribute_value == '':
                 raise (ValueError('image {}: doesnt contain label\''.format(img_file)), None)
 
             # Check that the bounding box is valid.
             if config.General.dataset_name not in {'roots_grapevines', 'roots_four_crops'}:
-                if int(float(num_of_leaves)) <= 0:
-                    raise ValueError('num_of_leaves must be higher than 0 but is {}'.format(num_of_leaves))
+                if int(float(attribute_value)) <= 0:
+                    raise ValueError('attribute value must be higher than 0 but is {}'.format(attribute_value))
 
-            result[img_file].append({'num_of_leaves': num_of_leaves, 'class': 'leaves'})
+            result[img_file].append({'attribute_value': attribute_value, 'class': 'attributes'})
         return result
 
-    #
-    # def _read_annotations_leaves_locations(self, csv_reader):
-    #     result = {}
-    #     for line, row in enumerate(csv_reader):
-    #         line += 1
-    #
-    #         try:
-    #             img_file, x, y = row[:3]
-    #         except ValueError:
-    #             raise_from(ValueError('line {}: format should be \'img_file,x,y\' or \'img_file,,,,,\''.format(line)),
-    #                        None)
-    #
-    #         if img_file not in result:
-    #             result[img_file] = []
-    #
-    #         # If a row contains only an image path, it's an image without annotations.
-    #         if (x, y) == ('', ''):
-    #             raise (ValueError('image {}: doesnt contain label\''.format(img_file)), None)
-    #
-    #         x1 = self._parse(x, int, 'line {}: malformed x1: {{}}'.format(line))
-    #         y1 = self._parse(y, int, 'line {}: malformed y1: {{}}'.format(line))
-    #
-    #         # Check that the bounding box is valid.
-    #         if x1 < 0:
-    #             raise ValueError('line {}: x ({}) must be higher than 0 ({})'.format(line, x))
-    #         if y1 < 0:
-    #             raise ValueError('line {}: y ({}) must be higher than 0 ({})'.format(line, y))
-    #
-    #         result[img_file].append({'x': x, 'y': y, 'class': 'leaves'})
-    #     return result
-    #
 
-    def _read_annotations_leaves_locations(self, csv_reader):
+    def _read_annotations_attribute_locations(self, csv_reader):
         result = {}
         for line, row in enumerate(csv_reader):
             line += 1
@@ -441,14 +400,10 @@ class csv_LCCDataset(Dataset):
                 if y1 < 0:
                     raise ValueError('line {}: y ({}) must be higher than 0 ({})'.format(line, y))
 
-                result[img_file].append({'x': x, 'y': y, 'class': 'leaves'})
+                result[img_file].append({'x': x, 'y': y, 'class': 'attributes'})
 
             else:
                 img_file = row[0]
-
-                # img = skimage.io.imread(os.path.join(self.base_dir, img_file))
-                # img_w = img.shape[1]
-                # img_h = img.shape[0]
 
                 if img_file not in result:
                     result[img_file] = []
@@ -489,7 +444,7 @@ class csv_LCCDataset(Dataset):
                     # if y1 > (img_h-1):
                     #     y = str(img_h-1)
 
-                    result[img_file].append({'x': x, 'y': y, 'class': 'leaves'})
+                    result[img_file].append({'x': x, 'y': y, 'class': 'attributes'})
 
                     i+=2
 
@@ -508,13 +463,13 @@ class csv_LCCDataset(Dataset):
         return result
 
 
-    def load_annotations_group_leaves_center(self, group):
-        return [[self.load_annotations_leaves_centers(image_index) for image_index in group]]
+    def load_annotations_group_attribute_centers(self, group):
+        return [[self.load_annotations_attribute_centers(image_index) for image_index in group]]
 
 
-    def load_annotations_leaves_centers(self, image_index):
+    def load_annotations_attribute_centers(self, image_index):
         path = self.centers_images_names[image_index]
-        annots = self.image_data_leaf_location[path]
+        annots = self.image_data_attribute_location[path]
         centers = np.zeros((len(annots), 3))
         if len(annots[0]) > 0:
             for idx, annot in enumerate(annots):
@@ -523,26 +478,21 @@ class csv_LCCDataset(Dataset):
                 centers[idx, 1] = float(annot['y'])
                 centers[idx, 2] = self.name_to_label(class_name)
 
-        # else:
-        #     a=1
-
         return centers
 
 
-    def load_annotations_group_num_of_leaves(self, group):
-        return [self.load_annotations_num_of_leaves(image_index) for image_index in group]
+    def load_annotations_group_attribute_values(self, group):
+        return [self.load_annotations_attribute_values(image_index) for image_index in group]
 
 
-    def load_annotations_num_of_leaves(self, image_index):
+    def load_annotations_attribute_values(self, image_index):
         path = self.bgr_images_names[image_index]
-        # if path == "T032_L116_2013.09.09_211622_006.jpg":
-        #     a=1
-        annots = self.image_data_leaf_number[path]
+        annots = self.image_data_attribute_value[path]
         counts = np.zeros((len(annots), 2))
 
         for idx, annot in enumerate(annots):
             class_name = annot['class']
-            counts[idx, 0] = float(annot['num_of_leaves'])
+            counts[idx, 0] = float(annot['attribute_value'])
             counts[idx, 1] = self.name_to_label(class_name)
 
         return counts
@@ -561,9 +511,6 @@ class csv_LCCDataset(Dataset):
 
         img = self.load_image(image_index = idx, pre_process = self.pre_process)
 
-        # if self.bgr_images_names[idx] == 'MOPMELON_T008_L018_2019.01.28_123012_009_JEE.jpg':
-        #     a = 1
-
         if self.have_GT:
             annot = self.get_output_forV20([idx])
 
@@ -580,23 +527,20 @@ class csv_LCCDataset(Dataset):
 
         if self.have_GT:
             if len(sample['annot']) == 1:
-                annotations_group_num_of_leaves = sample['annot']
-                sample['annot'] = [annotations_group_num_of_leaves[0]]
+                annotation_values = sample['annot']
+                sample['annot'] = [annotation_values[0]]
 
             elif len(sample['annot']) == 2:
-                annotations_group_num_of_leaves, annotations_group_leaves_center = sample['annot']
+                annotation_values, annotation_centers = sample['annot']
 
                 # compute keypoints after the transformation are done
-                annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_1_R)
-                annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_2_R)
-                annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_3_R)
-                annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_4_R)
-                annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_leaves_center, radius=config.AttributeEstimation.map_5_R)
+                annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotation_centers, radius=config.AttributeEstimation.map_1_R)
+                annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotation_centers, radius=config.AttributeEstimation.map_2_R)
+                annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotation_centers, radius=config.AttributeEstimation.map_3_R)
+                annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotation_centers, radius=config.AttributeEstimation.map_4_R)
+                annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotation_centers, radius=config.AttributeEstimation.map_5_R)
 
-
-                sample['annot'] = [annotations_group_num_of_leaves[0], annotation_map_1, annotation_map_2, annotation_map_3, annotation_map_4, annotation_map_5]
-            # plt.imsave(draw_path + '/' + 'ann_map_'+str(1)+ '_anno.png', annotation_map_1)
-
+                sample['annot'] = [annotation_values[0], annotation_map_1, annotation_map_2, annotation_map_3, annotation_map_4, annotation_map_5]
 
         return sample
 
@@ -610,7 +554,7 @@ class KCSVDataset(Dataset):
                  base_dir = None,
                  image_min_side = 800,
                  image_max_side = 1333,
-                 pre_process = 'keras_like',
+                 pre_process = 'imagenet_rgb',
                  transform = None,
                  dataset_type = "",
                  have_GT = True
@@ -779,31 +723,6 @@ class KCSVDataset(Dataset):
             annot = {"bbox_annot": bbox_annot}
 
         else:
-
-            # if config.General.dataset_name == 'grapes': # and filter_empty...
-                # boxes_to_remove = []
-                # for p_annot in points_annot[0]:
-                #     if math.isnan(p_annot[1]):
-                #         boxes_to_remove.append(p_annot[2])
-
-                # points_counts = points_annot[0]
-                # points_coords = points_annot[1]
-                # for box_id in boxes_to_remove:
-                #     # result1 = np.where(bbox_annot == box_id)
-                #     # bbox_annot=np.delete(bbox_annot,result1[0][0],0)
-                #     for idx1 in range(len(bbox_annot)):
-                #         if bbox_annot[idx1][5] == box_id:
-                #             bbox_annot = np.delete(bbox_annot, [idx1], 0)
-                #             break
-                #
-                #     # points_counts = np.delete(points_counts, result2[0][0],0)
-                #     for idx2 in range(len(points_counts)):
-                #         if points_counts[idx2][2] == box_id:
-                #             points_counts = np.delete(points_counts, [idx2], 0)
-                #             break
-                #
-                # points_annot = (points_counts, points_coords)
-
             annot = {"bbox_annot":bbox_annot, "points_annot":points_annot}
 
         sample = {'img': img, 'annot': annot}
@@ -822,7 +741,7 @@ class KCSVDataset(Dataset):
 
         if config.General.NETWORK_TYPE not in [config.NetworkType.detection, config.NetworkType.detection_and_estimation]:
             # compute keypoints after the transformation are done
-            #if self.lean_version != "version_3":
+
             annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
                                                                          radius=config.AttributeEstimation.map_1_R)
             annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
@@ -833,22 +752,9 @@ class KCSVDataset(Dataset):
                                                                          radius=config.AttributeEstimation.map_4_R)
             annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
                                                                          radius=config.AttributeEstimation.map_5_R)
-            # else:
-            #     annotation_map_1 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-            #                                                                  radius=config.Counting.map_1_R, pyramid_level=3)
-            #     annotation_map_2 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-            #                                                                  radius=config.Counting.map_2_R, pyramid_level=4)
-            #     annotation_map_3 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-            #                                                                  radius=config.Counting.map_3_R, pyramid_level=5)
-            #     annotation_map_4 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-            #                                                                  radius=config.Counting.map_4_R, pyramid_level=6)
-            #     annotation_map_5 = self.compute_keypoints_targets_multi_maps(img.shape, annotations_group_points_center,
-            #                                                                  radius=config.Counting.map_5_R, pyramid_level=7)
 
             sample['annot']['points_annot'] = [annotations_group_num_of_points, annotation_map_1, annotation_map_2, annotation_map_3,
                                annotation_map_4, annotation_map_5]
-
-            #sample['lean_version'] = self.lean_version
 
         sample['img_name'] = self.img_info[self.image_ids[idx]]
 
@@ -857,20 +763,18 @@ class KCSVDataset(Dataset):
     def load_image(self, image_index, pre_process):
         image_path = os.path.join(self.base_dir, self.img_info[self.image_ids[image_index]]['name'])
         image = np.asarray(Image.open(image_path).convert('RGB'))
-        if pre_process == "keras_like":
+        if pre_process == "published_roots":
             # transform the image to bgr
             return image[:, :, ::-1].copy()
         else:
             return image
-        return image
+
 
     def get_output_counting(self, image_name):
         annotations_group_num_of_points = self.load_annotations_num_of_points(image_name) #[count,class,box_id,length,diameter]
         annotations_group_points_center = self.load_annotations_points_centers(image_name) #[x,y,box_id]
 
         # # check validity of annotations
-        # image_group_0, annotations_group_leaves_center, annotations_group_num_of_leaves = self.filter_annotations(
-        #     image_group, annotations_group_leaves_center, annotations_group_num_of_leaves, group)
 
         return annotations_group_num_of_points, annotations_group_points_center
 
@@ -887,7 +791,6 @@ class KCSVDataset(Dataset):
                 centers[idx, 3] = annot['bbox_id']
             else:
                 centers[idx, 3] = -1
-
 
         return centers
 
@@ -911,7 +814,6 @@ class KCSVDataset(Dataset):
                     if self.labels[0]=="root":
                         counts[idx, 3] = annot['Root_Length']
                         counts[idx, 4] = annot['Root_Diameter']
-
 
                 else:
                     counts[idx, 0]=0
@@ -997,30 +899,6 @@ class KCSVDataset(Dataset):
         else:
             points_annotations = self.get_output_counting(image_name) #[counts: count, point class, box id, centers: x,y, point class, box id]
 
-        # if config.General.dataset_name == 'grapes':  # and filter_empty...
-        #     boxes_to_remove = []
-        #     for p_annot in points_annotations[0]:
-        #         if math.isnan(p_annot[1]):
-        #             boxes_to_remove.append(p_annot[2])
-        #
-        #     points_counts = points_annotations[0]
-        #     points_coords = points_annotations[1]
-        #     for box_id in boxes_to_remove:
-        #         # result1 = np.where(bbox_annot == box_id)
-        #         # bbox_annot=np.delete(bbox_annot,result1[0][0],0)
-        #         for idx1 in range(len(bbox_annotations)):
-        #             if bbox_annotations[idx1][5] == box_id:
-        #                 bbox_annotations = np.delete(bbox_annotations, [idx1], 0)
-        #                 break
-        #
-        #         # points_counts = np.delete(points_counts, result2[0][0],0)
-        #         for idx2 in range(len(points_counts)):
-        #             if points_counts[idx2][2] == box_id:
-        #                 points_counts = np.delete(points_counts, [idx2], 0)
-        #                 break
-        #
-        #     points_annotations = (points_counts, points_coords)
-
         return bbox_annotations, points_annotations
 
     def _read_annotations(self, csv_reader=None, classes=None, json_data=None):
@@ -1041,10 +919,6 @@ class KCSVDataset(Dataset):
                 else:
                     img_file = current['processed_name']
 
-                #if img_file == 'RAMATNEGEVWINES_T025_L077_2012.08.29_091305_001_YSI .jpg':
-                #    a=1
-
-
                 img = skimage.io.imread(os.path.join(self.base_dir,img_file))
                 img_H = img.shape[0]
                 img_W = img.shape[1]
@@ -1057,8 +931,6 @@ class KCSVDataset(Dataset):
                 bbox_id = 0
                 for img_key in current.keys():
                     if "root_" in img_key:
-                        #bbox_id +=1
-                        #bbox_id = int(img_key.split("_")[1])
                         points_in_box = current[img_key]['points']
                         points_num = int(len(points_in_box) / 2)
 
@@ -1091,7 +963,6 @@ class KCSVDataset(Dataset):
                         x2 = np.minimum(max_x + 10, img_W)
                         y2 = np.minimum(max_y + 10, img_H)
 
-
                         # result_bbox
 
                         # find box coordinates
@@ -1112,7 +983,6 @@ class KCSVDataset(Dataset):
                             else:
                                 color = -1
 
-
                             result_bbox[img_file].append({'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2,
                                                           'bbox_class': points_class, 'bbox_id': bbox_id,
                                                           'points': points_in_box,
@@ -1123,7 +993,6 @@ class KCSVDataset(Dataset):
                                                           'Root_Color': color})
 
                         bbox_id += 1
-
 
         else:
             for line, row in enumerate(csv_reader):
@@ -1152,14 +1021,6 @@ class KCSVDataset(Dataset):
                             'line {}: format should be \'img_file,x1,y1,x2,y2,class_name\' or \'img_file,x1,y1,class_name,,,,\''.format(line)),
                                    None)
 
-
-                # if x2 !=  ""  and y2 != "": # it's a bbox
-                #     if img_file not in result_bbox:
-                #         result_bbox[img_file] = []
-                #
-                # else: # it's a point
-                #     if img_file not in result_points:
-                #         result_points[img_file] = []
                 if img_file not in result_bbox:
                     result_bbox[img_file] = []
 
@@ -1239,8 +1100,6 @@ class KCSVDataset(Dataset):
                 if i not in boxes_to_remove
             ]
 
-
-
         return result_bbox, result_points
 
     def name_to_label(self, name):
@@ -1277,8 +1136,6 @@ class KCSVDataset(Dataset):
         :return:
         '''
         s = 3
-        # if (s >= radius[0]):
-        #     s = 1
         x = np.tile(range(nCols), (nRows, 1))
         y = np.tile(np.reshape(range(nRows), (nRows, 1)), (1, nCols))
 
@@ -1357,7 +1214,6 @@ def collater(data):
 
         if max_num_annots > 0:
             for idx, annot in enumerate(annots):
-                #print(annot.shape)
                 if annot.shape[0] > 0:
                     annot_padded[idx, :annot.shape[0], :] = annot
     else:
@@ -1390,14 +1246,12 @@ def LCC_collater(data):
         for i in range(len(annots)):
             annots[i][0] = np.asarray([annots[i][0][0:4]], dtype=np.float64)
 
-
     for i in range(len(imgs)):
-        imgs[i] = torch.tensor(imgs[i]) #, dtype=torch.double, device=torch.device('cuda:0'))
+        imgs[i] = torch.tensor(imgs[i])
 
         if have_GT:
             for j in range(len(annots[i])):
-                annots[i][j] = torch.tensor(annots[i][j]) #, dtype=torch.double, device=torch.device('cuda:0'))
-
+                annots[i][j] = torch.tensor(annots[i][j])
 
     max_width = np.array(widths).max()
     max_height = np.array(heights).max()
@@ -1410,7 +1264,6 @@ def LCC_collater(data):
     padded_imgs = padded_imgs.permute(0, 3, 1, 2)
 
     if have_GT:
-
         if len(annots) > 1:
             max_num_annots = max(len(annot) for annot in annots)
 
@@ -1429,7 +1282,6 @@ def LCC_collater(data):
                             annot_padded[idx, 0, :annot[0].shape[0], :annot[0].shape[1]] = annot[0]
                             for j in range(1, len(annot)):
                                 annot_padded[idx, j, :annot[j].shape[0], :annot[j].shape[1]] = annot[j]
-
 
             return {'img': padded_imgs, 'annot': annot_padded, 'scale': scales}
         else:
@@ -1453,25 +1305,17 @@ def LCC_collater(data):
 def kcsv_collater(data):
     imgs = [s['img'] for s in data]
     annots = [s['annot'] for s in data]
-    # scale_rows = [s['scale_rows'] for s in data]
-    # scale_cols = [s['scale_cols'] for s in data]
     scale = [s['scale'] for s in data]
-
     names = [s['img_name'] for s in data]
-
-    # if config.General.NETWORK_TYPE not in [config.NetworkType.detection, config.NetworkType.detection_and_counting]:
-    #     lean_version = data[0]['lean_version']
-
     widths = [int(s.shape[0]) for s in imgs]
     heights = [int(s.shape[1]) for s in imgs]
     batch_size = len(imgs)
 
     # Turn images and annotations to tensors
     for i in range(len(imgs)):
-        imgs[i] = torch.tensor(imgs[i]) #, dtype=torch.double, device=torch.device('cuda:0'))
+        imgs[i] = torch.tensor(imgs[i])
         # per image annotations:
-
-        if 'points_annot' in annots[i].keys(): # and not config.General.filter_empty_bbox:
+        if 'points_annot' in annots[i].keys():
             if len(annots[i]['points_annot']) > 0:
                 points_annot = annots[i]['points_annot']
             else:
@@ -1540,7 +1384,6 @@ def kcsv_collater(data):
     # points annotations
     #######################################################################################################
 
-
     points_annot = []
     for i in range(len(annots)):
        points_annot.append(annots[i]['points_annot'])
@@ -1564,14 +1407,10 @@ def kcsv_collater_2(data):
     padded_imgs = torch.zeros(batch_size, max_height, max_width, 3)
 
     for i in range(batch_size):
-        # imgs[i] = torch.tensor(imgs[i]) #, dtype=torch.double, device=torch.device('cuda:0'))
         img = imgs[i]
         padded_imgs[i, :int(img.shape[0]), :int(img.shape[1]), :] = img
 
     padded_imgs = padded_imgs.permute(0, 3, 1, 2)
-
-    # scale = [s['scale'] for s in data]
-    # lean_version = data[0]['lean_version']
 
     if 'annot' in data[0].keys():
         annots = [s['annot'] for s in data]
@@ -1579,14 +1418,14 @@ def kcsv_collater_2(data):
         # per image annotations:
         new_annots = []
         anns_number = len(annots[0])
-        for i in range(anns_number): #range(6):
+        for i in range(anns_number):
             ann = []
             for j in range(batch_size):
                 if i==0:
                     annots_temp = torch.tensor(annots[j][i]).float()
 
                 else:
-                    annots_temp = torch.tensor(annots[j][i]) #annots[j][i]
+                    annots_temp = torch.tensor(annots[j][i])
                 a = torch.unsqueeze(annots_temp, dim=0)
                 ann.append(a)
 
@@ -1598,12 +1437,8 @@ def kcsv_collater_2(data):
                 max_map_width = np.array(map_widths).max()
                 max_map_height = np.array(map_heights).max()
                 annot_padded = torch.ones((len(ann), max_map_height, max_map_width)) * -1
-                #import matplotlib.pyplot as plt
-                #plt.imsave('vis' + '/' + 'ann1' + '_Predicted.png', annotation_map_1)
 
                 for idx, annot in enumerate(ann):
-                    #temp = torch.ones((int(annot.shape[1]), int(annot.shape[2])), dtype=torch.float).cpu()* annot[0].data
-                    #annot_padded[idx, :annot.shape[1], :annot.shape[2]] = temp
                     annot_padded[idx, :annot.shape[1], :annot.shape[2]] = annot[0]
 
                 new_annots.append(annot_padded)
@@ -1615,32 +1450,11 @@ def kcsv_collater_2(data):
             roots_annot = [torch.unsqueeze(s['roots_annot'], dim=0) for s in data]
             new_annots.append(torch.cat(roots_annot, dim=0))
 
-            #roots_annot = [s['roots_annot'] for s in data]
-            # gt_box_color = []
-            # roots_length = []
-            # roots_dia = []
-            # for i in range(3):
-            #     ann = []
-            #     for j in range(batch_size):
-            #         annots_temp = torch.tensor(roots_annot[j][i])  # annots[j][i]
-            #         a = torch.unsqueeze(annots_temp, dim=0).float()
-            #         if i==0:
-            #            gt_box_color.append(a)
-            #         elif i==1:
-            #             roots_length.append(a)
-            #         elif i==2:
-            #             roots_dia.append(a)
-            #
-            # new_annots.append(torch.cat(gt_box_color, dim=0))
-            # new_annots.append(torch.cat(roots_length, dim=0))
-            # new_annots.append(torch.cat(roots_dia, dim=0))
-
             if 'gt_box_maps' in data[0].keys():
                 annots = [s['gt_box_maps'] for s in data]
 
                 # per image annotations:
                 box_annots = []
-
                 for i in range(5):
                     ann = []
                     for j in range(batch_size):
@@ -1660,16 +1474,11 @@ def kcsv_collater_2(data):
                         max_map_width = np.array(map_widths).max()
                         max_map_height = np.array(map_heights).max()
                         annot_padded = torch.ones((len(ann), max_map_height, max_map_width)) * -1
-                        # import matplotlib.pyplot as plt
-                        # plt.imsave('vis' + '/' + 'ann1' + '_Predicted.png', annotation_map_1)
 
                         for idx, annot in enumerate(ann):
-                            # temp = torch.ones((int(annot.shape[1]), int(annot.shape[2])), dtype=torch.float).cpu()* annot[0].data
-                            # annot_padded[idx, :annot.shape[1], :annot.shape[2]] = temp
                             annot_padded[idx, :annot.shape[1], :annot.shape[2]] = annot[0]
 
                         box_annots.append(annot_padded)
-
 
                 return {'img': padded_imgs, 'points_annot': new_annots, 'box_maps_annot': box_annots}
 
@@ -1690,7 +1499,6 @@ class Resizer(object):
         self.min_side = min_side
         self.max_side = max_side
         self.ann_type = ann_type
-
 
     def __call__(self, sample): #, min_side=608, max_side=1024):
 
@@ -1731,29 +1539,22 @@ class Resizer(object):
 
                     return {'img': torch.from_numpy(new_image), 'annot': torch.from_numpy(annots), 'scale': scale}
 
-                elif self.ann_type == 'count':
-                    #image_scale_rows = (rows + pad_w) / orig_rows #(rows + pad_w) / rows
-                    #image_scale_cols = (cols + pad_h) / orig_cols #(cols + pad_h) / cols
-
+                elif self.ann_type == 'attribute':
                     if len(annots) == 1 or len(annots[1])==0:
-                        annotations_group_num_of_leaves = annots
-                        annotations = [annotations_group_num_of_leaves]
+                        annotation_values = annots
+                        annotations = [annotation_values]
 
                     elif len(annots) == 2 :
-                        annotations_group_num_of_leaves, annotations_group_leaves_center = annots
+                        annotation_values, annotation_centers = annots
 
-                        annotations_group_leaves_center[:, 0] *= scale #scale #image_scale_rows
-                        annotations_group_leaves_center[:, 1] *= scale #scale #image_scale_cols
-                        #annotations_group_leaves_center[:,:2] *= scale
+                        annotation_centers[:, 0] *= scale
+                        annotation_centers[:, 1] *= scale
 
-                        annotations = [annotations_group_num_of_leaves, annotations_group_leaves_center]
+                        annotations = [annotation_values, annotation_centers]
 
                 return {'img': new_image, 'annot': annotations}
 
             else:
-
-                # image_scale_rows = (rows + pad_w) / orig_rows #(rows + pad_w) / rows
-                # image_scale_cols = (cols + pad_h) / orig_cols #(cols + pad_h) / cols
 
                 if 'bbox_annot' in annots.keys():
                     if len(annots['bbox_annot']) > 0:
@@ -1761,8 +1562,6 @@ class Resizer(object):
                         annots['bbox_annot'][:, 1] *= scale #image_scale_cols
                         annots['bbox_annot'][:, 2] *= scale #image_scale_rows
                         annots['bbox_annot'][:, 3] *= scale #image_scale_cols
-
-                    #annots['bbox_annot'][:, :4] *= scale
 
                 if 'points_annot' in annots.keys():
                     if len(annots['points_annot']) > 0:
@@ -1810,7 +1609,6 @@ class Normalizer(object):
 
         self.pre_process = pre_process
 
-
     def __call__(self, sample):
 
         if len(sample.keys())>1:
@@ -1825,27 +1623,12 @@ class Normalizer(object):
             else:
                 return {'img': ((image.astype(np.float32) - self.mean) / self.std)}
 
-
-        # for counting or per-object estimation
-        if self.pre_process == "torch_like":
+        if self.pre_process in {"imagenet_rgb", "published_roots"}:
             image = image.astype(np.float32) / 255.0
             if len(sample.keys()) > 1:
                 return {'img': ((image.astype(np.float32) - self.mean) / self.std), 'annot': annots}
             else:
                 return {'img': (image.astype(np.float32) - self.mean) / self.std}
-
-
-
-        elif self.pre_process == "keras_like":
-            image = image.astype(float)
-            image[..., 0] -= 103.939
-            image[..., 1] -= 116.779
-            image[..., 2] -= 123.68
-
-            if len(sample.keys()) > 1:
-                return {'img':image, 'annot': annots}
-            else:
-                return {'img': image}
 
 
 class UnNormalizer(object):
@@ -1870,7 +1653,6 @@ class UnNormalizer(object):
             t.mul_(s).add_(m)
         return tensor
 
-#Todo - UnNormalizer for 'keras_like' version
 
 class AspectRatioBasedSampler(Sampler):
 
@@ -1911,7 +1693,6 @@ class Resizer_2(object):
         self.max_side = max_side
         self.ann_type = ann_type
 
-
     def __call__(self, sample): #, min_side=608, max_side=1024):
 
         image, annots = sample['img'], sample['annot']
@@ -1940,18 +1721,12 @@ class Resizer_2(object):
         new_image = np.zeros((rows + pad_w, cols + pad_h, cns)).astype(np.float32)
         new_image[:rows, :cols, :] = image.astype(np.float32)
 
-        # image_scale_rows = (rows + pad_w) / orig_rows #(rows + pad_w) / rows
-        # image_scale_cols = (cols + pad_h) / orig_cols #(cols + pad_h) / cols
-
         if len(annots)>0:
-
             annotations_points_center = annots
             annotations_num_of_points = len(annots)
-
             for i in range(len(annots)):
                 annotations_points_center[i]['x'] *= scale
                 annotations_points_center[i]['y'] *= scale
-
 
             annots = [annotations_num_of_points, annotations_points_center]
 
@@ -1963,7 +1738,6 @@ class Normalizer_2(object):
     def __init__(self, pre_process=None):
         self.mean = torch.tensor(np.array([[[0.485, 0.456, 0.406]]])).float()
         self.std = torch.tensor(np.array([[[0.229, 0.224, 0.225]]])).float()
-
         self.pre_process = pre_process
 
 
@@ -1976,15 +1750,7 @@ class Normalizer_2(object):
             return {'img': ((image - self.mean) / self.std), 'annot': annots}
 
         # for counting or per-object estimation
-        if self.pre_process == "torch_like":
+        if self.pre_process in {"imagenet_rgb", "published_roots"}:
 
             image = image / 255.0
             return {'img': ((image - self.mean) / self.std), 'annot': annots}
-
-        elif self.pre_process == "keras_like":
-            image = image.astype(float)
-            image[..., 0] -= 103.939
-            image[..., 1] -= 116.779
-            image[..., 2] -= 123.68
-
-            return {'img':image, 'annot': annots}

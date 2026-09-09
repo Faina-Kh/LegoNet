@@ -182,3 +182,17 @@ visualizations is usually clearer.
 
 GT-only output is intended for annotation inspection rather than routine model
 evaluation. Its folder is not created unless `--draw-gt-only true` is passed.
+
+## Preprocessing contracts
+
+New training uses the `imagenet_rgb` contract: images remain RGB, are scaled to
+`[0, 1]`, and use the ImageNet RGB mean and standard deviation. Existing
+published grapevine-roots checkpoints use the historical `published_roots`
+contract: the raw RGB channels are reordered to BGR and then processed with the
+historical ImageNet normalization. This convention is retained to reproduce
+the published checkpoint results.
+
+Training initialized from a published Roots checkpoint inherits
+`published_roots`; training without checkpoint weights uses `imagenet_rgb`.
+The resolved contract is printed in Run Parameters and saved in
+`run_configuration.json`.

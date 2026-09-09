@@ -1,5 +1,15 @@
 # Grapevine roots dataset
 
+## Checkpoint preprocessing
+
+Published grapevine-roots checkpoints use the historical `published_roots`
+preprocessing contract: RGB files are presented to the model in BGR channel
+order and then processed with the legacy ImageNet normalization. This behavior
+is retained only to reproduce the published checkpoint results. New training
+without checkpoint weights uses standard ImageNet RGB preprocessing. Fine-tuning
+from a published Roots checkpoint inherits `published_roots`, and its resolved
+contract appears in Run Parameters and `run_configuration.json`.
+
 LegoNet's `roots_grapevines` configurations use the **Dataset of Grapevine Roots with
 Length, Diameter, and Color Annotations**. The dataset contains in-situ
 minirhizotron images with root-object locations and three attributes:

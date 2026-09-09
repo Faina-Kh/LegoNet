@@ -757,7 +757,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
             run_script="Inference",
             val_file="validation.txt",
             kcsv_classes="classes.txt",
-            pre_process="torch_like",
+            preprocessing_contract="imagenet_rgb",
             num_workers=0,
         )
         validation_dataset = object()
@@ -795,7 +795,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
             val_csv_leaf_number_file="validation.csv",
             val_csv_leaf_location_file="validation_points.csv",
             val_json_file="validation.json",
-            pre_process="torch_like",
+            preprocessing_contract="published_roots",
             base_dir="dataset",
             have_GT=True,
             num_workers=0,
@@ -812,8 +812,8 @@ class RunnerCharacterizationTests(unittest.TestCase):
         self.data_setup.csv_LCCDataset.assert_called_once()
         dataset_call = self.data_setup.csv_LCCDataset.call_args
         self.assertEqual(dataset_call[0][:2], ("validation.csv", "validation_points.csv"))
-        self.assertEqual(dataset_call[1]["pre_process"], "keras_like")
-        self.assertEqual(dataset_call[1]["ann_type"], "count")
+        self.assertEqual(dataset_call[1]["pre_process"], "published_roots")
+        self.assertNotIn("ann_type", dataset_call[1])
         self.assertEqual(dataset_call[1]["json_file"], "validation.json")
         self.assertEqual(dataset_call[1]["base_dir"], "dataset")
         self.assertTrue(dataset_call[1]["have_GT"])
@@ -838,7 +838,7 @@ class RunnerCharacterizationTests(unittest.TestCase):
             network_type="bbox_detection",
             run_script="Inference",
             val_json_file="validation.json",
-            pre_process="torch_like",
+            preprocessing_contract="published_roots",
             base_dir="dataset",
             have_GT=True,
             num_workers=0,

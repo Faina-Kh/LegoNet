@@ -197,6 +197,7 @@ def format_run_parameters(args: Any, configuration_path: Path) -> str:
         f"  Estimate type: {_public_estimate_type(args)}",
         f"  Split: {getattr(args, 'val_set', 'not applicable')}",
         *_device_lines(args),
+        f"  Preprocessing contract: {getattr(args, 'preprocessing_contract', 'unknown')}",
         "",
         "Storage and output",
         f"  Storage root: {getattr(args, 'STORAGE_PATH', 'unknown')}",

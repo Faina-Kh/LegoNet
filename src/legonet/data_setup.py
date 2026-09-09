@@ -52,15 +52,16 @@ def _build_coco_datasets(args: Any) -> Tuple[Any, Any]:
 
 def _build_kcsv_datasets(args: Any) -> Tuple[Any, Any]:
     """Build KCSV or roots-JSON datasets for the requested run mode."""
+    loader_preprocessing = args.preprocessing_contract
     if args.run_script == "Training":
         if args.dataset_type == "kcsv":
             dataset_train = KCSVDataset(
                 input_file=args.kcsv_train,
                 class_list=args.kcsv_classes,
-                pre_process=args.pre_process,
+                pre_process=args.preprocessing_contract,
                 transform=transforms.Compose(
                     [
-                        Normalizer(pre_process=args.pre_process),
+                        Normalizer(pre_process=args.preprocessing_contract),
                         Resizer(min_side=800, max_side=1333),
                     ]
                 ),
@@ -68,9 +69,10 @@ def _build_kcsv_datasets(args: Any) -> Tuple[Any, Any]:
         else:
             dataset_train = KCSVDataset(
                 input_file=args.train_json_file,
+                pre_process=loader_preprocessing,
                 transform=transforms.Compose(
                     [
-                        Normalizer(pre_process=args.pre_process),
+                        Normalizer(pre_process=args.preprocessing_contract),
                         Resizer(min_side=800, max_side=1333),
                     ]
                 ),
@@ -85,10 +87,10 @@ def _build_kcsv_datasets(args: Any) -> Tuple[Any, Any]:
             class_list=args.kcsv_classes,
             base_dir=getattr(args, "base_dir", None),
             have_GT=getattr(args, "have_GT", True),
-            pre_process=args.pre_process,
+            pre_process=args.preprocessing_contract,
             transform=transforms.Compose(
                 [
-                    Normalizer(pre_process=args.pre_process),
+                    Normalizer(pre_process=args.preprocessing_contract),
                     Resizer(min_side=800, max_side=1333),
                 ]
             ),
@@ -96,9 +98,10 @@ def _build_kcsv_datasets(args: Any) -> Tuple[Any, Any]:
     else:
         dataset_val = KCSVDataset(
             input_file=args.val_json_file,
+            pre_process=loader_preprocessing,
             transform=transforms.Compose(
                 [
-                    Normalizer(pre_process=args.pre_process),
+                    Normalizer(pre_process=args.preprocessing_contract),
                     Resizer(min_side=800, max_side=1333),
                 ]
             ),
@@ -113,16 +116,16 @@ def _build_kcsv_datasets(args: Any) -> Tuple[Any, Any]:
 
 def _build_lcc_datasets(args: Any) -> Tuple[Any, Any]:
     """Build per-image roots attribute datasets for the requested run mode."""
+    loader_preprocessing = args.preprocessing_contract
     if args.run_script == "Training":
         dataset_train = csv_LCCDataset(
             args.train_csv_leaf_number_file,
             args.train_csv_leaf_location_file,
-            pre_process="keras_like",
-            ann_type="count",
+            pre_process=loader_preprocessing,
             transform=transforms.Compose(
                 [
-                    Normalizer(pre_process=args.pre_process),
-                    Resizer(ann_type="count", min_side=800, max_side=1333),
+                    Normalizer(pre_process=args.preprocessing_contract),
+                    Resizer(ann_type="attribute", min_side=800, max_side=1333),
                 ]
             ),
             json_file=args.train_json_file,
@@ -133,12 +136,11 @@ def _build_lcc_datasets(args: Any) -> Tuple[Any, Any]:
     dataset_val = csv_LCCDataset(
         args.val_csv_leaf_number_file,
         args.val_csv_leaf_location_file,
-        pre_process="keras_like",
-        ann_type="count",
+        pre_process=loader_preprocessing,
         transform=transforms.Compose(
             [
-                Normalizer(pre_process=args.pre_process),
-                Resizer(ann_type="count", min_side=800, max_side=1333),
+                Normalizer(pre_process=args.preprocessing_contract),
+                Resizer(ann_type="attribute", min_side=800, max_side=1333),
             ]
         ),
         json_file=args.val_json_file,
