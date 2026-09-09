@@ -31,10 +31,7 @@ and checkpoints are not part of the current release.
 
 ## Grapevine roots
 
-The roots paper reports results aggregated over five folds. The historical
-fold definitions and complete fold-specific checkpoint set are unavailable,
-so the published individual checkpoints cannot reproduce those five-fold
-aggregates exactly.
+The provided checkpoints are from the original experiments but do not correspond directly to the results reported in the paper, which were aggregated across five folds. The historical fold definitions and the complete set of fold-specific checkpoints are no longer available; therefore, the provided checkpoints cannot be used to reproduce the reported five-fold aggregate results exactly.
 
 | Component | Published file | Size (MiB) | MD5 |
 |---|---|---:|---|
