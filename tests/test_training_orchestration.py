@@ -56,7 +56,7 @@ class TrainingOrchestrationTests(unittest.TestCase):
 
         self.assertEqual(
             output.getvalue(),
-            "Learning rate after epoch 12: group 0: 1e-06, group 1: 2.5e-07\n",
+            "Learning rate after epoch 12: group 0: 1e-06, group 1: 2.5e-07\n\n",
         )
 
     def test_running_loss_restarts_at_each_epoch(self):

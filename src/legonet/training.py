@@ -168,7 +168,7 @@ def _print_learning_rates(epoch: int, optimizer: Any) -> None:
         f"group {index}: {group['lr']:.10g}"
         for index, group in enumerate(optimizer.param_groups)
     )
-    print(f"Learning rate after epoch {epoch}: {rates}")
+    print(f"Learning rate after epoch {epoch}: {rates}\n")
 
 
 def _save_periodic_checkpoint(epoch: int, model: Any) -> None:
