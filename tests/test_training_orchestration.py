@@ -23,6 +23,92 @@ class TrainingOrchestrationTests(unittest.TestCase):
             training.PER_OBJECT_NETWORKS_WITH_FROZEN_DETECTOR,
         )
 
+    def test_epoch_summary_identifies_every_value_as_a_mean_loss(self):
+        """Component summaries distinguish losses from evaluation metrics."""
+        with mock.patch.object(training.utils, "printf") as printf:
+            training._print_epoch_summary(
+                4,
+                {
+                    "reg_estimation": [2.0, 4.0],
+                    "maps": [1.0, 3.0],
+                    "unused": [],
+                },
+            )
+
+        self.assertEqual(
+            printf.call_args.args,
+            (
+                "Epoch %d summary: %s\n",
+                4,
+                "reg_estimation mean loss 3.00000, maps mean loss 2.00000",
+            ),
+        )
+
+    def test_learning_rate_report_uses_post_scheduler_optimizer_values(self):
+        """The epoch report displays every optimizer parameter-group rate."""
+        optimizer = SimpleNamespace(
+            param_groups=[{"lr": 1e-6}, {"lr": 2.5e-7}]
+        )
+        output = io.StringIO()
+
+        with redirect_stdout(output):
+            training._print_learning_rates(12, optimizer)
+
+        self.assertEqual(
+            output.getvalue(),
+            "Learning rate after epoch 12: group 0: 1e-06, group 1: 2.5e-07\n",
+        )
+
+    def test_running_loss_restarts_at_each_epoch(self):
+        """Progress output reports the current epoch mean, not a rolling window."""
+        args = SimpleNamespace(
+            epochs=2,
+            network_type="per_image_estimation",
+            estimate_type="withKeyPoints",
+            evaluate_detection=False,
+            choose_epoch_by_IoUavg=False,
+        )
+        model = mock.Mock()
+        sampler = SimpleNamespace(groups=[[0]])
+        results = [
+            training.LossResult(
+                SimpleNamespace(item=lambda value=value: value),
+                {"l1_estimation": value, "maps": 0.0},
+            )
+            for value in (10.0, 20.0)
+        ]
+
+        with (
+            mock.patch.object(training.optim, "Adam"),
+            mock.patch.object(
+                training.optim.lr_scheduler, "ReduceLROnPlateau"
+            ) as reduce_on_plateau,
+            mock.patch.object(training, "run_training_step", side_effect=results),
+            mock.patch.object(training, "_print_step") as print_step,
+            mock.patch.object(training, "_print_epoch_summary"),
+            mock.patch.object(training, "_evaluate_per_image_attribute_epoch"),
+            mock.patch.object(training, "_print_best_training_error"),
+        ):
+            training.train_model(
+                args,
+                model,
+                dataset_train=[object()],
+                dataset_val=[object()],
+                sampler=sampler,
+                sampler_val=object(),
+                dataloader_train=[{}],
+                dataloader_val=object(),
+            )
+
+        self.assertEqual(
+            [call.args[4] for call in print_step.call_args_list],
+            [10.0, 20.0],
+        )
+        self.assertEqual(
+            reduce_on_plateau.call_args.kwargs,
+            {"patience": 3, "verbose": True},
+        )
+
     def test_per_object_detector_is_evaluated_once_before_training(self):
         args = SimpleNamespace(
             network_type="per_object_counting",

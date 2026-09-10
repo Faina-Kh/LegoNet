@@ -1,6 +1,5 @@
 """Epoch-level training orchestration for LegoNet models."""
 
-import collections
 import gc
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -156,11 +155,20 @@ def _print_step(epoch: int, iteration: int, args: Any, result: LossResult, runni
 def _print_epoch_summary(epoch: int, history: Dict[str, List[float]]) -> None:
     """Print mean values for every populated epoch loss component."""
     summaries = [
-        f"{name} mean {np.mean(values):.5f}"
+        f"{name} mean loss {np.mean(values):.5f}"
         for name, values in history.items()
         if values
     ]
     utils.printf("Epoch %d summary: %s\n", epoch, ", ".join(summaries))
+
+
+def _print_learning_rates(epoch: int, optimizer: Any) -> None:
+    """Print learning rates selected by the scheduler for the next epoch."""
+    rates = ", ".join(
+        f"group {index}: {group['lr']:.10g}"
+        for index, group in enumerate(optimizer.param_groups)
+    )
+    print(f"Learning rate after epoch {epoch}: {rates}")
 
 
 def _save_periodic_checkpoint(epoch: int, model: Any) -> None:
@@ -377,9 +385,8 @@ def train_model(
     model.training = True
     optimizer = optim.Adam(model.parameters(), lr=1e-5)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience=3, eps=0.0001
+        optimizer, patience=3, verbose=True
     )
-    running_losses = collections.deque(maxlen=500)
     best = BestMetrics()
     _evaluate_frozen_detector_before_training(
         args,
@@ -415,10 +422,9 @@ def train_model(
             if result is None:
                 continue
             total_value = result.total.item()
-            running_losses.append(total_value)
             epoch_losses.append(total_value)
             _record_losses(component_history, result)
-            _print_step(epoch, iteration, args, result, float(np.mean(running_losses)))
+            _print_step(epoch, iteration, args, result, float(np.mean(epoch_losses)))
             gc.collect()
 
         _print_epoch_summary(epoch, component_history)
@@ -435,6 +441,7 @@ def train_model(
                 args, epoch, model, dataset_val, dataloader_val, sampler_val, best
             )
         scheduler.step(np.mean(epoch_losses))
+        _print_learning_rates(epoch, optimizer)
 
     if args.network_type != "bbox_detection":
         _print_best_training_error(args, best)
