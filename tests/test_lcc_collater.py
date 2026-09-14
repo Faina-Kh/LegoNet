@@ -3,7 +3,7 @@
 import numpy as np
 import torch
 
-from legonet.my_dataloader import LCC_collater
+from legonet.my_dataloader import LCC_collater, Resizer
 
 
 def _sample(attribute_value: float) -> dict:
@@ -35,3 +35,19 @@ def test_lcc_collater_preserves_five_keypoint_maps() -> None:
     assert len(batch["annot"]) == 6
     for target_map in batch["annot"][1:]:
         assert target_map.shape == torch.Size([1, 4, 4])
+
+
+def test_attribute_resizer_preserves_empty_keypoint_channel() -> None:
+    """A zero-point image must still follow the keypoint-training path."""
+    sample = {
+        "img": np.zeros((32, 32, 3), dtype=np.float32),
+        "annot": [
+            np.asarray([[0.0, 0.0]], dtype=np.float64),
+            np.zeros((0, 3), dtype=np.float64),
+        ],
+    }
+
+    resized = Resizer(ann_type="attribute", min_side=32, max_side=32)(sample)
+
+    assert len(resized["annot"]) == 2
+    assert resized["annot"][1].shape == (0, 3)

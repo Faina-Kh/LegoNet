@@ -1553,7 +1553,7 @@ class Resizer(object):
                     return {'img': torch.from_numpy(new_image), 'annot': torch.from_numpy(annots), 'scale': scale}
 
                 elif self.ann_type == 'attribute':
-                    if len(annots) == 1 or len(annots[1])==0:
+                    if len(annots) == 1:
                         annotation_values = annots
                         annotations = [annotation_values]
 
