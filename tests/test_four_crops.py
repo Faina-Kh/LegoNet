@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from legonet.four_crops import resolve_four_crops_split
+from legonet.my_dataloader import csv_LCCDataset
 
 
 def _write_pair(directory: Path, stem: str, rows: list[tuple[str, str]]) -> None:
@@ -116,6 +117,17 @@ def test_accepts_published_trailing_empty_coordinate_columns(tmp_path: Path) -> 
     result = resolve_four_crops_split(tmp_path, "dataset_2", "Train")
 
     assert result.points_file == split / "Train_pointsOutput.csv"
+
+
+def test_loader_returns_empty_centers_for_image_without_points() -> None:
+    """Zero-point images must produce an empty center array, not an IndexError."""
+    dataset = csv_LCCDataset.__new__(csv_LCCDataset)
+    dataset.centers_images_names = ["empty.jpg"]
+    dataset.image_data_attribute_location = {"empty.jpg": []}
+
+    centers = dataset.load_annotations_attribute_centers(0)
+
+    assert centers.shape == (0, 3)
 
 
 def test_rejects_nonfinite_coordinates(tmp_path: Path) -> None:

@@ -480,12 +480,11 @@ class csv_LCCDataset(Dataset):
         path = self.centers_images_names[image_index]
         annots = self.image_data_attribute_location[path]
         centers = np.zeros((len(annots), 3))
-        if len(annots[0]) > 0:
-            for idx, annot in enumerate(annots):
-                class_name = annot['class']
-                centers[idx, 0] = float(annot['x'])
-                centers[idx, 1] = float(annot['y'])
-                centers[idx, 2] = self.name_to_label(class_name)
+        for idx, annot in enumerate(annots):
+            class_name = annot['class']
+            centers[idx, 0] = float(annot['x'])
+            centers[idx, 1] = float(annot['y'])
+            centers[idx, 2] = self.name_to_label(class_name)
 
         return centers
 
