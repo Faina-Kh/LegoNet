@@ -410,7 +410,6 @@ class csv_LCCDataset(Dataset):
                     result[img_file] = []
 
                 if len(row)==1:
-                    result[img_file].append({})
                     continue
 
                 if row[1]=="":

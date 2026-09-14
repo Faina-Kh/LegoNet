@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import csv
+import io
 from pathlib import Path
 
 import pytest
 
+from legonet import config
 from legonet.four_crops import resolve_four_crops_split
 from legonet.my_dataloader import csv_LCCDataset
 
@@ -128,6 +130,18 @@ def test_loader_returns_empty_centers_for_image_without_points() -> None:
     centers = dataset.load_annotations_attribute_centers(0)
 
     assert centers.shape == (0, 3)
+
+
+def test_loader_parses_filename_only_row_as_no_points(monkeypatch) -> None:
+    """Published filename-only rows must not create empty annotation records."""
+    monkeypatch.setattr(config.General, "dataset_name", "roots_four_crops")
+    dataset = csv_LCCDataset.__new__(csv_LCCDataset)
+
+    annotations = dataset._read_annotations_attribute_locations(
+        csv.reader(io.StringIO("empty.jpg\n"))
+    )
+
+    assert annotations == {"empty.jpg": []}
 
 
 def test_rejects_nonfinite_coordinates(tmp_path: Path) -> None:
