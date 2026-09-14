@@ -49,8 +49,12 @@ def test_writes_separate_metrics_for_each_dataset_4_subfolder(tmp_path: Path) ->
     assert rows[0]["images"] == "2"
     assert rows[0]["mean_relative_deviation_gt_positive"] == "0.15000000000000002"
     assert rows[1]["point_mAP"] == "1.0"
-    assert "CORN: images=2" in summary
-    assert "MELON: images=1" in summary
+    lines = summary.splitlines()
+    assert lines[0] == "Dataset 4 per-subfolder metrics"
+    assert "Subfolder" in lines[1]
+    assert "Point mAP" in lines[1]
+    assert any(line.startswith("CORN ") and " 2 " in line for line in lines)
+    assert any(line.startswith("MELON") and " 1 " in line for line in lines)
 
 
 def test_regression_subfolder_csv_omits_point_map_column(tmp_path: Path) -> None:
@@ -72,4 +76,4 @@ def test_regression_subfolder_csv_omits_point_map_column(tmp_path: Path) -> None
     with output.open(encoding="utf-8", newline="") as input_file:
         row = next(csv.DictReader(input_file))
     assert "point_mAP" not in row
-    assert "point mAP" not in summary
+    assert "Point mAP" not in summary

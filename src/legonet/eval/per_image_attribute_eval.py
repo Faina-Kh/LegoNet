@@ -53,6 +53,20 @@ def _format_metric(value: float | None) -> str:
     return "n/a" if value is None or not np.isfinite(value) else f"{value:.3f}"
 
 
+def _format_table(headers: list[str], rows: list[list[str]]) -> str:
+    """Format a dependency-free table for console and text-file summaries."""
+    widths = [
+        max(len(header), *(len(row[index]) for row in rows))
+        for index, header in enumerate(headers)
+    ]
+
+    def format_row(row: list[str]) -> str:
+        return " | ".join(value.ljust(widths[index]) for index, value in enumerate(row))
+
+    separator = "-+-".join("-" * width for width in widths)
+    return "\n".join((format_row(headers), separator, *(format_row(row) for row in rows)))
+
+
 def write_dataset_4_subfolder_metrics(
     groups: Mapping[str, Mapping[str, list[float]]],
     output_directory: str | Path,
@@ -61,7 +75,7 @@ def write_dataset_4_subfolder_metrics(
     """Write per-acquisition Dataset 4 TRL and optional keypoint metrics."""
     output_path = Path(output_directory) / "per_subfolder_TRL_metrics.csv"
     rows = []
-    summary_lines = ["Dataset 4 per-subfolder metrics"]
+    summary_rows: list[list[str]] = []
     for subfolder in sorted(groups):
         values = groups[subfolder]
         ground_truth = values["ground_truth"]
@@ -96,14 +110,18 @@ def write_dataset_4_subfolder_metrics(
         if include_point_ap:
             row.append(point_ap)
         rows.append(row)
-        summary_lines.append(
-            f"{subfolder}: images={len(ground_truth)} | "
-            f"MAE={_format_metric(metrics.mean_absolute_error)} | "
-            f"MSE (gt > 0)={_format_metric(mse_nonzero)} | "
-            f"MRD (gt > 0)={_format_metric(metrics.mean_relative_error)} | "
-            f"1-FVU={_format_metric(metrics.one_minus_fvu)}"
-            + (f" | point mAP={_format_metric(point_ap)}" if include_point_ap else "")
-        )
+        summary_row = [
+            subfolder,
+            str(len(ground_truth)),
+            str(len(nonzero_pairs)),
+            _format_metric(metrics.mean_absolute_error),
+            _format_metric(mse_nonzero),
+            _format_metric(metrics.mean_relative_error),
+            _format_metric(metrics.one_minus_fvu),
+        ]
+        if include_point_ap:
+            summary_row.append(_format_metric(point_ap))
+        summary_rows.append(summary_row)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8", newline="") as output_file:
         writer = csv.writer(output_file)
@@ -120,7 +138,24 @@ def write_dataset_4_subfolder_metrics(
             columns.append("point_mAP")
         writer.writerow(columns)
         writer.writerows(rows)
-    return output_path, "\n".join(summary_lines)
+    summary_headers = [
+        "Subfolder",
+        "Images",
+        "GT > 0",
+        "MAE",
+        "MSE (GT > 0)",
+        "MRD (GT > 0)",
+        "1-FVU",
+    ]
+    if include_point_ap:
+        summary_headers.append("Point mAP")
+    summary = "\n".join(
+        (
+            "Dataset 4 per-subfolder metrics",
+            _format_table(summary_headers, summary_rows),
+        )
+    )
+    return output_path, summary
 
 
 def evaluate(
