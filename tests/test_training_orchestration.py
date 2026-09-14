@@ -222,6 +222,43 @@ class TrainingOrchestrationTests(unittest.TestCase):
             )
         )
 
+    def test_final_summary_is_restored_from_selected_best_epoch(self):
+        """A later inferior epoch cannot replace the final structured summary."""
+        args = SimpleNamespace(
+            eval_in_train=True,
+            per_image_evaluation_summary="",
+        )
+        best = training.BestMetrics()
+        model = mock.Mock()
+
+        def evaluate(_loader, _dataset, _model, evaluation_args):
+            summaries = [
+                (0.2, "Evaluation Summary - per-image estimation\nbest"),
+                (0.4, "Evaluation Summary - per-image estimation\nlatest"),
+            ]
+            metric, summary = summaries[evaluate.calls]
+            evaluate.calls += 1
+            evaluation_args.per_image_evaluation_summary = summary
+            return SimpleNamespace(metric_name="relative_error", metric_value=metric)
+
+        evaluate.calls = 0
+        with mock.patch.object(
+            training.per_image_attribute_eval,
+            "evaluate_checkpoint_metrics",
+            side_effect=evaluate,
+        ), mock.patch.object(training, "save_epoch_checkpoint"):
+            training._evaluate_per_image_attribute_epoch(
+                args, 3, model, "dataset", "loader", best
+            )
+            training._evaluate_per_image_attribute_epoch(
+                args, 4, model, "dataset", "loader", best
+            )
+
+        self.assertIn("latest", args.per_image_evaluation_summary)
+        training._restore_best_evaluation_summaries(args, best)
+        self.assertIn("best", args.per_image_evaluation_summary)
+        self.assertNotIn("latest", args.per_image_evaluation_summary)
+
     def test_best_training_error_reports_missing_validation(self):
         """Training completion is explicit when no valid error was produced."""
         args = SimpleNamespace(choose_epoch_by_IoUavg=False)

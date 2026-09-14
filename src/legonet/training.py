@@ -1,7 +1,7 @@
 """Epoch-level training orchestration for LegoNet models."""
 
 import gc
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -37,6 +37,27 @@ class BestMetrics:
     checkpoint_metric_name: Optional[str] = None
     checkpoint_metric_value: Optional[float] = None
     checkpoint_metric_epoch: Optional[int] = None
+    evaluation_summaries: Dict[str, str] = field(default_factory=dict)
+
+
+EVALUATION_SUMMARY_ATTRIBUTES = (
+    "per_object_evaluation_summary",
+    "per_image_evaluation_summary",
+)
+
+
+def _capture_best_evaluation_summaries(args: Any, best: BestMetrics) -> None:
+    """Keep the structured summaries produced by the selected best epoch."""
+    best.evaluation_summaries = {
+        attribute: getattr(args, attribute, "")
+        for attribute in EVALUATION_SUMMARY_ATTRIBUTES
+    }
+
+
+def _restore_best_evaluation_summaries(args: Any, best: BestMetrics) -> None:
+    """Expose best-epoch summaries to final CLI and Streamlit reporting."""
+    for attribute, summary in best.evaluation_summaries.items():
+        setattr(args, attribute, summary)
 
 
 def _print_best_error_checkpoint_notice(
@@ -266,6 +287,7 @@ def _evaluate_per_image_attribute_epoch(
         best.checkpoint_metric_name = summary.metric_name
         best.checkpoint_metric_value = metric_value
         best.checkpoint_metric_epoch = epoch
+        _capture_best_evaluation_summaries(args, best)
         save_epoch_checkpoint(model, epoch, replace_existing=True)
 
 
@@ -319,6 +341,7 @@ def _evaluate_combined_epoch(
             )
             best.average_relative_error = average_error
             best.average_relative_error_epoch = epoch
+            _capture_best_evaluation_summaries(args, best)
             save_epoch_checkpoint(model, epoch, replace_existing=True)
         return
     summary = evaluate_per_object_checkpoint_metrics(
@@ -345,6 +368,7 @@ def _evaluate_combined_epoch(
         best.checkpoint_metric_name = summary.metric_name
         best.checkpoint_metric_value = metric_value
         best.checkpoint_metric_epoch = epoch
+        _capture_best_evaluation_summaries(args, best)
         save_epoch_checkpoint(model, epoch, replace_existing=True)
 
 
@@ -445,5 +469,6 @@ def train_model(
 
     if args.network_type != "bbox_detection":
         _print_best_training_error(args, best)
+    _restore_best_evaluation_summaries(args, best)
 
     model.eval()
