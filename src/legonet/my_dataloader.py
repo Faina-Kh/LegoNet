@@ -427,8 +427,8 @@ class csv_LCCDataset(Dataset):
                     #     raise (ValueError('image {}: doesnt contain label\''.format(img_file)), None)
 
                     x, y = row[i], row[i+1]
-                    x1 = self._parse(x, int, 'line {}: malformed x1: {{}}'.format(line))
-                    y1 = self._parse(y, int, 'line {}: malformed y1: {{}}'.format(line))
+                    x1 = self._parse(x, float, 'line {}: malformed x1: {{}}'.format(line))
+                    y1 = self._parse(y, float, 'line {}: malformed y1: {{}}'.format(line))
 
                     # Check that the bounding box is valid.
                     if x1 < 0:

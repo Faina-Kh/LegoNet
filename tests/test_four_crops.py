@@ -88,3 +88,30 @@ def test_accepts_published_negative_boundary_coordinates(tmp_path: Path) -> None
     result = resolve_four_crops_split(tmp_path, "dataset_1", "Test")
 
     assert result.points_file == split / "Test_pointsOutput.csv"
+
+
+def test_accepts_published_decimal_coordinates(tmp_path: Path) -> None:
+    """Dataset 2 point annotations may contain sub-pixel coordinates."""
+    split = tmp_path / "sub_Train"
+    _write_pair(split, "Train", [("root.jpg", "2")])
+    (split / "Train_pointsOutput.csv").write_text(
+        "root.jpg,12.5,8.25\n",
+        encoding="utf-8",
+    )
+
+    result = resolve_four_crops_split(tmp_path, "dataset_2", "Train")
+
+    assert result.points_file == split / "Train_pointsOutput.csv"
+
+
+def test_rejects_nonfinite_coordinates(tmp_path: Path) -> None:
+    """Permitting decimals must not permit NaN or infinite coordinates."""
+    split = tmp_path / "sub_Train"
+    _write_pair(split, "Train", [("root.jpg", "2")])
+    (split / "Train_pointsOutput.csv").write_text(
+        "root.jpg,nan,8.25\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="Coordinates must be finite"):
+        resolve_four_crops_split(tmp_path, "dataset_2", "Train")
