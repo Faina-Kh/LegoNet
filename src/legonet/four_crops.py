@@ -65,6 +65,8 @@ def _read_points(path: Path) -> dict[PurePosixPath, list[str]]:
                 raise ValueError(f"Empty row in {path} line {line}.")
             image = _safe_image_name(row[0], path, line)
             coordinates = [value.strip() for value in row[1:]]
+            while coordinates and coordinates[-1] == "":
+                coordinates.pop()
             if len(coordinates) % 2:
                 raise ValueError(f"Expected x,y coordinate pairs in {path} line {line}.")
             try:

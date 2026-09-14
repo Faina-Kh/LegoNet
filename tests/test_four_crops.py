@@ -104,6 +104,20 @@ def test_accepts_published_decimal_coordinates(tmp_path: Path) -> None:
     assert result.points_file == split / "Train_pointsOutput.csv"
 
 
+def test_accepts_published_trailing_empty_coordinate_columns(tmp_path: Path) -> None:
+    """Fixed-width published rows may pad valid coordinate pairs with blanks."""
+    split = tmp_path / "sub_Train"
+    _write_pair(split, "Train", [("root.jpg", "2")])
+    (split / "Train_pointsOutput.csv").write_text(
+        "root.jpg,2324,1749,2575,1668,,,,\n",
+        encoding="utf-8",
+    )
+
+    result = resolve_four_crops_split(tmp_path, "dataset_2", "Train")
+
+    assert result.points_file == split / "Train_pointsOutput.csv"
+
+
 def test_rejects_nonfinite_coordinates(tmp_path: Path) -> None:
     """Permitting decimals must not permit NaN or infinite coordinates."""
     split = tmp_path / "sub_Train"

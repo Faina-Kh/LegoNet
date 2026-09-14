@@ -416,9 +416,17 @@ class csv_LCCDataset(Dataset):
                 if row[1]=="":
                     continue
 
-                points_in_row = (len(row)-1)/2
+                coordinates = [value.strip() for value in row[1:]]
+                while coordinates and coordinates[-1] == "":
+                    coordinates.pop()
+                if len(coordinates) % 2:
+                    raise ValueError(
+                        'line {}: expected x,y coordinate pairs'.format(line)
+                    )
+
+                points_in_row = len(coordinates) // 2
                 count=0
-                i=1
+                i=0
                 while count < points_in_row:
                     count+=1
 
@@ -426,7 +434,7 @@ class csv_LCCDataset(Dataset):
                     # if (x, y) == ('', ''):
                     #     raise (ValueError('image {}: doesnt contain label\''.format(img_file)), None)
 
-                    x, y = row[i], row[i+1]
+                    x, y = coordinates[i], coordinates[i+1]
                     x1 = self._parse(x, float, 'line {}: malformed x1: {{}}'.format(line))
                     y1 = self._parse(y, float, 'line {}: malformed y1: {{}}'.format(line))
 
